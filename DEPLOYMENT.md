@@ -7,6 +7,8 @@ AgriLink requires a **Node.js 20+ server** that can make a private TCP connectio
 ```text
 NODE_ENV=production
 DATABASE_URL=mysql://USER:PASSWORD@DATABASE_HOST:3306/agrilink
+# Set this when the selected managed MySQL provider requires TLS.
+DATABASE_SSL=required
 SESSION_SECRET=use-a-long-random-secret
 INITIAL_MANAGEMENT_SETUP_SECRET=one-long-random-one-time-secret
 NITRO_HOST=0.0.0.0

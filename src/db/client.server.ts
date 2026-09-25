@@ -14,6 +14,12 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL is missing. Add it to .env.local before starting AgriLink.");
 }
 
-const pool = createPool(databaseUrl);
+// Local XAMPP typically does not use TLS, while managed MySQL providers do.
+// Keep TLS opt-in so a local installation still works, but do not disable
+// certificate verification for a hosted database.
+const pool =
+  process.env["DATABASE_SSL"] === "required"
+    ? createPool({ uri: databaseUrl, ssl: { rejectUnauthorized: true } })
+    : createPool(databaseUrl);
 
 export const db = drizzle(pool, { schema, mode: "default" });

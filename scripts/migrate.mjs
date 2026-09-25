@@ -10,7 +10,11 @@ dotenv.config();
 const databaseUrl = process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("Set DATABASE_URL before running migrations.");
 
-const connection = await mysql.createConnection({ uri: databaseUrl, multipleStatements: true });
+const connection = await mysql.createConnection({
+  uri: databaseUrl,
+  multipleStatements: true,
+  ...(process.env.DATABASE_SSL === "required" ? { ssl: { rejectUnauthorized: true } } : {}),
+});
 const legacySchemaOnlyMigrations = new Set([
   "0001_operational_tables_and_demo_seed.sql",
   "0002_production_records.sql",
