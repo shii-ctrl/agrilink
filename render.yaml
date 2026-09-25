@@ -2,7 +2,9 @@ services:
   - type: web
     name: agrilink-api
     runtime: node
-    plan: starter
+    # Free is suitable for a thesis demo with an external MySQL provider.
+    # It may spin down when idle; use a paid plan before a real public launch.
+    plan: free
     buildCommand: npm ci && npm run build
     startCommand: npm run preview
     healthCheckPath: /
@@ -14,6 +16,8 @@ services:
         value: 0.0.0.0
       - key: DATABASE_URL
         sync: false
+      - key: DATABASE_SSL
+        value: required
       - key: SESSION_SECRET
         generateValue: true
       - key: INITIAL_MANAGEMENT_SETUP_SECRET

@@ -53,3 +53,15 @@ Render. This is still a web application and is the safe staging deployment.
    `INITIAL_MANAGEMENT_SETUP_SECRET` and redeploy.
 
 Do not run development seeds against the cloud database.
+
+## Layerbase thesis-demo option
+
+For a no-card thesis demo, Render can host the Node application on its free
+plan while Layerbase hosts MariaDB remotely. MariaDB uses the MySQL wire
+protocol, so AgriLink's mysql2 and Drizzle MySQL setup work without a database
+code rewrite. Create a free MariaDB database at https://layerbase.com, then
+set Render's `DATABASE_URL` to the connection URL supplied by Layerbase and
+set `DATABASE_SSL=required` because Layerbase uses TLS by default.
+
+Use the database only for the thesis demo until backups, access restrictions,
+and a paid production plan have been reviewed.
