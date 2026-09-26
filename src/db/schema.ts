@@ -81,16 +81,19 @@ export const inventory = mysqlTable(
   {
     id: varchar("id", { length: 36 }).primaryKey(),
     productId: varchar("product_id", { length: 36 }).notNull(),
+    farmerId: varchar("farmer_id", { length: 36 }),
     classificationId: int("classification_id").notNull(),
     quantityKg: decimal("quantity_kg", { precision: 12, scale: 2 }).notNull(),
     reservedKg: decimal("reserved_kg", { precision: 12, scale: 2 }).default("0").notNull(),
     updatedAt,
   },
   (table) => [
-    uniqueIndex("inventory_product_classification_unique").on(
+    uniqueIndex("inventory_product_classification_farmer_unique").on(
       table.productId,
       table.classificationId,
+      table.farmerId,
     ),
+    index("inventory_farmer_idx").on(table.farmerId, table.productId),
   ],
 );
 export const receivingRecords = mysqlTable("receiving_records", {

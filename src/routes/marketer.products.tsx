@@ -35,7 +35,18 @@ type MarketplaceListing = {
   quantityKg: number;
   description: string;
   image: string;
+  farmer: string | null;
 };
+
+const cropTypes = [
+  "Leafy vegetable",
+  "Root vegetable",
+  "Fruiting vegetable",
+  "Cruciferous vegetable",
+  "Legume",
+  "Herb",
+  "Other",
+] as const;
 
 function MarketerProductsPage() {
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
@@ -88,6 +99,7 @@ function MarketerProductsPage() {
                     <tr>
                       <th className="px-6 py-4 font-medium">Image</th>
                       <th className="px-6 py-4 font-medium">Product</th>
+                      <th className="px-6 py-4 font-medium">Farmer owner</th>
                       <th className="px-6 py-4 font-medium">Crop Type</th>
                       <th className="px-6 py-4 font-medium">Classification</th>
                       <th className="px-6 py-4 font-medium">Price</th>
@@ -108,6 +120,7 @@ function MarketerProductsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 font-medium">{listing.name}</td>
+                        <td className="px-6 py-4">{listing.farmer ?? "Legacy / mixed stock"}</td>
                         <td className="px-6 py-4 text-muted-foreground">{listing.cropType}</td>
                         <td
                           className={`px-6 py-4 font-medium ${listing.classification === "Good" ? "text-good" : listing.classification === "Semi" ? "text-semi" : "text-reject"}`}
@@ -175,13 +188,22 @@ function MarketerProductsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="catalog-crop-type">Crop type</Label>
-                  <Input
+                  <select
                     id="catalog-crop-type"
                     name="cropType"
-                    placeholder="e.g. Leafy vegetable"
-                    minLength={2}
                     required
-                  />
+                    defaultValue=""
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="" disabled>
+                      Choose a crop type
+                    </option>
+                    {cropTypes.map((cropType) => (
+                      <option key={cropType} value={cropType}>
+                        {cropType}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="catalog-description">Description (optional)</Label>
@@ -272,7 +294,8 @@ function MarketerProductsPage() {
                     </option>
                     {publishableInventory.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.name} — {item.classification} ({item.quantityKg} kg)
+                        {item.name} — {item.classification} ·{" "}
+                        {item.farmer ?? "Legacy / mixed stock"} ({item.quantityKg} kg)
                       </option>
                     ))}
                   </select>

@@ -121,8 +121,8 @@ export const recordReceivingDelivery = createServerFn({ method: "POST" })
           quantityKg: amount.toFixed(2),
         });
         await tx.execute(sql`
-          INSERT INTO inventory (id, product_id, classification_id, quantity_kg, reserved_kg, updated_at)
-          VALUES (${crypto.randomUUID()}, ${data.productId}, ${classification.id}, ${amount.toFixed(2)}, '0', CURRENT_TIMESTAMP)
+          INSERT INTO inventory (id, product_id, farmer_id, classification_id, quantity_kg, reserved_kg, updated_at)
+          VALUES (${crypto.randomUUID()}, ${data.productId}, ${data.farmerId}, ${classification.id}, ${amount.toFixed(2)}, '0', CURRENT_TIMESTAMP)
           ON DUPLICATE KEY UPDATE quantity_kg = quantity_kg + VALUES(quantity_kg), updated_at = CURRENT_TIMESTAMP
         `);
         const [current] = await tx
@@ -131,6 +131,7 @@ export const recordReceivingDelivery = createServerFn({ method: "POST" })
           .where(
             and(
               eq(inventory.productId, data.productId),
+              eq(inventory.farmerId, data.farmerId),
               eq(inventory.classificationId, classification.id),
             ),
           );
@@ -232,6 +233,31 @@ export const getFarmerReceivingRecords = createServerFn({ method: "GET" }).handl
   const { requireRole } = await import("@/lib/auth-server");
   const farmer = await requireRole("Farmer");
   return receiveRows(farmer.id);
+});
+
+export const getFarmerProductStatuses = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/lib/auth-server");
+  const farmer = await requireRole("Farmer");
+  const { db } = await import("@/db/client.server");
+  const { classifications, inventory, listings, products } = await import("@/db/schema");
+  const rows = await db
+    .select({
+      id: inventory.id,
+      product: products.name,
+      classification: classifications.name,
+      availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
+      listingStatus: listings.status,
+    })
+    .from(inventory)
+    .innerJoin(products, eq(inventory.productId, products.id))
+    .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+    .leftJoin(listings, eq(listings.inventoryId, inventory.id))
+    .where(eq(inventory.farmerId, farmer.id));
+  return rows.map((row) => ({
+    ...row,
+    availableKg: Math.max(0, Number(row.availableKg)),
+    status: row.listingStatus === "published" ? "Listed for buyers" : "Awaiting listing",
+  }));
 });
 export const getManagementReceivingRecords = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/lib/auth-server");

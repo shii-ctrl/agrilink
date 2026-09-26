@@ -66,7 +66,8 @@ function MarketerReceivingPage() {
             className="mt-6 grid gap-4 sm:grid-cols-2"
             onSubmit={async (event) => {
               event.preventDefault();
-              const form = new FormData(event.currentTarget);
+              const formElement = event.currentTarget;
+              const form = new FormData(formElement);
               try {
                 const result = await recordReceivingDelivery({
                   data: {
@@ -81,7 +82,7 @@ function MarketerReceivingPage() {
                 });
                 if (result.duplicate) toast.message("This delivery was already recorded.");
                 else toast.success("Delivery and inventory saved.");
-                event.currentTarget.reset();
+                formElement.reset();
                 deliveryReference.current = crypto.randomUUID();
                 load();
               } catch (error) {

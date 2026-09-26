@@ -55,7 +55,8 @@ function SetupManagementPage() {
           className="mt-8 space-y-4"
           onSubmit={async (event) => {
             event.preventDefault();
-            const formData = new FormData(event.currentTarget);
+            const form = event.currentTarget;
+            const formData = new FormData(form);
             if (formData.get("password") !== formData.get("confirmPassword")) {
               toast("Passwords do not match", {
                 description: "Enter the same password in both password fields.",
@@ -73,7 +74,7 @@ function SetupManagementPage() {
                   setupSecret: String(formData.get("setupSecret") ?? ""),
                 },
               });
-              event.currentTarget.reset();
+              form.reset();
               toast("Management account created", {
                 description:
                   "Remove INITIAL_MANAGEMENT_SETUP_SECRET from the deployment now, then sign in.",

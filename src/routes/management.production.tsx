@@ -83,7 +83,8 @@ function ManagementProductionPage() {
             className="mt-6 grid gap-4 sm:grid-cols-2"
             onSubmit={async (event) => {
               event.preventDefault();
-              const form = new FormData(event.currentTarget);
+              const formElement = event.currentTarget;
+              const form = new FormData(formElement);
               try {
                 await createManagementProductionRecord({
                   data: {
@@ -96,7 +97,7 @@ function ManagementProductionPage() {
                       : {}),
                   },
                 });
-                event.currentTarget.reset();
+                formElement.reset();
                 await load();
                 toast.success("Production record saved.");
               } catch (error) {

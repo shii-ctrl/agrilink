@@ -103,7 +103,8 @@ function ManagementUsersPage() {
                 className="mt-8 grid gap-5 sm:grid-cols-2"
                 onSubmit={async (event) => {
                   event.preventDefault();
-                  const formData = new FormData(event.currentTarget);
+                  const form = event.currentTarget;
+                  const formData = new FormData(form);
                   try {
                     await createManagementUser({
                       data: {
@@ -115,7 +116,7 @@ function ManagementUsersPage() {
                         active: String(formData.get("status")) === "active",
                       },
                     });
-                    event.currentTarget.reset();
+                    form.reset();
                     toast.success("Account created", {
                       description: "The account is saved in MySQL.",
                     });

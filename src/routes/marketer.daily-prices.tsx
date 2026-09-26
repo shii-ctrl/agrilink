@@ -65,7 +65,8 @@ function MarketerDailyPricesPage() {
               className="mt-6 space-y-4"
               onSubmit={async (event) => {
                 event.preventDefault();
-                const data = new FormData(event.currentTarget);
+                const form = event.currentTarget;
+                const data = new FormData(form);
                 try {
                   await publishDailyPrice({
                     data: {
@@ -77,7 +78,7 @@ function MarketerDailyPricesPage() {
                   const refreshed = await getMarketerDailyPrices();
                   setEntries(refreshed);
                   setSelectedDate(String(data.get("date")));
-                  event.currentTarget.reset();
+                  form.reset();
                   toast.success("Daily price published", {
                     description:
                       "The public Daily Prices page now shows this entry for the selected date.",

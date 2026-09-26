@@ -55,6 +55,8 @@ const createCatalogProductInput = z.object({
   imageUrl: z.string().trim().url().max(500).optional().or(z.literal("")),
 });
 
+type MarketplaceProduct = Product & { farmer: string | null };
+
 function asProduct(row: {
   listingId: string;
   name: string;
@@ -64,7 +66,8 @@ function asProduct(row: {
   availableKg: string;
   description: string | null;
   imageUrl: string | null;
-}): Product {
+  farmer: string | null;
+}): MarketplaceProduct {
   return {
     id: row.listingId,
     name: row.name,
@@ -76,12 +79,13 @@ function asProduct(row: {
       row.description ??
       `${row.name} supplied by PROCY farmer members and classified ${row.classification}.`,
     image: row.imageUrl ?? "",
+    farmer: row.farmer,
   };
 }
 
 async function fetchListings(listingId?: string) {
   const { db } = await import("@/db/client.server");
-  const { classifications, inventory, listings, products } = await import("@/db/schema");
+  const { classifications, inventory, listings, products, users } = await import("@/db/schema");
   const where = listingId
     ? and(eq(listings.status, "published"), eq(listings.id, listingId))
     : eq(listings.status, "published");
@@ -95,11 +99,13 @@ async function fetchListings(listingId?: string) {
       availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
       description: products.description,
       imageUrl: products.imageUrl,
+      farmer: users.displayName,
     })
     .from(listings)
     .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+    .leftJoin(users, eq(inventory.farmerId, users.id))
     .where(where);
   return rows.map(asProduct);
 }
@@ -148,17 +154,19 @@ export const getPublishableInventory = createServerFn({ method: "GET" }).handler
   const { requireRole } = await import("@/lib/auth-server");
   await requireRole("Marketer");
   const { db } = await import("@/db/client.server");
-  const { classifications, inventory, listings, products } = await import("@/db/schema");
+  const { classifications, inventory, listings, products, users } = await import("@/db/schema");
   return db
     .select({
       id: inventory.id,
       name: products.name,
       classification: classifications.name,
       quantityKg: inventory.quantityKg,
+      farmer: users.displayName,
     })
     .from(inventory)
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+    .leftJoin(users, eq(inventory.farmerId, users.id))
     .leftJoin(listings, eq(listings.inventoryId, inventory.id))
     .where(and(sql`${inventory.quantityKg} > 0`, sql`${listings.id} IS NULL`));
 });
