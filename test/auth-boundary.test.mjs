@@ -61,7 +61,10 @@ test("all account password flows accept eight-character passwords", async () => 
 });
 
 test("email password reset uses a hashed, expiring one-time code", async () => {
-  const source = await readFile("src/lib/auth-functions.ts", "utf8");
+  const [source, resetPage] = await Promise.all([
+    readFile("src/lib/auth-functions.ts", "utf8"),
+    readFile("src/routes/forgot-password.tsx", "utf8"),
+  ]);
   const requestReset = source.slice(
     source.indexOf("export const requestPasswordResetCode"),
     source.indexOf("export const completePasswordReset"),
@@ -77,4 +80,6 @@ test("email password reset uses a hashed, expiring one-time code", async () => {
   assert.match(completeReset, /\.update\(passwordResetTokens\)\s*\.set\(\{ usedAt: now \}\)/);
   assert.match(completeReset, /\.update\(authSessions\)\s*\.set\(\{ revokedAt: now \}\)/);
   assert.match(completeReset, /auth\.password\.reset\.email_otp/);
+  assert.match(resetPage, /value=\{code\}/);
+  assert.match(resetPage, /replace\(\/\\D\/g, ""\)\.slice\(0, 6\)/);
 });

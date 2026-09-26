@@ -17,6 +17,7 @@ export const Route = createFileRoute("/forgot-password")({
 function ForgotPasswordPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,6 +26,7 @@ function ForgotPasswordPage() {
     setSubmitting(true);
     try {
       await requestPasswordResetCode({ data: { email } });
+      setCode("");
       setCodeSent(true);
       toast.success("Check your email", {
         description: "If that email belongs to an active account, a 6-digit reset code was sent.",
@@ -51,7 +53,7 @@ function ForgotPasswordPage() {
     setSubmitting(true);
     try {
       await completePasswordReset({
-        data: { email, code: String(formData.get("code") ?? ""), newPassword },
+        data: { email, code, newPassword },
       });
       toast.success("Password reset", {
         description: "Your new password is ready. Please sign in again.",
@@ -123,11 +125,14 @@ function ForgotPasswordPage() {
                   <Label htmlFor="reset-code">6-digit code</Label>
                   <Input
                     id="reset-code"
-                    name="code"
+                    name="password-reset-otp"
+                    type="tel"
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     pattern="[0-9]{6}"
                     maxLength={6}
+                    value={code}
+                    onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="123456"
                     required
                     className="h-11 tracking-[0.3em]"
@@ -169,7 +174,10 @@ function ForgotPasswordPage() {
               <button
                 type="button"
                 className="mt-4 text-sm font-medium text-primary hover:underline"
-                onClick={() => setCodeSent(false)}
+                onClick={() => {
+                  setCode("");
+                  setCodeSent(false);
+                }}
               >
                 Use a different email
               </button>
