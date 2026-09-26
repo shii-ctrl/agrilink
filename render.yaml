@@ -5,7 +5,9 @@ services:
     # Free is suitable for a thesis demo with an external MySQL provider.
     # It may spin down when idle; use a paid plan before a real public launch.
     plan: free
-    buildCommand: npm ci && npm run build
+    # NODE_ENV is production at runtime, but Vite and its config plugin are
+    # development dependencies needed during this build step.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm run preview
     healthCheckPath: /
     autoDeploy: true
