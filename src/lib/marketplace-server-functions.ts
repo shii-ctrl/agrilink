@@ -127,6 +127,23 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
     return { id };
   });
 
+export const getCatalogProducts = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/lib/auth-server");
+  await requireRole("Marketer");
+  const { db } = await import("@/db/client.server");
+  const { products } = await import("@/db/schema");
+  return db
+    .select({
+      id: products.id,
+      name: products.name,
+      cropType: products.cropType,
+      description: products.description,
+    })
+    .from(products)
+    .where(eq(products.active, true))
+    .orderBy(asc(products.name));
+});
+
 export const getPublishableInventory = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/lib/auth-server");
   await requireRole("Marketer");

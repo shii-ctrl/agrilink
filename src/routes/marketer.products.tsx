@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createCatalogProduct,
   createMarketplaceListing,
+  getCatalogProducts,
   getPublishableInventory,
   getMarketplaceListings,
 } from "@/lib/marketplace-server-functions";
@@ -38,12 +39,16 @@ type MarketplaceListing = {
 
 function MarketerProductsPage() {
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<
+    Awaited<ReturnType<typeof getCatalogProducts>>
+  >([]);
   const [publishableInventory, setPublishableInventory] = useState<
     Awaited<ReturnType<typeof getPublishableInventory>>
   >([]);
 
   useEffect(() => {
     void getMarketplaceListings().then(setListings);
+    void getCatalogProducts().then(setCatalogProducts);
     void getPublishableInventory().then(setPublishableInventory);
   }, []);
 
@@ -153,6 +158,7 @@ function MarketerProductsPage() {
                       },
                     });
                     form.reset();
+                    setCatalogProducts(await getCatalogProducts());
                     toast.success("Product added to catalog", {
                       description: "Next, record a farmer delivery to create classified inventory.",
                     });
@@ -191,6 +197,26 @@ function MarketerProductsPage() {
                   </Button>
                 </div>
               </form>
+              <div className="mt-8 border-t border-border pt-6">
+                <h3 className="font-semibold">Saved catalog products</h3>
+                {catalogProducts.length ? (
+                  <ul className="mt-3 divide-y divide-border rounded-2xl border border-border text-sm">
+                    {catalogProducts.map((product) => (
+                      <li key={product.id} className="px-4 py-3">
+                        <p className="font-medium">{product.name}</p>
+                        <p className="mt-0.5 text-muted-foreground">
+                          {product.cropType}
+                          {product.description ? ` — ${product.description}` : ""}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    No products have been added to the catalog yet.
+                  </p>
+                )}
+              </div>
             </section>
           </TabsContent>
           <TabsContent value="add" className="mt-6">
