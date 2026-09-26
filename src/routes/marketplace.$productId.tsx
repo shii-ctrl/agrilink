@@ -10,6 +10,7 @@ import { peso } from "@/lib/products";
 import { ProductCard } from "@/components/product-card";
 import { marketplaceImageFor } from "@/lib/marketplace-images";
 import { getCurrentSessionUser } from "@/lib/auth-functions";
+import { notifyBuyerCartChanged } from "@/lib/cart-events";
 import {
   addBuyerCartItem,
   getMarketplaceListing,
@@ -147,6 +148,7 @@ function ProductDetail() {
                   if (isBuyer) {
                     void addBuyerCartItem({ data: { listingId: product.id, quantityKg: qty } })
                       .then(() => {
+                        notifyBuyerCartChanged();
                         toast.success("Added to your cart", {
                           description: `${qty} kg of ${product.name} is saved to your account.`,
                         });

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getCurrentSessionUser } from "@/lib/auth-functions";
+import { buyerCartChangedEvent } from "@/lib/cart-events";
 import {
   demoSessionEvent,
   getDemoAccount,
@@ -92,7 +93,10 @@ export function SiteHeader({ dark = false }: { dark?: boolean }) {
             <ThemeToggle />
           </span>
           {account?.role === "Buyer" ? (
-            <BuyerDrawer account={account} onSignOut={() => setAccount(null)} />
+            <>
+              <BuyerCartButton dark={dark} />
+              <BuyerDrawer account={account} onSignOut={() => setAccount(null)} />
+            </>
           ) : (
             <>
               <Button
@@ -192,6 +196,51 @@ export function SiteHeader({ dark = false }: { dark?: boolean }) {
         </div>
       )}
     </header>
+  );
+}
+
+function BuyerCartButton({ dark }: { dark: boolean }) {
+  const [itemCount, setItemCount] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadCount = () => {
+      void import("@/lib/marketplace-server-functions")
+        .then(({ getBuyerCart }) => getBuyerCart())
+        .then((items) => {
+          if (mounted) setItemCount(items.length);
+        })
+        .catch(() => {
+          // The cart page will show a more useful message if loading fails.
+        });
+    };
+    loadCount();
+    window.addEventListener(buyerCartChangedEvent, loadCount);
+    window.addEventListener("focus", loadCount);
+    return () => {
+      mounted = false;
+      window.removeEventListener(buyerCartChangedEvent, loadCount);
+      window.removeEventListener("focus", loadCount);
+    };
+  }, []);
+
+  return (
+    <Link
+      to="/buyer/cart"
+      aria-label={itemCount ? `Open cart with ${itemCount} item groups` : "Open cart"}
+      className={`relative inline-flex size-9 items-center justify-center rounded-full border transition-colors ${
+        dark
+          ? "border-white/20 text-forest-foreground hover:bg-white/10"
+          : "border-border text-foreground hover:bg-accent"
+      }`}
+    >
+      <ShoppingCart className="size-4" />
+      {itemCount > 0 && (
+        <span className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-primary-foreground">
+          {itemCount > 99 ? "99+" : itemCount}
+        </span>
+      )}
+    </Link>
   );
 }
 
