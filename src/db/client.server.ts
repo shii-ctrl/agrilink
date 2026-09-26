@@ -17,8 +17,17 @@ if (!databaseUrl) {
 // Local XAMPP typically does not use TLS, while managed MySQL providers do.
 // Keep TLS opt-in so a local installation still works, but do not disable
 // certificate verification for a hosted database.
+function databaseRequiresSsl(url: string): boolean {
+  if (process.env["DATABASE_SSL"] === "required") return true;
+  try {
+    return new URL(url).searchParams.get("ssl-mode")?.toLowerCase() === "required";
+  } catch {
+    return false;
+  }
+}
+
 const pool =
-  process.env["DATABASE_SSL"] === "required"
+  databaseRequiresSsl(databaseUrl)
     ? createPool({ uri: databaseUrl, ssl: { rejectUnauthorized: true } })
     : createPool(databaseUrl);
 
