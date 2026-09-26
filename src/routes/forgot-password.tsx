@@ -2,9 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { KeyRound, Leaf } from "lucide-react";
 import heroImg from "@/assets/hero-farm.jpg";
 import { AuthSwitchLink } from "@/components/auth-switch-link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({ meta: [{ title: "Forgot Password — AgriLink" }] }),
@@ -27,26 +24,9 @@ function ForgotPasswordPage() {
           </span>
           <h1 className="mt-5 text-3xl font-semibold">Forgot your password?</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Password-reset email delivery is not configured for this installation yet. Contact an
-            AgriLink administrator to reset your account securely.
+            Contact a Management account to reset your password after they verify your identity.
+            Management can securely set a new password from User Accounts.
           </p>
-          <form className="mt-8 space-y-4" onSubmit={(event) => event.preventDefault()}>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                disabled
-                className="h-11"
-              />
-            </div>
-            <Button type="submit" size="lg" className="w-full rounded-full" disabled>
-              Reset delivery unavailable
-            </Button>
-          </form>
           <p className="mt-6 text-sm text-muted-foreground">
             Remembered it?{" "}
             <AuthSwitchLink to="/login" className="font-medium text-primary hover:underline">
@@ -65,8 +45,8 @@ function ForgotPasswordPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-forest/90 to-forest/20" />
         <p className="absolute bottom-12 left-12 max-w-sm font-display text-2xl font-semibold text-forest-foreground">
-          Account recovery is intentionally unavailable until a secure email delivery provider is
-          configured.
+          Management can help account holders recover access through the saved User Accounts
+          workspace.
         </p>
       </div>
     </div>

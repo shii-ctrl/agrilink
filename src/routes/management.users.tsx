@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createManagementUser, getManagementUsers } from "@/lib/admin-server-functions";
+import {
+  createManagementUser,
+  getManagementUsers,
+  resetManagedUserPassword,
+} from "@/lib/admin-server-functions";
 
 export const Route = createFileRoute("/management/users")({
   head: () => ({
@@ -42,6 +46,7 @@ function ManagementUsersPage() {
           <TabsList aria-label="User account sections">
             <TabsTrigger value="all-users">All Users</TabsTrigger>
             <TabsTrigger value="add-user">Add User</TabsTrigger>
+            <TabsTrigger value="reset-password">Reset Password</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all-users" className="mt-6">
@@ -203,6 +208,96 @@ function ManagementUsersPage() {
                 <div className="sm:col-span-2">
                   <Button type="submit" className="rounded-full">
                     Create account
+                  </Button>
+                </div>
+              </form>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="reset-password" className="mt-6">
+            <section className="max-w-3xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                  <UserPlus className="size-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-semibold">Reset an account password</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Use this only after confirming the account owner’s identity. The new password is
+                    saved immediately and is never shown again.
+                  </p>
+                </div>
+              </div>
+              <form
+                className="mt-8 grid gap-5 sm:grid-cols-2"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const form = event.currentTarget;
+                  const formData = new FormData(form);
+                  const password = String(formData.get("password") ?? "");
+                  if (password !== String(formData.get("confirmPassword") ?? "")) {
+                    toast.error("New passwords do not match.");
+                    return;
+                  }
+                  try {
+                    await resetManagedUserPassword({
+                      data: { userId: String(formData.get("userId")), password },
+                    });
+                    form.reset();
+                    toast.success("Password reset", {
+                      description: "Give the new password to the account owner securely.",
+                    });
+                  } catch (error) {
+                    toast.error("Password could not be reset", {
+                      description: error instanceof Error ? error.message : "Please try again.",
+                    });
+                  }
+                }}
+              >
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="reset-account">Account</Label>
+                  <select
+                    id="reset-account"
+                    name="userId"
+                    defaultValue=""
+                    required
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="" disabled>
+                      Select an account
+                    </option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} — {user.role}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reset-password">New password</Label>
+                  <Input
+                    id="reset-password"
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={12}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reset-password-confirm">Confirm new password</Label>
+                  <Input
+                    id="reset-password-confirm"
+                    name="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={12}
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Button type="submit" variant="outline" className="rounded-full">
+                    Set new password
                   </Button>
                 </div>
               </form>

@@ -5,7 +5,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getCurrentSessionUser, updateCurrentProfile } from "@/lib/auth-functions";
+import {
+  changeCurrentPassword,
+  getCurrentSessionUser,
+  updateCurrentProfile,
+} from "@/lib/auth-functions";
 
 export function LiveProfile({ role }: { role: string }) {
   const [account, setAccount] = useState<Awaited<ReturnType<typeof getCurrentSessionUser>>>(null);
@@ -27,6 +31,30 @@ export function LiveProfile({ role }: { role: string }) {
       toast.success("Profile saved");
     } catch (error) {
       toast.error("Profile could not be saved", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    }
+  }
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const newPassword = String(formData.get("newPassword") ?? "");
+    if (newPassword !== String(formData.get("confirmPassword") ?? "")) {
+      toast.error("New passwords do not match.");
+      return;
+    }
+    try {
+      await changeCurrentPassword({
+        data: {
+          currentPassword: String(formData.get("currentPassword") ?? ""),
+          newPassword,
+        },
+      });
+      form.reset();
+      toast.success("Password changed");
+    } catch (error) {
+      toast.error("Password could not be changed", {
         description: error instanceof Error ? error.message : undefined,
       });
     }
@@ -73,6 +101,49 @@ export function LiveProfile({ role }: { role: string }) {
           </div>
           <Button type="submit" className="rounded-full sm:col-span-2 sm:w-fit">
             Save changes
+          </Button>
+        </form>
+      </section>
+      <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
+        <h2 className="text-lg font-semibold">Change password</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Use at least 12 characters with uppercase, lowercase, and a number.
+        </p>
+        <form className="mt-6 grid gap-5 sm:grid-cols-2" onSubmit={changePassword}>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="current-password">Current password</Label>
+            <Input
+              id="current-password"
+              name="currentPassword"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new-password">New password</Label>
+            <Input
+              id="new-password"
+              name="newPassword"
+              type="password"
+              autoComplete="new-password"
+              minLength={12}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Confirm new password</Label>
+            <Input
+              id="confirm-password"
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              minLength={12}
+              required
+            />
+          </div>
+          <Button type="submit" variant="outline" className="rounded-full sm:w-fit">
+            Change password
           </Button>
         </form>
       </section>

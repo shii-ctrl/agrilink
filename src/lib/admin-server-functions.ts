@@ -17,6 +17,16 @@ const createUserInput = z.object({
   role: internalRole,
   active: z.boolean(),
 });
+const resetUserPasswordInput = z.object({
+  userId: z.string().uuid(),
+  password: z
+    .string()
+    .min(12, "Use at least 12 characters.")
+    .max(200)
+    .regex(/[A-Z]/, "Include an uppercase letter.")
+    .regex(/[a-z]/, "Include a lowercase letter.")
+    .regex(/\d/, "Include a number."),
+});
 const bootstrapInput = createUserInput
   .pick({ name: true, contact: true, email: true, password: true })
   .extend({
@@ -117,4 +127,22 @@ export const createManagementUser = createServerFn({ method: "POST" })
     });
     await writeAuditLog(actor.id, "user.create", "user", id, { role: data.role });
     return { id, name: data.name, role: data.role };
+  });
+
+export const resetManagedUserPassword = createServerFn({ method: "POST" })
+  .validator(resetUserPasswordInput)
+  .handler(async ({ data }) => {
+    const bcrypt = (await import("bcryptjs")).default;
+    const { requireRole, writeAuditLog } = await import("@/lib/auth-server");
+    const actor = await requireRole("Management");
+    const { db } = await import("@/db/client.server");
+    const { users } = await import("@/db/schema");
+    const [target] = await db.select({ id: users.id }).from(users).where(eq(users.id, data.userId));
+    if (!target) throw new Error("The selected account no longer exists.");
+    await db
+      .update(users)
+      .set({ passwordHash: await bcrypt.hash(data.password, 12) })
+      .where(eq(users.id, data.userId));
+    await writeAuditLog(actor.id, "user.password.reset", "user", data.userId);
+    return { ok: true };
   });

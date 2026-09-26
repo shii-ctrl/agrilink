@@ -22,6 +22,17 @@ const profileInput = z.object({
   displayName: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80).nullable(),
 });
+const strongPassword = z
+  .string()
+  .min(12, "Use at least 12 characters.")
+  .max(200)
+  .regex(/[A-Z]/, "Include an uppercase letter.")
+  .regex(/[a-z]/, "Include a lowercase letter.")
+  .regex(/\d/, "Include a number.");
+const changePasswordInput = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newPassword: strongPassword,
+});
 
 export const getCurrentSessionUser = createServerFn({ method: "GET" }).handler(async () =>
   (await import("@/lib/auth-server")).getCurrentUser(),
@@ -40,6 +51,29 @@ export const updateCurrentProfile = createServerFn({ method: "POST" })
       .where(eq(users.id, user.id));
     await writeAuditLog(user.id, "user.profile.update", "user", user.id);
     return { ...user, displayName: data.displayName, contact: data.contact };
+  });
+
+export const changeCurrentPassword = createServerFn({ method: "POST" })
+  .validator(changePasswordInput)
+  .handler(async ({ data }) => {
+    const bcrypt = (await import("bcryptjs")).default;
+    const { db } = await import("@/db/client.server");
+    const { users } = await import("@/db/schema");
+    const { requireUser, writeAuditLog } = await import("@/lib/auth-server");
+    const user = await requireUser();
+    const [stored] = await db.select().from(users).where(eq(users.id, user.id));
+    if (!stored || !(await bcrypt.compare(data.currentPassword, stored.passwordHash))) {
+      throw new Error("Your current password is incorrect.");
+    }
+    if (await bcrypt.compare(data.newPassword, stored.passwordHash)) {
+      throw new Error("Choose a new password that is different from your current password.");
+    }
+    await db
+      .update(users)
+      .set({ passwordHash: await bcrypt.hash(data.newPassword, 12) })
+      .where(eq(users.id, user.id));
+    await writeAuditLog(user.id, "auth.password.change", "user", user.id);
+    return { ok: true };
   });
 
 export const loginUser = createServerFn({ method: "POST" })
