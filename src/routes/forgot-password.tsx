@@ -126,10 +126,12 @@ function ForgotPasswordPage() {
                   <Input
                     id="reset-code"
                     name="password-reset-otp"
-                    type="tel"
+                    type="number"
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     pattern="[0-9]{6}"
+                    min={0}
+                    max={999999}
                     maxLength={6}
                     value={code}
                     onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}

@@ -81,5 +81,6 @@ test("email password reset uses a hashed, expiring one-time code", async () => {
   assert.match(completeReset, /\.update\(authSessions\)\s*\.set\(\{ revokedAt: now \}\)/);
   assert.match(completeReset, /auth\.password\.reset\.email_otp/);
   assert.match(resetPage, /value=\{code\}/);
+  assert.match(resetPage, /type="number"/);
   assert.match(resetPage, /replace\(\/\\D\/g, ""\)\.slice\(0, 6\)/);
 });
