@@ -190,7 +190,7 @@ function ManagementUsersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="account-password">Temporary password</Label>
+                  <Label htmlFor="account-password">Initial password</Label>
                   <Input
                     id="account-password"
                     name="password"
