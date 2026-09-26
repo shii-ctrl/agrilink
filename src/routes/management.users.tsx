@@ -115,11 +115,17 @@ function ManagementUsersPage() {
                         active: String(formData.get("status")) === "active",
                       },
                     });
-                    await loadUsers();
                     event.currentTarget.reset();
                     toast.success("Account created", {
                       description: "The account is saved in MySQL.",
                     });
+                    try {
+                      await loadUsers();
+                    } catch {
+                      toast.warning("Account saved, but the list could not refresh", {
+                        description: "Reload this page to see the new account.",
+                      });
+                    }
                   } catch (error) {
                     toast.error("Account could not be created", {
                       description: error instanceof Error ? error.message : "Please try again.",
