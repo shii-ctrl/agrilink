@@ -31,14 +31,13 @@ function normalizeDatabaseUrl(url: string): { uri: string; requiresSsl: boolean 
 }
 
 const connection = normalizeDatabaseUrl(databaseUrl);
-const pool =
-  connection.requiresSsl
-    ? createPool({
-        uri: connection.uri,
-        ssl: { rejectUnauthorized: true },
-        // Layerbase free databases can take roughly 20 seconds to wake.
-        connectTimeout: 60_000,
-      })
-    : createPool({ uri: connection.uri, connectTimeout: 60_000 });
+const pool = connection.requiresSsl
+  ? createPool({
+      uri: connection.uri,
+      ssl: { rejectUnauthorized: true },
+      // Layerbase free databases can take roughly 20 seconds to wake.
+      connectTimeout: 60_000,
+    })
+  : createPool({ uri: connection.uri, connectTimeout: 60_000 });
 
 export const db = drizzle(pool, { schema, mode: "default" });
