@@ -143,9 +143,7 @@ function BuyerOrdersPage() {
             <PackageCheck className="mt-0.5 size-5 text-primary" />
             <div>
               <h2 className="text-lg font-semibold">Order history</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Orders saved in your local MySQL database.
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">Orders saved in AgriLink.</p>
             </div>
           </div>
           <div className="overflow-x-auto">

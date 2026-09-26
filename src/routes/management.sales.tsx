@@ -39,9 +39,7 @@ function ManagementSalesPage() {
             <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Search sales records" className="h-11 rounded-full pl-11" />
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Live sales data from the local MySQL database.
-          </p>
+          <p className="mt-3 text-xs text-muted-foreground">Live sales data from AgriLink.</p>
         </section>
 
         <section className="mt-6 overflow-hidden rounded-3xl border border-border bg-card shadow-card">

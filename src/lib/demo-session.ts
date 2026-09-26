@@ -10,9 +10,13 @@ export function setSessionView(account: { username: string; role: string; displa
   window.dispatchEvent(new Event(demoSessionEvent));
 }
 
-export async function signOutDemoAccount() {
+export function clearSessionView() {
   window.localStorage.removeItem(demoSessionKey);
   window.dispatchEvent(new Event(demoSessionEvent));
+}
+
+export async function signOutDemoAccount() {
+  clearSessionView();
   const { logoutUser } = await import("@/lib/auth-functions");
   await logoutUser();
 }

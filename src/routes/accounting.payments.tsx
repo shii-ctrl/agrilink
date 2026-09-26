@@ -83,7 +83,7 @@ function AccountingPaymentsPage() {
               <div>
                 <h2 className="text-lg font-semibold">Record a payment</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Select a completed PROCY sale from the local MySQL payment queue.
+                  Select a completed PROCY sale from the current payment queue.
                 </p>
               </div>
             </div>

@@ -119,9 +119,7 @@ function MarketerOrdersPage() {
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5">
             <div>
               <h2 className="text-lg font-semibold">Buyer order queue</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Live orders from the local MySQL database.
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">Live orders from AgriLink.</p>
             </div>
             <span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
               <ShoppingCart className="size-3.5" />{" "}

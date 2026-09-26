@@ -1,4 +1,4 @@
-import { asc, eq, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -124,13 +124,20 @@ export const resetManagedUserPassword = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/lib/auth-server");
     const actor = await requireRole("Management");
     const { db } = await import("@/db/client.server");
-    const { users } = await import("@/db/schema");
+    const { authSessions, users } = await import("@/db/schema");
     const [target] = await db.select({ id: users.id }).from(users).where(eq(users.id, data.userId));
     if (!target) throw new Error("The selected account no longer exists.");
-    await db
-      .update(users)
-      .set({ passwordHash: await bcrypt.hash(data.password, 12) })
-      .where(eq(users.id, data.userId));
+    await db.transaction(async (tx) => {
+      const now = new Date();
+      await tx
+        .update(users)
+        .set({ passwordHash: await bcrypt.hash(data.password, 12) })
+        .where(eq(users.id, data.userId));
+      await tx
+        .update(authSessions)
+        .set({ revokedAt: now })
+        .where(and(eq(authSessions.userId, data.userId), isNull(authSessions.revokedAt)));
+    });
     await writeAuditLog(actor.id, "user.password.reset", "user", data.userId);
     return { ok: true };
   });

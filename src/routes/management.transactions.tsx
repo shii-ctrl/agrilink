@@ -37,7 +37,7 @@ function ManagementTransactionsPage() {
           <div className="border-b border-border px-6 py-5">
             <h2 className="text-lg font-semibold">Transaction list</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Orders, sales, classifications, and payment records from local MySQL.
+              Orders, sales, classifications, and payment records from AgriLink.
             </p>
           </div>
           <div className="overflow-x-auto">

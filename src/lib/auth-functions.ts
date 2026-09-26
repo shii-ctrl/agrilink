@@ -94,20 +94,29 @@ export const changeCurrentPassword = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const bcrypt = (await import("bcryptjs")).default;
     const { db } = await import("@/db/client.server");
-    const { users } = await import("@/db/schema");
-    const { requireUser, writeAuditLog } = await import("@/lib/auth-server");
+    const { authSessions, users } = await import("@/db/schema");
+    const { createSession, requireUser, writeAuditLog } = await import("@/lib/auth-server");
     const user = await requireUser();
-    const [stored] = await db.select().from(users).where(eq(users.id, user.id));
-    if (!stored || !(await bcrypt.compare(data.currentPassword, stored.passwordHash))) {
-      throw new Error("Your current password is incorrect.");
-    }
-    if (await bcrypt.compare(data.newPassword, stored.passwordHash)) {
-      throw new Error("Choose a new password that is different from your current password.");
-    }
-    await db
-      .update(users)
-      .set({ passwordHash: await bcrypt.hash(data.newPassword, 12) })
-      .where(eq(users.id, user.id));
+    await db.transaction(async (tx) => {
+      const [stored] = await tx.select().from(users).where(eq(users.id, user.id));
+      if (!stored || !(await bcrypt.compare(data.currentPassword, stored.passwordHash))) {
+        throw new Error("Your current password is incorrect.");
+      }
+      if (await bcrypt.compare(data.newPassword, stored.passwordHash)) {
+        throw new Error("Choose a new password that is different from your current password.");
+      }
+      const now = new Date();
+      await tx
+        .update(users)
+        .set({ passwordHash: await bcrypt.hash(data.newPassword, 12) })
+        .where(eq(users.id, user.id));
+      await tx
+        .update(authSessions)
+        .set({ revokedAt: now })
+        .where(and(eq(authSessions.userId, user.id), isNull(authSessions.revokedAt)));
+    });
+    // Keep this browser signed in with a new session while every older session is invalidated.
+    await createSession(user.id);
     await writeAuditLog(user.id, "auth.password.change", "user", user.id);
     return { ok: true };
   });

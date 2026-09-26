@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BarChart3, Download, FileBarChart } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
 import { Button } from "@/components/ui/button";
 import { getManagementReport } from "@/lib/marketplace-server-functions";
@@ -25,7 +26,7 @@ function ManagementReportsPage() {
   useEffect(() => {
     void getManagementReport()
       .then(setReport)
-      .catch(() => undefined);
+      .catch(() => toast.error("Could not load the live report. Please refresh and try again."));
   }, []);
   function downloadReport() {
     const csv = [
@@ -50,9 +51,9 @@ function ManagementReportsPage() {
           <div className="flex items-start gap-3">
             <FileBarChart className="mt-0.5 size-5 shrink-0" />
             <div>
-              <h2 className="font-semibold">Live local database report</h2>
+              <h2 className="font-semibold">Live AgriLink report</h2>
               <p className="mt-1 opacity-85">
-                These values are calculated from your local MySQL records.
+                These values are calculated from the current saved AgriLink records.
               </p>
             </div>
           </div>

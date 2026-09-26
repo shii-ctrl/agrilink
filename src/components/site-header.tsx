@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { getCurrentSessionUser } from "@/lib/auth-functions";
 import { buyerCartChangedEvent } from "@/lib/cart-events";
 import {
+  clearSessionView,
   demoSessionEvent,
   getDemoAccount,
   setSessionView,
@@ -37,10 +38,14 @@ export function SiteHeader({ dark = false }: { dark?: boolean }) {
   useEffect(() => {
     const refresh = () => setAccount(getDemoAccount());
     void getCurrentSessionUser().then((user) => {
-      if (!user) return;
+      if (!user) {
+        clearSessionView();
+        setAccount(null);
+        return;
+      }
       setSessionView({
         username: user.username,
-        role: user.roles[0] ?? "Buyer",
+        role: user.roles.includes("Buyer") ? "Buyer" : (user.roles[0] ?? "Buyer"),
         displayName: user.displayName,
       });
     });

@@ -98,7 +98,7 @@ function RegisterPage() {
                   displayName: account.displayName,
                 });
                 toast("Buyer account created", {
-                  description: "Your account is now saved in the local AgriLink database.",
+                  description: "Your account is now saved in AgriLink.",
                 });
                 navigate({ to: "/" });
               } catch (error) {
@@ -199,7 +199,7 @@ function RegisterPage() {
             </AuthSwitchLink>
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Your account is securely stored in the local AgriLink database.
+            Your account is securely stored in AgriLink.
           </p>
         </div>
       </div>

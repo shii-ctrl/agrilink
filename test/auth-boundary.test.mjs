@@ -25,6 +25,8 @@ test("password changes require authentication and hash the new password", async 
   assert.match(changePassword, /requireUser/);
   assert.match(changePassword, /bcrypt\.compare\(data\.currentPassword/);
   assert.match(changePassword, /bcrypt\.hash\(data\.newPassword, 12\)/);
+  assert.match(changePassword, /update\(authSessions\)\s*\.set\(\{ revokedAt: now \}\)/);
+  assert.match(changePassword, /createSession\(user\.id\)/);
   assert.match(changePassword, /auth\.password\.change/);
   assert.doesNotMatch(changePassword, /return \{[^}]*passwordHash/);
 });
@@ -34,6 +36,7 @@ test("Management password resets are authenticated and audited", async () => {
   const resetPassword = source.slice(source.indexOf("export const resetManagedUserPassword"));
   assert.match(resetPassword, /requireRole\("Management"\)/);
   assert.match(resetPassword, /bcrypt\.hash\(data\.password, 12\)/);
+  assert.match(resetPassword, /update\(authSessions\)\s*\.set\(\{ revokedAt: now \}\)/);
   assert.match(resetPassword, /user\.password\.reset/);
   assert.doesNotMatch(resetPassword, /return \{[^}]*passwordHash/);
 });
