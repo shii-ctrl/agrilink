@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  createCatalogProduct,
   createMarketplaceListing,
   getPublishableInventory,
   getMarketplaceListings,
@@ -60,6 +61,7 @@ function MarketerProductsPage() {
         <Tabs defaultValue="listings">
           <TabsList aria-label="Product listing sections">
             <TabsTrigger value="listings">Marketplace Listings</TabsTrigger>
+            <TabsTrigger value="catalog">Product Catalog</TabsTrigger>
             <TabsTrigger value="add">Create Listing</TabsTrigger>
           </TabsList>
           <TabsContent value="listings" className="mt-6">
@@ -121,6 +123,75 @@ function MarketerProductsPage() {
               </div>
             </section>
           </TabsContent>
+          <TabsContent value="catalog" className="mt-6">
+            <section className="max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                  <PackagePlus className="size-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-semibold">Add product to catalog</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Add a crop before recording its farmer delivery. This does not publish it to
+                    buyers yet.
+                  </p>
+                </div>
+              </div>
+              <form
+                className="mt-8 grid gap-5 sm:grid-cols-2"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const formData = new FormData(event.currentTarget);
+                  try {
+                    await createCatalogProduct({
+                      data: {
+                        name: String(formData.get("name")),
+                        cropType: String(formData.get("cropType")),
+                        description: String(formData.get("description") ?? ""),
+                        imageUrl: String(formData.get("imageUrl") ?? ""),
+                      },
+                    });
+                    event.currentTarget.reset();
+                    toast.success("Product added to catalog", {
+                      description: "Next, record a farmer delivery to create classified inventory.",
+                    });
+                  } catch (error) {
+                    toast.error("Product could not be added", {
+                      description: error instanceof Error ? error.message : "Please try again.",
+                    });
+                  }
+                }}
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="catalog-name">Product name</Label>
+                  <Input id="catalog-name" name="name" minLength={2} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="catalog-crop-type">Crop type</Label>
+                  <Input
+                    id="catalog-crop-type"
+                    name="cropType"
+                    placeholder="e.g. Leafy vegetable"
+                    minLength={2}
+                    required
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="catalog-description">Description (optional)</Label>
+                  <Input id="catalog-description" name="description" maxLength={2000} />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="catalog-image-url">Image URL (optional)</Label>
+                  <Input id="catalog-image-url" name="imageUrl" type="url" maxLength={500} />
+                </div>
+                <div className="sm:col-span-2">
+                  <Button type="submit" className="rounded-full">
+                    Add catalog product
+                  </Button>
+                </div>
+              </form>
+            </section>
+          </TabsContent>
           <TabsContent value="add" className="mt-6">
             <section className="max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
               <div className="flex items-start gap-3">
@@ -179,26 +250,12 @@ function MarketerProductsPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="classification">Classification</Label>
-                  <select
-                    id="classification"
-                    name="classification"
-                    defaultValue=""
-                    required
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="" disabled>
-                      Select classification
-                    </option>
-                    <option>Good</option>
-                    <option>Semi</option>
-                    <option>Reject</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="price">Price per kg (₱)</Label>
                   <Input id="price" name="price" type="number" min="0.01" step="0.01" required />
                 </div>
+                <p className="self-end text-sm text-muted-foreground">
+                  The classification is inherited from the inventory you select.
+                </p>
                 <div className="flex items-end">
                   <Button type="submit" className="w-full rounded-full sm:w-auto">
                     Create listing
