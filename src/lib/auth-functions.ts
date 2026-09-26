@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const loginInput = z.object({
@@ -21,6 +21,54 @@ const changePasswordInput = z.object({
   currentPassword: z.string().min(1).max(200),
   newPassword: strongPassword,
 });
+const requestPasswordResetInput = z.object({
+  email: z.string().trim().email().max(255),
+});
+const completePasswordResetInput = z.object({
+  email: z.string().trim().email().max(255),
+  code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code from your email."),
+  newPassword: strongPassword,
+});
+
+const passwordResetLifetimeMs = 10 * 60 * 1000;
+const passwordResetRequestCooldownMs = 60 * 1000;
+const passwordResetRequestTimes = new Map<string, number>();
+
+function getPasswordResetRequestKey(email: string) {
+  return email.trim().toLowerCase();
+}
+
+async function hashPasswordResetCode(code: string) {
+  const crypto = await import("node:crypto");
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
+
+async function sendPasswordResetCode(email: string, code: string) {
+  const apiKey = process.env["RESEND_API_KEY"];
+  const from = process.env["EMAIL_FROM"];
+  if (!apiKey || !from) {
+    throw new Error("Password recovery email is not configured. Contact Management for help.");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject: "Your AgriLink password reset code",
+      text: `Your AgriLink password reset code is ${code}. It expires in 10 minutes. If you did not request this, you can ignore this email.`,
+      html: `<p>Your AgriLink password reset code is:</p><p style="font-size: 28px; font-weight: 700; letter-spacing: 4px">${code}</p><p>It expires in 10 minutes. If you did not request this, you can ignore this email.</p>`,
+    }),
+  });
+  if (!response.ok) {
+    console.error("Password reset email delivery failed", { status: response.status });
+    throw new Error("Could not send a reset code right now. Please try again later.");
+  }
+}
 
 export const getCurrentSessionUser = createServerFn({ method: "GET" }).handler(async () =>
   (await import("@/lib/auth-server")).getCurrentUser(),
@@ -61,6 +109,121 @@ export const changeCurrentPassword = createServerFn({ method: "POST" })
       .set({ passwordHash: await bcrypt.hash(data.newPassword, 12) })
       .where(eq(users.id, user.id));
     await writeAuditLog(user.id, "auth.password.change", "user", user.id);
+    return { ok: true };
+  });
+
+export const requestPasswordResetCode = createServerFn({ method: "POST" })
+  .validator(requestPasswordResetInput)
+  .handler(async ({ data }) => {
+    if (!process.env["RESEND_API_KEY"] || !process.env["EMAIL_FROM"]) {
+      throw new Error("Password recovery email is not configured. Contact Management for help.");
+    }
+    const email = data.email.toLowerCase();
+    const requestKey = getPasswordResetRequestKey(email);
+    const now = Date.now();
+    const lastRequestedAt = passwordResetRequestTimes.get(requestKey);
+    if (lastRequestedAt && now - lastRequestedAt < passwordResetRequestCooldownMs) {
+      return { ok: true };
+    }
+
+    const { db } = await import("@/db/client.server");
+    const { passwordResetTokens, users } = await import("@/db/schema");
+    const [user] = await db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(and(eq(users.email, email), eq(users.active, true)));
+
+    // Return the same response for unknown emails so the endpoint does not disclose accounts.
+    if (!user) return { ok: true };
+
+    const crypto = await import("node:crypto");
+    const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
+    const expiresAt = new Date(now + passwordResetLifetimeMs);
+    await db.transaction(async (tx) => {
+      await tx.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id));
+      await tx.insert(passwordResetTokens).values({
+        id: crypto.randomUUID(),
+        userId: user.id,
+        tokenHash: await hashPasswordResetCode(code),
+        expiresAt,
+      });
+    });
+
+    try {
+      await sendPasswordResetCode(user.email, code);
+      passwordResetRequestTimes.set(requestKey, now);
+    } catch (error) {
+      await db
+        .delete(passwordResetTokens)
+        .where(
+          and(
+            eq(passwordResetTokens.userId, user.id),
+            gt(passwordResetTokens.expiresAt, new Date()),
+          ),
+        );
+      throw error;
+    }
+    return { ok: true };
+  });
+
+export const completePasswordReset = createServerFn({ method: "POST" })
+  .validator(completePasswordResetInput)
+  .handler(async ({ data }) => {
+    const bcrypt = (await import("bcryptjs")).default;
+    const { db } = await import("@/db/client.server");
+    const { authSessions, passwordResetTokens, users } = await import("@/db/schema");
+    const { writeAuditLog } = await import("@/lib/auth-server");
+    const email = data.email.toLowerCase();
+    const now = new Date();
+    const [user] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.email, email), eq(users.active, true)));
+    if (!user) throw new Error("The reset code is invalid or has expired.");
+
+    const [token] = await db
+      .select({ id: passwordResetTokens.id })
+      .from(passwordResetTokens)
+      .where(
+        and(
+          eq(passwordResetTokens.userId, user.id),
+          eq(passwordResetTokens.tokenHash, await hashPasswordResetCode(data.code)),
+          gt(passwordResetTokens.expiresAt, now),
+          isNull(passwordResetTokens.usedAt),
+        ),
+      );
+    if (!token) throw new Error("The reset code is invalid or has expired.");
+
+    await db.transaction(async (tx) => {
+      // Lock the token before checking it again so it cannot reset two passwords at once.
+      await tx.execute(sql`SELECT id FROM password_reset_tokens WHERE id = ${token.id} FOR UPDATE`);
+      const [usableToken] = await tx
+        .select({ id: passwordResetTokens.id })
+        .from(passwordResetTokens)
+        .where(
+          and(
+            eq(passwordResetTokens.id, token.id),
+            eq(passwordResetTokens.userId, user.id),
+            gt(passwordResetTokens.expiresAt, now),
+            isNull(passwordResetTokens.usedAt),
+          ),
+        );
+      if (!usableToken) throw new Error("The reset code is invalid or has expired.");
+      await tx
+        .update(passwordResetTokens)
+        .set({ usedAt: now })
+        .where(eq(passwordResetTokens.id, usableToken.id));
+      await tx
+        .update(users)
+        .set({ passwordHash: await bcrypt.hash(data.newPassword, 12) })
+        .where(eq(users.id, user.id));
+      await tx
+        .update(authSessions)
+        .set({ revokedAt: now })
+        .where(and(eq(authSessions.userId, user.id), isNull(authSessions.revokedAt)));
+    });
+    passwordResetRequestTimes.delete(getPasswordResetRequestKey(email));
+    await writeAuditLog(user.id, "auth.password.reset.email_otp", "user", user.id);
     return { ok: true };
   });
 

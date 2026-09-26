@@ -21,7 +21,7 @@ A fresh `npm run db:migrate` database contains tables, roles, and the `Good`, `S
 Only for a local, non-production database, set these values in `.env.local`:
 
 ```text
-DEV_SEED_PASSWORD=use-a-unique-12-character-or-longer-password
+DEV_SEED_PASSWORD=use-a-unique-8-character-or-longer-password
 ALLOW_DEVELOPMENT_SEED=YES
 SEED_DATABASE_URL=mysql://root:@127.0.0.1:3306/agrilink_local
 ```

@@ -11,11 +11,24 @@ DATABASE_URL=mysql://USER:PASSWORD@DATABASE_HOST:3306/agrilink
 DATABASE_SSL=required
 SESSION_SECRET=use-a-long-random-secret
 INITIAL_MANAGEMENT_SETUP_SECRET=one-long-random-one-time-secret
+RESEND_API_KEY=re_your_resend_api_key
+EMAIL_FROM=AgriLink <no-reply@your-verified-domain.example>
 NITRO_HOST=0.0.0.0
 NITRO_PORT=3000
 ```
 
 `DATABASE_URL` and `SESSION_SECRET` are server-only secrets. Never prefix them with `VITE_`, commit them, or enter them in client-side configuration.
+
+## Email password recovery
+
+AgriLink's **Forgot password?** page sends a six-digit, single-use code that expires in 10 minutes. It uses the [Resend Send Email API](https://resend.com/docs/api-reference/emails/send-email), so add these server-side values in Render before testing it:
+
+1. Create a Resend account and verify a sender domain or sender address.
+2. Create a Resend API key and set it as `RESEND_API_KEY` in Render.
+3. Set `EMAIL_FROM` to the verified sender in the format `AgriLink <no-reply@your-domain.example>`.
+4. Save the values and let Render redeploy, then request a code for an active account whose email you can receive.
+
+Keep the API key private. AgriLink stores only a hash of the code, returns the same request response for unknown emails, limits repeat requests, and revokes existing sign-in sessions after a successful reset.
 
 ## Build and run
 

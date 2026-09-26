@@ -59,3 +59,22 @@ test("all account password flows accept eight-character passwords", async () => 
   assert.match(registrationPage, /minLength=\{8\}/);
   assert.match(setupPage, /minLength=\{8\}/);
 });
+
+test("email password reset uses a hashed, expiring one-time code", async () => {
+  const source = await readFile("src/lib/auth-functions.ts", "utf8");
+  const requestReset = source.slice(
+    source.indexOf("export const requestPasswordResetCode"),
+    source.indexOf("export const completePasswordReset"),
+  );
+  const completeReset = source.slice(source.indexOf("export const completePasswordReset"));
+
+  assert.match(requestReset, /crypto\.randomInt\(0, 1_000_000\)/);
+  assert.match(requestReset, /hashPasswordResetCode\(code\)/);
+  assert.match(requestReset, /expiresAt/);
+  assert.match(requestReset, /sendPasswordResetCode/);
+  assert.doesNotMatch(requestReset, /return \{[^}]*code/);
+  assert.match(completeReset, /isNull\(passwordResetTokens\.usedAt\)/);
+  assert.match(completeReset, /\.update\(passwordResetTokens\)\s*\.set\(\{ usedAt: now \}\)/);
+  assert.match(completeReset, /\.update\(authSessions\)\s*\.set\(\{ revokedAt: now \}\)/);
+  assert.match(completeReset, /auth\.password\.reset\.email_otp/);
+});
