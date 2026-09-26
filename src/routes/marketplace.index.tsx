@@ -133,7 +133,7 @@ function MarketplacePage() {
           Browse freely. Login or register as a buyer to add items to your cart and place orders.
         </p>
         <p className="mt-3 inline-flex rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
-          Local database listings · XAMPP MySQL
+          Live Layerbase marketplace listings
         </p>
 
         <div className="mt-10 rounded-3xl border border-border bg-card p-5 shadow-card">
