@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -85,3 +85,37 @@ export const createManagementProductionRecord = createServerFn({ method: "POST" 
     await writeAuditLog(actor.id, "production.create", "production_record", id, data);
     return { id };
   });
+
+async function productionRows(farmerId?: string) {
+  const { db } = await import("@/db/client.server");
+  const { products, productionRecords, users } = await import("@/db/schema");
+  return db
+    .select({
+      id: productionRecords.id,
+      farmerId: productionRecords.farmerId,
+      farmer: users.displayName,
+      product: products.name,
+      plantingDate: productionRecords.plantingDate,
+      expectedHarvestDate: productionRecords.expectedHarvestDate,
+      harvestedQuantityKg: productionRecords.harvestedQuantityKg,
+    })
+    .from(productionRecords)
+    .innerJoin(users, eq(productionRecords.farmerId, users.id))
+    .leftJoin(products, eq(productionRecords.productId, products.id))
+    .where(farmerId ? eq(productionRecords.farmerId, farmerId) : undefined)
+    .orderBy(asc(productionRecords.expectedHarvestDate));
+}
+
+export const getFarmerProductionRecords = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/lib/auth-server");
+  const farmer = await requireRole("Farmer");
+  return productionRows(farmer.id);
+});
+
+export const getConsultantProductionRecords = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireRole } = await import("@/lib/auth-server");
+    await requireRole("Farm Consultant");
+    return productionRows();
+  },
+);

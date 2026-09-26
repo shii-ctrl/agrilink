@@ -1,5 +1,6 @@
 // Server functions are client-safe RPC stubs; their handlers stay on the server.
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/mysql-core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -711,6 +712,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
   const { db } = await import("@/db/client.server");
   const { classifications, inventory, listings, orderItems, orders, payments, products, users } =
     await import("@/db/schema");
+  const farmerUsers = alias(users, "farmer_users");
   const orderRows = await db
     .select({
       id: orders.id,
@@ -737,6 +739,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       listingId: orderItems.listingId,
       name: products.name,
       classification: classifications.name,
+      farmer: farmerUsers.displayName,
       quantityKg: orderItems.quantityKg,
       pricePerKg: orderItems.pricePerKg,
     })
@@ -745,6 +748,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
     .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+    .leftJoin(farmerUsers, eq(inventory.farmerId, farmerUsers.id))
     .where(
       inArray(
         orderItems.orderId,
@@ -763,13 +767,14 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
     return {
       id: order.orderNumber,
       buyer: order.buyer,
-      farmer: "PROCY farmer members",
+      farmer: first?.farmer ?? "Legacy / mixed stock",
       product: first?.name ?? "Product",
       classification: first?.classification ?? "Good",
       quantity: `${lines.reduce((sum, item) => sum + item.quantityKg, 0)} kg`,
       total: new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(
         Number(order.totalAmount),
       ),
+      amount: Number(order.totalAmount),
       status:
         `${order.status.charAt(0).toUpperCase()}${order.status.slice(1)}` as DemoOrder["status"],
       paymentStatus: order.paymentId ? "Paid" : "Unpaid",
@@ -874,6 +879,32 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
       label: `${row.name} — ${row.classification} Available Quantity (kg)`,
       value: Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
     })),
+  };
+});
+
+export const getMarketerDashboard = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/lib/auth-server");
+  await requireRole("Marketer");
+  const { db } = await import("@/db/client.server");
+  const { inventory, listings, orders, receivingRecords } = await import("@/db/schema");
+  const [receiving, stock, publishedListings, pendingOrders] = await Promise.all([
+    db.select({ totalKg: receivingRecords.totalKg }).from(receivingRecords),
+    db
+      .select({ quantityKg: inventory.quantityKg, reservedKg: inventory.reservedKg })
+      .from(inventory),
+    db.select({ id: listings.id }).from(listings).where(eq(listings.status, "published")),
+    db.select({ id: orders.id }).from(orders).where(eq(orders.status, "pending")),
+  ]);
+  const receivedKg = receiving.reduce((total, row) => total + Number(row.totalKg), 0);
+  const availableKg = stock.reduce(
+    (total, row) => total + Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
+    0,
+  );
+  return {
+    receivedKg,
+    publishedListings: publishedListings.length,
+    availableKg,
+    pendingOrders: pendingOrders.length,
   };
 });
 

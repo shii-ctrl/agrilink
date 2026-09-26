@@ -18,6 +18,7 @@ export type DemoOrder = {
   classification: string;
   quantity: string;
   total: string;
+  amount?: number;
   status: DemoOrderStatus;
   paymentStatus: DemoPaymentStatus;
   date: string;

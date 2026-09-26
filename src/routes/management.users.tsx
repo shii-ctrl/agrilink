@@ -63,7 +63,7 @@ function ManagementUsersPage() {
                       <th className="px-6 py-4 font-medium">Contact</th>
                       <th className="px-6 py-4 font-medium">Role</th>
                       <th className="px-6 py-4 font-medium">Account Status</th>
-                      <th className="px-6 py-4 font-medium">Actions</th>
+                      <th className="px-6 py-4 font-medium">Record</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -75,7 +75,7 @@ function ManagementUsersPage() {
                         <td className="px-6 py-4 text-primary">
                           {user.active ? "Active" : "Inactive"}
                         </td>
-                        <td className="px-6 py-4 text-muted-foreground">View details</td>
+                        <td className="px-6 py-4 text-muted-foreground">Saved account</td>
                       </tr>
                     ))}
                   </tbody>

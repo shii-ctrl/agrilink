@@ -1,29 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Send, Sprout } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
 import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { sendDemoNotification } from "@/lib/demo-notifications";
+import { getFarmerGuidance, sendFarmerGuidanceMessage } from "@/lib/guidance-server-functions";
+
 export const Route = createFileRoute("/farmer/guidance")({ component: FarmerGuidancePage });
-const initial = [
-  {
-    id: "guide-1",
-    author: "Ana Garcia",
-    role: "Farm Consultant",
-    time: "Today, 9:10 AM",
-    message:
-      "Please monitor tomato plants regularly and report any production concerns through this crop guidance conversation.",
-  },
-];
+
 function FarmerGuidancePage() {
-  const [messages, setMessages] = useState(initial);
+  const [messages, setMessages] = useState<Awaited<ReturnType<typeof getFarmerGuidance>>>([]);
+  const load = () =>
+    void getFarmerGuidance()
+      .then(setMessages)
+      .catch(() => toast.error("Could not load your guidance conversation."));
+
+  useEffect(load, []);
+
   return (
     <FarmerLayout>
       <FarmerPageHeader
         title="Crop Guidance"
-        description="Read crop guidance from your Farm Consultant and share production concerns for follow-up."
+        description="Read saved guidance from your Farm Consultant and share production concerns."
       />
       <main className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8">
         <section className="rounded-3xl border border-border bg-card p-6 shadow-card">
@@ -37,28 +37,20 @@ function FarmerGuidancePage() {
           </p>
           <form
             className="mt-5"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
-              const message = String(new FormData(event.currentTarget).get("message") ?? "").trim();
-              if (!message) return;
-              setMessages((current) => [
-                ...current,
-                {
-                  id: `farmer-${Date.now()}`,
-                  author: "Juan Dela Cruz",
-                  role: "Farmer Member",
-                  time: "Just now",
-                  message,
-                },
-              ]);
-              sendDemoNotification({
-                role: "Farm Consultant",
-                title: "New farmer crop concern",
-                message: `Juan Dela Cruz: ${message}`,
-                target: "/consultant/guidance",
-              });
-              event.currentTarget.reset();
-              toast("Temporary guidance message sent");
+              const form = event.currentTarget;
+              const message = String(new FormData(form).get("message") ?? "").trim();
+              try {
+                await sendFarmerGuidanceMessage({ data: { message } });
+                form.reset();
+                load();
+                toast.success("Guidance message sent to your Farm Consultant.");
+              } catch (error) {
+                toast.error(
+                  error instanceof Error ? error.message : "Could not send guidance message.",
+                );
+              }
             }}
           >
             <Textarea
@@ -82,11 +74,18 @@ function FarmerGuidancePage() {
                   <p className="font-semibold">{message.author}</p>
                   <p className="text-xs text-primary">{message.role}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{message.time}</p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(message.time).toLocaleString("en-PH")}
+                </p>
               </div>
               <p className="mt-4 text-sm text-muted-foreground">{message.message}</p>
             </article>
           ))}
+          {messages.length === 0 && (
+            <p className="rounded-3xl border border-dashed p-6 text-sm text-muted-foreground">
+              No guidance messages yet. Send your first production concern above.
+            </p>
+          )}
         </section>
       </main>
     </FarmerLayout>

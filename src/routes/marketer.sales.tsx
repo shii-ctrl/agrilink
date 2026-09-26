@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Boxes, CircleDollarSign } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
-import { demoSalesRecords } from "@/lib/demo-data";
+import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/sales")({
   head: () => ({ meta: [{ title: "Sales Monitoring — Marketer | AgriLink" }] }),
@@ -10,78 +12,87 @@ export const Route = createFileRoute("/marketer/sales")({
 });
 
 function MarketerSalesPage() {
+  const [orders, setOrders] = useState<Awaited<ReturnType<typeof getDatabaseOrders>>>([]);
+  useEffect(() => {
+    void getDatabaseOrders()
+      .then(setOrders)
+      .catch(() => toast.error("Could not load saved sales."));
+  }, []);
+  const sold = useMemo(() => orders.filter((order) => order.status === "Sold"), [orders]);
+  const soldKg = sold.reduce(
+    (sum, order) =>
+      sum + (order.items?.reduce((itemSum, item) => itemSum + item.quantityKg, 0) ?? 0),
+    0,
+  );
+  const paid = sold.filter((order) => order.paymentStatus === "Paid").length;
   return (
     <MarketerLayout>
       <MarketerPageHeader
         title="Sales Monitoring"
-        description="Track PROCY sales performance, sold quantities, and order progress. Payment records remain under Accounting."
+        description="Track real PROCY sales, product ownership, and payment progress. Payment records remain under Accounting."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
         <section className="grid gap-4 md:grid-cols-3">
           <Summary
             label="Sold products"
-            value="25 kg"
-            note="Temporary completed sale quantity"
+            value={`${soldKg} kg`}
+            note="Quantity from completed orders"
             icon={Boxes}
           />
           <Summary
             label="Sales recorded"
-            value="1"
-            note="Temporary sales record"
+            value={String(sold.length)}
+            note="Completed saved orders"
             icon={CircleDollarSign}
           />
           <Summary
-            label="Payment status"
-            value="Paid"
-            note="Recorded by Accounting"
+            label="Payments recorded"
+            value={String(paid)}
+            note="Completed sales marked paid by Accounting"
             icon={CircleDollarSign}
           />
         </section>
         <section className="mt-6 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
           <div className="border-b border-border px-6 py-5">
-            <h2 className="text-lg font-semibold">Sales records</h2>
+            <h2 className="text-lg font-semibold">Saved sales records</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Temporary data for reviewing sales monitoring before MySQL is connected.
+              The farmer source comes from the inventory used by each marketplace listing.
             </p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="w-full min-w-[950px] text-left text-sm">
               <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-6 py-4 font-medium">Product</th>
                   <th className="px-6 py-4 font-medium">Classification</th>
-                  <th className="px-6 py-4 font-medium">Farmer Source</th>
+                  <th className="px-6 py-4 font-medium">Farmer source</th>
                   <th className="px-6 py-4 font-medium">Buyer</th>
                   <th className="px-6 py-4 font-medium">Quantity</th>
-                  <th className="px-6 py-4 font-medium">Price</th>
-                  <th className="px-6 py-4 font-medium">Sales Status</th>
-                  <th className="px-6 py-4 font-medium">Payment Status</th>
+                  <th className="px-6 py-4 font-medium">Amount</th>
+                  <th className="px-6 py-4 font-medium">Status</th>
+                  <th className="px-6 py-4 font-medium">Payment</th>
                 </tr>
               </thead>
               <tbody>
-                {demoSalesRecords.map((record) => (
-                  <tr
-                    key={`${record.buyer}-${record.product}`}
-                    className="border-b border-border last:border-0"
-                  >
-                    <td className="px-6 py-4 font-medium">{record.product}</td>
-                    <td className="px-6 py-4">{record.classification}</td>
-                    <td className="px-6 py-4">{record.farmer}</td>
-                    <td className="px-6 py-4">{record.buyer}</td>
-                    <td className="px-6 py-4">{record.quantity}</td>
-                    <td className="px-6 py-4">{record.price}</td>
-                    <td className="px-6 py-4">
-                      <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">
-                        {record.salesStatus}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                        {record.paymentStatus}
-                      </span>
-                    </td>
+                {orders.map((order) => (
+                  <tr key={order.id} className="border-b border-border last:border-0">
+                    <td className="px-6 py-4 font-medium">{order.product}</td>
+                    <td className="px-6 py-4">{order.classification}</td>
+                    <td className="px-6 py-4">{order.farmer}</td>
+                    <td className="px-6 py-4">{order.buyer}</td>
+                    <td className="px-6 py-4">{order.quantity}</td>
+                    <td className="px-6 py-4">{order.total}</td>
+                    <td className="px-6 py-4">{order.status}</td>
+                    <td className="px-6 py-4">{order.paymentStatus}</td>
                   </tr>
                 ))}
+                {!orders.length && (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
+                      No buyer orders have been saved yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

@@ -22,7 +22,7 @@ function BuyerDashboard() {
           <Tile
             icon={ShoppingCart}
             label="My Cart"
-            text="Review product quantities before placing a temporary order."
+            text="Review product quantities before placing a saved marketplace order."
             link="/buyer/cart"
             action="Open cart"
           />

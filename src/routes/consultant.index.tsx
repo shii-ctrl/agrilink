@@ -1,9 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ClipboardList, MessageCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { ConsultantLayout, ConsultantPageHeader } from "@/components/consultant-layout";
 import { Button } from "@/components/ui/button";
+import { getConsultantProductionRecords } from "@/lib/production-server-functions";
 export const Route = createFileRoute("/consultant/")({ component: ConsultantDashboard });
 function ConsultantDashboard() {
+  const [production, setProduction] = useState<
+    Awaited<ReturnType<typeof getConsultantProductionRecords>>
+  >([]);
+  useEffect(() => {
+    void getConsultantProductionRecords()
+      .then(setProduction)
+      .catch(() => toast.error("Could not load saved farmer records."));
+  }, []);
+  const farmers = new Set(production.map((record) => record.farmerId)).size;
   return (
     <ConsultantLayout>
       <ConsultantPageHeader
@@ -15,22 +27,22 @@ function ConsultantDashboard() {
           <Card
             icon={ClipboardList}
             title="Farmer Members"
-            value="1"
-            note="Temporary farmer account in this preview"
+            value={String(farmers)}
+            note="Farmer accounts with saved production records"
             to="/consultant/production"
           />
           <Card
             icon={ClipboardList}
             title="Production Records"
-            value="2"
+            value={String(production.length)}
             note="Available for guidance context"
             to="/consultant/production"
           />
           <Card
             icon={MessageCircle}
             title="Guidance Conversations"
-            value="1"
-            note="Active crop-guidance thread"
+            value="Saved"
+            note="Open guidance to view and send saved messages"
             to="/consultant/guidance"
           />
         </section>

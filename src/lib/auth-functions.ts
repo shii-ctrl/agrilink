@@ -18,10 +18,29 @@ const registrationInput = z.object({
     .regex(/[a-z]/, "Include a lowercase letter.")
     .regex(/\d/, "Include a number."),
 });
+const profileInput = z.object({
+  displayName: z.string().trim().min(2).max(160),
+  contact: z.string().trim().min(5).max(80).nullable(),
+});
 
 export const getCurrentSessionUser = createServerFn({ method: "GET" }).handler(async () =>
   (await import("@/lib/auth-server")).getCurrentUser(),
 );
+
+export const updateCurrentProfile = createServerFn({ method: "POST" })
+  .validator(profileInput)
+  .handler(async ({ data }) => {
+    const { db } = await import("@/db/client.server");
+    const { users } = await import("@/db/schema");
+    const { requireUser, writeAuditLog } = await import("@/lib/auth-server");
+    const user = await requireUser();
+    await db
+      .update(users)
+      .set({ displayName: data.displayName, contact: data.contact })
+      .where(eq(users.id, user.id));
+    await writeAuditLog(user.id, "user.profile.update", "user", user.id);
+    return { ...user, displayName: data.displayName, contact: data.contact };
+  });
 
 export const loginUser = createServerFn({ method: "POST" })
   .validator(loginInput)

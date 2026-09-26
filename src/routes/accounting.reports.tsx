@@ -1,42 +1,51 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BarChart3, FileText, ReceiptText } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { AccountingLayout, AccountingPageHeader } from "@/components/accounting-layout";
+import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/reports")({ component: AccountingReportsPage });
 
 function AccountingReportsPage() {
-  const reports = [
-    {
-      title: "Sales Summary",
-      value: "₱1,950",
-      note: "Temporary recorded sales value",
-      icon: BarChart3,
-    },
-    {
-      title: "Payment Summary",
-      value: "1 paid",
-      note: "Payment records recorded by Accounting",
-      icon: ReceiptText,
-    },
-    {
-      title: "Transaction Summary",
-      value: "1 record",
-      note: "Completed temporary transaction",
-      icon: FileText,
-    },
-  ];
+  const [orders, setOrders] = useState<Awaited<ReturnType<typeof getDatabaseOrders>>>([]);
+  useEffect(() => {
+    void getDatabaseOrders()
+      .then(setOrders)
+      .catch(() => toast.error("Could not load saved reports."));
+  }, []);
+  const reports = useMemo(() => {
+    const paid = orders.filter((order) => order.paymentStatus === "Paid");
+    const total = paid.reduce((sum, order) => sum + (order.amount ?? 0), 0);
+    return [
+      {
+        title: "Collected sales",
+        value: new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(total),
+        note: "Total from paid orders",
+        icon: BarChart3,
+      },
+      {
+        title: "Payment summary",
+        value: `${paid.length} paid`,
+        note: "Payments recorded by Accounting",
+        icon: ReceiptText,
+      },
+      {
+        title: "Transaction summary",
+        value: `${orders.length} record${orders.length === 1 ? "" : "s"}`,
+        note: "Marketplace orders saved in Layerbase",
+        icon: FileText,
+      },
+    ];
+  }, [orders]);
   return (
     <AccountingLayout>
       <AccountingPageHeader
         title="Reports"
-        description="Review temporary sales, transactions, and payment summaries for PROCY."
+        description="Review saved sales, transaction, and payment summaries for PROCY."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
-        <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
-          <span className="font-semibold">Preview only:</span> Exporting, tax computation, and
-          financial statements are not included in the current workplan.
-        </div>
         <section className="grid gap-4 md:grid-cols-3">
           {reports.map((report) => (
             <article
@@ -54,8 +63,7 @@ function AccountingReportsPage() {
           <h2 className="text-lg font-semibold">Reporting scope</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Accounting records payment information, while Management has the broader monitoring and
-            reporting view. These summary cards will become MySQL-driven reports in the database
-            phase.
+            reporting view. Exporting, tax computation, and financial statements are not included.
           </p>
         </section>
       </main>

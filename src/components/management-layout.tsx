@@ -11,7 +11,6 @@ import {
   PackageCheck,
   ReceiptText,
   Settings,
-  SlidersHorizontal,
   UsersRound,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -37,10 +36,7 @@ const managementSections = [
   { label: "Main", items: [{ label: "Dashboard", icon: BarChart3, to: "/management" as const }] },
   {
     label: "Administration",
-    items: [
-      { label: "User Accounts", icon: UsersRound, to: "/management/users" as const },
-      { label: "Demo Controls", icon: SlidersHorizontal, to: "/management/demo-controls" as const },
-    ],
+    items: [{ label: "User Accounts", icon: UsersRound, to: "/management/users" as const }],
   },
   {
     label: "Operations",
@@ -141,7 +137,7 @@ export function ManagementLayout({ children }: { children: ReactNode }) {
               </SidebarMenuItem>
             </SidebarMenu>
             <p className="px-2 pt-2 text-xs leading-relaxed text-sidebar-foreground/55">
-              Prototype interface. Sign-in and access controls will be added with the backend.
+              Signed-in Management workspace. Account access is protected by your active session.
             </p>
           </SidebarFooter>
         </Sidebar>

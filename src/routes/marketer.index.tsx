@@ -1,43 +1,53 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ClipboardCheck, PackageCheck, ReceiptText, ShoppingBag } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getMarketerDashboard } from "@/lib/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/")({
   component: MarketerDashboard,
 });
 
-const summary = [
-  {
-    label: "Products received",
-    value: "220 kg",
-    detail: "Recorded from farmer deliveries",
-    icon: ReceiptText,
-  },
-  {
-    label: "Classified listings",
-    value: "4",
-    detail: "Ready for marketplace monitoring",
-    icon: PackageCheck,
-  },
-  {
-    label: "Available products",
-    value: "195 kg",
-    detail: "Across Good, Semi and Reject",
-    icon: ShoppingBag,
-  },
-  {
-    label: "Pending buyer orders",
-    value: "0",
-    detail: "No order needs confirmation",
-    icon: ClipboardCheck,
-  },
-];
-
 function MarketerDashboard() {
+  const [summary, setSummary] = useState<Awaited<ReturnType<typeof getMarketerDashboard>> | null>(
+    null,
+  );
+  useEffect(() => {
+    void getMarketerDashboard()
+      .then(setSummary)
+      .catch(() => toast.error("Could not load live operations totals."));
+  }, []);
+  const cards = [
+    {
+      label: "Products received",
+      value: `${summary?.receivedKg ?? 0} kg`,
+      detail: "Recorded from farmer deliveries",
+      icon: ReceiptText,
+    },
+    {
+      label: "Published listings",
+      value: String(summary?.publishedListings ?? 0),
+      detail: "Visible to buyers",
+      icon: PackageCheck,
+    },
+    {
+      label: "Available products",
+      value: `${summary?.availableKg ?? 0} kg`,
+      detail: "Across Good, Semi and Reject",
+      icon: ShoppingBag,
+    },
+    {
+      label: "Pending buyer orders",
+      value: String(summary?.pendingOrders ?? 0),
+      detail: "Orders needing confirmation",
+      icon: ClipboardCheck,
+    },
+  ];
   return (
     <MarketerLayout>
       <MarketerPageHeader
@@ -46,11 +56,11 @@ function MarketerDashboard() {
       />
       <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
         <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-          <span className="font-semibold text-primary">Temporary demo data:</span> These figures are
-          for preview only and will be replaced by MySQL records later.
+          <span className="font-semibold text-primary">Live Layerbase totals:</span> these figures
+          are calculated from saved deliveries, inventory, listings, and buyer orders.
         </div>
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {summary.map((item) => (
+          {cards.map((item) => (
             <Card key={item.label} className="border-border/70 shadow-sm">
               <CardContent className="flex items-start justify-between p-5">
                 <div>
@@ -108,8 +118,8 @@ function MarketerDashboard() {
         <section className="rounded-3xl border border-semi/30 bg-card p-6 shadow-card">
           <h2 className="text-lg font-semibold">Low-stock attention</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Tomato — Reject classification has 10 kg available. Review the listing quantity before
-            accepting additional buyer orders.
+            Review delivery-backed classifications and available quantity before accepting buyer
+            orders. A new record will appear here only after it is saved in Layerbase.
           </p>
         </section>
         <section className="flex flex-wrap gap-3 rounded-3xl border border-border bg-card p-6 shadow-card">

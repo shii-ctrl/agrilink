@@ -1,43 +1,54 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CircleDollarSign, ReceiptText, WalletCards } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { AccountingLayout, AccountingPageHeader } from "@/components/accounting-layout";
 import { Card, CardContent } from "@/components/ui/card";
+import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/")({ component: AccountingDashboard });
 
 function AccountingDashboard() {
-  const summary = [
-    {
-      label: "Recorded transactions",
-      value: "1",
-      note: "Temporary transaction records",
-      icon: ReceiptText,
-    },
-    {
-      label: "Payments recorded",
-      value: "1",
-      note: "Payment status: Paid",
-      icon: CircleDollarSign,
-    },
-    {
-      label: "Amount collected",
-      value: "₱1,950",
-      note: "Temporary recorded payment",
-      icon: WalletCards,
-    },
-  ];
+  const [orders, setOrders] = useState<Awaited<ReturnType<typeof getDatabaseOrders>>>([]);
+  useEffect(() => {
+    void getDatabaseOrders()
+      .then(setOrders)
+      .catch(() => toast.error("Could not load accounting totals."));
+  }, []);
+  const summary = useMemo(() => {
+    const paid = orders.filter((order) => order.paymentStatus === "Paid");
+    const collected = paid.reduce((sum, order) => sum + (order.amount ?? 0), 0);
+    return [
+      {
+        label: "Recorded transactions",
+        value: String(orders.length),
+        note: "Saved buyer orders",
+        icon: ReceiptText,
+      },
+      {
+        label: "Payments recorded",
+        value: String(paid.length),
+        note: "Orders marked paid by Accounting",
+        icon: CircleDollarSign,
+      },
+      {
+        label: "Amount collected",
+        value: new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(
+          collected,
+        ),
+        note: "Total from paid saved orders",
+        icon: WalletCards,
+      },
+    ];
+  }, [orders]);
   return (
     <AccountingLayout>
       <AccountingPageHeader
         title="Accounting Dashboard"
-        description="Record payments for PROCY sales and monitor payment information after the Marketer completes the order workflow."
+        description="Monitor saved order and payment information after the Marketer completes the sales workflow."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
-        <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
-          <span className="font-semibold">Temporary demo data:</span> Payment records shown here are
-          browser-only until MySQL is connected.
-        </div>
         <section className="grid gap-4 md:grid-cols-3">
           {summary.map((item) => (
             <Card key={item.label} className="shadow-card">
