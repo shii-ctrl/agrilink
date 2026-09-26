@@ -110,8 +110,8 @@ function SetupManagementPage() {
                 name="password"
                 type="password"
                 autoComplete="new-password"
-                minLength={12}
-                placeholder="12+ characters"
+                minLength={8}
+                placeholder="8+ characters"
                 required
               />
             </div>
@@ -122,7 +122,7 @@ function SetupManagementPage() {
                 name="confirmPassword"
                 type="password"
                 autoComplete="new-password"
-                minLength={12}
+                minLength={8}
                 required
               />
             </div>

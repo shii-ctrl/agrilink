@@ -7,25 +7,13 @@ const createUserInput = z.object({
   name: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80),
   email: z.string().trim().email().max(255),
-  password: z
-    .string()
-    .min(12, "Use at least 12 characters.")
-    .max(200)
-    .regex(/[A-Z]/, "Include an uppercase letter.")
-    .regex(/[a-z]/, "Include a lowercase letter.")
-    .regex(/\d/, "Include a number."),
+  password: z.string().min(8, "Use at least 8 characters.").max(200),
   role: internalRole,
   active: z.boolean(),
 });
 const resetUserPasswordInput = z.object({
   userId: z.string().uuid(),
-  password: z
-    .string()
-    .min(12, "Use at least 12 characters.")
-    .max(200)
-    .regex(/[A-Z]/, "Include an uppercase letter.")
-    .regex(/[a-z]/, "Include a lowercase letter.")
-    .regex(/\d/, "Include a number."),
+  password: z.string().min(8, "Use at least 8 characters.").max(200),
 });
 const bootstrapInput = createUserInput
   .pick({ name: true, contact: true, email: true, password: true })

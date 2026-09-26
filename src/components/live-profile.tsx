@@ -106,9 +106,7 @@ export function LiveProfile({ role }: { role: string }) {
       </section>
       <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
         <h2 className="text-lg font-semibold">Change password</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Use at least 12 characters with uppercase, lowercase, and a number.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Use at least 8 characters.</p>
         <form className="mt-6 grid gap-5 sm:grid-cols-2" onSubmit={changePassword}>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="current-password">Current password</Label>
@@ -127,7 +125,7 @@ export function LiveProfile({ role }: { role: string }) {
               name="newPassword"
               type="password"
               autoComplete="new-password"
-              minLength={12}
+              minLength={8}
               required
             />
           </div>
@@ -138,7 +136,7 @@ export function LiveProfile({ role }: { role: string }) {
               name="confirmPassword"
               type="password"
               autoComplete="new-password"
-              minLength={12}
+              minLength={8}
               required
             />
           </div>

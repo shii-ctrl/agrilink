@@ -37,3 +37,25 @@ test("Management password resets are authenticated and audited", async () => {
   assert.match(resetPassword, /user\.password\.reset/);
   assert.doesNotMatch(resetPassword, /return \{[^}]*passwordHash/);
 });
+
+test("all account password flows accept eight-character passwords", async () => {
+  const [authSource, adminSource, registrationPage, setupPage] = await Promise.all([
+    readFile("src/lib/auth-functions.ts", "utf8"),
+    readFile("src/lib/admin-server-functions.ts", "utf8"),
+    readFile("src/routes/register.tsx", "utf8"),
+    readFile("src/routes/setup-management.tsx", "utf8"),
+  ]);
+
+  assert.match(authSource, /\.min\(8, "Use at least 8 characters\."\)/);
+  assert.match(adminSource, /\.min\(8, "Use at least 8 characters\."\)/);
+  assert.doesNotMatch(
+    authSource,
+    /Include an uppercase letter|Include a lowercase letter|Include a number/,
+  );
+  assert.doesNotMatch(
+    adminSource,
+    /Include an uppercase letter|Include a lowercase letter|Include a number/,
+  );
+  assert.match(registrationPage, /minLength=\{8\}/);
+  assert.match(setupPage, /minLength=\{8\}/);
+});

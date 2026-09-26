@@ -33,14 +33,7 @@ function RegisterPage() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
-  const strength =
-    password.length >= 12 && /[A-Z]/.test(password) && /\d/.test(password)
-      ? "Strong"
-      : password.length >= 8
-        ? "Medium"
-        : password
-          ? "Weak"
-          : "";
+  const passwordStatus = password.length >= 8 ? "Ready" : password ? "Too short" : "";
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="auth-visual-enter-left relative hidden lg:block">
@@ -158,17 +151,17 @@ function RegisterPage() {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
-                  minLength={12}
-                  placeholder="At least 12 characters"
+                  minLength={8}
+                  placeholder="At least 8 characters"
                   required
                   className="h-11"
                   onChange={(event) => setPassword(event.target.value)}
                 />
-                {strength && (
+                {passwordStatus && (
                   <p
-                    className={`text-xs ${strength === "Strong" ? "text-good" : strength === "Medium" ? "text-semi" : "text-reject"}`}
+                    className={`text-xs ${passwordStatus === "Ready" ? "text-good" : "text-reject"}`}
                   >
-                    Password strength: {strength}
+                    Password: {passwordStatus}
                   </p>
                 )}
               </div>

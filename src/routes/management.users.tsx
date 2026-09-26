@@ -201,7 +201,7 @@ function ManagementUsersPage() {
                     name="password"
                     type="password"
                     autoComplete="new-password"
-                    minLength={12}
+                    minLength={8}
                     required
                   />
                 </div>
@@ -280,7 +280,7 @@ function ManagementUsersPage() {
                     name="password"
                     type="password"
                     autoComplete="new-password"
-                    minLength={12}
+                    minLength={8}
                     required
                   />
                 </div>
@@ -291,7 +291,7 @@ function ManagementUsersPage() {
                     name="confirmPassword"
                     type="password"
                     autoComplete="new-password"
-                    minLength={12}
+                    minLength={8}
                     required
                   />
                 </div>

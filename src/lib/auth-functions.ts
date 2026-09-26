@@ -10,25 +10,13 @@ const registrationInput = z.object({
   name: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80),
   email: z.string().trim().email().max(255),
-  password: z
-    .string()
-    .min(12, "Use at least 12 characters.")
-    .max(200)
-    .regex(/[A-Z]/, "Include an uppercase letter.")
-    .regex(/[a-z]/, "Include a lowercase letter.")
-    .regex(/\d/, "Include a number."),
+  password: z.string().min(8, "Use at least 8 characters.").max(200),
 });
 const profileInput = z.object({
   displayName: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80).nullable(),
 });
-const strongPassword = z
-  .string()
-  .min(12, "Use at least 12 characters.")
-  .max(200)
-  .regex(/[A-Z]/, "Include an uppercase letter.")
-  .regex(/[a-z]/, "Include a lowercase letter.")
-  .regex(/\d/, "Include a number.");
+const strongPassword = z.string().min(8, "Use at least 8 characters.").max(200);
 const changePasswordInput = z.object({
   currentPassword: z.string().min(1).max(200),
   newPassword: strongPassword,
