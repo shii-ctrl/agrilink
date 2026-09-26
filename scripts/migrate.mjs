@@ -10,13 +10,18 @@ dotenv.config();
 const databaseUrl = process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("Set DATABASE_URL before running migrations.");
 
+const parsedDatabaseUrl = new URL(databaseUrl);
 const databaseRequiresSsl =
   process.env.DATABASE_SSL === "required" ||
-  new URL(databaseUrl).searchParams.get("ssl-mode")?.toLowerCase() === "required";
+  parsedDatabaseUrl.searchParams.get("ssl-mode")?.toLowerCase() === "required";
+// ssl-mode is a Layerbase URL hint, not a mysql2 connection option.
+parsedDatabaseUrl.searchParams.delete("ssl-mode");
 
 const connection = await mysql.createConnection({
-  uri: databaseUrl,
+  uri: parsedDatabaseUrl.toString(),
   multipleStatements: true,
+  // A free Layerbase database may need time to wake from hibernation.
+  connectTimeout: 60_000,
   ...(databaseRequiresSsl ? { ssl: { rejectUnauthorized: true } } : {}),
 });
 const legacySchemaOnlyMigrations = new Set([

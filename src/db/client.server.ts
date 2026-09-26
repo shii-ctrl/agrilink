@@ -17,18 +17,28 @@ if (!databaseUrl) {
 // Local XAMPP typically does not use TLS, while managed MySQL providers do.
 // Keep TLS opt-in so a local installation still works, but do not disable
 // certificate verification for a hosted database.
-function databaseRequiresSsl(url: string): boolean {
-  if (process.env["DATABASE_SSL"] === "required") return true;
+function normalizeDatabaseUrl(url: string): { uri: string; requiresSsl: boolean } {
+  const environmentRequiresSsl = process.env["DATABASE_SSL"] === "required";
   try {
-    return new URL(url).searchParams.get("ssl-mode")?.toLowerCase() === "required";
+    const parsedUrl = new URL(url);
+    const urlRequiresSsl = parsedUrl.searchParams.get("ssl-mode")?.toLowerCase() === "required";
+    // ssl-mode is a Layerbase URL hint, not a mysql2 connection option.
+    parsedUrl.searchParams.delete("ssl-mode");
+    return { uri: parsedUrl.toString(), requiresSsl: environmentRequiresSsl || urlRequiresSsl };
   } catch {
-    return false;
+    return { uri: url, requiresSsl: environmentRequiresSsl };
   }
 }
 
+const connection = normalizeDatabaseUrl(databaseUrl);
 const pool =
-  databaseRequiresSsl(databaseUrl)
-    ? createPool({ uri: databaseUrl, ssl: { rejectUnauthorized: true } })
-    : createPool(databaseUrl);
+  connection.requiresSsl
+    ? createPool({
+        uri: connection.uri,
+        ssl: { rejectUnauthorized: true },
+        // Layerbase free databases can take roughly 20 seconds to wake.
+        connectTimeout: 60_000,
+      })
+    : createPool({ uri: connection.uri, connectTimeout: 60_000 });
 
 export const db = drizzle(pool, { schema, mode: "default" });
