@@ -141,7 +141,8 @@ function MarketerProductsPage() {
                 className="mt-8 grid gap-5 sm:grid-cols-2"
                 onSubmit={async (event) => {
                   event.preventDefault();
-                  const formData = new FormData(event.currentTarget);
+                  const form = event.currentTarget;
+                  const formData = new FormData(form);
                   try {
                     await createCatalogProduct({
                       data: {
@@ -151,7 +152,7 @@ function MarketerProductsPage() {
                         imageUrl: String(formData.get("imageUrl") ?? ""),
                       },
                     });
-                    event.currentTarget.reset();
+                    form.reset();
                     toast.success("Product added to catalog", {
                       description: "Next, record a farmer delivery to create classified inventory.",
                     });
@@ -209,7 +210,8 @@ function MarketerProductsPage() {
                 className="mt-8 grid gap-5 sm:grid-cols-2"
                 onSubmit={async (event) => {
                   event.preventDefault();
-                  const formData = new FormData(event.currentTarget);
+                  const form = event.currentTarget;
+                  const formData = new FormData(form);
                   const price = Number(formData.get("price"));
                   try {
                     await createMarketplaceListing({
@@ -219,7 +221,7 @@ function MarketerProductsPage() {
                       },
                     });
                     setListings(await getMarketplaceListings());
-                    event.currentTarget.reset();
+                    form.reset();
                     toast.success("Marketplace listing created", {
                       description: "Published stock is now available to buyers.",
                     });
