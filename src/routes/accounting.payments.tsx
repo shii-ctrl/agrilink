@@ -73,7 +73,8 @@ function AccountingPaymentsPage() {
           <Clock3 className="mt-0.5 size-5 shrink-0" />
           <p>
             <span className="font-semibold">Payment queue:</span> only Sold PROCY orders are ready
-            for payment recording. Changes appear in the Buyer and Farmer workspaces immediately.
+            for payment recording. Buyer payment status updates immediately; Farmer stock status
+            updates when sales are fulfilled.
           </p>
         </div>
         <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">

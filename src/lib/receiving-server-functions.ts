@@ -245,6 +245,8 @@ export const getFarmerProductStatuses = createServerFn({ method: "GET" }).handle
       id: inventory.id,
       product: products.name,
       classification: classifications.name,
+      quantityKg: inventory.quantityKg,
+      reservedKg: inventory.reservedKg,
       availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
       listingStatus: listings.status,
     })
@@ -253,11 +255,21 @@ export const getFarmerProductStatuses = createServerFn({ method: "GET" }).handle
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
     .leftJoin(listings, eq(listings.inventoryId, inventory.id))
     .where(eq(inventory.farmerId, farmer.id));
-  return rows.map((row) => ({
-    ...row,
-    availableKg: Math.max(0, Number(row.availableKg)),
-    status: row.listingStatus === "published" ? "Listed for buyers" : "Awaiting listing",
-  }));
+  return rows.map((row) => {
+    const availableKg = Math.max(0, Number(row.availableKg));
+    const reservedKg = Math.max(0, Number(row.reservedKg));
+    const totalKg = Math.max(0, Number(row.quantityKg));
+    const status = !row.listingStatus
+      ? "Awaiting marketplace listing"
+      : row.listingStatus !== "published"
+        ? "Not available to buyers"
+        : totalKg === 0 || availableKg === 0
+          ? "Sold out"
+          : reservedKg > 0
+            ? "Listed — partly reserved"
+            : "Listed for buyers";
+    return { ...row, availableKg, status };
+  });
 });
 export const getManagementReceivingRecords = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/lib/auth-server");

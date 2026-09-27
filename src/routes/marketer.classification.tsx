@@ -47,7 +47,7 @@ function MarketerClassificationPage() {
             <div>
               <h2 className="text-lg font-semibold">Saved classification records</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                These records are stored in MySQL and trace back to the delivery reference.
+                These records are stored in AgriLink and trace back to the delivery reference.
               </p>
             </div>
           </div>

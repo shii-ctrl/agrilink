@@ -278,17 +278,17 @@ function ProductDetail() {
               </p>
             ) : (
               isAvailable && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                You need to{" "}
-                <Link to="/login" className="font-medium text-primary hover:underline">
-                  log in
-                </Link>{" "}
-                or{" "}
-                <Link to="/register" className="font-medium text-primary hover:underline">
-                  register as a buyer
-                </Link>{" "}
-                to add this item to your cart.
-              </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  You need to{" "}
+                  <Link to="/login" className="font-medium text-primary hover:underline">
+                    log in
+                  </Link>{" "}
+                  or{" "}
+                  <Link to="/register" className="font-medium text-primary hover:underline">
+                    register as a buyer
+                  </Link>{" "}
+                  to add this item to your cart.
+                </p>
               )
             )}
           </div>

@@ -56,11 +56,24 @@ function MarketerProductsPage() {
   const [publishableInventory, setPublishableInventory] = useState<
     Awaited<ReturnType<typeof getPublishableInventory>>
   >([]);
+  const [savingCatalogProduct, setSavingCatalogProduct] = useState(false);
+  const [savingListing, setSavingListing] = useState(false);
+
+  const load = async () => {
+    const [nextListings, nextCatalogProducts, nextPublishableInventory] = await Promise.all([
+      getMarketplaceListings(),
+      getCatalogProducts(),
+      getPublishableInventory(),
+    ]);
+    setListings(nextListings);
+    setCatalogProducts(nextCatalogProducts);
+    setPublishableInventory(nextPublishableInventory);
+  };
 
   useEffect(() => {
-    void getMarketplaceListings().then(setListings);
-    void getCatalogProducts().then(setCatalogProducts);
-    void getPublishableInventory().then(setPublishableInventory);
+    void load().catch(() => {
+      toast.error("Could not load the product workspace. Refresh the page and try again.");
+    });
   }, []);
 
   return (
@@ -161,17 +174,18 @@ function MarketerProductsPage() {
                   event.preventDefault();
                   const form = event.currentTarget;
                   const formData = new FormData(form);
+                  setSavingCatalogProduct(true);
                   try {
                     await createCatalogProduct({
                       data: {
                         name: String(formData.get("name")),
-                        cropType: String(formData.get("cropType")),
+                        cropType: String(formData.get("cropType")) as (typeof cropTypes)[number],
                         description: String(formData.get("description") ?? ""),
                         imageUrl: String(formData.get("imageUrl") ?? ""),
                       },
                     });
                     form.reset();
-                    setCatalogProducts(await getCatalogProducts());
+                    await load();
                     toast.success("Product added to catalog", {
                       description: "Next, record a farmer delivery to create classified inventory.",
                     });
@@ -179,6 +193,8 @@ function MarketerProductsPage() {
                     toast.error("Product could not be added", {
                       description: error instanceof Error ? error.message : "Please try again.",
                     });
+                  } finally {
+                    setSavingCatalogProduct(false);
                   }
                 }}
               >
@@ -214,8 +230,8 @@ function MarketerProductsPage() {
                   <Input id="catalog-image-url" name="imageUrl" type="url" maxLength={500} />
                 </div>
                 <div className="sm:col-span-2">
-                  <Button type="submit" className="rounded-full">
-                    Add catalog product
+                  <Button type="submit" className="rounded-full" disabled={savingCatalogProduct}>
+                    {savingCatalogProduct ? "Saving…" : "Add catalog product"}
                   </Button>
                 </div>
               </form>
@@ -261,6 +277,7 @@ function MarketerProductsPage() {
                   const form = event.currentTarget;
                   const formData = new FormData(form);
                   const price = Number(formData.get("price"));
+                  setSavingListing(true);
                   try {
                     await createMarketplaceListing({
                       data: {
@@ -268,8 +285,8 @@ function MarketerProductsPage() {
                         pricePerKg: price,
                       },
                     });
-                    setListings(await getMarketplaceListings());
                     form.reset();
+                    await load();
                     toast.success("Marketplace listing created", {
                       description: "Published stock is now available to buyers.",
                     });
@@ -277,6 +294,8 @@ function MarketerProductsPage() {
                     toast.error("Listing could not be created", {
                       description: error instanceof Error ? error.message : "Please try again.",
                     });
+                  } finally {
+                    setSavingListing(false);
                   }
                 }}
               >
@@ -308,8 +327,12 @@ function MarketerProductsPage() {
                   The classification is inherited from the inventory you select.
                 </p>
                 <div className="flex items-end">
-                  <Button type="submit" className="w-full rounded-full sm:w-auto">
-                    Create listing
+                  <Button
+                    type="submit"
+                    className="w-full rounded-full sm:w-auto"
+                    disabled={savingListing}
+                  >
+                    {savingListing ? "Publishing…" : "Create listing"}
                   </Button>
                 </div>
               </form>

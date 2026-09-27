@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ReceiptText, Search } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
 import { Input } from "@/components/ui/input";
 import type { DemoOrder } from "@/lib/demo-orders";
@@ -21,11 +22,17 @@ export const Route = createFileRoute("/management/sales")({
 
 function ManagementSalesPage() {
   const [sales, setSales] = useState<DemoOrder[]>([]);
+  const [query, setQuery] = useState("");
   useEffect(() => {
     void getDatabaseOrders()
       .then((orders) => setSales(orders.filter((order) => order.status === "Sold")))
-      .catch(() => setSales([]));
+      .catch(() => toast.error("Could not load saved sales records."));
   }, []);
+  const visibleSales = sales.filter((sale) =>
+    `${sale.id} ${sale.product} ${sale.farmer} ${sale.buyer} ${sale.status}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
   return (
     <ManagementLayout>
       <ManagementPageHeader
@@ -37,7 +44,12 @@ function ManagementSalesPage() {
         <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
           <div className="relative max-w-md">
             <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search sales records" className="h-11 rounded-full pl-11" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search sales records"
+              className="h-11 rounded-full pl-11"
+            />
           </div>
           <p className="mt-3 text-xs text-muted-foreground">Live sales data from AgriLink.</p>
         </section>
@@ -46,8 +58,8 @@ function ManagementSalesPage() {
           <div className="border-b border-border px-6 py-5">
             <h2 className="text-lg font-semibold">Sales records</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Confirmed orders create sales records with Sold status. Accounting records payment
-              status.
+              A Marketer marks a confirmed order as Sold after fulfillment. Accounting then records
+              the payment status.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -62,11 +74,10 @@ function ManagementSalesPage() {
                   <th className="px-6 py-4 font-medium">Selling Price</th>
                   <th className="px-6 py-4 font-medium">Sales Status</th>
                   <th className="px-6 py-4 font-medium">Payment Status</th>
-                  <th className="px-6 py-4 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {sales.map((sale) => (
+                {visibleSales.map((sale) => (
                   <tr key={sale.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 font-medium">{sale.product}</td>
                     <td className="px-6 py-4">{sale.classification}</td>
@@ -76,9 +87,17 @@ function ManagementSalesPage() {
                     <td className="px-6 py-4">{sale.total}</td>
                     <td className="px-6 py-4 text-primary">{sale.status}</td>
                     <td className="px-6 py-4 text-primary">{sale.paymentStatus}</td>
-                    <td className="px-6 py-4 text-muted-foreground">View details</td>
                   </tr>
                 ))}
+                {!visibleSales.length && (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
+                      {sales.length
+                        ? "No sales match your search."
+                        : "No completed sales have been saved yet."}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

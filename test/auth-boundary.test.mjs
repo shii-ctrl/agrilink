@@ -95,3 +95,18 @@ test("marketplace cart controls prevent duplicate additions beyond available sto
   assert.match(source, /remainingCartableQuantity/);
   assert.match(source, /All \$\{cartQuantityKg\} kg available is already in your cart/);
 });
+
+test("role workflows keep catalog, cart, and Farmer stock states consistent", async () => {
+  const [marketplace, receiving, notifications] = await Promise.all([
+    readFile("src/lib/marketplace-server-functions.ts", "utf8"),
+    readFile("src/lib/receiving-server-functions.ts", "utf8"),
+    readFile("src/lib/notification-server.ts", "utf8"),
+  ]);
+
+  assert.match(marketplace, /cropType: z\.enum\(cropTypes\)/);
+  assert.match(marketplace, /A catalog product with that name already exists/);
+  assert.match(marketplace, /inArray\(cartItems\.listingId, listingIds\)/);
+  assert.match(receiving, /"Listed — partly reserved"/);
+  assert.match(receiving, /"Sold out"/);
+  assert.match(notifications, /eq\(users\.active, true\)/);
+});

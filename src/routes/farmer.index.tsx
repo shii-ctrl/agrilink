@@ -26,6 +26,7 @@ function FarmerDashboard() {
     () => statuses.reduce((sum, item) => sum + item.availableKg, 0),
     [statuses],
   );
+  const listedCount = statuses.filter((item) => item.status.startsWith("Listed")).length;
   return (
     <FarmerLayout>
       <FarmerPageHeader
@@ -67,7 +68,7 @@ function FarmerDashboard() {
           </div>
           <p className="px-6 py-8 text-sm text-muted-foreground">
             {statuses.length
-              ? `${statuses.filter((item) => item.status === "Listed for buyers").length} of your classified product record${statuses.filter((item) => item.status === "Listed for buyers").length === 1 ? " is" : "s are"} listed for buyers. Open Receiving History for the full status table.`
+              ? `${listedCount} of your classified product record${listedCount === 1 ? " is" : "s are"} listed for buyers. Open Receiving History for the full status table.`
               : "No classified product record has been saved for your account yet."}
           </p>
         </section>

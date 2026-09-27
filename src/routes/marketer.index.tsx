@@ -110,7 +110,7 @@ function MarketerDashboard() {
                 payment gateway is included.
               </p>
               <div className="rounded-lg bg-muted p-3 text-foreground">
-                Order status flow: Pending → Confirmed → Sold → Paid
+                Order flow: Pending → Confirmed → Sold; Accounting then records payment as Paid.
               </div>
             </CardContent>
           </Card>

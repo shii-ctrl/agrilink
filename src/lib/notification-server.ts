@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 type NotificationDetails = { title: string; message: string; target?: string };
 
@@ -16,7 +16,7 @@ export async function notifyRole(roleName: string, details: NotificationDetails)
     .from(users)
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(userRoles.roleId, roles.id))
-    .where(eq(roles.name, roleName));
+    .where(and(eq(roles.name, roleName), eq(users.active, true)));
   if (recipients.length) {
     await db
       .insert(notifications)

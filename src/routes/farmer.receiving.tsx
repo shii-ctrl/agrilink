@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
 import {
   getFarmerProductStatuses,
@@ -12,8 +13,12 @@ function FarmerReceivingPage() {
     [],
   );
   useEffect(() => {
-    void getFarmerReceivingRecords().then(setRecords);
-    void getFarmerProductStatuses().then(setStatuses);
+    void Promise.all([getFarmerReceivingRecords(), getFarmerProductStatuses()])
+      .then(([nextRecords, nextStatuses]) => {
+        setRecords(nextRecords);
+        setStatuses(nextStatuses);
+      })
+      .catch(() => toast.error("Could not load your receiving and product status records."));
   }, []);
   return (
     <FarmerLayout>
@@ -53,6 +58,13 @@ function FarmerReceivingPage() {
                     <td className="px-6 py-4">{record.quantityKg} kg</td>
                   </tr>
                 ))}
+                {records.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                      No deliveries have been recorded for your account yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

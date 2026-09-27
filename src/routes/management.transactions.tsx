@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { FileBarChart, GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
 import type { DemoOrder } from "@/lib/demo-orders";
 import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
@@ -23,7 +24,7 @@ function ManagementTransactionsPage() {
   useEffect(() => {
     void getDatabaseOrders()
       .then(setTransactions)
-      .catch(() => setTransactions([]));
+      .catch(() => toast.error("Could not load saved transaction records."));
   }, []);
   return (
     <ManagementLayout>
@@ -53,7 +54,6 @@ function ManagementTransactionsPage() {
                   <th className="px-6 py-4 font-medium">Order Status</th>
                   <th className="px-6 py-4 font-medium">Payment Status</th>
                   <th className="px-6 py-4 font-medium">Date</th>
-                  <th className="px-6 py-4 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -68,9 +68,15 @@ function ManagementTransactionsPage() {
                     <td className="px-6 py-4 text-primary">{transaction.status}</td>
                     <td className="px-6 py-4 text-primary">{transaction.paymentStatus}</td>
                     <td className="px-6 py-4 text-muted-foreground">{transaction.date}</td>
-                    <td className="px-6 py-4 text-muted-foreground">View details</td>
                   </tr>
                 ))}
+                {!transactions.length && (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-10 text-center text-muted-foreground">
+                      No marketplace transactions have been saved yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

@@ -49,9 +49,19 @@ const createListingInput = z.object({
   pricePerKg: z.number().positive().max(100_000),
   status: z.enum(["draft", "published"]).default("published"),
 });
+const cropTypes = [
+  "Leafy vegetable",
+  "Root vegetable",
+  "Fruiting vegetable",
+  "Cruciferous vegetable",
+  "Legume",
+  "Herb",
+  "Other",
+] as const;
+
 const createCatalogProductInput = z.object({
   name: z.string().trim().min(2).max(160),
-  cropType: z.string().trim().min(2).max(100),
+  cropType: z.enum(cropTypes),
   description: z.string().trim().min(4).max(2000).optional(),
   imageUrl: z.string().trim().url().max(500).optional().or(z.literal("")),
 });
@@ -122,6 +132,13 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
     const { products } = await import("@/db/schema");
+    const [existing] = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(sql`LOWER(${products.name}) = LOWER(${data.name})`);
+    if (existing) {
+      throw new Error("A catalog product with that name already exists.");
+    }
     const id = crypto.randomUUID();
     await db.insert(products).values({
       id,
@@ -565,7 +582,11 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         .select({ id: carts.id })
         .from(carts)
         .where(eq(carts.buyerId, buyer.id));
-      if (cart) await tx.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+      if (cart) {
+        await tx
+          .delete(cartItems)
+          .where(and(eq(cartItems.cartId, cart.id), inArray(cartItems.listingId, listingIds)));
+      }
 
       await writeAuditLog(buyer.id, "order.create", "order", orderId, { orderNumber });
       return { id: orderId, orderNumber, totalAmount, buyerName: buyer.displayName };

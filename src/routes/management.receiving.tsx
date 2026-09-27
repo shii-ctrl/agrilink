@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
 import { getManagementReceivingRecords } from "@/lib/receiving-server-functions";
 export const Route = createFileRoute("/management/receiving")({
@@ -10,7 +11,9 @@ function ManagementReceivingPage() {
     [],
   );
   useEffect(() => {
-    void getManagementReceivingRecords().then(setRecords);
+    void getManagementReceivingRecords()
+      .then(setRecords)
+      .catch(() => toast.error("Could not load saved receiving records."));
   }, []);
   return (
     <ManagementLayout>
@@ -52,6 +55,13 @@ function ManagementReceivingPage() {
                     <td className="px-6 py-4">{record.quantityKg} kg</td>
                   </tr>
                 ))}
+                {records.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                      No receiving records have been saved yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

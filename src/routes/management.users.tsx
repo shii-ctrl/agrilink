@@ -55,7 +55,7 @@ function ManagementUsersPage() {
                 <div>
                   <h2 className="text-lg font-semibold">All users</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Saved MySQL accounts, including Buyer self-registration.
+                    Saved AgriLink accounts, including Buyer self-registration.
                   </p>
                 </div>
               </div>
@@ -98,7 +98,7 @@ function ManagementUsersPage() {
                 <div>
                   <h2 className="text-lg font-semibold">Create account</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Create an internal account in MySQL. Buyer accounts register through the public
+                    Create an internal AgriLink account. Buyer accounts register through the public
                     website.
                   </p>
                 </div>
@@ -123,7 +123,7 @@ function ManagementUsersPage() {
                     });
                     form.reset();
                     toast.success("Account created", {
-                      description: "The account is saved in MySQL.",
+                      description: "The account is saved in AgriLink.",
                     });
                     try {
                       await loadUsers();

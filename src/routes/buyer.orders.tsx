@@ -105,31 +105,42 @@ function BuyerOrdersPage() {
     }
   };
   const buyAgain = async (order: DemoOrder) => {
-    const products = await Promise.all(
-      (order.items ?? []).map((item) =>
-        getMarketplaceListing({ data: { listingId: item.listingId } }),
-      ),
-    );
-    const added = await products.reduce(async (totalPromise, product, index) => {
-      const total = await totalPromise;
-      const item = order.items?.[index];
-      if (!product || !item) return total;
-      await addBuyerCartItem({
-        data: { listingId: product.id, quantityKg: item.quantityKg },
+    try {
+      const products = await Promise.all(
+        (order.items ?? []).map((item) =>
+          getMarketplaceListing({ data: { listingId: item.listingId } }),
+        ),
+      );
+      const availableItems = products.flatMap((product, index) => {
+        const item = order.items?.[index];
+        return product && item ? [{ product, item }] : [];
       });
-      return total + item.quantityKg;
-    }, Promise.resolve(0));
-    if (!added) {
-      toast("Items are currently unavailable", {
+      if (!availableItems.length) {
+        toast("Items are currently unavailable", {
+          description:
+            "This completed order cannot be rebuilt because its classified stock is unavailable.",
+        });
+        return;
+      }
+      let added = 0;
+      for (const { product, item } of availableItems) {
+        await addBuyerCartItem({
+          data: { listingId: product.id, quantityKg: item.quantityKg },
+        });
+        added += item.quantityKg;
+      }
+      toast.success("Order added to cart", {
+        description: `${added} kg is ready for your next checkout.`,
+      });
+      navigate({ to: "/buyer/cart" });
+    } catch (error) {
+      toast.error("Could not rebuild this order", {
         description:
-          "This completed order cannot be rebuilt because its classified stock is unavailable.",
+          error instanceof Error
+            ? error.message
+            : "The available stock may have changed. Please try again.",
       });
-      return;
     }
-    toast.success("Order added to cart", {
-      description: `${added} kg is ready for your next checkout.`,
-    });
-    navigate({ to: "/buyer/cart" });
   };
   return (
     <BuyerLayout>
