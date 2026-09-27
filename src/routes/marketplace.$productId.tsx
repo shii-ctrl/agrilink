@@ -13,6 +13,7 @@ import { getCurrentSessionUser } from "@/lib/auth-functions";
 import { notifyBuyerCartChanged } from "@/lib/cart-events";
 import {
   addBuyerCartItem,
+  getBuyerCart,
   getMarketplaceListing,
   getMarketplaceListings,
 } from "@/lib/marketplace-server-functions";
@@ -50,13 +51,45 @@ function ProductDetail() {
   const { product, related } = Route.useLoaderData();
   const [qty, setQty] = useState(1);
   const [isBuyer, setIsBuyer] = useState(false);
+  const [cartQuantityKg, setCartQuantityKg] = useState(0);
+  const [isAdding, setIsAdding] = useState(false);
   useEffect(() => {
-    void getCurrentSessionUser().then((user) => setIsBuyer(user?.roles.includes("Buyer") ?? false));
-  }, []);
+    let mounted = true;
+    void getCurrentSessionUser()
+      .then(async (user) => {
+        const buyer = user?.roles.includes("Buyer") ?? false;
+        if (!mounted) return;
+        setIsBuyer(buyer);
+        if (!buyer) {
+          setCartQuantityKg(0);
+          return;
+        }
+        const cart = await getBuyerCart();
+        if (!mounted) return;
+        setCartQuantityKg(cart.find((item) => item.id === product.id)?.quantityKg ?? 0);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setIsBuyer(false);
+        setCartQuantityKg(0);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [product.id]);
   const availableQuantity = product.quantityKg;
   const isAvailable = availableQuantity > 0;
+  const remainingCartableQuantity = Math.max(0, availableQuantity - cartQuantityKg);
+  const maximumSelectableQuantity = Math.max(
+    1,
+    isBuyer ? remainingCartableQuantity : availableQuantity,
+  );
   const canDecreaseQuantity = qty > 1;
-  const canIncreaseQuantity = qty < availableQuantity;
+  const canIncreaseQuantity = qty < maximumSelectableQuantity;
+
+  useEffect(() => {
+    setQty((current) => Math.min(current, maximumSelectableQuantity));
+  }, [maximumSelectableQuantity]);
 
   return (
     <div className="min-h-screen">
@@ -131,7 +164,7 @@ function ProductDetail() {
                 </button>
                 <span className="w-14 text-center font-semibold">{qty} kg</span>
                 <button
-                  onClick={() => setQty((q) => Math.min(availableQuantity, q + 1))}
+                  onClick={() => setQty((q) => Math.min(maximumSelectableQuantity, q + 1))}
                   disabled={!isAvailable || !canIncreaseQuantity}
                   className="flex size-9 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label="Increase quantity"
@@ -143,11 +176,15 @@ function ProductDetail() {
               <Button
                 size="lg"
                 className="rounded-full"
-                disabled={!isAvailable}
+                disabled={!isAvailable || isAdding || (isBuyer && remainingCartableQuantity <= 0)}
                 onClick={() => {
                   if (isBuyer) {
+                    setIsAdding(true);
                     void addBuyerCartItem({ data: { listingId: product.id, quantityKg: qty } })
-                      .then(() => {
+                      .then((cart) => {
+                        setCartQuantityKg(
+                          cart.find((item) => item.id === product.id)?.quantityKg ?? 0,
+                        );
                         notifyBuyerCartChanged();
                         toast.success("Added to your cart", {
                           description: `${qty} kg of ${product.name} is saved to your account.`,
@@ -160,7 +197,8 @@ function ProductDetail() {
                               ? error.message
                               : "Please refresh and try again.",
                         });
-                      });
+                      })
+                      .finally(() => setIsAdding(false));
                     return;
                   }
                   toast.custom(
@@ -218,7 +256,12 @@ function ProductDetail() {
                   );
                 }}
               >
-                <ShoppingCart className="size-4" /> Add to cart
+                <ShoppingCart className="size-4" />
+                {isAdding
+                  ? "Adding…"
+                  : isBuyer && remainingCartableQuantity <= 0
+                    ? "Already in cart"
+                    : "Add to cart"}
               </Button>
             </div>
 
@@ -227,7 +270,14 @@ function ProductDetail() {
                 ? `Subtotal for ${qty} kg: ${peso(qty * product.pricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
                 : "This listing is currently unavailable."}
             </p>
-            {isAvailable && (
+            {isBuyer && cartQuantityKg > 0 ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {remainingCartableQuantity > 0
+                  ? `${cartQuantityKg} kg is already in your cart. You can add up to ${remainingCartableQuantity} kg more.`
+                  : `All ${cartQuantityKg} kg available is already in your cart.`}
+              </p>
+            ) : (
+              isAvailable && (
               <p className="mt-2 text-xs text-muted-foreground">
                 You need to{" "}
                 <Link to="/login" className="font-medium text-primary hover:underline">
@@ -239,6 +289,7 @@ function ProductDetail() {
                 </Link>{" "}
                 to add this item to your cart.
               </p>
+              )
             )}
           </div>
         </div>

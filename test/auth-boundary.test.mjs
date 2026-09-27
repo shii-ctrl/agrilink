@@ -87,3 +87,11 @@ test("email password reset uses a hashed, expiring one-time code", async () => {
   assert.match(resetPage, /type="number"/);
   assert.match(resetPage, /replace\(\/\\D\/g, ""\)\.slice\(0, 6\)/);
 });
+
+test("marketplace cart controls prevent duplicate additions beyond available stock", async () => {
+  const source = await readFile("src/routes/marketplace.$productId.tsx", "utf8");
+  assert.match(source, /const \[isAdding, setIsAdding\] = useState\(false\)/);
+  assert.match(source, /getBuyerCart\(\)/);
+  assert.match(source, /remainingCartableQuantity/);
+  assert.match(source, /All \$\{cartQuantityKg\} kg available is already in your cart/);
+});
