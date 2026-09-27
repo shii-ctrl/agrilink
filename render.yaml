@@ -8,7 +8,7 @@ services:
     # NODE_ENV is production at runtime, but Vite and its config plugin are
     # development dependencies needed during this build step.
     buildCommand: npm ci --include=dev && npm run build
-    startCommand: npm run preview
+    startCommand: npm run db:migrate && npm run preview
     healthCheckPath: /
     autoDeploy: true
     envVars:

@@ -5,8 +5,8 @@ import { z } from "zod";
 const messageInput = z.object({ message: z.string().trim().min(1).max(4_000) });
 
 export const getCommunityMessages = createServerFn({ method: "GET" }).handler(async () => {
-  const { requireUser } = await import("@/lib/auth-server");
-  await requireUser();
+  const { requireAnyRole } = await import("@/lib/auth-server");
+  await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
   const { db } = await import("@/db/client.server");
   const { communityMessages, roles, userRoles, users } = await import("@/db/schema");
   const rows = await db
@@ -29,8 +29,8 @@ export const getCommunityMessages = createServerFn({ method: "GET" }).handler(as
 export const postCommunityMessage = createServerFn({ method: "POST" })
   .validator(messageInput)
   .handler(async ({ data }) => {
-    const { requireUser, writeAuditLog } = await import("@/lib/auth-server");
-    const author = await requireUser();
+    const { requireAnyRole, writeAuditLog } = await import("@/lib/auth-server");
+    const author = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
     const { db } = await import("@/db/client.server");
     const { communityMessages } = await import("@/db/schema");
     const id = crypto.randomUUID();

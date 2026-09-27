@@ -5,20 +5,32 @@ import { z } from "zod";
 const messageInput = z.object({ message: z.string().trim().min(1).max(4_000) });
 const consultantMessageInput = messageInput.extend({ farmerId: z.string().uuid() });
 
-async function activeUsersForRole(roleName: "Farmer" | "Farm Consultant") {
+async function assignedConsultantForFarmer(farmerId: string) {
   const { db } = await import("@/db/client.server");
-  const { roles, userRoles, users } = await import("@/db/schema");
-  return db
+  const { farmerConsultantAssignments, roles, userRoles, users } = await import("@/db/schema");
+  const [assignment] = await db
     .select({ id: users.id, name: users.displayName })
-    .from(users)
+    .from(farmerConsultantAssignments)
+    .innerJoin(users, eq(farmerConsultantAssignments.consultantId, users.id))
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(userRoles.roleId, roles.id))
-    .where(and(eq(users.active, true), eq(roles.name, roleName)));
+    .where(
+      and(
+        eq(farmerConsultantAssignments.farmerId, farmerId),
+        eq(users.active, true),
+        eq(roles.name, "Farm Consultant"),
+      ),
+    );
+  return assignment ?? null;
 }
 
-async function guidanceRows(farmerId?: string) {
+async function guidanceRows(filters: { farmerId?: string; consultantId?: string } = {}) {
   const { db } = await import("@/db/client.server");
   const { guidanceMessages, roles, userRoles, users } = await import("@/db/schema");
+  const conditions = [
+    filters.farmerId ? eq(guidanceMessages.farmerId, filters.farmerId) : undefined,
+    filters.consultantId ? eq(guidanceMessages.consultantId, filters.consultantId) : undefined,
+  ].filter(Boolean);
   const rows = await db
     .select({
       id: guidanceMessages.id,
@@ -26,10 +38,11 @@ async function guidanceRows(farmerId?: string) {
       createdAt: guidanceMessages.createdAt,
       farmerId: guidanceMessages.farmerId,
       farmer: users.displayName,
+      authorId: guidanceMessages.authorId,
     })
     .from(guidanceMessages)
     .innerJoin(users, eq(guidanceMessages.farmerId, users.id))
-    .where(farmerId ? eq(guidanceMessages.farmerId, farmerId) : undefined)
+    .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(asc(guidanceMessages.createdAt));
   const authorRows = await db
     .select({ id: users.id, name: users.displayName, role: roles.name })
@@ -37,15 +50,10 @@ async function guidanceRows(farmerId?: string) {
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(userRoles.roleId, roles.id));
   const authors = new Map(authorRows.map((author) => [author.id, author]));
-  const fullRows = await db
-    .select({ id: guidanceMessages.id, authorId: guidanceMessages.authorId })
-    .from(guidanceMessages)
-    .where(farmerId ? eq(guidanceMessages.farmerId, farmerId) : undefined);
-  const authorByMessage = new Map(fullRows.map((row) => [row.id, authors.get(row.authorId)]));
   return rows.map((row) => ({
     ...row,
-    author: authorByMessage.get(row.id)?.name ?? "Unknown user",
-    role: authorByMessage.get(row.id)?.role ?? "",
+    author: authors.get(row.authorId)?.name ?? "Unknown user",
+    role: authors.get(row.authorId)?.role ?? "",
     time: row.createdAt.toISOString(),
   }));
 }
@@ -53,7 +61,7 @@ async function guidanceRows(farmerId?: string) {
 export const getFarmerGuidance = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/lib/auth-server");
   const farmer = await requireRole("Farmer");
-  return guidanceRows(farmer.id);
+  return guidanceRows({ farmerId: farmer.id });
 });
 
 export const sendFarmerGuidanceMessage = createServerFn({ method: "POST" })
@@ -61,9 +69,10 @@ export const sendFarmerGuidanceMessage = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/lib/auth-server");
     const farmer = await requireRole("Farmer");
-    const [consultant] = await activeUsersForRole("Farm Consultant");
-    if (!consultant)
-      throw new Error("Create an active Farm Consultant account before sending guidance.");
+    const consultant = await assignedConsultantForFarmer(farmer.id);
+    if (!consultant) {
+      throw new Error("Management needs to assign a Farm Consultant before you can send guidance.");
+    }
     const { db } = await import("@/db/client.server");
     const { guidanceMessages } = await import("@/db/schema");
     const id = crypto.randomUUID();
@@ -81,9 +90,18 @@ export const sendFarmerGuidanceMessage = createServerFn({ method: "POST" })
 export const getConsultantGuidanceWorkspace = createServerFn({ method: "GET" }).handler(
   async () => {
     const { requireRole } = await import("@/lib/auth-server");
-    await requireRole("Farm Consultant");
-    const [farmers, messages] = await Promise.all([activeUsersForRole("Farmer"), guidanceRows()]);
-    return { farmers, messages };
+    const consultant = await requireRole("Farm Consultant");
+    const { db } = await import("@/db/client.server");
+    const { farmerConsultantAssignments, users } = await import("@/db/schema");
+    const farmers = await db
+      .select({ id: users.id, name: users.displayName })
+      .from(farmerConsultantAssignments)
+      .innerJoin(users, eq(farmerConsultantAssignments.farmerId, users.id))
+      .where(
+        and(eq(farmerConsultantAssignments.consultantId, consultant.id), eq(users.active, true)),
+      )
+      .orderBy(asc(users.displayName));
+    return { farmers, messages: await guidanceRows({ consultantId: consultant.id }) };
   },
 );
 
@@ -92,9 +110,10 @@ export const sendConsultantGuidanceMessage = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/lib/auth-server");
     const consultant = await requireRole("Farm Consultant");
-    const farmers = await activeUsersForRole("Farmer");
-    if (!farmers.some((farmer) => farmer.id === data.farmerId))
-      throw new Error("Choose an active Farmer account.");
+    const assignedConsultant = await assignedConsultantForFarmer(data.farmerId);
+    if (!assignedConsultant || assignedConsultant.id !== consultant.id) {
+      throw new Error("This Farmer is not assigned to your guidance workspace.");
+    }
     const { db } = await import("@/db/client.server");
     const { guidanceMessages } = await import("@/db/schema");
     const id = crypto.randomUUID();

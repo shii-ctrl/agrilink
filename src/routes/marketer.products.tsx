@@ -85,7 +85,7 @@ function MarketerProductsPage() {
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
         <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
           <span className="font-semibold">Live inventory:</span> published listings and available
-          quantities are stored in MySQL and appear in the public marketplace.
+          quantities are stored in AgriLink and appear in the public marketplace.
         </div>
         <Tabs defaultValue="listings">
           <TabsList aria-label="Product listing sections">

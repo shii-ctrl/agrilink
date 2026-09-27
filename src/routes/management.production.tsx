@@ -75,7 +75,7 @@ function ManagementProductionPage() {
             <div>
               <h2 className="text-lg font-semibold">Add production record</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                All entries are saved in MySQL with the Management account that created them.
+                All entries are saved in AgriLink with the Management account that created them.
               </p>
             </div>
           </div>

@@ -15,6 +15,10 @@ const resetUserPasswordInput = z.object({
   userId: z.string().uuid(),
   password: z.string().min(8, "Use at least 8 characters.").max(200),
 });
+const guidanceAssignmentInput = z.object({
+  farmerId: z.string().uuid(),
+  consultantId: z.string().uuid(),
+});
 const bootstrapInput = createUserInput
   .pick({ name: true, contact: true, email: true, password: true })
   .extend({
@@ -83,6 +87,68 @@ export const getManagementUsers = createServerFn({ method: "GET" }).handler(asyn
     .innerJoin(roles, eq(userRoles.roleId, roles.id))
     .orderBy(asc(users.displayName));
 });
+
+export const getGuidanceAssignments = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/lib/auth-server");
+  await requireRole("Management");
+  const { db } = await import("@/db/client.server");
+  const { farmerConsultantAssignments, roles, userRoles, users } = await import("@/db/schema");
+  const activeRoleUsers = (roleName: "Farmer" | "Farm Consultant") =>
+    db
+      .select({ id: users.id, name: users.displayName })
+      .from(users)
+      .innerJoin(userRoles, eq(userRoles.userId, users.id))
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(and(eq(users.active, true), eq(roles.name, roleName)))
+      .orderBy(asc(users.displayName));
+  const [farmers, consultants, assignments] = await Promise.all([
+    activeRoleUsers("Farmer"),
+    activeRoleUsers("Farm Consultant"),
+    db.select().from(farmerConsultantAssignments),
+  ]);
+  const consultantByFarmer = new Map(
+    assignments.map((assignment) => [assignment.farmerId, assignment.consultantId]),
+  );
+  return {
+    farmers: farmers.map((farmer) => ({
+      ...farmer,
+      consultantId: consultantByFarmer.get(farmer.id) ?? null,
+    })),
+    consultants,
+  };
+});
+
+export const setGuidanceAssignment = createServerFn({ method: "POST" })
+  .validator(guidanceAssignmentInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/lib/auth-server");
+    const actor = await requireRole("Management");
+    const { db } = await import("@/db/client.server");
+    const { farmerConsultantAssignments, roles, userRoles, users } = await import("@/db/schema");
+    const findActiveRoleUser = (id: string, roleName: "Farmer" | "Farm Consultant") =>
+      db
+        .select({ id: users.id })
+        .from(users)
+        .innerJoin(userRoles, eq(userRoles.userId, users.id))
+        .innerJoin(roles, eq(userRoles.roleId, roles.id))
+        .where(and(eq(users.id, id), eq(users.active, true), eq(roles.name, roleName)));
+    const [[farmer], [consultant]] = await Promise.all([
+      findActiveRoleUser(data.farmerId, "Farmer"),
+      findActiveRoleUser(data.consultantId, "Farm Consultant"),
+    ]);
+    if (!farmer) throw new Error("Choose an active Farmer account.");
+    if (!consultant) throw new Error("Choose an active Farm Consultant account.");
+    await db
+      .insert(farmerConsultantAssignments)
+      .values({ farmerId: farmer.id, consultantId: consultant.id, assignedById: actor.id })
+      .onDuplicateKeyUpdate({
+        set: { consultantId: consultant.id, assignedById: actor.id },
+      });
+    await writeAuditLog(actor.id, "guidance.assignment.set", "farmer", farmer.id, {
+      consultantId: consultant.id,
+    });
+    return { farmerId: farmer.id, consultantId: consultant.id };
+  });
 
 export const createManagementUser = createServerFn({ method: "POST" })
   .validator(createUserInput)

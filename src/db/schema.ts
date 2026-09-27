@@ -57,16 +57,20 @@ export const userRoles = mysqlTable(
     index("user_roles_role_idx").on(table.roleId),
   ],
 );
-export const products = mysqlTable("products", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  name: varchar("name", { length: 160 }).notNull(),
-  cropType: varchar("crop_type", { length: 100 }).notNull(),
-  description: text("description"),
-  imageUrl: varchar("image_url", { length: 500 }),
-  active: boolean("active").default(true).notNull(),
-  createdAt,
-  updatedAt,
-});
+export const products = mysqlTable(
+  "products",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    name: varchar("name", { length: 160 }).notNull(),
+    cropType: varchar("crop_type", { length: 100 }).notNull(),
+    description: text("description"),
+    imageUrl: varchar("image_url", { length: 500 }),
+    active: boolean("active").default(true).notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [uniqueIndex("products_name_unique").on(table.name)],
+);
 export const classifications = mysqlTable(
   "classifications",
   {
@@ -299,6 +303,17 @@ export const guidanceMessages = mysqlTable("guidance_messages", {
   createdAt,
   updatedAt,
 });
+export const farmerConsultantAssignments = mysqlTable(
+  "farmer_consultant_assignments",
+  {
+    farmerId: varchar("farmer_id", { length: 36 }).primaryKey(),
+    consultantId: varchar("consultant_id", { length: 36 }).notNull(),
+    assignedById: varchar("assigned_by_id", { length: 36 }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [index("farmer_consultant_consultant_idx").on(table.consultantId)],
+);
 export const notifications = mysqlTable(
   "notifications",
   {

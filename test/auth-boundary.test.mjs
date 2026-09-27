@@ -110,3 +110,26 @@ test("role workflows keep catalog, cart, and Farmer stock states consistent", as
   assert.match(receiving, /"Sold out"/);
   assert.match(notifications, /eq\(users\.active, true\)/);
 });
+
+test("reordered carts, community access, and crop guidance protect role boundaries", async () => {
+  const [marketplace, community, guidance, admin, migration] = await Promise.all([
+    readFile("src/lib/marketplace-server-functions.ts", "utf8"),
+    readFile("src/lib/community-server-functions.ts", "utf8"),
+    readFile("src/lib/guidance-server-functions.ts", "utf8"),
+    readFile("src/lib/admin-server-functions.ts", "utf8"),
+    readFile("drizzle/0007_catalog_and_guidance_integrity.sql", "utf8"),
+  ]);
+
+  assert.match(marketplace, /export const rebuildBuyerCartFromOrder/);
+  assert.match(marketplace, /await db\.transaction/);
+  assert.match(marketplace, /One or more products from this order are no longer available/);
+  assert.match(
+    community,
+    /requireAnyRole\(\["Management", "Marketer", "Farmer", "Farm Consultant"\]\)/,
+  );
+  assert.match(guidance, /farmerConsultantAssignments/);
+  assert.match(guidance, /not assigned to your guidance workspace/);
+  assert.match(admin, /export const setGuidanceAssignment/);
+  assert.match(migration, /UNIQUE KEY products_name_unique/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS farmer_consultant_assignments/);
+});

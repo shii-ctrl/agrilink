@@ -9,8 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createManagementUser,
+  getGuidanceAssignments,
   getManagementUsers,
   resetManagedUserPassword,
+  setGuidanceAssignment,
 } from "@/lib/admin-server-functions";
 
 export const Route = createFileRoute("/management/users")({
@@ -30,9 +32,15 @@ const roles = ["Management", "Marketer", "Accounting", "Farmer", "Farm Consultan
 
 function ManagementUsersPage() {
   const [users, setUsers] = useState<ManagementUser[]>([]);
+  const [guidanceAssignments, setGuidanceAssignments] = useState<Awaited<
+    ReturnType<typeof getGuidanceAssignments>
+  > | null>(null);
   const loadUsers = async () => setUsers(await getManagementUsers());
+  const loadGuidanceAssignments = async () =>
+    setGuidanceAssignments(await getGuidanceAssignments());
   useEffect(() => {
     void loadUsers().catch(() => toast.error("Could not load saved user accounts."));
+    void loadGuidanceAssignments().catch(() => toast.error("Could not load guidance assignments."));
   }, []);
   return (
     <ManagementLayout>
@@ -46,6 +54,7 @@ function ManagementUsersPage() {
           <TabsList aria-label="User account sections">
             <TabsTrigger value="all-users">All Users</TabsTrigger>
             <TabsTrigger value="add-user">Add User</TabsTrigger>
+            <TabsTrigger value="guidance-assignments">Guidance Assignments</TabsTrigger>
             <TabsTrigger value="reset-password">Reset Password</TabsTrigger>
           </TabsList>
 
@@ -85,6 +94,78 @@ function ManagementUsersPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="guidance-assignments" className="mt-6">
+            <section className="max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
+              <h2 className="text-lg font-semibold">Farmer guidance assignments</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Assign one Farm Consultant to each Farmer. Only that consultant can view and reply
+                to the Farmer’s crop-guidance conversation.
+              </p>
+              {!guidanceAssignments?.consultants.length && (
+                <p className="mt-5 rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                  Create an active Farm Consultant account first, then return here to make
+                  assignments.
+                </p>
+              )}
+              <div className="mt-6 space-y-3">
+                {guidanceAssignments?.farmers.map((farmer) => (
+                  <form
+                    key={farmer.id}
+                    className="flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center"
+                    onSubmit={async (event) => {
+                      event.preventDefault();
+                      const consultantId = String(
+                        new FormData(event.currentTarget).get("consultantId") ?? "",
+                      );
+                      try {
+                        await setGuidanceAssignment({
+                          data: { farmerId: farmer.id, consultantId },
+                        });
+                        await loadGuidanceAssignments();
+                        toast.success(`${farmer.name} has been assigned a Farm Consultant.`);
+                      } catch (error) {
+                        toast.error(
+                          error instanceof Error ? error.message : "Could not save assignment.",
+                        );
+                      }
+                    }}
+                  >
+                    <p className="min-w-44 font-medium">{farmer.name}</p>
+                    <select
+                      name="consultantId"
+                      defaultValue={farmer.consultantId ?? ""}
+                      required
+                      disabled={!guidanceAssignments.consultants.length}
+                      className="flex h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option value="" disabled>
+                        Select a consultant
+                      </option>
+                      {guidanceAssignments.consultants.map((consultant) => (
+                        <option key={consultant.id} value={consultant.id}>
+                          {consultant.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      className="rounded-full"
+                      disabled={!guidanceAssignments.consultants.length}
+                    >
+                      Save assignment
+                    </Button>
+                  </form>
+                ))}
+                {guidanceAssignments && !guidanceAssignments.farmers.length && (
+                  <p className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                    No active Farmer accounts are available to assign.
+                  </p>
+                )}
               </div>
             </section>
           </TabsContent>

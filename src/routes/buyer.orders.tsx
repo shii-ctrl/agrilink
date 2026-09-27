@@ -7,11 +7,10 @@ import { OrderDetails } from "@/components/order-details";
 import { Button } from "@/components/ui/button";
 import type { DemoOrder } from "@/lib/demo-orders";
 import {
-  addBuyerCartItem,
   getBuyerOrders,
   getOrderDetails,
-  getMarketplaceListing,
   releaseDatabaseOrder,
+  rebuildBuyerCartFromOrder,
 } from "@/lib/marketplace-server-functions";
 export const Route = createFileRoute("/buyer/orders")({ component: BuyerOrdersPage });
 function BuyerOrdersPage() {
@@ -44,7 +43,7 @@ function BuyerOrdersPage() {
     );
   };
   useEffect(() => {
-    void loadOrders().catch(() => toast.error("Could not load your MySQL order history."));
+    void loadOrders().catch(() => toast.error("Could not load your order history."));
   }, []);
   const cancelOrder = async (order: DemoOrder) => {
     if (!window.confirm(`Cancel ${order.id}? The reserved stock will return to the marketplace.`)) {
@@ -106,31 +105,9 @@ function BuyerOrdersPage() {
   };
   const buyAgain = async (order: DemoOrder) => {
     try {
-      const products = await Promise.all(
-        (order.items ?? []).map((item) =>
-          getMarketplaceListing({ data: { listingId: item.listingId } }),
-        ),
-      );
-      const availableItems = products.flatMap((product, index) => {
-        const item = order.items?.[index];
-        return product && item ? [{ product, item }] : [];
-      });
-      if (!availableItems.length) {
-        toast("Items are currently unavailable", {
-          description:
-            "This completed order cannot be rebuilt because its classified stock is unavailable.",
-        });
-        return;
-      }
-      let added = 0;
-      for (const { product, item } of availableItems) {
-        await addBuyerCartItem({
-          data: { listingId: product.id, quantityKg: item.quantityKg },
-        });
-        added += item.quantityKg;
-      }
+      const rebuilt = await rebuildBuyerCartFromOrder({ data: { orderNumber: order.id } });
       toast.success("Order added to cart", {
-        description: `${added} kg is ready for your next checkout.`,
+        description: `${rebuilt.quantityKg} kg is ready for your next checkout.`,
       });
       navigate({ to: "/buyer/cart" });
     } catch (error) {

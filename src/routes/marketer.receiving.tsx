@@ -22,7 +22,7 @@ function MarketerReceivingPage() {
     <MarketerLayout>
       <MarketerPageHeader
         title="Product Receiving"
-        description="Record verified farmer deliveries. Classification and inventory updates are saved atomically in MySQL."
+        description="Record verified farmer deliveries. Classification and inventory updates are saved together in AgriLink."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
         <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">

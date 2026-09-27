@@ -626,6 +626,104 @@ export const getBuyerOrders = createServerFn({ method: "GET" }).handler(async ()
   }));
 });
 
+export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
+  .validator(orderNumberInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/lib/auth-server");
+    const buyer = await requireRole("Buyer");
+    const { db } = await import("@/db/client.server");
+    const { cartItems, carts, inventory, listings, orderItems, orders } =
+      await import("@/db/schema");
+    const [order] = await db
+      .select({ id: orders.id, status: orders.status })
+      .from(orders)
+      .where(and(eq(orders.orderNumber, data.orderNumber), eq(orders.buyerId, buyer.id)));
+    if (!order) throw new Error("This order could not be found.");
+    if (order.status !== "sold") throw new Error("Only completed orders can be added again.");
+
+    const originalItems = await db
+      .select({ listingId: orderItems.listingId, quantityKg: orderItems.quantityKg })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, order.id));
+    const requestedItems = new Map<string, number>();
+    for (const item of originalItems) {
+      requestedItems.set(
+        item.listingId,
+        (requestedItems.get(item.listingId) ?? 0) + Number(item.quantityKg),
+      );
+    }
+    if (!requestedItems.size) throw new Error("This order has no items to add again.");
+
+    await db.transaction(async (tx) => {
+      const listingIds = [...requestedItems.keys()];
+      const stocks = await tx
+        .select({
+          id: listings.id,
+          quantityKg: inventory.quantityKg,
+          reservedKg: inventory.reservedKg,
+        })
+        .from(listings)
+        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+        .where(and(inArray(listings.id, listingIds), eq(listings.status, "published")));
+      const stockByListing = new Map(stocks.map((stock) => [stock.id, stock]));
+      if (stockByListing.size !== listingIds.length) {
+        throw new Error("One or more products from this order are no longer available.");
+      }
+
+      const proposedCartId = crypto.randomUUID();
+      await tx
+        .insert(carts)
+        .values({ id: proposedCartId, buyerId: buyer.id })
+        .onDuplicateKeyUpdate({ set: { buyerId: sql`${carts.buyerId}` } });
+      const [cart] = await tx
+        .select({ id: carts.id })
+        .from(carts)
+        .where(eq(carts.buyerId, buyer.id));
+      if (!cart) throw new Error("Your cart could not be prepared.");
+
+      const existingItems = await tx
+        .select({ listingId: cartItems.listingId, quantityKg: cartItems.quantityKg })
+        .from(cartItems)
+        .where(and(eq(cartItems.cartId, cart.id), inArray(cartItems.listingId, listingIds)));
+      const existingByListing = new Map(
+        existingItems.map((item) => [item.listingId, Number(item.quantityKg)]),
+      );
+
+      for (const [listingId, requestedKg] of requestedItems) {
+        const stock = stockByListing.get(listingId)!;
+        const availableKg = Number(stock.quantityKg) - Number(stock.reservedKg);
+        if ((existingByListing.get(listingId) ?? 0) + requestedKg > availableKg) {
+          throw new Error(
+            `Only ${Math.max(0, availableKg)} kg is currently available for one of these products.`,
+          );
+        }
+      }
+
+      for (const [listingId, requestedKg] of requestedItems) {
+        const existingKg = existingByListing.get(listingId);
+        if (existingKg === undefined) {
+          await tx.insert(cartItems).values({
+            id: crypto.randomUUID(),
+            cartId: cart.id,
+            listingId,
+            quantityKg: requestedKg.toFixed(2),
+          });
+        } else {
+          await tx
+            .update(cartItems)
+            .set({ quantityKg: (existingKg + requestedKg).toFixed(2) })
+            .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, listingId)));
+        }
+      }
+    });
+    const quantityKg = [...requestedItems.values()].reduce((total, amount) => total + amount, 0);
+    await writeAuditLog(buyer.id, "cart.rebuild_from_order", "order", order.id, {
+      orderNumber: data.orderNumber,
+      quantityKg,
+    });
+    return { quantityKg };
+  });
+
 export const getOrderDetails = createServerFn({ method: "GET" })
   .validator(orderNumberInput)
   .handler(async ({ data }) => {

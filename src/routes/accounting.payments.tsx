@@ -19,7 +19,7 @@ function AccountingPaymentsPage() {
   useEffect(() => {
     void getDatabaseOrders()
       .then(setOrders)
-      .catch(() => toast.error("Could not load MySQL payments."));
+      .catch(() => toast.error("Could not load payments."));
   }, []);
 
   const awaitingPayment = useMemo(

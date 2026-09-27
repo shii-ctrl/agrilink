@@ -43,8 +43,8 @@ function ManagementDashboard() {
             <div>
               <h2 className="font-semibold">Live operational data</h2>
               <p className="mt-1 opacity-85">
-                Every value below is calculated from saved MySQL production, receiving, inventory,
-                order, and payment records.
+                Every value below is calculated from saved production, receiving, inventory, order,
+                and payment records.
               </p>
             </div>
           </div>
