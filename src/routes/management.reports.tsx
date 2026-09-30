@@ -23,6 +23,10 @@ type ManagementReport = Awaited<ReturnType<typeof getManagementReport>>;
 
 function ManagementReportsPage() {
   const [report, setReport] = useState<ManagementReport | null>(null);
+  const highestAvailability = Math.max(
+    ...(report?.availability ?? []).map((item) => item.value),
+    1,
+  );
   useEffect(() => {
     void getManagementReport()
       .then(setReport)
@@ -85,7 +89,8 @@ function ManagementReportsPage() {
             <div>
               <h2 className="text-lg font-semibold">Product availability by classification</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Available quantity is shown separately for every product classification.
+                Classified stock after buyer reservations is shown separately for every product
+                classification.
               </p>
             </div>
           </div>
@@ -100,7 +105,7 @@ function ManagementReportsPage() {
                 <div className="mt-2 h-3 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-primary"
-                    style={{ width: `${Math.min(100, item.value)}%` }}
+                    style={{ width: `${Math.round((item.value / highestAvailability) * 100)}%` }}
                   />
                 </div>
               </div>

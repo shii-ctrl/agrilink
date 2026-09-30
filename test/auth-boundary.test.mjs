@@ -133,3 +133,22 @@ test("reordered carts, community access, and crop guidance protect role boundari
   assert.match(migration, /UNIQUE KEY products_name_unique/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS farmer_consultant_assignments/);
 });
+
+test("Management monitoring uses saved data instead of browser demo records", async () => {
+  const [marketplace, decisionSupport, products, reports, layout] = await Promise.all([
+    readFile("src/lib/marketplace-server-functions.ts", "utf8"),
+    readFile("src/routes/management.decision-support.tsx", "utf8"),
+    readFile("src/routes/management.products.tsx", "utf8"),
+    readFile("src/routes/management.reports.tsx", "utf8"),
+    readFile("src/components/management-layout.tsx", "utf8"),
+  ]);
+
+  assert.match(marketplace, /export const getManagementDecisionSupport/);
+  assert.match(marketplace, /export const getManagementProductWorkspace/);
+  assert.match(decisionSupport, /getManagementDecisionSupport/);
+  assert.doesNotMatch(decisionSupport, /getDemo|subscribeDemo|demo-/);
+  assert.match(products, /getManagementProductWorkspace/);
+  assert.match(reports, /highestAvailability/);
+  assert.match(layout, /getCurrentSessionUser/);
+  assert.doesNotMatch(layout, /Maria Santos/);
+});

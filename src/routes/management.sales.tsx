@@ -108,7 +108,8 @@ function ManagementSalesPage() {
             <h2 className="text-lg font-semibold">Sales lifecycle</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               A confirmed buyer order creates a sale with Sales Status: Sold. The product quantity
-              is reduced only when PROCY confirms the order.
+              remains reserved when PROCY confirms the order and is reduced when the order is marked
+              Sold.
             </p>
           </article>
           <article className="rounded-3xl border border-border bg-card p-6 shadow-card">

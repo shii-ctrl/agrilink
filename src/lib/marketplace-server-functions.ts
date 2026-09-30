@@ -911,6 +911,115 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
   });
 });
 
+export const getManagementProductWorkspace = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/lib/auth-server");
+  await requireRole("Management");
+  const { db } = await import("@/db/client.server");
+  const { classifications, inventory, listings, products, users } = await import("@/db/schema");
+  const [catalog, stock] = await Promise.all([
+    db
+      .select({
+        id: products.id,
+        name: products.name,
+        cropType: products.cropType,
+        active: products.active,
+      })
+      .from(products)
+      .orderBy(asc(products.name)),
+    db
+      .select({
+        id: inventory.id,
+        name: products.name,
+        cropType: products.cropType,
+        classification: classifications.name,
+        quantityKg: inventory.quantityKg,
+        reservedKg: inventory.reservedKg,
+        listingId: listings.id,
+        listingStatus: listings.status,
+        pricePerKg: listings.pricePerKg,
+        farmer: users.displayName,
+      })
+      .from(inventory)
+      .innerJoin(products, eq(inventory.productId, products.id))
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .leftJoin(listings, eq(listings.inventoryId, inventory.id))
+      .leftJoin(users, eq(inventory.farmerId, users.id)),
+  ]);
+  return {
+    catalog,
+    stock: stock.map((row) => ({
+      ...row,
+      quantityKg: Number(row.quantityKg),
+      reservedKg: Number(row.reservedKg),
+      availableKg: Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
+      pricePerKg: row.pricePerKg === null ? null : Number(row.pricePerKg),
+    })),
+  };
+});
+
+export const getManagementDecisionSupport = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/lib/auth-server");
+  await requireRole("Management");
+  const { db } = await import("@/db/client.server");
+  const { classifications, dailyPrices, inventory, listings, orderItems, orders, products } =
+    await import("@/db/schema");
+  const [stock, orderLines, priceHistory] = await Promise.all([
+    db
+      .select({
+        id: inventory.id,
+        name: products.name,
+        classification: classifications.name,
+        availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
+        listingStatus: listings.status,
+      })
+      .from(inventory)
+      .innerJoin(products, eq(inventory.productId, products.id))
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .leftJoin(listings, eq(listings.inventoryId, inventory.id)),
+    db
+      .select({
+        name: products.name,
+        classification: classifications.name,
+        quantityKg: orderItems.quantityKg,
+        status: orders.status,
+        createdAt: orders.createdAt,
+      })
+      .from(orderItems)
+      .innerJoin(orders, eq(orderItems.orderId, orders.id))
+      .innerJoin(listings, eq(orderItems.listingId, listings.id))
+      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+      .innerJoin(products, eq(inventory.productId, products.id))
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id)),
+    db
+      .select({
+        listingId: dailyPrices.listingId,
+        name: products.name,
+        classification: classifications.name,
+        price: dailyPrices.price,
+        priceDate: dailyPrices.priceDate,
+      })
+      .from(dailyPrices)
+      .innerJoin(listings, eq(dailyPrices.listingId, listings.id))
+      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+      .innerJoin(products, eq(inventory.productId, products.id))
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .where(eq(dailyPrices.published, true)),
+  ]);
+  return {
+    stock: stock.map((row) => ({ ...row, availableKg: Math.max(0, Number(row.availableKg)) })),
+    orderLines: orderLines.map((row) => ({
+      ...row,
+      quantityKg: Number(row.quantityKg),
+      createdAt: row.createdAt.toISOString(),
+    })),
+    priceHistory: priceHistory.map((row) => ({
+      ...row,
+      price: Number(row.price),
+      priceDate: row.priceDate.toISOString(),
+    })),
+  };
+});
+
 export const getManagementReport = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/lib/auth-server");
   await requireRole("Management");
@@ -918,6 +1027,7 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
   const {
     classifications,
     inventory,
+    listings,
     orders,
     payments,
     products,
@@ -931,10 +1041,12 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
         classification: classifications.name,
         quantityKg: inventory.quantityKg,
         reservedKg: inventory.reservedKg,
+        listingStatus: listings.status,
       })
       .from(inventory)
       .innerJoin(products, eq(inventory.productId, products.id))
-      .innerJoin(classifications, eq(inventory.classificationId, classifications.id)),
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .leftJoin(listings, eq(listings.inventoryId, inventory.id)),
     db.select({ totalKg: receivingRecords.totalKg }).from(receivingRecords),
     db.select({ harvestedKg: productionRecords.harvestedQuantityKg }).from(productionRecords),
     db.select({ status: orders.status }).from(orders),
@@ -945,6 +1057,14 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
     0,
   );
   const supplyKg = received.reduce((total, row) => total + Number(row.totalKg), 0);
+  const marketplaceAvailableKg = stock.reduce(
+    (total, row) =>
+      total +
+      (row.listingStatus === "published"
+        ? Math.max(0, Number(row.quantityKg) - Number(row.reservedKg))
+        : 0),
+    0,
+  );
   const harvestKg = production.reduce((total, row) => total + Number(row.harvestedKg ?? 0), 0);
   const demand = databaseOrders.filter(
     (order) => order.status === "pending" || order.status === "confirmed",
@@ -953,9 +1073,14 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
   return {
     summaries: [
       {
-        label: "Product Availability",
+        label: "Marketplace availability",
+        value: `${marketplaceAvailableKg} kg`,
+        detail: "Published stock currently available to buyers",
+      },
+      {
+        label: "Classified stock",
         value: `${availableKg} kg`,
-        detail: "Current classified marketplace quantity",
+        detail: "All classified stock after buyer reservations",
       },
       {
         label: "Supply",

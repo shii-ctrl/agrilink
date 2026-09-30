@@ -13,7 +13,7 @@ import {
   Settings,
   UsersRound,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -31,6 +31,7 @@ import {
 import { signOutDemoAccount } from "@/lib/demo-session";
 import { RoleGate } from "@/components/role-gate";
 import { NotificationCenter } from "@/components/notification-center";
+import { getCurrentSessionUser } from "@/lib/auth-functions";
 
 const managementSections = [
   { label: "Main", items: [{ label: "Dashboard", icon: BarChart3, to: "/management" as const }] },
@@ -63,6 +64,20 @@ const managementSections = [
 
 export function ManagementLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const [managerName, setManagerName] = useState("Management");
+
+  useEffect(() => {
+    void getCurrentSessionUser().then((user) => {
+      if (user?.roles.includes("Management")) setManagerName(user.displayName);
+    });
+  }, []);
+  const initials = managerName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 
   return (
     <RoleGate role="Management">
@@ -106,10 +121,10 @@ export function ManagementLayout({ children }: { children: ReactNode }) {
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  MS
+                  {initials || "M"}
                 </span>
                 <div>
-                  <p className="text-sm font-semibold">Maria Santos</p>
+                  <p className="text-sm font-semibold">{managerName}</p>
                   <p className="text-xs text-sidebar-foreground/65">Management</p>
                 </div>
               </div>

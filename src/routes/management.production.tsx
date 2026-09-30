@@ -61,7 +61,7 @@ function ManagementProductionPage() {
                     <td className="px-6 py-4">{dateLabel(record.expectedHarvestDate)}</td>
                     <td className="px-6 py-4">
                       {record.harvestedQuantityKg ?? "Not yet harvested"}
-                      {record.harvestedQuantityKg ? " kg" : ""}
+                      {record.harvestedQuantityKg !== null ? " kg" : ""}
                     </td>
                   </tr>
                 ))}

@@ -2,152 +2,111 @@ import { createFileRoute } from "@tanstack/react-router";
 import { BarChart3, CircleAlert, LineChart, PackageSearch, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
-import { getDemoInventory, subscribeDemoInventory } from "@/lib/demo-inventory";
-import { getDemoOrders, subscribeDemoOrders, type DemoOrder } from "@/lib/demo-orders";
-import {
-  getDemoDailyPrices,
-  subscribeDemoDailyPrices,
-  type DemoDailyPrice,
-} from "@/lib/demo-prices";
-import { peso, products } from "@/lib/products";
+import { peso } from "@/lib/products";
+import { getManagementDecisionSupport } from "@/lib/marketplace-server-functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/management/decision-support")({
   head: () => ({
     meta: [
       { title: "Decision Support — Management | AgriLink" },
-      {
-        name: "description",
-        content: "Management decision-support calculated from AgriLink demo records.",
-      },
+      { name: "description", content: "Live Management decision support for AgriLink." },
     ],
   }),
   component: ManagementDecisionSupportPage,
 });
 
-type ProductSummary = { name: string; supply: number; ordered: number; sold: number };
+type Support = Awaited<ReturnType<typeof getManagementDecisionSupport>>;
+type ProductSummary = { name: string; stock: number; ordered: number; sold: number };
 
-function orderLines(order: DemoOrder) {
-  if (order.items?.length) return order.items;
-  const listing = products.find(
-    (product) => product.name === order.product && product.classification === order.classification,
-  );
-  return listing
-    ? [
-        {
-          listingId: listing.id,
-          name: listing.name,
-          classification: listing.classification,
-          quantityKg: Number.parseFloat(order.quantity) || 0,
-          pricePerKg: listing.pricePerKg,
-        },
-      ]
-    : [];
-}
-
-function recordRange(values: string[], fallback: string) {
+function dateRange(values: string[], fallback: string) {
   const dates = values
     .map((value) => new Date(value))
     .filter((date) => !Number.isNaN(date.getTime()))
     .sort((first, second) => first.getTime() - second.getTime());
   if (!dates.length) return fallback;
-  const firstDate = dates[0];
-  const lastDate = dates.at(-1);
-  if (!firstDate || !lastDate) return fallback;
+  const first = dates[0];
+  const last = dates.at(-1);
+  if (!first || !last) return fallback;
   const format = (date: Date) =>
     date.toLocaleDateString("en-PH", { month: "short", day: "2-digit", year: "numeric" });
-  return dates.length === 1 ? format(firstDate) : `${format(firstDate)} – ${format(lastDate)}`;
+  return dates.length === 1 ? format(first) : `${format(first)} – ${format(last)}`;
 }
 
 function ManagementDecisionSupportPage() {
-  const [orders, setOrders] = useState<DemoOrder[]>([]);
-  const [inventory, setInventory] = useState<Record<string, number>>({});
-  const [dailyPrices, setDailyPrices] = useState<DemoDailyPrice[]>([]);
+  const [support, setSupport] = useState<Support | null>(null);
 
   useEffect(() => {
-    setOrders(getDemoOrders());
-    setInventory(getDemoInventory());
-    setDailyPrices(getDemoDailyPrices());
-    const unsubscribeOrders = subscribeDemoOrders(setOrders);
-    const unsubscribeInventory = subscribeDemoInventory(setInventory);
-    const unsubscribePrices = subscribeDemoDailyPrices(setDailyPrices);
-    return () => {
-      unsubscribeOrders();
-      unsubscribeInventory();
-      unsubscribePrices();
-    };
+    void getManagementDecisionSupport()
+      .then(setSupport)
+      .catch(() => toast.error("Could not load saved decision-support data."));
   }, []);
 
   const summaries = useMemo<ProductSummary[]>(() => {
     const grouped = new Map<string, ProductSummary>();
-    for (const listing of products) {
-      const current = grouped.get(listing.name) ?? {
-        name: listing.name,
-        supply: 0,
-        ordered: 0,
-        sold: 0,
-      };
-      current.supply += inventory[listing.id] ?? listing.quantityKg;
-      grouped.set(listing.name, current);
+    for (const item of support?.stock ?? []) {
+      const summary = grouped.get(item.name) ?? { name: item.name, stock: 0, ordered: 0, sold: 0 };
+      summary.stock += item.availableKg;
+      grouped.set(item.name, summary);
     }
-    for (const order of orders) {
-      for (const item of orderLines(order)) {
-        const current = grouped.get(item.name) ?? {
-          name: item.name,
-          supply: 0,
-          ordered: 0,
-          sold: 0,
-        };
-        current.ordered += item.quantityKg;
-        if (order.status === "Sold") current.sold += item.quantityKg;
-        grouped.set(item.name, current);
-      }
+    for (const line of support?.orderLines ?? []) {
+      const summary = grouped.get(line.name) ?? { name: line.name, stock: 0, ordered: 0, sold: 0 };
+      if (line.status === "pending" || line.status === "confirmed")
+        summary.ordered += line.quantityKg;
+      if (line.status === "sold") summary.sold += line.quantityKg;
+      grouped.set(line.name, summary);
     }
     return [...grouped.values()].sort((first, second) => second.ordered - first.ordered);
-  }, [inventory, orders]);
+  }, [support]);
 
   const lowStock = useMemo(
     () =>
-      products
-        .map((listing) => ({ ...listing, available: inventory[listing.id] ?? listing.quantityKg }))
-        .filter((listing) => listing.available <= 15)
-        .sort((first, second) => first.available - second.available),
-    [inventory],
+      (support?.stock ?? [])
+        .filter((item) => item.listingStatus === "published" && item.availableKg <= 15)
+        .sort((first, second) => first.availableKg - second.availableKg),
+    [support],
   );
-  const priceChanges = useMemo(() => {
-    const published = dailyPrices.filter((entry) => entry.status === "Published");
-    return products
-      .map((listing) => {
-        const history = published
-          .filter((entry) => entry.listingId === listing.id)
-          .sort((first, second) => first.date.localeCompare(second.date));
-        const latest = history.at(-1);
-        const previous = history.at(-2);
-        return latest
-          ? {
-              id: listing.id,
-              label: `${listing.name} — ${listing.classification}`,
-              latest: latest.price,
-              previous: previous?.price ?? latest.price,
-              range: recordRange(
-                history.map((entry) => entry.date),
-                "No published dates",
-              ),
-            }
-          : null;
-      })
-      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-  }, [dailyPrices]);
 
-  const totalSupply = summaries.reduce((total, item) => total + item.supply, 0);
-  const totalOrdered = summaries.reduce((total, item) => total + item.ordered, 0);
-  const totalSold = summaries.reduce((total, item) => total + item.sold, 0);
-  const orderRange = recordRange(
-    orders.map((order) => order.date),
-    "Current demo session",
+  const priceChanges = useMemo(() => {
+    const byListing = new Map<string, Support["priceHistory"]>();
+    for (const row of support?.priceHistory ?? []) {
+      const entries = byListing.get(row.listingId) ?? [];
+      entries.push(row);
+      byListing.set(row.listingId, entries);
+    }
+    return [...byListing.values()]
+      .map((history) => {
+        const ordered = [...history].sort((first, second) =>
+          first.priceDate.localeCompare(second.priceDate),
+        );
+        const latest = ordered.at(-1);
+        if (!latest) return null;
+        const previous = ordered.at(-2) ?? latest;
+        return {
+          id: latest.listingId,
+          label: `${latest.name} — ${latest.classification}`,
+          latest: latest.price,
+          previous: previous.price,
+          range: dateRange(
+            ordered.map((entry) => entry.priceDate),
+            "No published dates",
+          ),
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  }, [support]);
+
+  const stockKg = summaries.reduce((total, item) => total + item.stock, 0);
+  const orderedKg = summaries.reduce((total, item) => total + item.ordered, 0);
+  const soldKg = summaries.reduce((total, item) => total + item.sold, 0);
+  const orderRange = dateRange(
+    (support?.orderLines ?? []).map((line) => line.createdAt),
+    "No saved orders",
   );
-  const priceRange = recordRange(
-    dailyPrices.map((entry) => entry.date),
+  const priceRange = dateRange(
+    (support?.priceHistory ?? []).map((entry) => entry.priceDate),
     "No published price records",
   );
 
@@ -155,45 +114,46 @@ function ManagementDecisionSupportPage() {
     <ManagementLayout>
       <ManagementPageHeader
         title="Decision Support"
-        description="Live summaries calculated from current demo inventory, buyer orders, sales, and published daily prices."
+        description="Live summaries from saved classified stock, buyer orders, sales, and published prices."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
         <section className="rounded-3xl border border-primary/20 bg-accent p-5 text-sm text-accent-foreground">
           <div className="flex items-start gap-3">
             <CircleAlert className="mt-0.5 size-5 shrink-0" />
             <div>
-              <h2 className="font-semibold">Calculated from current records</h2>
+              <h2 className="font-semibold">Saved AgriLink records</h2>
               <p className="mt-1 opacity-85">
-                Orders: {orderRange}. Published daily prices: {priceRange}. These browser-demo
-                figures refresh whenever the related records change.
+                Order records: {orderRange}. Published price history: {priceRange}. No browser demo
+                data is used here.
               </p>
             </div>
           </div>
         </section>
+
         <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
             {
-              label: "Available supply",
-              value: `${totalSupply} kg`,
-              detail: "Across current classified listings",
+              label: "Classified stock",
+              value: `${stockKg} kg`,
+              detail: "After current reservations",
               icon: PackageSearch,
             },
             {
-              label: "Buyer-ordered quantity",
-              value: `${totalOrdered} kg`,
-              detail: `Orders recorded ${orderRange}`,
+              label: "Reserved demand",
+              value: `${orderedKg} kg`,
+              detail: "Pending and confirmed orders",
               icon: BarChart3,
             },
             {
               label: "Completed sales",
-              value: `${totalSold} kg`,
-              detail: `${orders.filter((order) => order.status === "Sold").length} sold order(s)`,
+              value: `${soldKg} kg`,
+              detail: `${summaries.filter((item) => item.sold > 0).length} product type(s) sold`,
               icon: TrendingUp,
             },
             {
               label: "Low-stock listings",
               value: String(lowStock.length),
-              detail: "15 kg or less remaining",
+              detail: "Published listings with 15 kg or less",
               icon: CircleAlert,
             },
           ].map((metric) => {
@@ -211,13 +171,14 @@ function ManagementDecisionSupportPage() {
             );
           })}
         </section>
+
         <section className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
           <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold">Supply versus buyer orders</h2>
+                <h2 className="text-lg font-semibold">Stock versus reserved demand</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Current available supply compared with all orders from {orderRange}.
+                  Current classified stock compared with pending and confirmed orders.
                 </p>
               </div>
               <BarChart3 className="size-5 shrink-0 text-primary" />
@@ -230,14 +191,14 @@ function ManagementDecisionSupportPage() {
                   <YAxis tickLine={false} axisLine={false} unit=" kg" />
                   <Tooltip formatter={(value: number) => [`${value} kg`, ""]} />
                   <Bar
-                    dataKey="supply"
-                    name="Available supply"
+                    dataKey="stock"
+                    name="Classified stock"
                     fill="var(--primary)"
                     radius={[7, 7, 0, 0]}
                   />
                   <Bar
                     dataKey="ordered"
-                    name="Buyer ordered"
+                    name="Reserved demand"
                     fill="var(--chart-2)"
                     radius={[7, 7, 0, 0]}
                   />
@@ -248,24 +209,24 @@ function ManagementDecisionSupportPage() {
               <table className="w-full min-w-[520px] text-sm">
                 <thead className="border-b text-left text-muted-foreground">
                   <tr>
-                    <th className="pb-3 font-medium">Vegetable</th>
-                    <th className="pb-3 font-medium">Available</th>
-                    <th className="pb-3 font-medium">Ordered</th>
+                    <th className="pb-3 font-medium">Product</th>
+                    <th className="pb-3 font-medium">Stock</th>
+                    <th className="pb-3 font-medium">Reserved</th>
                     <th className="pb-3 font-medium">Sold</th>
-                    <th className="pb-3 font-medium">Order coverage</th>
+                    <th className="pb-3 font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {summaries.map((item) => (
                     <tr key={item.name} className="border-b last:border-0">
                       <td className="py-3 font-medium">{item.name}</td>
-                      <td className="py-3">{item.supply} kg</td>
+                      <td className="py-3">{item.stock} kg</td>
                       <td className="py-3">{item.ordered} kg</td>
                       <td className="py-3">{item.sold} kg</td>
                       <td className="py-3 font-medium">
-                        {item.ordered <= item.supply
-                          ? "Current stock covers recorded demand"
-                          : `${item.ordered - item.supply} kg demand gap`}
+                        {item.ordered <= item.stock
+                          ? "Stock covers reserved demand"
+                          : `${item.ordered - item.stock} kg shortfall`}
                       </td>
                     </tr>
                   ))}
@@ -275,13 +236,14 @@ function ManagementDecisionSupportPage() {
           </article>
           <div className="space-y-6">
             <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
-              <h2 className="text-lg font-semibold">Best-selling vegetables</h2>
+              <h2 className="text-lg font-semibold">Best-selling products</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Sold quantities from {orderRange}.
               </p>
               <div className="mt-5 space-y-4">
                 {summaries
                   .filter((item) => item.sold > 0)
+                  .sort((first, second) => second.sold - first.sold)
                   .slice(0, 3)
                   .map((item, index) => (
                     <div key={item.name} className="flex items-center justify-between">
@@ -295,16 +257,14 @@ function ManagementDecisionSupportPage() {
                     </div>
                   ))}
                 {!summaries.some((item) => item.sold > 0) && (
-                  <p className="text-sm text-muted-foreground">
-                    No sold orders are recorded for this period.
-                  </p>
+                  <p className="text-sm text-muted-foreground">No sold orders are recorded yet.</p>
                 )}
               </div>
             </article>
             <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
               <h2 className="text-lg font-semibold">Low-stock attention</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Classified listings with 15 kg or less available now.
+                Published listings with 15 kg or less available.
               </p>
               <div className="mt-5 space-y-3">
                 {lowStock.map((item) => (
@@ -316,19 +276,20 @@ function ManagementDecisionSupportPage() {
                       {item.name} — {item.classification}
                     </span>
                     <span className="text-sm font-semibold text-destructive">
-                      {item.available} kg left
+                      {item.availableKg} kg left
                     </span>
                   </div>
                 ))}
                 {!lowStock.length && (
                   <p className="text-sm text-muted-foreground">
-                    All classified listings are above the low-stock threshold.
+                    No published listings need low-stock attention.
                   </p>
                 )}
               </div>
             </article>
           </div>
         </section>
+
         <section className="mt-8 rounded-3xl border border-border bg-card p-6 shadow-card">
           <div className="flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
@@ -337,7 +298,8 @@ function ManagementDecisionSupportPage() {
             <div>
               <h2 className="text-lg font-semibold">Published price changes</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Latest price compared with the previous published date. Price history: {priceRange}.
+                Latest saved price compared with the previous published price. Price history:{" "}
+                {priceRange}.
               </p>
             </div>
           </div>
@@ -367,20 +329,6 @@ function ManagementDecisionSupportPage() {
                 No published daily-price records are available yet.
               </p>
             )}
-          </div>
-        </section>
-        <section className="mt-8 rounded-3xl border border-border bg-card p-6 shadow-card">
-          <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-              <CircleAlert className="size-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-semibold">Decision-support boundaries</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                These insights summarize entered records for reference. AgriLink does not guarantee
-                profit, income, sales, prices, buyers, harvests, or demand.
-              </p>
-            </div>
           </div>
         </section>
       </main>
