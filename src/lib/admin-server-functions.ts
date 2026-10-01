@@ -24,6 +24,11 @@ const bootstrapInput = createUserInput
   .extend({
     setupSecret: z.string().min(24).max(512),
   });
+const initialManagementSetupRateLimit = {
+  maxAttempts: 5,
+  windowMs: 60 * 60 * 1000,
+  lockMs: 60 * 60 * 1000,
+};
 
 export const createInitialManagementAccount = createServerFn({ method: "POST" })
   .validator(bootstrapInput)
@@ -31,6 +36,16 @@ export const createInitialManagementAccount = createServerFn({ method: "POST" })
     const configuredSecret = process.env["INITIAL_MANAGEMENT_SETUP_SECRET"];
     if (!configuredSecret)
       throw new Error("Initial Management setup is not enabled on this server.");
+    const { consumeRateLimit, getRequestRateLimitKey } = await import("@/lib/auth-server");
+    if (
+      !(await consumeRateLimit(
+        "initial-management-setup",
+        getRequestRateLimitKey(),
+        initialManagementSetupRateLimit,
+      ))
+    ) {
+      throw new Error("Initial Management setup could not be completed.");
+    }
     const crypto = await import("node:crypto");
     const submitted = Buffer.from(data.setupSecret);
     const expected = Buffer.from(configuredSecret);

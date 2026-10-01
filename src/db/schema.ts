@@ -370,6 +370,22 @@ export const passwordResetTokens = mysqlTable(
     index("password_reset_tokens_user_idx").on(table.userId),
   ],
 );
+export const securityRateLimits = mysqlTable(
+  "security_rate_limits",
+  {
+    scope: varchar("scope", { length: 64 }).notNull(),
+    keyHash: varchar("key_hash", { length: 64 }).notNull(),
+    attempts: int("attempts").notNull(),
+    windowStartedAt: datetime("window_started_at").notNull(),
+    lockedUntil: datetime("locked_until"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    primaryKey({ columns: [table.scope, table.keyHash] }),
+    index("security_rate_limits_window_idx").on(table.windowStartedAt),
+  ],
+);
 export const savedDrafts = mysqlTable(
   "saved_drafts",
   {

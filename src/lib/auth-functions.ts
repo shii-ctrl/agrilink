@@ -31,11 +31,29 @@ const completePasswordResetInput = z.object({
 });
 
 const passwordResetLifetimeMs = 10 * 60 * 1000;
-const passwordResetRequestCooldownMs = 60 * 1000;
-const passwordResetRequestTimes = new Map<string, number>();
+const passwordResetRequestRateLimit = {
+  maxAttempts: 3,
+  windowMs: 15 * 60 * 1000,
+  lockMs: 15 * 60 * 1000,
+};
+const passwordResetVerificationRateLimit = {
+  maxAttempts: 5,
+  windowMs: 15 * 60 * 1000,
+  lockMs: 15 * 60 * 1000,
+};
+const registrationRateLimit = {
+  maxAttempts: 10,
+  windowMs: 15 * 60 * 1000,
+  lockMs: 15 * 60 * 1000,
+};
 
 function getPasswordResetRequestKey(email: string) {
   return email.trim().toLowerCase();
+}
+
+async function consumeResetVerificationAttempt(key: string) {
+  const { consumeRateLimit } = await import("@/lib/auth-server");
+  await consumeRateLimit("password-reset-verify", key, passwordResetVerificationRateLimit);
 }
 
 async function hashPasswordResetCode(code: string) {
@@ -128,12 +146,21 @@ export const requestPasswordResetCode = createServerFn({ method: "POST" })
       throw new Error("Password recovery email is not configured. Contact Management for help.");
     }
     const email = data.email.toLowerCase();
+    const { clearRateLimit, consumeRateLimit, getRequestRateLimitKey } =
+      await import("@/lib/auth-server");
     const requestKey = getPasswordResetRequestKey(email);
+    const requestSource = getRequestRateLimitKey();
+    const [emailAllowed, sourceAllowed] = await Promise.all([
+      consumeRateLimit("password-reset-request-email", requestKey, passwordResetRequestRateLimit),
+      consumeRateLimit(
+        "password-reset-request-source",
+        requestSource,
+        passwordResetRequestRateLimit,
+      ),
+    ]);
+    // Keep the response identical when a request is throttled, so it does not reveal account data.
+    if (!emailAllowed || !sourceAllowed) return { ok: true };
     const now = Date.now();
-    const lastRequestedAt = passwordResetRequestTimes.get(requestKey);
-    if (lastRequestedAt && now - lastRequestedAt < passwordResetRequestCooldownMs) {
-      return { ok: true };
-    }
 
     const { db } = await import("@/db/client.server");
     const { passwordResetTokens, users } = await import("@/db/schema");
@@ -160,7 +187,7 @@ export const requestPasswordResetCode = createServerFn({ method: "POST" })
 
     try {
       await sendPasswordResetCode(user.email, code);
-      passwordResetRequestTimes.set(requestKey, now);
+      await clearRateLimit("password-reset-verify", `${requestSource}:${requestKey}`);
     } catch (error) {
       await db
         .delete(passwordResetTokens)
@@ -170,6 +197,10 @@ export const requestPasswordResetCode = createServerFn({ method: "POST" })
             gt(passwordResetTokens.expiresAt, new Date()),
           ),
         );
+      await Promise.all([
+        clearRateLimit("password-reset-request-email", requestKey),
+        clearRateLimit("password-reset-request-source", requestSource),
+      ]);
       throw error;
     }
     return { ok: true };
@@ -181,14 +212,27 @@ export const completePasswordReset = createServerFn({ method: "POST" })
     const bcrypt = (await import("bcryptjs")).default;
     const { db } = await import("@/db/client.server");
     const { authSessions, passwordResetTokens, users } = await import("@/db/schema");
-    const { writeAuditLog } = await import("@/lib/auth-server");
+    const {
+      clearFailedLogins,
+      clearRateLimit,
+      getRequestRateLimitKey,
+      isRateLimitAvailable,
+      writeAuditLog,
+    } = await import("@/lib/auth-server");
     const email = data.email.toLowerCase();
+    const verificationKey = `${getRequestRateLimitKey()}:${getPasswordResetRequestKey(email)}`;
+    if (!(await isRateLimitAvailable("password-reset-verify", verificationKey))) {
+      throw new Error("The reset code is invalid or has expired.");
+    }
     const now = new Date();
     const [user] = await db
       .select({ id: users.id })
       .from(users)
       .where(and(eq(users.email, email), eq(users.active, true)));
-    if (!user) throw new Error("The reset code is invalid or has expired.");
+    if (!user) {
+      await consumeResetVerificationAttempt(verificationKey);
+      throw new Error("The reset code is invalid or has expired.");
+    }
 
     const [token] = await db
       .select({ id: passwordResetTokens.id })
@@ -201,7 +245,10 @@ export const completePasswordReset = createServerFn({ method: "POST" })
           isNull(passwordResetTokens.usedAt),
         ),
       );
-    if (!token) throw new Error("The reset code is invalid or has expired.");
+    if (!token) {
+      await consumeResetVerificationAttempt(verificationKey);
+      throw new Error("The reset code is invalid or has expired.");
+    }
 
     await db.transaction(async (tx) => {
       // Lock the token before checking it again so it cannot reset two passwords at once.
@@ -231,7 +278,10 @@ export const completePasswordReset = createServerFn({ method: "POST" })
         .set({ revokedAt: now })
         .where(and(eq(authSessions.userId, user.id), isNull(authSessions.revokedAt)));
     });
-    passwordResetRequestTimes.delete(getPasswordResetRequestKey(email));
+    await Promise.all([
+      clearRateLimit("password-reset-verify", verificationKey),
+      clearFailedLogins(email),
+    ]);
     await writeAuditLog(user.id, "auth.password.reset.email_otp", "user", user.id);
     return { ok: true };
   });
@@ -249,14 +299,14 @@ export const loginUser = createServerFn({ method: "POST" })
       registerFailedLogin,
       writeAuditLog,
     } = await import("@/lib/auth-server");
-    assertLoginAllowed(data.identifier);
+    await assertLoginAllowed(data.identifier);
     const user = await findUserByIdentifier(data.identifier);
     const passwordValid = user ? await bcrypt.compare(data.password, user.passwordHash) : false;
     if (!user || !user.active || !passwordValid) {
-      registerFailedLogin(data.identifier);
+      await registerFailedLogin(data.identifier);
       throw new Error("Invalid username/email or password.");
     }
-    clearFailedLogins(data.identifier);
+    await clearFailedLogins(data.identifier);
     await createSession(user.id);
     await writeAuditLog(user.id, "auth.login", "user", user.id);
     return asAuthUser(user);
@@ -268,8 +318,22 @@ export const registerBuyer = createServerFn({ method: "POST" })
     const bcrypt = (await import("bcryptjs")).default;
     const { db } = await import("@/db/client.server");
     const { roles, userRoles, users } = await import("@/db/schema");
-    const { createSession, findUserByIdentifier, writeAuditLog } =
-      await import("@/lib/auth-server");
+    const {
+      consumeRateLimit,
+      createSession,
+      findUserByIdentifier,
+      getRequestRateLimitKey,
+      writeAuditLog,
+    } = await import("@/lib/auth-server");
+    if (
+      !(await consumeRateLimit(
+        "buyer-registration",
+        getRequestRateLimitKey(),
+        registrationRateLimit,
+      ))
+    ) {
+      throw new Error("Too many account creation attempts. Please wait 15 minutes and try again.");
+    }
     const email = data.email.toLowerCase();
     const existing = await findUserByIdentifier(email);
     if (existing)

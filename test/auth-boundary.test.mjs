@@ -84,8 +84,43 @@ test("email password reset uses a hashed, expiring one-time code", async () => {
   assert.match(completeReset, /\.update\(authSessions\)\s*\.set\(\{ revokedAt: now \}\)/);
   assert.match(completeReset, /auth\.password\.reset\.email_otp/);
   assert.match(resetPage, /value=\{code\}/);
-  assert.match(resetPage, /type="number"/);
+  assert.match(resetPage, /type="text"/);
+  assert.match(resetPage, /autoComplete="one-time-code"/);
   assert.match(resetPage, /replace\(\/\\D\/g, ""\)\.slice\(0, 6\)/);
+});
+
+test("authentication abuse controls persist beyond a single server process", async () => {
+  const [authServer, authFunctions, admin, schema, migration] = await Promise.all([
+    readFile("src/lib/auth-server.ts", "utf8"),
+    readFile("src/lib/auth-functions.ts", "utf8"),
+    readFile("src/lib/admin-server-functions.ts", "utf8"),
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0008_security_rate_limits.sql", "utf8"),
+  ]);
+
+  assert.match(authServer, /export async function consumeRateLimit/);
+  assert.match(authServer, /FOR UPDATE/);
+  assert.match(
+    authServer,
+    /windowStartedAt, new Date\(now\.getTime\(\) - 24 \* 60 \* 60 \* 1000\)/,
+  );
+  assert.doesNotMatch(authServer, /const loginAttempts = new Map/);
+  assert.match(authFunctions, /password-reset-request-email/);
+  assert.match(authFunctions, /password-reset-verify/);
+  assert.match(authFunctions, /buyer-registration/);
+  assert.match(admin, /initial-management-setup/);
+  assert.match(schema, /export const securityRateLimits/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS security_rate_limits/);
+});
+
+test("production responses set browser security headers", async () => {
+  const server = await readFile("src/server.ts", "utf8");
+
+  assert.match(server, /Content-Security-Policy/);
+  assert.match(server, /Strict-Transport-Security/);
+  assert.match(server, /X-Frame-Options/);
+  assert.match(server, /X-Content-Type-Options/);
+  assert.match(server, /Referrer-Policy/);
 });
 
 test("marketplace cart controls prevent duplicate additions beyond available stock", async () => {

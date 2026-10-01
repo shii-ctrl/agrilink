@@ -7,7 +7,7 @@ test("production Node server returns the public landing page", async () => {
   assert.equal(existsSync(".output/server/index.mjs"), true, "run npm run build before e2e tests");
   const port = "4174";
   const child = spawn(process.execPath, [".output/server/index.mjs"], {
-    env: { ...process.env, NITRO_PORT: port, PORT: port },
+    env: { ...process.env, NODE_ENV: "production", NITRO_PORT: port, PORT: port },
     stdio: "ignore",
   });
   try {
@@ -23,6 +23,11 @@ test("production Node server returns the public landing page", async () => {
     }
     assert.equal(response?.status, 200);
     assert.match(await response.text(), /AgriLink/);
+    assert.match(response?.headers.get("content-security-policy") ?? "", /default-src 'self'/);
+    assert.equal(response?.headers.get("x-frame-options"), "DENY");
+    assert.equal(response?.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(response?.headers.get("referrer-policy"), "no-referrer");
+    assert.match(response?.headers.get("strict-transport-security") ?? "", /max-age=31536000/);
   } finally {
     child.kill();
   }
