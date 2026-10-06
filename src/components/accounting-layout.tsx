@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo-session";
 import { RoleGate } from "@/components/role-gate";
 import { NotificationCenter } from "@/components/notification-center";
+import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import {
   Sidebar,
   SidebarContent,
@@ -37,6 +38,7 @@ const navigation = [
 
 export function AccountingLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const accountant = useWorkspaceUser("Accounting");
   return (
     <RoleGate role="Accounting">
       <SidebarProvider>
@@ -75,10 +77,10 @@ export function AccountingLayout({ children }: { children: ReactNode }) {
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  LR
+                  {accountant.initials}
                 </span>
                 <div>
-                  <p className="text-sm font-semibold">Liza Reyes</p>
+                  <p className="text-sm font-semibold">{accountant.displayName}</p>
                   <p className="text-xs text-sidebar-foreground/65">Accounting</p>
                 </div>
               </div>

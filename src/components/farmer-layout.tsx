@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo-session";
 import { RoleGate } from "@/components/role-gate";
 import { NotificationCenter } from "@/components/notification-center";
+import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import {
   Sidebar,
   SidebarContent,
@@ -35,6 +36,7 @@ const nav = [
 ] as const;
 export function FarmerLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const farmer = useWorkspaceUser("Farmer");
   return (
     <RoleGate role="Farmer">
       <SidebarProvider>
@@ -73,10 +75,10 @@ export function FarmerLayout({ children }: { children: ReactNode }) {
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  JD
+                  {farmer.initials}
                 </span>
                 <div>
-                  <p className="text-sm font-semibold">Juan Dela Cruz</p>
+                  <p className="text-sm font-semibold">{farmer.displayName}</p>
                   <p className="text-xs text-sidebar-foreground/65">Farmer Member</p>
                 </div>
               </div>

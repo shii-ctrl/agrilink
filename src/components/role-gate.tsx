@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { getCurrentSessionUser } from "@/lib/auth-functions";
-import { setSessionView } from "@/lib/demo-session";
 
 export function RoleGate({ role, children }: { role: string; children: ReactNode }) {
   const navigate = useNavigate();
@@ -22,11 +21,6 @@ export function RoleGate({ role, children }: { role: string; children: ReactNode
           navigate({ to: "/" });
           return;
         }
-        setSessionView({
-          username: account.username,
-          role: account.roles[0] ?? role,
-          displayName: account.displayName,
-        });
         setAllowed(true);
       })
       .catch(() => navigate({ to: "/login" }));

@@ -86,10 +86,11 @@ export const createManagementProductionRecord = createServerFn({ method: "POST" 
     return { id };
   });
 
-async function productionRows(farmerId?: string) {
+async function productionRows(filters: { farmerId?: string; consultantId?: string } = {}) {
   const { db } = await import("@/db/client.server");
-  const { products, productionRecords, users } = await import("@/db/schema");
-  return db
+  const { farmerConsultantAssignments, products, productionRecords, users } =
+    await import("@/db/schema");
+  const query = db
     .select({
       id: productionRecords.id,
       farmerId: productionRecords.farmerId,
@@ -101,21 +102,33 @@ async function productionRows(farmerId?: string) {
     })
     .from(productionRecords)
     .innerJoin(users, eq(productionRecords.farmerId, users.id))
-    .leftJoin(products, eq(productionRecords.productId, products.id))
-    .where(farmerId ? eq(productionRecords.farmerId, farmerId) : undefined)
+    .leftJoin(products, eq(productionRecords.productId, products.id));
+
+  if (filters.consultantId) {
+    return query
+      .innerJoin(
+        farmerConsultantAssignments,
+        eq(farmerConsultantAssignments.farmerId, productionRecords.farmerId),
+      )
+      .where(eq(farmerConsultantAssignments.consultantId, filters.consultantId))
+      .orderBy(asc(productionRecords.expectedHarvestDate));
+  }
+
+  return query
+    .where(filters.farmerId ? eq(productionRecords.farmerId, filters.farmerId) : undefined)
     .orderBy(asc(productionRecords.expectedHarvestDate));
 }
 
 export const getFarmerProductionRecords = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/lib/auth-server");
   const farmer = await requireRole("Farmer");
-  return productionRows(farmer.id);
+  return productionRows({ farmerId: farmer.id });
 });
 
 export const getConsultantProductionRecords = createServerFn({ method: "GET" }).handler(
   async () => {
     const { requireRole } = await import("@/lib/auth-server");
-    await requireRole("Farm Consultant");
-    return productionRows();
+    const consultant = await requireRole("Farm Consultant");
+    return productionRows({ consultantId: consultant.id });
   },
 );

@@ -188,6 +188,48 @@ test("reordered carts, community access, and crop guidance protect role boundari
   assert.match(migration, /CREATE TABLE IF NOT EXISTS farmer_consultant_assignments/);
 });
 
+test("public marketplace data keeps farmer identities private while Marketer can trace ownership", async () => {
+  const marketplace = await readFile("src/lib/marketplace-server-functions.ts", "utf8");
+  const publicListings = marketplace.slice(
+    marketplace.indexOf("async function fetchListings"),
+    marketplace.indexOf("async function fetchMarketerListings"),
+  );
+  const marketerListings = marketplace.slice(
+    marketplace.indexOf("async function fetchMarketerListings"),
+    marketplace.indexOf("export const createCatalogProduct"),
+  );
+
+  assert.doesNotMatch(publicListings, /farmer: users\.displayName/);
+  assert.match(marketerListings, /farmer: users\.displayName/);
+  assert.match(marketerListings, /export const getMarketerMarketplaceListings/);
+  assert.match(marketerListings, /requireRole\("Marketer"\)/);
+});
+
+test("consultants only receive production records for Farmers assigned to them", async () => {
+  const production = await readFile("src/lib/production-server-functions.ts", "utf8");
+
+  assert.match(production, /farmerConsultantAssignments/);
+  assert.match(
+    production,
+    /eq\(farmerConsultantAssignments\.consultantId, filters\.consultantId\)/,
+  );
+  assert.match(production, /productionRows\(\{ consultantId: consultant\.id \}\)/);
+});
+
+test("workspace identity is loaded from the authenticated server session", async () => {
+  const [header, hook, roleGate] = await Promise.all([
+    readFile("src/components/site-header.tsx", "utf8"),
+    readFile("src/hooks/use-workspace-user.ts", "utf8"),
+    readFile("src/components/role-gate.tsx", "utf8"),
+  ]);
+
+  assert.match(header, /getCurrentSessionUser/);
+  assert.doesNotMatch(header, /demo-session/);
+  assert.match(hook, /getCurrentSessionUser/);
+  assert.match(hook, /user\?\.roles\.includes\(role\)/);
+  assert.doesNotMatch(roleGate, /demo-session/);
+});
+
 test("Management monitoring uses saved data instead of browser demo records", async () => {
   const [marketplace, decisionSupport, products, reports, layout] = await Promise.all([
     readFile("src/lib/marketplace-server-functions.ts", "utf8"),

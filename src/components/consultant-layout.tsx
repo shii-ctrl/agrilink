@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo-session";
 import { RoleGate } from "@/components/role-gate";
 import { NotificationCenter } from "@/components/notification-center";
+import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import {
   Sidebar,
   SidebarContent,
@@ -26,6 +27,7 @@ const nav = [
 ] as const;
 export function ConsultantLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const consultant = useWorkspaceUser("Farm Consultant");
   return (
     <RoleGate role="Farm Consultant">
       <SidebarProvider>
@@ -64,10 +66,10 @@ export function ConsultantLayout({ children }: { children: ReactNode }) {
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  AG
+                  {consultant.initials}
                 </span>
                 <div>
-                  <p className="text-sm font-semibold">Ana Garcia</p>
+                  <p className="text-sm font-semibold">{consultant.displayName}</p>
                   <p className="text-xs text-sidebar-foreground/65">Farm Consultant</p>
                 </div>
               </div>

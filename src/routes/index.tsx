@@ -17,9 +17,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ProductCard } from "@/components/product-card";
 import type { Product } from "@/lib/products";
-import { demoSessionEvent, getDemoAccount } from "@/lib/demo-session";
 import { getCurrentSessionUser } from "@/lib/auth-functions";
-import { setSessionView } from "@/lib/demo-session";
 import { marketplaceImageFor } from "@/lib/marketplace-images";
 import { getMarketplaceListings } from "@/lib/marketplace-server-functions";
 
@@ -85,24 +83,14 @@ const pillars = [
 ];
 
 function Index() {
-  const [account, setAccount] = useState<ReturnType<typeof getDemoAccount>>(null);
+  const [isBuyer, setIsBuyer] = useState(false);
   const [featured, setFeatured] = useState<Product[]>([]);
   useEffect(() => {
-    const refresh = () => setAccount(getDemoAccount());
-    void getCurrentSessionUser().then((user) => {
-      if (!user) return;
-      setSessionView({
-        username: user.username,
-        role: user.roles[0] ?? "Buyer",
-        displayName: user.displayName,
-      });
-    });
-    window.addEventListener(demoSessionEvent, refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener(demoSessionEvent, refresh);
-      window.removeEventListener("storage", refresh);
-    };
+    void getCurrentSessionUser()
+      .then((user) => {
+        setIsBuyer(Boolean(user?.roles.includes("Buyer")));
+      })
+      .catch(() => setIsBuyer(false));
   }, []);
   useEffect(() => {
     void getMarketplaceListings().then((listings) => {
@@ -114,8 +102,6 @@ function Index() {
       );
     });
   }, []);
-  const isBuyer = account?.role === "Buyer";
-
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />

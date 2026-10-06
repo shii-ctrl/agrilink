@@ -66,7 +66,8 @@ const createCatalogProductInput = z.object({
   imageUrl: z.string().trim().url().max(500).optional().or(z.literal("")),
 });
 
-type MarketplaceProduct = Product & { farmer: string | null };
+type MarketplaceProduct = Product;
+type MarketerMarketplaceProduct = MarketplaceProduct & { farmer: string | null };
 
 function asProduct(row: {
   listingId: string;
@@ -77,7 +78,6 @@ function asProduct(row: {
   availableKg: string;
   description: string | null;
   imageUrl: string | null;
-  farmer: string | null;
 }): MarketplaceProduct {
   return {
     id: row.listingId,
@@ -90,16 +90,37 @@ function asProduct(row: {
       row.description ??
       `${row.name} supplied by PROCY farmer members and classified ${row.classification}.`,
     image: row.imageUrl ?? "",
-    farmer: row.farmer,
   };
 }
 
 async function fetchListings(listingId?: string) {
   const { db } = await import("@/db/client.server");
-  const { classifications, inventory, listings, products, users } = await import("@/db/schema");
+  const { classifications, inventory, listings, products } = await import("@/db/schema");
   const where = listingId
     ? and(eq(listings.status, "published"), eq(listings.id, listingId))
     : eq(listings.status, "published");
+  const rows = await db
+    .select({
+      listingId: listings.id,
+      name: products.name,
+      cropType: products.cropType,
+      classification: classifications.name,
+      pricePerKg: listings.pricePerKg,
+      availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
+      description: products.description,
+      imageUrl: products.imageUrl,
+    })
+    .from(listings)
+    .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+    .innerJoin(products, eq(inventory.productId, products.id))
+    .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+    .where(where);
+  return rows.map(asProduct);
+}
+
+async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
+  const { db } = await import("@/db/client.server");
+  const { classifications, inventory, listings, products, users } = await import("@/db/schema");
   const rows = await db
     .select({
       listingId: listings.id,
@@ -117,12 +138,20 @@ async function fetchListings(listingId?: string) {
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
     .leftJoin(users, eq(inventory.farmerId, users.id))
-    .where(where);
-  return rows.map(asProduct);
+    .where(eq(listings.status, "published"));
+  return rows.map((row) => ({ ...asProduct(row), farmer: row.farmer }));
 }
 
 export const getMarketplaceListings = createServerFn({ method: "GET" }).handler(async () =>
   fetchListings(),
+);
+
+export const getMarketerMarketplaceListings = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireRole } = await import("@/lib/auth-server");
+    await requireRole("Marketer");
+    return fetchMarketerListings();
+  },
 );
 
 export const createCatalogProduct = createServerFn({ method: "POST" })

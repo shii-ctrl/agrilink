@@ -13,7 +13,7 @@ import {
   createMarketplaceListing,
   getCatalogProducts,
   getPublishableInventory,
-  getMarketplaceListings,
+  getMarketerMarketplaceListings,
 } from "@/lib/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/products")({
@@ -61,7 +61,7 @@ function MarketerProductsPage() {
 
   const load = async () => {
     const [nextListings, nextCatalogProducts, nextPublishableInventory] = await Promise.all([
-      getMarketplaceListings(),
+      getMarketerMarketplaceListings(),
       getCatalogProducts(),
       getPublishableInventory(),
     ]);

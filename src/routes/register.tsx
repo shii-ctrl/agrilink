@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthSwitchLink } from "@/components/auth-switch-link";
 import { registerBuyer } from "@/lib/auth-functions";
-import { setSessionView } from "@/lib/demo-session";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -84,18 +83,13 @@ function RegisterPage() {
               const email = String(formData.get("email") ?? "");
               const password = String(formData.get("password") ?? "");
               try {
-                const account = await registerBuyer({
+                await registerBuyer({
                   data: {
                     email,
                     password,
                     name: String(formData.get("name") ?? ""),
                     contact: String(formData.get("contact") ?? ""),
                   },
-                });
-                setSessionView({
-                  username: account.username,
-                  role: "Buyer",
-                  displayName: account.displayName,
                 });
                 toast("Buyer account created", {
                   description: "Your account is now saved in AgriLink.",

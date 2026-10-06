@@ -3,15 +3,8 @@ import { Leaf, LogOut, Menu, ShoppingBag, ShoppingCart, UserRound, X } from "luc
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getCurrentSessionUser } from "@/lib/auth-functions";
+import { getCurrentSessionUser, logoutUser } from "@/lib/auth-functions";
 import { buyerCartChangedEvent } from "@/lib/cart-events";
-import {
-  clearSessionView,
-  demoSessionEvent,
-  getDemoAccount,
-  setSessionView,
-  signOutDemoAccount,
-} from "@/lib/demo-session";
 import {
   Sheet,
   SheetClose,
@@ -30,32 +23,40 @@ const nav = [
   { to: "/about", label: "About" },
 ] as const;
 
+type SessionAccount = {
+  username: string;
+  displayName: string;
+  roles: string[];
+};
+
+const workspaceForRoles = [
+  ["Management", "/management"],
+  ["Marketer", "/marketer"],
+  ["Accounting", "/accounting"],
+  ["Farmer", "/farmer"],
+  ["Farm Consultant", "/consultant"],
+] as const;
+
 export function SiteHeader({ dark = false }: { dark?: boolean }) {
   const [open, setOpen] = useState(false);
-  const [account, setAccount] = useState<ReturnType<typeof getDemoAccount>>(() =>
-    typeof window === "undefined" ? null : getDemoAccount(),
-  );
+  const [account, setAccount] = useState<SessionAccount | null>(null);
   useEffect(() => {
-    const refresh = () => setAccount(getDemoAccount());
-    void getCurrentSessionUser().then((user) => {
-      if (!user) {
-        clearSessionView();
-        setAccount(null);
-        return;
-      }
-      setSessionView({
-        username: user.username,
-        role: user.roles.includes("Buyer") ? "Buyer" : (user.roles[0] ?? "Buyer"),
-        displayName: user.displayName,
+    let mounted = true;
+    void getCurrentSessionUser()
+      .then((user) => {
+        if (mounted) setAccount(user);
+      })
+      .catch(() => {
+        if (mounted) setAccount(null);
       });
-    });
-    window.addEventListener(demoSessionEvent, refresh);
-    window.addEventListener("storage", refresh);
     return () => {
-      window.removeEventListener(demoSessionEvent, refresh);
-      window.removeEventListener("storage", refresh);
+      mounted = false;
     };
   }, []);
+  const workspace = account
+    ? workspaceForRoles.find(([role]) => account.roles.includes(role))
+    : undefined;
+  const isBuyer = Boolean(account?.roles.includes("Buyer") && !workspace);
   const headerTone = dark
     ? "border-white/10 bg-forest/95 text-forest-foreground"
     : "border-border/60 bg-background/85";
@@ -97,11 +98,15 @@ export function SiteHeader({ dark = false }: { dark?: boolean }) {
           <span className={dark ? "[&>button]:text-forest-foreground" : undefined}>
             <ThemeToggle />
           </span>
-          {account?.role === "Buyer" ? (
+          {isBuyer ? (
             <>
               <BuyerCartButton dark={dark} />
-              <BuyerDrawer account={account} onSignOut={() => setAccount(null)} />
+              <BuyerDrawer account={account!} onSignOut={() => setAccount(null)} />
             </>
+          ) : workspace ? (
+            <Button asChild size="sm" className="rounded-full">
+              <Link to={workspace[1]}>Open workspace</Link>
+            </Button>
           ) : (
             <>
               <Button
@@ -165,14 +170,23 @@ export function SiteHeader({ dark = false }: { dark?: boolean }) {
               <span className={dark ? "[&>button]:text-forest-foreground" : undefined}>
                 <ThemeToggle />
               </span>
-              {account?.role === "Buyer" ? (
-                <BuyerDrawer
-                  account={account}
-                  onSignOut={() => {
-                    setAccount(null);
-                    setOpen(false);
-                  }}
-                />
+              {isBuyer ? (
+                <>
+                  <BuyerCartButton dark={dark} />
+                  <BuyerDrawer
+                    account={account!}
+                    onSignOut={() => {
+                      setAccount(null);
+                      setOpen(false);
+                    }}
+                  />
+                </>
+              ) : workspace ? (
+                <Button asChild size="sm" className="flex-1">
+                  <Link to={workspace[1]} onClick={() => setOpen(false)}>
+                    Open workspace
+                  </Link>
+                </Button>
               ) : (
                 <>
                   <Button
@@ -249,13 +263,7 @@ function BuyerCartButton({ dark }: { dark: boolean }) {
   );
 }
 
-function BuyerDrawer({
-  account,
-  onSignOut,
-}: {
-  account: NonNullable<ReturnType<typeof getDemoAccount>>;
-  onSignOut: () => void;
-}) {
+function BuyerDrawer({ account, onSignOut }: { account: SessionAccount; onSignOut: () => void }) {
   const name = account.displayName ?? account.username;
   return (
     <Sheet>
@@ -304,7 +312,7 @@ function BuyerDrawer({
               variant="ghost"
               className="w-full justify-start rounded-xl text-destructive hover:text-destructive"
               onClick={async () => {
-                await signOutDemoAccount();
+                await logoutUser();
                 onSignOut();
               }}
             >

@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthSwitchLink } from "@/components/auth-switch-link";
 import { loginUser } from "@/lib/auth-functions";
-import { setSessionView } from "@/lib/demo-session";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -66,11 +65,6 @@ function LoginPage() {
                   },
                 });
                 const role = signedIn.roles[0] ?? "Buyer";
-                setSessionView({
-                  username: signedIn.username,
-                  role,
-                  displayName: signedIn.displayName,
-                });
                 toast(`Welcome back, ${signedIn.displayName}`, {
                   description: "You are signed in with your AgriLink account.",
                 });

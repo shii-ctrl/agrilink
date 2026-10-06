@@ -17,6 +17,7 @@ import type { ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo-session";
 import { RoleGate } from "@/components/role-gate";
 import { NotificationCenter } from "@/components/notification-center";
+import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import {
   Sidebar,
   SidebarContent,
@@ -58,6 +59,7 @@ const marketerSections = [
 
 export function MarketerLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const marketer = useWorkspaceUser("Marketer");
   return (
     <RoleGate role="Marketer">
       <SidebarProvider>
@@ -110,10 +112,10 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  RC
+                  {marketer.initials}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">Ramon Cruz</p>
+                  <p className="truncate text-sm font-semibold">{marketer.displayName}</p>
                   <p className="truncate text-xs text-sidebar-foreground/65">Marketer</p>
                 </div>
               </div>
