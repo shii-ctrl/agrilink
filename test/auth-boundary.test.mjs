@@ -206,3 +206,15 @@ test("Management monitoring uses saved data instead of browser demo records", as
   assert.match(layout, /getCurrentSessionUser/);
   assert.doesNotMatch(layout, /Maria Santos/);
 });
+
+test("Management can filter and search saved user accounts by role", async () => {
+  const page = await readFile("src/routes/management.users.tsx", "utf8");
+
+  assert.match(page, /const userRoleFilters/);
+  assert.match(page, /"Buyer"/);
+  assert.match(page, /"Farmer"/);
+  assert.match(page, /"Farm Consultant"/);
+  assert.match(page, /const visibleUsers = useMemo/);
+  assert.match(page, /Search name, email, contact, or role/);
+  assert.match(page, /visibleUsers\.map/);
+});

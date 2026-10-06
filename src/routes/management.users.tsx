@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { History, Power, UserPlus, UsersRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { History, Power, Search, UserPlus, UsersRound } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
 import { Button } from "@/components/ui/button";
@@ -31,9 +31,21 @@ export const Route = createFileRoute("/management/users")({
 });
 
 const roles = ["Management", "Marketer", "Accounting", "Farmer", "Farm Consultant"] as const;
+const userRoleFilters = [
+  "All",
+  "Buyer",
+  "Farmer",
+  "Marketer",
+  "Accounting",
+  "Farm Consultant",
+  "Management",
+] as const;
+type UserRoleFilter = (typeof userRoleFilters)[number];
 
 function ManagementUsersPage() {
   const [users, setUsers] = useState<ManagementUser[]>([]);
+  const [userRoleFilter, setUserRoleFilter] = useState<UserRoleFilter>("All");
+  const [userSearch, setUserSearch] = useState("");
   const [guidanceAssignments, setGuidanceAssignments] = useState<Awaited<
     ReturnType<typeof getGuidanceAssignments>
   > | null>(null);
@@ -44,6 +56,18 @@ function ManagementUsersPage() {
   const loadGuidanceAssignments = async () =>
     setGuidanceAssignments(await getGuidanceAssignments());
   const loadAuditLogs = async () => setAuditLogs(await getManagementAuditLogs());
+  const visibleUsers = useMemo(() => {
+    const query = userSearch.trim().toLocaleLowerCase();
+    return users.filter((user) => {
+      const matchesRole = userRoleFilter === "All" || user.role === userRoleFilter;
+      const matchesSearch =
+        !query ||
+        [user.name, user.email, user.contact ?? "", user.role].some((value) =>
+          value.toLocaleLowerCase().includes(query),
+        );
+      return matchesRole && matchesSearch;
+    });
+  }, [userRoleFilter, userSearch, users]);
   useEffect(() => {
     void loadUsers().catch(() => toast.error("Could not load saved user accounts."));
     void loadGuidanceAssignments().catch(() => toast.error("Could not load guidance assignments."));
@@ -75,6 +99,56 @@ function ManagementUsersPage() {
                     Saved AgriLink accounts, including Buyer self-registration.
                   </p>
                 </div>
+                <div className="relative w-full max-w-md">
+                  <Label htmlFor="user-search" className="sr-only">
+                    Search user accounts
+                  </Label>
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="user-search"
+                    type="search"
+                    value={userSearch}
+                    onChange={(event) => setUserSearch(event.target.value)}
+                    placeholder="Search name, email, contact, or role"
+                    className="h-10 pl-9"
+                  />
+                </div>
+              </div>
+
+              <div className="border-b border-border bg-muted/20 px-6 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">View accounts by role</p>
+                    <p className="text-xs text-muted-foreground">
+                      Showing {visibleUsers.length} of {users.length} account
+                      {users.length === 1 ? "" : "s"}.
+                    </p>
+                  </div>
+                  <div
+                    className="flex flex-wrap gap-2"
+                    role="group"
+                    aria-label="Filter accounts by role"
+                  >
+                    {userRoleFilters.map((role) => {
+                      const count =
+                        role === "All"
+                          ? users.length
+                          : users.filter((user) => user.role === role).length;
+                      return (
+                        <Button
+                          key={role}
+                          type="button"
+                          size="sm"
+                          variant={userRoleFilter === role ? "default" : "outline"}
+                          className="rounded-full"
+                          onClick={() => setUserRoleFilter(role)}
+                        >
+                          {role} ({count})
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -89,7 +163,7 @@ function ManagementUsersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
+                    {visibleUsers.map((user) => (
                       <tr key={user.id} className="border-b border-border last:border-0">
                         <td className="px-6 py-4 font-medium">{user.name}</td>
                         <td className="px-6 py-4 text-muted-foreground">{user.contact}</td>
@@ -145,6 +219,13 @@ function ManagementUsersPage() {
                         </td>
                       </tr>
                     ))}
+                    {visibleUsers.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
+                          No user accounts match this search or role section.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
