@@ -23,12 +23,35 @@ NITRO_PORT=3000
 
 AgriLink's **Forgot password?** page sends a six-digit, single-use code that expires in 10 minutes. It uses the [Resend Send Email API](https://resend.com/docs/api-reference/emails/send-email), so add these server-side values in Render before testing it:
 
-1. Create a Resend account and verify a sender domain or sender address.
+1. Create a Resend account. For a public application, verify a domain that you own in Resend.
 2. Create a Resend API key and set it as `RESEND_API_KEY` in Render.
 3. Set `EMAIL_FROM` to the verified sender in the format `AgriLink <no-reply@your-domain.example>`.
 4. Save the values and let Render redeploy, then request a code for an active account whose email you can receive.
 
 Keep the API key private. AgriLink stores only a hash of the code, returns the same request response for unknown emails, limits repeat requests, and revokes existing sign-in sessions after a successful reset.
+
+`AgriLink <onboarding@resend.dev>` is suitable only for Resend's limited test sending. It is not a public sender address and should not be used for a real launch. A Gmail address is an inbox, not a domain that can be verified as the `from` address.
+
+## Custom domain and HTTPS
+
+Before a public launch, connect a domain you own to the Render service:
+
+1. In Render, open the web service settings and add your custom domain.
+2. At the company where you purchased the domain, add the DNS record Render asks for.
+3. Wait until Render reports that the domain and HTTPS certificate are active, then test `https://YOUR-DOMAIN` in a private browser window.
+4. Verify that same domain in Resend and change `EMAIL_FROM` to an address on it, such as `AgriLink <no-reply@your-domain.example>`.
+
+Never use a password, API key, or database URL in DNS records, source code, screenshots, or support messages.
+
+## Backups and recovery
+
+Before every production migration, create an encrypted database backup or export using the Layerbase tool available to the account owner. Record where it is stored and perform a restore test in a separate non-production database. Keep at least one verified backup from before a migration. Do not test a restore by overwriting the live database.
+
+## Google and Facebook sign-in
+
+Google and Facebook sign-in are not shown in the application yet because a secure implementation needs provider-owned credentials, approved redirect URLs, and the final public domain. Do not add placeholder buttons that appear to work but cannot safely sign anyone in.
+
+When the public domain is ready, the project owner must create a Google OAuth application and a Meta/Facebook Login application, add the exact callback URLs supplied by the application, and store the client IDs and secrets only in Render server-side environment variables. The provider setup should also use the live Privacy and Terms pages: `/privacy` and `/terms`. Once those provider details are ready, social sign-in can be added without exposing a client secret to the browser.
 
 ## Build and run
 

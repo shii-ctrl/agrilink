@@ -25,6 +25,7 @@ export function LiveProfile({ role }: { role: string }) {
         data: {
           displayName: String(formData.get("displayName") ?? ""),
           contact: String(formData.get("contact") ?? "").trim() || null,
+          avatarUrl: String(formData.get("avatarUrl") ?? "").trim() || null,
         },
       });
       setAccount(saved);
@@ -69,9 +70,18 @@ export function LiveProfile({ role }: { role: string }) {
     <main className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8">
       <section className="rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
         <div className="flex items-start gap-3">
-          <span className="flex size-11 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-            <UserRound className="size-5" />
-          </span>
+          {account.avatarUrl ? (
+            <img
+              src={account.avatarUrl}
+              alt="Profile"
+              className="size-11 rounded-2xl border border-border object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <span className="flex size-11 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+              <UserRound className="size-5" />
+            </span>
+          )}
           <div>
             <h2 className="text-xl font-semibold">{account.displayName}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{role} account</p>
@@ -90,6 +100,21 @@ export function LiveProfile({ role }: { role: string }) {
           <div className="space-y-2">
             <Label htmlFor="profile-contact">Contact number</Label>
             <Input id="profile-contact" name="contact" defaultValue={account.contact ?? ""} />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="profile-avatar">Profile photo URL (optional)</Label>
+            <Input
+              id="profile-avatar"
+              name="avatarUrl"
+              type="url"
+              autoComplete="url"
+              defaultValue={account.avatarUrl ?? ""}
+              placeholder="https://example.com/your-photo.jpg"
+            />
+            <p className="text-xs text-muted-foreground">
+              Use a public HTTPS image URL. AgriLink does not store image files or social-media
+              photos.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="profile-email">Email</Label>

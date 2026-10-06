@@ -1,5 +1,6 @@
-import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
+import { alias } from "drizzle-orm/mysql-core";
 import { z } from "zod";
 
 const internalRole = z.enum(["Management", "Marketer", "Accounting", "Farmer", "Farm Consultant"]);
@@ -14,6 +15,10 @@ const createUserInput = z.object({
 const resetUserPasswordInput = z.object({
   userId: z.string().uuid(),
   password: z.string().min(8, "Use at least 8 characters.").max(200),
+});
+const setUserActiveInput = z.object({
+  userId: z.string().uuid(),
+  active: z.boolean(),
 });
 const guidanceAssignmentInput = z.object({
   farmerId: z.string().uuid(),
@@ -101,6 +106,77 @@ export const getManagementUsers = createServerFn({ method: "GET" }).handler(asyn
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(userRoles.roleId, roles.id))
     .orderBy(asc(users.displayName));
+});
+
+export const setManagedUserActive = createServerFn({ method: "POST" })
+  .validator(setUserActiveInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/lib/auth-server");
+    const actor = await requireRole("Management");
+    if (actor.id === data.userId) {
+      throw new Error("You cannot deactivate your own Management account.");
+    }
+    const { db } = await import("@/db/client.server");
+    const { authSessions, roles, userRoles, users } = await import("@/db/schema");
+    const [target] = await db
+      .select({ id: users.id, active: users.active, role: roles.name })
+      .from(users)
+      .innerJoin(userRoles, eq(userRoles.userId, users.id))
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(eq(users.id, data.userId));
+    if (!target) throw new Error("The selected account no longer exists.");
+    if (target.active === data.active) return { active: data.active };
+
+    await db.transaction(async (tx) => {
+      if (!data.active && target.role === "Management") {
+        // Serialize Management changes so there is always at least one active administrator.
+        await tx.execute(sql`SELECT id FROM roles WHERE name = ${"Management"} FOR UPDATE`);
+        const activeManagement = await tx
+          .select({ id: users.id })
+          .from(users)
+          .innerJoin(userRoles, eq(userRoles.userId, users.id))
+          .innerJoin(roles, eq(userRoles.roleId, roles.id))
+          .where(and(eq(roles.name, "Management"), eq(users.active, true)));
+        if (activeManagement.length <= 1) {
+          throw new Error("Keep at least one active Management account.");
+        }
+      }
+      await tx.update(users).set({ active: data.active }).where(eq(users.id, data.userId));
+      if (!data.active) {
+        await tx
+          .update(authSessions)
+          .set({ revokedAt: new Date() })
+          .where(and(eq(authSessions.userId, data.userId), isNull(authSessions.revokedAt)));
+      }
+    });
+    await writeAuditLog(
+      actor.id,
+      data.active ? "user.activate" : "user.deactivate",
+      "user",
+      data.userId,
+    );
+    return { active: data.active };
+  });
+
+export const getManagementAuditLogs = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/lib/auth-server");
+  await requireRole("Management");
+  const { db } = await import("@/db/client.server");
+  const { auditLogs, users } = await import("@/db/schema");
+  const actor = alias(users, "audit_actor");
+  return db
+    .select({
+      id: auditLogs.id,
+      action: auditLogs.action,
+      entityType: auditLogs.entityType,
+      entityId: auditLogs.entityId,
+      actor: actor.displayName,
+      createdAt: auditLogs.createdAt,
+    })
+    .from(auditLogs)
+    .leftJoin(actor, eq(auditLogs.actorId, actor.id))
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(100);
 });
 
 export const getGuidanceAssignments = createServerFn({ method: "GET" }).handler(async () => {

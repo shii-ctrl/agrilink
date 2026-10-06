@@ -123,6 +123,25 @@ test("production responses set browser security headers", async () => {
   assert.match(server, /Referrer-Policy/);
 });
 
+test("profile photos use optional HTTPS links and Management controls are audited", async () => {
+  const [authFunctions, adminFunctions, schema, migration] = await Promise.all([
+    readFile("src/lib/auth-functions.ts", "utf8"),
+    readFile("src/lib/admin-server-functions.ts", "utf8"),
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0009_user_profile_photos.sql", "utf8"),
+  ]);
+
+  assert.match(authFunctions, /const httpsImageUrl/);
+  assert.match(authFunctions, /protocol === "https:"/);
+  assert.match(authFunctions, /avatarUrl: httpsImageUrl\.nullable\(\)/);
+  assert.match(schema, /avatarUrl: varchar\("avatar_url"/);
+  assert.match(migration, /ADD COLUMN avatar_url/);
+  assert.match(adminFunctions, /export const setManagedUserActive/);
+  assert.match(adminFunctions, /Keep at least one active Management account/);
+  assert.match(adminFunctions, /user\.deactivate/);
+  assert.match(adminFunctions, /export const getManagementAuditLogs/);
+});
+
 test("marketplace cart controls prevent duplicate additions beyond available stock", async () => {
   const source = await readFile("src/routes/marketplace.$productId.tsx", "utf8");
   assert.match(source, /const \[isAdding, setIsAdding\] = useState\(false\)/);

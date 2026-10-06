@@ -12,9 +12,18 @@ const registrationInput = z.object({
   email: z.string().trim().email().max(255),
   password: z.string().min(8, "Use at least 8 characters.").max(200),
 });
+const httpsImageUrl = z
+  .string()
+  .trim()
+  .url()
+  .max(500)
+  .refine((value) => new URL(value).protocol === "https:", {
+    message: "Use an HTTPS image URL.",
+  });
 const profileInput = z.object({
   displayName: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80).nullable(),
+  avatarUrl: httpsImageUrl.nullable(),
 });
 const strongPassword = z.string().min(8, "Use at least 8 characters.").max(200);
 const changePasswordInput = z.object({
@@ -101,10 +110,19 @@ export const updateCurrentProfile = createServerFn({ method: "POST" })
     const user = await requireUser();
     await db
       .update(users)
-      .set({ displayName: data.displayName, contact: data.contact })
+      .set({
+        displayName: data.displayName,
+        contact: data.contact,
+        avatarUrl: data.avatarUrl,
+      })
       .where(eq(users.id, user.id));
     await writeAuditLog(user.id, "user.profile.update", "user", user.id);
-    return { ...user, displayName: data.displayName, contact: data.contact };
+    return {
+      ...user,
+      displayName: data.displayName,
+      contact: data.contact,
+      avatarUrl: data.avatarUrl,
+    };
   });
 
 export const changeCurrentPassword = createServerFn({ method: "POST" })

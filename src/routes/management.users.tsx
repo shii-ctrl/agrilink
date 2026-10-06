@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { UserPlus, UsersRound } from "lucide-react";
+import { History, Power, UserPlus, UsersRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
@@ -10,8 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createManagementUser,
   getGuidanceAssignments,
+  getManagementAuditLogs,
   getManagementUsers,
   resetManagedUserPassword,
+  setManagedUserActive,
   setGuidanceAssignment,
 } from "@/lib/admin-server-functions";
 
@@ -35,12 +37,17 @@ function ManagementUsersPage() {
   const [guidanceAssignments, setGuidanceAssignments] = useState<Awaited<
     ReturnType<typeof getGuidanceAssignments>
   > | null>(null);
+  const [auditLogs, setAuditLogs] = useState<Awaited<ReturnType<typeof getManagementAuditLogs>>>(
+    [],
+  );
   const loadUsers = async () => setUsers(await getManagementUsers());
   const loadGuidanceAssignments = async () =>
     setGuidanceAssignments(await getGuidanceAssignments());
+  const loadAuditLogs = async () => setAuditLogs(await getManagementAuditLogs());
   useEffect(() => {
     void loadUsers().catch(() => toast.error("Could not load saved user accounts."));
     void loadGuidanceAssignments().catch(() => toast.error("Could not load guidance assignments."));
+    void loadAuditLogs().catch(() => toast.error("Could not load the Management activity log."));
   }, []);
   return (
     <ManagementLayout>
@@ -56,6 +63,7 @@ function ManagementUsersPage() {
             <TabsTrigger value="add-user">Add User</TabsTrigger>
             <TabsTrigger value="guidance-assignments">Guidance Assignments</TabsTrigger>
             <TabsTrigger value="reset-password">Reset Password</TabsTrigger>
+            <TabsTrigger value="activity">Activity Log</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all-users" className="mt-6">
@@ -70,14 +78,14 @@ function ManagementUsersPage() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left text-sm">
+                <table className="w-full min-w-[820px] text-left text-sm">
                   <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-6 py-4 font-medium">Name</th>
                       <th className="px-6 py-4 font-medium">Contact</th>
                       <th className="px-6 py-4 font-medium">Role</th>
                       <th className="px-6 py-4 font-medium">Account Status</th>
-                      <th className="px-6 py-4 font-medium">Record</th>
+                      <th className="px-6 py-4 font-medium">Access</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -89,9 +97,102 @@ function ManagementUsersPage() {
                         <td className="px-6 py-4 text-primary">
                           {user.active ? "Active" : "Inactive"}
                         </td>
-                        <td className="px-6 py-4 text-muted-foreground">Saved account</td>
+                        <td className="px-6 py-4">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={user.active ? "outline" : "default"}
+                            className="rounded-full"
+                            onClick={async () => {
+                              const nextActive = !user.active;
+                              const verb = nextActive ? "reactivate" : "deactivate";
+                              if (
+                                !window.confirm(`Do you want to ${verb} ${user.name}'s account?`)
+                              ) {
+                                return;
+                              }
+                              try {
+                                await setManagedUserActive({
+                                  data: { userId: user.id, active: nextActive },
+                                });
+                                try {
+                                  await Promise.all([loadUsers(), loadAuditLogs()]);
+                                } catch {
+                                  toast.warning("Access saved, but the page could not refresh", {
+                                    description:
+                                      "Reload this page to see the latest account status.",
+                                  });
+                                }
+                                toast.success(
+                                  nextActive ? "Account reactivated" : "Account deactivated",
+                                  {
+                                    description: nextActive
+                                      ? `${user.name} can sign in again.`
+                                      : `${user.name}'s active sessions were signed out.`,
+                                  },
+                                );
+                              } catch (error) {
+                                toast.error("Account access could not be changed", {
+                                  description:
+                                    error instanceof Error ? error.message : "Please try again.",
+                                });
+                              }
+                            }}
+                          >
+                            <Power />
+                            {user.active ? "Deactivate" : "Reactivate"}
+                          </Button>
+                        </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="activity" className="mt-6">
+            <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+              <div className="flex items-start gap-3 border-b border-border px-6 py-5">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                  <History className="size-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-semibold">Management activity</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    The 100 most recent saved account and operational actions. Passwords and reset
+                    codes are never recorded here.
+                  </p>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-6 py-4 font-medium">When</th>
+                      <th className="px-6 py-4 font-medium">Actor</th>
+                      <th className="px-6 py-4 font-medium">Action</th>
+                      <th className="px-6 py-4 font-medium">Record</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLogs.map((log) => (
+                      <tr key={log.id} className="border-b border-border last:border-0">
+                        <td className="px-6 py-4 text-muted-foreground">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4">{log.actor ?? "System"}</td>
+                        <td className="px-6 py-4 font-medium">{formatAuditAction(log.action)}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{log.entityType}</td>
+                      </tr>
+                    ))}
+                    {auditLogs.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
+                          No saved activity yet.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -396,6 +497,13 @@ function ManagementUsersPage() {
       </main>
     </ManagementLayout>
   );
+}
+
+function formatAuditAction(action: string) {
+  return action
+    .split(".")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" · ");
 }
 
 type ManagementUser = {

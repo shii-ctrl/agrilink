@@ -57,7 +57,14 @@ export function SiteFooter() {
       <div className="border-t border-white/10">
         <p className="mx-auto max-w-6xl px-4 py-6 text-xs opacity-70">
           © {new Date().getFullYear()} AgriLink. Products are supplied by farmer members and sold by
-          PROCY.
+          PROCY.{" "}
+          <Link to="/privacy" className="hover:underline">
+            Privacy
+          </Link>{" "}
+          ·{" "}
+          <Link to="/terms" className="hover:underline">
+            Terms
+          </Link>
         </p>
       </div>
     </footer>

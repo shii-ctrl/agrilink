@@ -99,3 +99,5 @@ The verification checks both cases:
 Read [DEPLOYMENT.md](DEPLOYMENT.md) before deployment. Use a Node.js host with private MySQL/MariaDB connectivity. Do not use the development seed command, test database settings, or cleanup approval variables in production.
 
 For a fresh production database, set a temporary `INITIAL_MANAGEMENT_SETUP_SECRET`, deploy and migrate, then open `/setup-management` once to create the first Management account. Remove that environment variable immediately afterward. Full instructions are in [DEPLOYMENT.md](DEPLOYMENT.md#first-management-account).
+
+The pre-launch checklist for a custom domain, Resend sender verification, backups, and future Google/Facebook sign-in is in [DEPLOYMENT.md](DEPLOYMENT.md#custom-domain-and-https).

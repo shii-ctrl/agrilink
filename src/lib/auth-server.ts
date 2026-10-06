@@ -20,6 +20,7 @@ export type AuthUser = {
   email: string;
   displayName: string;
   contact: string | null;
+  avatarUrl: string | null;
   roles: string[];
 };
 
@@ -162,6 +163,7 @@ async function asAuthUser(user: typeof users.$inferSelect): Promise<AuthUser> {
     email: user.email,
     displayName: user.displayName,
     contact: user.contact,
+    avatarUrl: user.avatarUrl,
     roles: await getRolesForUser(user.id),
   };
 }

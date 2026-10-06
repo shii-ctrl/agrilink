@@ -15,8 +15,10 @@ import { Route as DailyPricesRouteImport } from './routes/daily-prices'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SetupManagementRouteImport } from './routes/setup-management'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AccountingIndexRouteImport } from './routes/accounting.index'
 import { Route as AccountingPaymentsRouteImport } from './routes/accounting.payments'
 import { Route as AccountingProfileRouteImport } from './routes/accounting.profile'
@@ -90,6 +92,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -98,6 +105,11 @@ const RegisterRoute = RegisterRouteImport.update({
 const SetupManagementRoute = SetupManagementRouteImport.update({
   id: '/setup-management',
   path: '/setup-management',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountingIndexRoute = AccountingIndexRouteImport.update({
@@ -319,8 +331,10 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
   '/setup-management': typeof SetupManagementRoute
+  '/terms': typeof TermsRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
   '/accounting/reports': typeof AccountingReportsRoute
@@ -371,8 +385,10 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
   '/setup-management': typeof SetupManagementRoute
+  '/terms': typeof TermsRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
   '/accounting/reports': typeof AccountingReportsRoute
@@ -424,8 +440,10 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
   '/setup-management': typeof SetupManagementRoute
+  '/terms': typeof TermsRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
   '/accounting/reports': typeof AccountingReportsRoute
@@ -478,8 +496,10 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/help'
     | '/login'
+    | '/privacy'
     | '/register'
     | '/setup-management'
+    | '/terms'
     | '/accounting/payments'
     | '/accounting/profile'
     | '/accounting/reports'
@@ -530,8 +550,10 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/help'
     | '/login'
+    | '/privacy'
     | '/register'
     | '/setup-management'
+    | '/terms'
     | '/accounting/payments'
     | '/accounting/profile'
     | '/accounting/reports'
@@ -582,8 +604,10 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/help'
     | '/login'
+    | '/privacy'
     | '/register'
     | '/setup-management'
+    | '/terms'
     | '/accounting/payments'
     | '/accounting/profile'
     | '/accounting/reports'
@@ -635,8 +659,10 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   HelpRoute: typeof HelpRoute
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
   RegisterRoute: typeof RegisterRoute
   SetupManagementRoute: typeof SetupManagementRoute
+  TermsRoute: typeof TermsRoute
   AccountingPaymentsRoute: typeof AccountingPaymentsRoute
   AccountingProfileRoute: typeof AccountingProfileRoute
   AccountingReportsRoute: typeof AccountingReportsRoute
@@ -725,6 +751,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -737,6 +770,13 @@ declare module '@tanstack/react-router' {
       path: '/setup-management'
       fullPath: '/setup-management'
       preLoaderRoute: typeof SetupManagementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accounting/': {
@@ -1043,8 +1083,10 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   HelpRoute: HelpRoute,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
   RegisterRoute: RegisterRoute,
   SetupManagementRoute: SetupManagementRoute,
+  TermsRoute: TermsRoute,
   AccountingPaymentsRoute: AccountingPaymentsRoute,
   AccountingProfileRoute: AccountingProfileRoute,
   AccountingReportsRoute: AccountingReportsRoute,
