@@ -46,14 +46,40 @@ function schemaOnlySql(file, sql) {
   return sql;
 }
 
-async function applyMigration(sql) {
+async function ensureInventoryFarmerForeignKey() {
+  // MariaDB accepts IF NOT EXISTS for several ALTER TABLE operations, but not
+  // for ADD CONSTRAINT. Check metadata instead, so a partially applied 0006
+  // migration can be resumed safely without changing its published checksum.
+  const [existing] = await connection.execute(
+    `SELECT CONSTRAINT_NAME
+       FROM information_schema.TABLE_CONSTRAINTS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'inventory'
+        AND CONSTRAINT_NAME = 'fk_inventory_farmer'`,
+  );
+  if (existing.length) return;
+  await connection.execute(
+    "ALTER TABLE inventory ADD CONSTRAINT fk_inventory_farmer FOREIGN KEY (farmer_id) REFERENCES users(id)",
+  );
+}
+
+async function applyMigration(file, sql) {
+  const inventoryFarmerConstraint =
+    /ALTER TABLE inventory ADD CONSTRAINT IF NOT EXISTS fk_inventory_farmer FOREIGN KEY \(farmer_id\) REFERENCES users\(id\);\s*/i;
+  const needsInventoryFarmerConstraint = file === "0006_inventory_farmer_traceability.sql";
+  if (needsInventoryFarmerConstraint && !inventoryFarmerConstraint.test(sql)) {
+    throw new Error(`Could not locate the inventory Farmer foreign key in ${file}.`);
+  }
   // MySQL DDL is not transactional. If a previous local migration was interrupted,
   // tables and indexes may exist even though the migration was never recorded.
   // Retry safely after omitting only the already-created index that caused the error.
-  let executableSql = sql;
+  let executableSql = needsInventoryFarmerConstraint
+    ? sql.replace(inventoryFarmerConstraint, "")
+    : sql;
   while (true) {
     try {
       await connection.query(executableSql);
+      if (needsInventoryFarmerConstraint) await ensureInventoryFarmerForeignKey();
       return;
     } catch (error) {
       if (error?.code !== "ER_DUP_KEYNAME" || typeof error?.sqlMessage !== "string") throw error;
@@ -126,7 +152,7 @@ try {
     }
     await connection.beginTransaction();
     try {
-      await applyMigration(schemaOnlySql(file, sourceSql));
+      await applyMigration(file, schemaOnlySql(file, sourceSql));
       await connection.execute("INSERT INTO _agrilink_migrations (id, checksum) VALUES (?, ?)", [
         file,
         checksum,

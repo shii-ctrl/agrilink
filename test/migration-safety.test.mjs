@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("migration verification refuses to run without explicit disposable test settings", () => {
@@ -62,4 +63,16 @@ test("migration verifier rejects a local test target when the configured applica
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /configured production application server/);
+});
+
+test("migration runner resumes MariaDB inventory traceability without changing published SQL", async () => {
+  const [runner, migration] = await Promise.all([
+    readFile("scripts/migrate.mjs", "utf8"),
+    readFile("drizzle/0006_inventory_farmer_traceability.sql", "utf8"),
+  ]);
+
+  assert.match(runner, /ensureInventoryFarmerForeignKey/);
+  assert.match(runner, /information_schema\.TABLE_CONSTRAINTS/);
+  assert.match(runner, /Could not locate the inventory Farmer foreign key/);
+  assert.match(migration, /ADD CONSTRAINT IF NOT EXISTS fk_inventory_farmer/);
 });
