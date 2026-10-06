@@ -42,6 +42,8 @@ Do **not** edit the existing `0000`–`0003` migration files. Their checksums ar
 
 Existing databases retain any legacy demo records. Nothing is silently deleted during migration.
 
+If a legacy database has duplicate catalog product names, the `0007` recovery step preserves every product and its connected records. It keeps the earliest name and adds a visible `[legacy <record-id>]` suffix to later duplicates before applying the required unique-name rule. No product, stock, order, or receiving history is deleted.
+
 ### Legacy demo-data cleanup (approval required)
 
 The reviewable cleanup script removes only the documented legacy UUIDs. It does not remove roles or classifications. Before running it:

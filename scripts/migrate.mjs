@@ -63,6 +63,53 @@ async function ensureInventoryFarmerForeignKey() {
   );
 }
 
+async function prepareCatalogNameIntegrityMigration(sql) {
+  const productNameIndex = /ALTER TABLE products ADD UNIQUE KEY products_name_unique \(name\);\s*/i;
+  if (!productNameIndex.test(sql)) {
+    throw new Error(
+      "Could not locate the products name index in 0007_catalog_and_guidance_integrity.sql.",
+    );
+  }
+  const [existingIndex] = await connection.execute(
+    `SELECT INDEX_NAME
+       FROM information_schema.STATISTICS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'products'
+        AND INDEX_NAME = 'products_name_unique'`,
+  );
+  if (existingIndex.length) return sql.replace(productNameIndex, "");
+
+  // Keep all historical products and their connected stock/orders. The original
+  // migration requires a unique catalog name, so retain the earliest record and
+  // add a stable legacy suffix to every later duplicate before adding the index.
+  const [duplicateNames] = await connection.execute(
+    `SELECT name
+       FROM products
+      GROUP BY name
+     HAVING COUNT(*) > 1`,
+  );
+  let renamedCount = 0;
+  for (const duplicate of duplicateNames) {
+    const [products] = await connection.execute(
+      "SELECT id, name FROM products WHERE name = ? ORDER BY created_at ASC, id ASC",
+      [duplicate.name],
+    );
+    for (const product of products.slice(1)) {
+      const suffix = ` [legacy ${product.id}]`;
+      const uniqueName = `${product.name.slice(0, 160 - suffix.length)}${suffix}`;
+      await connection.execute("UPDATE products SET name = ? WHERE id = ?", [
+        uniqueName,
+        product.id,
+      ]);
+      renamedCount += 1;
+    }
+  }
+  if (renamedCount) {
+    console.log(`Renamed ${renamedCount} duplicate legacy catalog product name(s) before 0007.`);
+  }
+  return sql;
+}
+
 async function applyMigration(file, sql) {
   const inventoryFarmerConstraint =
     /ALTER TABLE inventory ADD CONSTRAINT IF NOT EXISTS fk_inventory_farmer FOREIGN KEY \(farmer_id\) REFERENCES users\(id\);\s*/i;
@@ -76,6 +123,9 @@ async function applyMigration(file, sql) {
   let executableSql = needsInventoryFarmerConstraint
     ? sql.replace(inventoryFarmerConstraint, "")
     : sql;
+  if (file === "0007_catalog_and_guidance_integrity.sql") {
+    executableSql = await prepareCatalogNameIntegrityMigration(executableSql);
+  }
   while (true) {
     try {
       await connection.query(executableSql);

@@ -76,3 +76,13 @@ test("migration runner resumes MariaDB inventory traceability without changing p
   assert.match(runner, /Could not locate the inventory Farmer foreign key/);
   assert.match(migration, /ADD CONSTRAINT IF NOT EXISTS fk_inventory_farmer/);
 });
+
+test("catalog integrity recovery preserves duplicate legacy products before adding a unique name index", async () => {
+  const runner = await readFile("scripts/migrate.mjs", "utf8");
+
+  assert.match(runner, /prepareCatalogNameIntegrityMigration/);
+  assert.match(runner, /TABLE_NAME = 'products'/);
+  assert.match(runner, /HAVING COUNT\(\*\) > 1/);
+  assert.match(runner, /\[legacy \$\{product\.id\}\]/);
+  assert.match(runner, /ORDER BY created_at ASC, id ASC/);
+});
