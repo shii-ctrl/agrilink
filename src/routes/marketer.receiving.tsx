@@ -93,9 +93,9 @@ function MarketerReceivingPage() {
             <Select label="Farmer" name="farmerId" options={workspace?.farmers ?? []} />
             <Select label="Product" name="productId" options={workspace?.products ?? []} />
             <Field name="totalKg" label="Total delivered (kg)" />
-            <Field name="goodKg" label="Good (kg)" defaultValue="0" />
-            <Field name="semiKg" label="Semi (kg)" defaultValue="0" />
-            <Field name="rejectKg" label="Reject (kg)" defaultValue="0" />
+            <Field name="goodKg" label="Good (kg)" />
+            <Field name="semiKg" label="Semi (kg)" />
+            <Field name="rejectKg" label="Reject (kg)" />
             <Button className="sm:col-span-2" type="submit">
               Save delivery
             </Button>
@@ -136,11 +136,9 @@ function Select({
 function Field({
   label,
   name,
-  defaultValue,
 }: {
   label: string;
   name: string;
-  defaultValue?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -152,7 +150,6 @@ function Field({
         min="0"
         step="0.01"
         required
-        defaultValue={defaultValue}
       />
     </div>
   );
