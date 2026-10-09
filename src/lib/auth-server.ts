@@ -7,6 +7,7 @@ import { auditLogs, authSessions, roles, securityRateLimits, userRoles, users } 
 export const sessionCookieName = "agrilink_session";
 const sessionLifetimeSeconds = 60 * 60 * 24;
 const loginRateLimit = { maxAttempts: 5, windowMs: 15 * 60 * 1000, lockMs: 15 * 60 * 1000 };
+const loginSourceRateLimit = { maxAttempts: 20, windowMs: 15 * 60 * 1000, lockMs: 15 * 60 * 1000 };
 
 export type RateLimitPolicy = {
   maxAttempts: number;
@@ -133,14 +134,21 @@ export async function clearRateLimit(scope: string, key: string) {
     .where(and(eq(securityRateLimits.scope, scope), eq(securityRateLimits.keyHash, keyHash)));
 }
 
-export async function assertLoginAllowed(identifier: string) {
-  if (!(await isRateLimitAvailable("login", getAttemptKey(identifier)))) {
+export async function assertLoginAllowed(identifier: string, source: string) {
+  const [accountAvailable, sourceAvailable] = await Promise.all([
+    isRateLimitAvailable("login", getAttemptKey(identifier)),
+    isRateLimitAvailable("login-source", source),
+  ]);
+  if (!accountAvailable || !sourceAvailable) {
     throw new Error("Too many sign-in attempts. Please wait 15 minutes and try again.");
   }
 }
 
-export async function registerFailedLogin(identifier: string) {
-  await consumeRateLimit("login", getAttemptKey(identifier), loginRateLimit);
+export async function registerFailedLogin(identifier: string, source: string) {
+  await Promise.all([
+    consumeRateLimit("login", getAttemptKey(identifier), loginRateLimit),
+    consumeRateLimit("login-source", source, loginSourceRateLimit),
+  ]);
 }
 
 export async function clearFailedLogins(identifier: string) {

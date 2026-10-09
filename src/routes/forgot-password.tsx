@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { completePasswordReset, requestPasswordResetCode } from "@/lib/auth-functions";
+import { minimumPasswordLength, passwordHelpText } from "@/lib/password-requirements";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({ meta: [{ title: "Reset Password — AgriLink" }] }),
@@ -118,7 +119,7 @@ function ForgotPasswordPage() {
               <p className="mt-2 text-sm text-muted-foreground">
                 Enter the 6-digit code sent to{" "}
                 <span className="font-medium text-foreground">{email}</span>, then choose a new
-                password with at least 8 characters.
+                password with at least 12 characters.
               </p>
               <form className="mt-7 space-y-4" onSubmit={resetPassword}>
                 <div className="space-y-2">
@@ -145,7 +146,7 @@ function ForgotPasswordPage() {
                     name="newPassword"
                     type="password"
                     autoComplete="new-password"
-                    minLength={8}
+                    minLength={minimumPasswordLength}
                     required
                     className="h-11"
                   />
@@ -157,11 +158,12 @@ function ForgotPasswordPage() {
                     name="confirmPassword"
                     type="password"
                     autoComplete="new-password"
-                    minLength={8}
+                    minLength={minimumPasswordLength}
                     required
                     className="h-11"
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">{passwordHelpText}</p>
                 <Button
                   type="submit"
                   size="lg"

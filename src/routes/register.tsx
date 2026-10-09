@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthSwitchLink } from "@/components/auth-switch-link";
 import { registerBuyer } from "@/lib/auth-functions";
+import { minimumPasswordLength, passwordHelpText } from "@/lib/password-requirements";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -32,7 +33,8 @@ function RegisterPage() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
-  const passwordStatus = password.length >= 8 ? "Ready" : password ? "Too short" : "";
+  const passwordStatus =
+    password.length >= minimumPasswordLength ? "Ready" : password ? "Too short" : "";
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="auth-visual-enter-left relative hidden lg:block">
@@ -145,8 +147,8 @@ function RegisterPage() {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
-                  minLength={8}
-                  placeholder="At least 8 characters"
+                  minLength={minimumPasswordLength}
+                  placeholder="At least 12 characters"
                   required
                   className="h-11"
                   onChange={(event) => setPassword(event.target.value)}
@@ -166,7 +168,7 @@ function RegisterPage() {
                   name="confirm"
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
-                  minLength={8}
+                  minLength={minimumPasswordLength}
                   placeholder="Re-enter your password"
                   required
                   className="h-11"
@@ -179,6 +181,7 @@ function RegisterPage() {
                   />{" "}
                   Show passwords
                 </label>
+                <p className="text-xs text-muted-foreground">{passwordHelpText}</p>
               </div>
             </div>
             <Button type="submit" size="lg" className="w-full rounded-full">

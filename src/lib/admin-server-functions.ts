@@ -3,18 +3,20 @@ import { createServerFn } from "@tanstack/react-start";
 import { alias } from "drizzle-orm/mysql-core";
 import { z } from "zod";
 
+import { securePassword } from "@/lib/password-policy";
+
 const internalRole = z.enum(["Management", "Marketer", "Accounting", "Farmer", "Farm Consultant"]);
 const createUserInput = z.object({
   name: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80),
   email: z.string().trim().email().max(255),
-  password: z.string().min(8, "Use at least 8 characters.").max(200),
+  password: securePassword,
   role: internalRole,
   active: z.boolean(),
 });
 const resetUserPasswordInput = z.object({
   userId: z.string().uuid(),
-  password: z.string().min(8, "Use at least 8 characters.").max(200),
+  password: securePassword,
 });
 const setUserActiveInput = z.object({
   userId: z.string().uuid(),

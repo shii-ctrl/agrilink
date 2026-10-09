@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { securePassword } from "@/lib/password-policy";
+
 const loginInput = z.object({
   identifier: z.string().trim().min(3).max(255),
   password: z.string().min(8).max(200),
@@ -10,7 +12,7 @@ const registrationInput = z.object({
   name: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80),
   email: z.string().trim().email().max(255),
-  password: z.string().min(8, "Use at least 8 characters.").max(200),
+  password: securePassword,
 });
 const httpsImageUrl = z
   .string()
@@ -25,7 +27,7 @@ const profileInput = z.object({
   contact: z.string().trim().min(5).max(80).nullable(),
   avatarUrl: httpsImageUrl.nullable(),
 });
-const strongPassword = z.string().min(8, "Use at least 8 characters.").max(200);
+const strongPassword = securePassword;
 const changePasswordInput = z.object({
   currentPassword: z.string().min(1).max(200),
   newPassword: strongPassword,
@@ -314,14 +316,15 @@ export const loginUser = createServerFn({ method: "POST" })
       clearFailedLogins,
       createSession,
       findUserByIdentifier,
+      getRequestRateLimitKey,
       registerFailedLogin,
       writeAuditLog,
     } = await import("@/lib/auth-server");
-    await assertLoginAllowed(data.identifier);
+    await assertLoginAllowed(data.identifier, getRequestRateLimitKey());
     const user = await findUserByIdentifier(data.identifier);
     const passwordValid = user ? await bcrypt.compare(data.password, user.passwordHash) : false;
     if (!user || !user.active || !passwordValid) {
-      await registerFailedLogin(data.identifier);
+      await registerFailedLogin(data.identifier, getRequestRateLimitKey());
       throw new Error("Invalid username/email or password.");
     }
     await clearFailedLogins(data.identifier);

@@ -43,6 +43,15 @@ function applySecurityHeaders(response: Response) {
   headers.set("Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=()");
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-site");
+  headers.set("X-Permitted-Cross-Domain-Policies", "none");
+  headers.set("X-DNS-Prefetch-Control", "off");
+  headers.set("Origin-Agent-Cluster", "?1");
+  if ((headers.get("content-type") ?? "").includes("text/html")) {
+    // Account pages can contain private information, so do not leave them in
+    // shared or browser caches after a user signs out.
+    headers.set("Cache-Control", "no-store, max-age=0");
+    headers.set("Pragma", "no-cache");
+  }
 
   if (process.env["NODE_ENV"] === "production") {
     headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");

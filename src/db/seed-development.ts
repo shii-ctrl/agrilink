@@ -9,9 +9,9 @@ if (process.env["NODE_ENV"] === "production") {
 }
 
 const password = process.env["DEV_SEED_PASSWORD"];
-if (!password || password.length < 8) {
+if (!password || password.length < 12) {
   throw new Error(
-    "Set a development-only DEV_SEED_PASSWORD of at least 8 characters in .env.local.",
+    "Set a development-only DEV_SEED_PASSWORD of at least 12 characters in .env.local.",
   );
 }
 

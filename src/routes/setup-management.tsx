@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createInitialManagementAccount } from "@/lib/admin-server-functions";
+import { minimumPasswordLength, passwordHelpText } from "@/lib/password-requirements";
 
 export const Route = createFileRoute("/setup-management")({
   head: () => ({
@@ -110,8 +111,8 @@ function SetupManagementPage() {
                 name="password"
                 type="password"
                 autoComplete="new-password"
-                minLength={8}
-                placeholder="8+ characters"
+                minLength={minimumPasswordLength}
+                placeholder="12+ characters"
                 required
               />
             </div>
@@ -122,11 +123,12 @@ function SetupManagementPage() {
                 name="confirmPassword"
                 type="password"
                 autoComplete="new-password"
-                minLength={8}
+                minLength={minimumPasswordLength}
                 required
               />
             </div>
           </div>
+          <p className="text-xs text-muted-foreground">{passwordHelpText}</p>
           <div className="space-y-2">
             <Label htmlFor="setupSecret">One-time setup secret</Label>
             <Input

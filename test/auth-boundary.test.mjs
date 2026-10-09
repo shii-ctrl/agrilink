@@ -41,7 +41,7 @@ test("Management password resets are authenticated and audited", async () => {
   assert.doesNotMatch(resetPassword, /return \{[^}]*passwordHash/);
 });
 
-test("all account password flows accept eight-character passwords", async () => {
+test("new and reset account passwords require the stronger shared password policy", async () => {
   const [authSource, adminSource, registrationPage, setupPage] = await Promise.all([
     readFile("src/lib/auth-functions.ts", "utf8"),
     readFile("src/lib/admin-server-functions.ts", "utf8"),
@@ -49,8 +49,8 @@ test("all account password flows accept eight-character passwords", async () => 
     readFile("src/routes/setup-management.tsx", "utf8"),
   ]);
 
-  assert.match(authSource, /\.min\(8, "Use at least 8 characters\."\)/);
-  assert.match(adminSource, /\.min\(8, "Use at least 8 characters\."\)/);
+  assert.match(authSource, /securePassword/);
+  assert.match(adminSource, /securePassword/);
   assert.doesNotMatch(
     authSource,
     /Include an uppercase letter|Include a lowercase letter|Include a number/,
@@ -59,8 +59,8 @@ test("all account password flows accept eight-character passwords", async () => 
     adminSource,
     /Include an uppercase letter|Include a lowercase letter|Include a number/,
   );
-  assert.match(registrationPage, /minLength=\{8\}/);
-  assert.match(setupPage, /minLength=\{8\}/);
+  assert.match(registrationPage, /minLength=\{minimumPasswordLength\}/);
+  assert.match(setupPage, /minLength=\{minimumPasswordLength\}/);
 });
 
 test("email password reset uses a hashed, expiring one-time code", async () => {
@@ -108,6 +108,7 @@ test("authentication abuse controls persist beyond a single server process", asy
   assert.match(authFunctions, /password-reset-request-email/);
   assert.match(authFunctions, /password-reset-verify/);
   assert.match(authFunctions, /buyer-registration/);
+  assert.match(authServer, /login-source/);
   assert.match(admin, /initial-management-setup/);
   assert.match(schema, /export const securityRateLimits/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS security_rate_limits/);
@@ -121,6 +122,7 @@ test("production responses set browser security headers", async () => {
   assert.match(server, /X-Frame-Options/);
   assert.match(server, /X-Content-Type-Options/);
   assert.match(server, /Referrer-Policy/);
+  assert.match(server, /Cache-Control/, "HTML account pages should not be cached");
 });
 
 test("profile photos use optional HTTPS links and Management controls are audited", async () => {
@@ -163,6 +165,8 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(marketerPage, /prepareProductImage/);
   assert.doesNotMatch(marketerPage, /catalog-image-url/);
   assert.match(marketplace, /imageDataUrl/);
+  assert.match(marketplace, /assertSafeProductImage/);
+  assert.match(marketplace, /hasImageSignature/);
   assert.match(marketplace, /Bundle price must be lower than the retail price/);
   assert.match(marketplace, /export const updateMarketplaceListingPricing/);
   assert.match(marketplace, /listingUnitPrice\(row, item\.quantityKg\)/);

@@ -17,6 +17,7 @@ import {
   setManagedUserActive,
   setGuidanceAssignment,
 } from "@/lib/admin-server-functions";
+import { minimumPasswordLength, passwordHelpText } from "@/lib/password-requirements";
 
 export const Route = createFileRoute("/management/users")({
   head: () => ({
@@ -470,11 +471,12 @@ function ManagementUsersPage() {
                     name="password"
                     type="password"
                     autoComplete="new-password"
-                    minLength={8}
+                    minLength={minimumPasswordLength}
                     required
                   />
                 </div>
                 <div className="sm:col-span-2">
+                  <p className="text-xs text-muted-foreground sm:col-span-2">{passwordHelpText}</p>
                   <Button type="submit" className="rounded-full">
                     Create account
                   </Button>
@@ -549,7 +551,7 @@ function ManagementUsersPage() {
                     name="password"
                     type="password"
                     autoComplete="new-password"
-                    minLength={8}
+                    minLength={minimumPasswordLength}
                     required
                   />
                 </div>
@@ -560,10 +562,11 @@ function ManagementUsersPage() {
                     name="confirmPassword"
                     type="password"
                     autoComplete="new-password"
-                    minLength={8}
+                    minLength={minimumPasswordLength}
                     required
                   />
                 </div>
+                <p className="text-xs text-muted-foreground sm:col-span-2">{passwordHelpText}</p>
                 <div className="sm:col-span-2">
                   <Button type="submit" variant="outline" className="rounded-full">
                     Set new password

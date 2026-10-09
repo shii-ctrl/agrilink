@@ -93,6 +93,37 @@ const createCatalogProductInput = z.object({
     .or(z.literal("")),
 });
 
+function hasImageSignature(image: Buffer, contentType: "jpeg" | "png" | "webp") {
+  if (contentType === "jpeg")
+    return image.length >= 3 && image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff;
+  if (contentType === "png")
+    return (
+      image.length >= 8 &&
+      image.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    );
+  return (
+    image.length >= 12 &&
+    image.subarray(0, 4).toString("ascii") === "RIFF" &&
+    image.subarray(8, 12).toString("ascii") === "WEBP"
+  );
+}
+
+function assertSafeProductImage(dataUrl: string | undefined) {
+  if (!dataUrl) return;
+  const match = /^data:image\/(jpeg|png|webp);base64,([a-z0-9+/=\s]+)$/i.exec(dataUrl.trim());
+  if (!match) throw new Error("Choose a JPG, PNG, or WebP image.");
+  const [, contentType, encodedImage] = match;
+  if (!contentType || !encodedImage) throw new Error("Choose a JPG, PNG, or WebP image.");
+  const image = Buffer.from(encodedImage.replaceAll(/\s/g, ""), "base64");
+  if (
+    !image.length ||
+    image.length > 1_800_000 ||
+    !hasImageSignature(image, contentType.toLowerCase() as "jpeg" | "png" | "webp")
+  ) {
+    throw new Error("Choose a valid JPG, PNG, or WebP image smaller than 1.8 MB.");
+  }
+}
+
 type MarketplaceProduct = Product;
 type MarketerMarketplaceProduct = MarketplaceProduct & { farmer: string | null };
 
@@ -221,6 +252,7 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/lib/auth-server");
     const actor = await requireRole("Marketer");
+    assertSafeProductImage(data.imageDataUrl);
     const { db } = await import("@/db/client.server");
     const { products } = await import("@/db/schema");
     const [existing] = await db
