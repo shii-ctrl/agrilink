@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/sales")({
@@ -13,6 +15,8 @@ export const Route = createFileRoute("/marketer/sales")({
 
 function MarketerSalesPage() {
   const [orders, setOrders] = useState<Awaited<ReturnType<typeof getDatabaseOrders>>>([]);
+  const [query, setQuery] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
   useEffect(() => {
     void getDatabaseOrders()
       .then(setOrders)
@@ -25,6 +29,17 @@ function MarketerSalesPage() {
     0,
   );
   const paid = sold.filter((order) => order.paymentStatus === "Paid").length;
+  const visibleOrders = useMemo(() => {
+    const search = query.trim().toLocaleLowerCase();
+    return orders.filter(
+      (order) =>
+        (!search ||
+          `${order.id} ${order.product} ${order.farmer} ${order.buyer} ${order.classification}`
+            .toLocaleLowerCase()
+            .includes(search)) &&
+        (!paymentStatus || order.paymentStatus === paymentStatus),
+    );
+  }, [orders, paymentStatus, query]);
   return (
     <MarketerLayout>
       <MarketerPageHeader
@@ -59,6 +74,36 @@ function MarketerSalesPage() {
               The farmer source comes from the inventory used by each marketplace listing.
             </p>
           </div>
+          <div className="grid gap-3 border-b border-border p-5 md:grid-cols-3">
+            <Input
+              aria-label="Search sales records"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search product, farmer, buyer, or order"
+            />
+            <select
+              aria-label="Filter sales by payment status"
+              value={paymentStatus}
+              onChange={(event) => setPaymentStatus(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All payment states</option>
+              <option value="Paid">Paid</option>
+              <option value="Unpaid">Unpaid</option>
+            </select>
+            {(query || paymentStatus) && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setQuery("");
+                  setPaymentStatus("");
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[950px] text-left text-sm">
               <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
@@ -74,7 +119,7 @@ function MarketerSalesPage() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
+                {visibleOrders.map((order) => (
                   <tr key={order.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 font-medium">{order.product}</td>
                     <td className="px-6 py-4">{order.classification}</td>
@@ -86,10 +131,12 @@ function MarketerSalesPage() {
                     <td className="px-6 py-4">{order.paymentStatus}</td>
                   </tr>
                 ))}
-                {!orders.length && (
+                {!visibleOrders.length && (
                   <tr>
                     <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
-                      No buyer orders have been saved yet.
+                      {orders.length
+                        ? "No sales match these filters."
+                        : "No buyer orders have been saved yet."}
                     </td>
                   </tr>
                 )}

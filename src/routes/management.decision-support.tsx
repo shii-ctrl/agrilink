@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
+import { Input } from "@/components/ui/input";
 import { peso } from "@/lib/products";
 import { getManagementDecisionSupport } from "@/lib/marketplace-server-functions";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ function dateRange(values: string[], fallback: string) {
 
 function ManagementDecisionSupportPage() {
   const [support, setSupport] = useState<Support | null>(null);
+  const [summaryQuery, setSummaryQuery] = useState("");
 
   useEffect(() => {
     void getManagementDecisionSupport()
@@ -68,6 +70,10 @@ function ManagementDecisionSupportPage() {
         .sort((first, second) => first.availableKg - second.availableKg),
     [support],
   );
+  const visibleSummaries = useMemo(() => {
+    const query = summaryQuery.trim().toLocaleLowerCase();
+    return summaries.filter((item) => !query || item.name.toLocaleLowerCase().includes(query));
+  }, [summaries, summaryQuery]);
 
   const priceChanges = useMemo(() => {
     const byListing = new Map<string, Support["priceHistory"]>();
@@ -205,6 +211,14 @@ function ManagementDecisionSupportPage() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            <div className="mt-5 max-w-md">
+              <Input
+                aria-label="Search stock and demand summary"
+                value={summaryQuery}
+                onChange={(event) => setSummaryQuery(event.target.value)}
+                placeholder="Search product summary"
+              />
+            </div>
             <div className="mt-5 overflow-x-auto">
               <table className="w-full min-w-[520px] text-sm">
                 <thead className="border-b text-left text-muted-foreground">
@@ -217,7 +231,7 @@ function ManagementDecisionSupportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {summaries.map((item) => (
+                  {visibleSummaries.map((item) => (
                     <tr key={item.name} className="border-b last:border-0">
                       <td className="py-3 font-medium">{item.name}</td>
                       <td className="py-3">{item.stock} kg</td>
@@ -230,6 +244,13 @@ function ManagementDecisionSupportPage() {
                       </td>
                     </tr>
                   ))}
+                  {!visibleSummaries.length && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                        No product summary matches your search.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

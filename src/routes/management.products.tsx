@@ -5,6 +5,8 @@ import { toast } from "sonner";
 
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
 import { CatalogProductTable } from "@/components/catalog-product-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getManagementProductWorkspace } from "@/lib/marketplace-server-functions";
 
@@ -99,11 +101,114 @@ function StockTable({
   description: string;
   stock: Workspace["stock"];
 }) {
+  const [query, setQuery] = useState("");
+  const [cropType, setCropType] = useState("");
+  const [classification, setClassification] = useState("");
+  const [listingStatus, setListingStatus] = useState("");
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const cropTypes = useMemo(
+    () => [...new Set(stock.map((item) => item.cropType))].sort((a, b) => a.localeCompare(b)),
+    [stock],
+  );
+  const visibleStock = useMemo(() => {
+    const search = query.trim().toLocaleLowerCase();
+    return stock
+      .filter((item) => {
+        const matchesSearch =
+          !search ||
+          `${item.name} ${item.farmer ?? ""} ${item.cropType} ${item.classification} ${item.listingStatus ?? "Not listed"}`
+            .toLocaleLowerCase()
+            .includes(search);
+        return (
+          matchesSearch &&
+          (!cropType || item.cropType === cropType) &&
+          (!classification || item.classification === classification) &&
+          (!listingStatus || (item.listingStatus ?? "Not listed") === listingStatus) &&
+          (!availableOnly || item.availableKg > 0)
+        );
+      })
+      .sort(
+        (first, second) =>
+          first.cropType.localeCompare(second.cropType) ||
+          first.name.localeCompare(second.name) ||
+          first.classification.localeCompare(second.classification),
+      );
+  }, [availableOnly, classification, cropType, listingStatus, query, stock]);
+  const hasFilters = query || cropType || classification || listingStatus || availableOnly;
+
   return (
     <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
       <div className="border-b border-border px-6 py-5">
         <h2 className="text-lg font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      </div>
+      <div className="grid gap-3 border-b border-border p-5 md:grid-cols-2 xl:grid-cols-5">
+        <Input
+          aria-label="Search stock"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search product, farmer, crop, or status"
+          className="xl:col-span-2"
+        />
+        <select
+          aria-label="Filter stock by crop type"
+          value={cropType}
+          onChange={(event) => setCropType(event.target.value)}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">All crop types</option>
+          {cropTypes.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter stock by classification"
+          value={classification}
+          onChange={(event) => setClassification(event.target.value)}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">All classifications</option>
+          <option value="Good">Good</option>
+          <option value="Semi">Semi</option>
+          <option value="Reject">Reject</option>
+        </select>
+        <select
+          aria-label="Filter stock by listing status"
+          value={listingStatus}
+          onChange={(event) => setListingStatus(event.target.value)}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">All listing states</option>
+          <option value="published">Published</option>
+          <option value="draft">Draft</option>
+          <option value="Not listed">Not listed</option>
+        </select>
+        <label className="flex h-10 items-center gap-2 rounded-md border border-input px-3 text-sm xl:col-start-4">
+          <input
+            type="checkbox"
+            checked={availableOnly}
+            onChange={(event) => setAvailableOnly(event.target.checked)}
+          />
+          Available only
+        </label>
+        {hasFilters && (
+          <Button
+            type="button"
+            variant="outline"
+            className="xl:col-start-5"
+            onClick={() => {
+              setQuery("");
+              setCropType("");
+              setClassification("");
+              setListingStatus("");
+              setAvailableOnly(false);
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1100px] text-left text-sm">
@@ -119,7 +224,7 @@ function StockTable({
             </tr>
           </thead>
           <tbody>
-            {stock.map((item) => (
+            {visibleStock.map((item) => (
               <tr key={item.id} className="border-b border-border last:border-0">
                 <td className="px-6 py-4 font-medium">{item.name}</td>
                 <td className="px-6 py-4">{item.farmer ?? "Unassigned / legacy stock"}</td>
@@ -132,10 +237,12 @@ function StockTable({
                 <td className="px-6 py-4 text-primary">{item.availableKg} kg</td>
               </tr>
             ))}
-            {!stock.length && (
+            {!visibleStock.length && (
               <tr>
                 <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
-                  No classified stock matches this view.
+                  {stock.length
+                    ? "No classified stock matches these filters."
+                    : "No classified stock matches this view."}
                 </td>
               </tr>
             )}

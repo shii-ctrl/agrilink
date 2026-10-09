@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Eye, PackagePlus, ShoppingBag } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
@@ -69,6 +69,10 @@ function MarketerProductsPage() {
   const [preparingImage, setPreparingImage] = useState(false);
   const [updatingListingPricing, setUpdatingListingPricing] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState("");
+  const [listingQuery, setListingQuery] = useState("");
+  const [listingCropType, setListingCropType] = useState("");
+  const [listingClassification, setListingClassification] = useState("");
+  const [listingAvailability, setListingAvailability] = useState("");
 
   const load = async () => {
     const [nextListings, nextCatalogProducts, nextPublishableInventory] = await Promise.all([
@@ -86,6 +90,34 @@ function MarketerProductsPage() {
       toast.error("Could not load the product workspace. Refresh the page and try again.");
     });
   }, []);
+  const visibleListings = useMemo(() => {
+    const query = listingQuery.trim().toLocaleLowerCase();
+    return listings
+      .filter(
+        (listing) =>
+          (!query ||
+            `${listing.name} ${listing.farmer ?? ""} ${listing.cropType} ${listing.classification}`
+              .toLocaleLowerCase()
+              .includes(query)) &&
+          (!listingCropType || listing.cropType === listingCropType) &&
+          (!listingClassification || listing.classification === listingClassification) &&
+          (!listingAvailability ||
+            (listingAvailability === "available"
+              ? listing.quantityKg > 0
+              : listing.quantityKg <= 0)),
+      )
+      .sort(
+        (first, second) =>
+          first.cropType.localeCompare(second.cropType) || first.name.localeCompare(second.name),
+      );
+  }, [listingAvailability, listingClassification, listingCropType, listingQuery, listings]);
+  const listingCropTypes = useMemo(
+    () =>
+      [...new Set(listings.map((listing) => listing.cropType))].sort((a, b) => a.localeCompare(b)),
+    [listings],
+  );
+  const hasListingFilters =
+    listingQuery || listingCropType || listingClassification || listingAvailability;
 
   return (
     <MarketerLayout>
@@ -114,8 +146,65 @@ function MarketerProductsPage() {
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
-                  <Eye className="size-3.5" /> {listings.length} visible listings
+                  <Eye className="size-3.5" /> {visibleListings.length} of {listings.length}{" "}
+                  listings
                 </span>
+              </div>
+              <div className="grid gap-3 border-b border-border p-5 md:grid-cols-2 xl:grid-cols-4">
+                <Input
+                  aria-label="Search marketplace listings"
+                  value={listingQuery}
+                  onChange={(event) => setListingQuery(event.target.value)}
+                  placeholder="Search product, farmer, crop, or class"
+                />
+                <select
+                  aria-label="Filter listings by crop type"
+                  value={listingCropType}
+                  onChange={(event) => setListingCropType(event.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">All crop types</option>
+                  {listingCropTypes.map((cropType) => (
+                    <option key={cropType} value={cropType}>
+                      {cropType}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filter listings by classification"
+                  value={listingClassification}
+                  onChange={(event) => setListingClassification(event.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">All classifications</option>
+                  <option value="Good">Good</option>
+                  <option value="Semi">Semi</option>
+                  <option value="Reject">Reject</option>
+                </select>
+                <select
+                  aria-label="Filter listings by availability"
+                  value={listingAvailability}
+                  onChange={(event) => setListingAvailability(event.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">All availability</option>
+                  <option value="available">Available</option>
+                  <option value="unavailable">Unavailable</option>
+                </select>
+                {hasListingFilters && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setListingQuery("");
+                      setListingCropType("");
+                      setListingClassification("");
+                      setListingAvailability("");
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[930px] text-left text-sm">
@@ -132,7 +221,7 @@ function MarketerProductsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {listings.map((listing) => (
+                    {visibleListings.map((listing) => (
                       <tr key={listing.id} className="border-b border-border last:border-0">
                         <td className="px-6 py-4">
                           <div className="size-10 overflow-hidden rounded-lg bg-muted">
@@ -173,6 +262,15 @@ function MarketerProductsPage() {
                         </td>
                       </tr>
                     ))}
+                    {!visibleListings.length && (
+                      <tr>
+                        <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
+                          {listings.length
+                            ? "No marketplace listings match these filters."
+                            : "No marketplace listings have been created yet."}
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

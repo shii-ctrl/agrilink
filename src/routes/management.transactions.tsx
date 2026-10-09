@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { FileBarChart, GitBranch } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { DemoOrder } from "@/lib/demo-orders";
 import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
 
@@ -21,11 +23,27 @@ export const Route = createFileRoute("/management/transactions")({
 
 function ManagementTransactionsPage() {
   const [transactions, setTransactions] = useState<DemoOrder[]>([]);
+  const [query, setQuery] = useState("");
+  const [orderStatus, setOrderStatus] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
   useEffect(() => {
     void getDatabaseOrders()
       .then(setTransactions)
       .catch(() => toast.error("Could not load saved transaction records."));
   }, []);
+  const visibleTransactions = useMemo(() => {
+    const search = query.trim().toLocaleLowerCase();
+    return transactions.filter(
+      (transaction) =>
+        (!search ||
+          `${transaction.id} ${transaction.buyer} ${transaction.farmer} ${transaction.product}`
+            .toLocaleLowerCase()
+            .includes(search)) &&
+        (!orderStatus || transaction.status === orderStatus) &&
+        (!paymentStatus || transaction.paymentStatus === paymentStatus),
+    );
+  }, [orderStatus, paymentStatus, query, transactions]);
+  const hasFilters = query || orderStatus || paymentStatus;
   return (
     <ManagementLayout>
       <ManagementPageHeader
@@ -40,6 +58,50 @@ function ManagementTransactionsPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Orders, sales, classifications, and payment records from AgriLink.
             </p>
+          </div>
+          <div className="grid gap-3 border-b border-border p-5 md:grid-cols-3">
+            <Input
+              aria-label="Search transactions"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search order, buyer, farmer, or product"
+            />
+            <select
+              aria-label="Filter transactions by order status"
+              value={orderStatus}
+              onChange={(event) => setOrderStatus(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All order states</option>
+              <option value="Pending">Pending</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Sold">Sold</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            <select
+              aria-label="Filter transactions by payment status"
+              value={paymentStatus}
+              onChange={(event) => setPaymentStatus(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All payment states</option>
+              <option value="Paid">Paid</option>
+              <option value="Unpaid">Unpaid</option>
+            </select>
+            {hasFilters && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setQuery("");
+                  setOrderStatus("");
+                  setPaymentStatus("");
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1040px] text-left text-sm">
@@ -57,7 +119,7 @@ function ManagementTransactionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((transaction) => (
+                {visibleTransactions.map((transaction) => (
                   <tr key={transaction.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 font-medium">{transaction.id}</td>
                     <td className="px-6 py-4">{transaction.buyer}</td>
@@ -70,10 +132,12 @@ function ManagementTransactionsPage() {
                     <td className="px-6 py-4 text-muted-foreground">{transaction.date}</td>
                   </tr>
                 ))}
-                {!transactions.length && (
+                {!visibleTransactions.length && (
                   <tr>
                     <td colSpan={9} className="px-6 py-10 text-center text-muted-foreground">
-                      No marketplace transactions have been saved yet.
+                      {transactions.length
+                        ? "No transactions match these filters."
+                        : "No marketplace transactions have been saved yet."}
                     </td>
                   </tr>
                 )}

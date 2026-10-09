@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
 import { ReceivingRecordsTable } from "@/components/receiving-records-table";
+import { Input } from "@/components/ui/input";
 import {
   getFarmerProductStatuses,
   getFarmerReceivingRecords,
@@ -13,6 +14,8 @@ function FarmerReceivingPage() {
   const [statuses, setStatuses] = useState<Awaited<ReturnType<typeof getFarmerProductStatuses>>>(
     [],
   );
+  const [statusQuery, setStatusQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   useEffect(() => {
     void Promise.all([getFarmerReceivingRecords(), getFarmerProductStatuses()])
       .then(([nextRecords, nextStatuses]) => {
@@ -21,6 +24,13 @@ function FarmerReceivingPage() {
       })
       .catch(() => toast.error("Could not load your receiving and product status records."));
   }, []);
+  const visibleStatuses = statuses.filter(
+    (status) =>
+      `${status.product} ${status.classification} ${status.status}`
+        .toLocaleLowerCase()
+        .includes(statusQuery.trim().toLocaleLowerCase()) &&
+      (!statusFilter || status.status === statusFilter),
+  );
   return (
     <FarmerLayout>
       <FarmerPageHeader
@@ -48,6 +58,27 @@ function FarmerReceivingPage() {
               Your classified stock, available quantity, and marketplace status.
             </p>
           </div>
+          <div className="grid gap-3 border-b border-border p-5 md:grid-cols-2">
+            <Input
+              aria-label="Search product status"
+              value={statusQuery}
+              onChange={(event) => setStatusQuery(event.target.value)}
+              placeholder="Search product, classification, or status"
+            />
+            <select
+              aria-label="Filter product status"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All availability states</option>
+              {[...new Set(statuses.map((status) => status.status))].sort().map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[620px] text-left text-sm">
               <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
@@ -59,7 +90,7 @@ function FarmerReceivingPage() {
                 </tr>
               </thead>
               <tbody>
-                {statuses.map((status) => (
+                {visibleStatuses.map((status) => (
                   <tr key={status.id} className="border-t border-border">
                     <td className="px-6 py-4 font-medium">{status.product}</td>
                     <td className="px-6 py-4">{status.classification}</td>
@@ -67,10 +98,12 @@ function FarmerReceivingPage() {
                     <td className="px-6 py-4 text-primary">{status.status}</td>
                   </tr>
                 ))}
-                {statuses.length === 0 && (
+                {visibleStatuses.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
-                      No delivery-backed product status yet.
+                      {statuses.length
+                        ? "No product status records match these filters."
+                        : "No delivery-backed product status yet."}
                     </td>
                   </tr>
                 )}

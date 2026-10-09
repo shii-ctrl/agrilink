@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PackageCheck, Printer, RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BuyerLayout, BuyerPageHeader } from "@/components/buyer-layout";
 import { OrderDetails } from "@/components/order-details";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { DemoOrder } from "@/lib/demo-orders";
 import {
   getBuyerOrders,
@@ -18,6 +19,9 @@ function BuyerOrdersPage() {
   const [orders, setOrders] = useState<DemoOrder[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<DemoOrder | null>(null);
+  const [query, setQuery] = useState("");
+  const [orderStatus, setOrderStatus] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
   const loadOrders = async () => {
     const databaseOrders = await getBuyerOrders();
     setOrders(
@@ -45,6 +49,17 @@ function BuyerOrdersPage() {
   useEffect(() => {
     void loadOrders().catch(() => toast.error("Could not load your order history."));
   }, []);
+  const visibleOrders = useMemo(() => {
+    const search = query.trim().toLocaleLowerCase();
+    return orders.filter(
+      (order) =>
+        (!search ||
+          `${order.id} ${order.product} ${order.status}`.toLocaleLowerCase().includes(search)) &&
+        (!orderStatus || order.status === orderStatus) &&
+        (!paymentStatus || order.paymentStatus === paymentStatus),
+    );
+  }, [orderStatus, orders, paymentStatus, query]);
+  const hasFilters = query || orderStatus || paymentStatus;
   const cancelOrder = async (order: DemoOrder) => {
     if (!window.confirm(`Cancel ${order.id}? The reserved stock will return to the marketplace.`)) {
       return;
@@ -134,6 +149,50 @@ function BuyerOrdersPage() {
               <p className="mt-1 text-sm text-muted-foreground">Orders saved in AgriLink.</p>
             </div>
           </div>
+          <div className="grid gap-3 border-b border-border p-5 md:grid-cols-3">
+            <Input
+              aria-label="Search my orders"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search order, product, or status"
+            />
+            <select
+              aria-label="Filter my orders by status"
+              value={orderStatus}
+              onChange={(event) => setOrderStatus(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All order states</option>
+              <option value="Pending">Pending</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Sold">Sold</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            <select
+              aria-label="Filter my orders by payment status"
+              value={paymentStatus}
+              onChange={(event) => setPaymentStatus(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All payment states</option>
+              <option value="Paid">Paid</option>
+              <option value="Unpaid">Unpaid</option>
+            </select>
+            {hasFilters && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setQuery("");
+                  setOrderStatus("");
+                  setPaymentStatus("");
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-sm">
               <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
@@ -148,7 +207,7 @@ function BuyerOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
+                {visibleOrders.map((order) => (
                   <tr key={order.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 font-medium">{order.id}</td>
                     <td className="px-6 py-4">
@@ -184,6 +243,15 @@ function BuyerOrdersPage() {
                     </td>
                   </tr>
                 ))}
+                {!visibleOrders.length && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
+                      {orders.length
+                        ? "No orders match these filters."
+                        : "No orders have been saved yet."}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

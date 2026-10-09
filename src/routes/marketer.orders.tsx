@@ -31,6 +31,7 @@ export const Route = createFileRoute("/marketer/orders")({
 function MarketerOrdersPage() {
   const [orders, setOrders] = useState<DemoOrder[]>([]);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   useEffect(() => {
     void getDatabaseOrders()
@@ -94,10 +95,12 @@ function MarketerOrdersPage() {
     }
   }
 
-  const visibleOrders = orders.filter((order) =>
-    `${order.id} ${order.buyer} ${order.product} ${order.status}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
+  const visibleOrders = orders.filter(
+    (order) =>
+      `${order.id} ${order.buyer} ${order.product} ${order.status}`
+        .toLowerCase()
+        .includes(query.toLowerCase()) &&
+      (!statusFilter || order.status === statusFilter),
   );
 
   return (
@@ -126,8 +129,8 @@ function MarketerOrdersPage() {
               {orders.filter((order) => order.status === "Pending").length} pending
             </span>
           </div>
-          <div className="border-b border-border px-6 py-4">
-            <label className="relative block max-w-md">
+          <div className="grid gap-3 border-b border-border px-6 py-4 md:grid-cols-3">
+            <label className="relative block">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={query}
@@ -136,6 +139,31 @@ function MarketerOrdersPage() {
                 className="pl-9"
               />
             </label>
+            <select
+              aria-label="Filter orders by status"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All order states</option>
+              <option value="Pending">Pending</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Sold">Sold</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            {(query || statusFilter) && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setQuery("");
+                  setStatusFilter("");
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left text-sm">
@@ -209,6 +237,15 @@ function MarketerOrdersPage() {
                     </td>
                   </tr>
                 ))}
+                {!visibleOrders.length && (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
+                      {orders.length
+                        ? "No buyer orders match these filters."
+                        : "No buyer orders have been saved yet."}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
