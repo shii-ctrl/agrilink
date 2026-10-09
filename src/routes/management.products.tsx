@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
+import { CatalogProductTable } from "@/components/catalog-product-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getManagementProductWorkspace } from "@/lib/marketplace-server-functions";
 
@@ -69,35 +70,11 @@ function ManagementProductsPage() {
                   Every product created by Marketer, including inactive products.
                 </p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-6 py-4 font-medium">Product</th>
-                      <th className="px-6 py-4 font-medium">Crop type</th>
-                      <th className="px-6 py-4 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(workspace?.catalog ?? []).map((product) => (
-                      <tr key={product.id} className="border-b border-border last:border-0">
-                        <td className="px-6 py-4 font-medium">{product.name}</td>
-                        <td className="px-6 py-4">{product.cropType}</td>
-                        <td className="px-6 py-4 text-primary">
-                          {product.active ? "Active" : "Inactive"}
-                        </td>
-                      </tr>
-                    ))}
-                    {!(workspace?.catalog ?? []).length && (
-                      <tr>
-                        <td colSpan={3} className="px-6 py-10 text-center text-muted-foreground">
-                          No catalog products have been created yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <CatalogProductTable
+                products={workspace?.catalog ?? []}
+                showStatus
+                emptyMessage="No catalog products have been created yet."
+              />
             </section>
           </TabsContent>
         </Tabs>

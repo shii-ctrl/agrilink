@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
+import { CatalogProductTable } from "@/components/catalog-product-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -423,23 +424,12 @@ function MarketerProductsPage() {
               </form>
               <div className="mt-8 border-t border-border pt-6">
                 <h3 className="font-semibold">Saved catalog products</h3>
-                {catalogProducts.length ? (
-                  <ul className="mt-3 divide-y divide-border rounded-2xl border border-border text-sm">
-                    {catalogProducts.map((product) => (
-                      <li key={product.id} className="px-4 py-3">
-                        <p className="font-medium">{product.name}</p>
-                        <p className="mt-0.5 text-muted-foreground">
-                          {product.cropType}
-                          {product.description ? ` — ${product.description}` : ""}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    No products have been added to the catalog yet.
-                  </p>
-                )}
+                <div className="mt-3 overflow-hidden rounded-2xl border border-border">
+                  <CatalogProductTable
+                    products={catalogProducts}
+                    emptyMessage="No products have been added to the catalog yet."
+                  />
+                </div>
               </div>
             </section>
           </TabsContent>
