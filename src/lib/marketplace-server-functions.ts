@@ -44,14 +44,24 @@ const dailyPriceStatusInput = z.object({
   id: z.string().uuid(),
   published: z.boolean(),
 });
+const bundlePricingFields = {
+  retailPricePerKg: z.number().positive().max(100_000),
+  bundlePricePerKg: z.number().positive().max(100_000),
+  bundleMinimumKg: z.number().positive().max(10_000),
+};
+
 const createListingInput = z
   .object({
     inventoryId: z.string().uuid(),
-    retailPricePerKg: z.number().positive().max(100_000),
-    bundlePricePerKg: z.number().positive().max(100_000),
-    bundleMinimumKg: z.number().positive().max(10_000),
+    ...bundlePricingFields,
     status: z.enum(["draft", "published"]).default("published"),
   })
+  .refine((data) => data.bundlePricePerKg < data.retailPricePerKg, {
+    message: "Bundle price must be lower than the retail price.",
+    path: ["bundlePricePerKg"],
+  });
+const updateListingPricingInput = z
+  .object({ listingId: z.string().uuid(), ...bundlePricingFields })
   .refine((data) => data.bundlePricePerKg < data.retailPricePerKg, {
     message: "Bundle price must be lower than the retail price.",
     path: ["bundlePricePerKg"],
@@ -307,6 +317,31 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
       inventoryId: created.inventoryId,
     });
     return created;
+  });
+
+export const updateMarketplaceListingPricing = createServerFn({ method: "POST" })
+  .validator(updateListingPricingInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/lib/auth-server");
+    const actor = await requireRole("Marketer");
+    const { db } = await import("@/db/client.server");
+    const { listings } = await import("@/db/schema");
+    const [updated] = await db
+      .update(listings)
+      .set({
+        pricePerKg: data.retailPricePerKg.toFixed(2),
+        retailPricePerKg: data.retailPricePerKg.toFixed(2),
+        bundlePricePerKg: data.bundlePricePerKg.toFixed(2),
+        bundleMinimumKg: data.bundleMinimumKg.toFixed(2),
+      })
+      .where(eq(listings.id, data.listingId));
+    if (updated.affectedRows !== 1) throw new Error("The marketplace listing could not be found.");
+    await writeAuditLog(actor.id, "listing.pricing.update", "marketplace_listing", data.listingId, {
+      retailPricePerKg: data.retailPricePerKg,
+      bundlePricePerKg: data.bundlePricePerKg,
+      bundleMinimumKg: data.bundleMinimumKg,
+    });
+    return { id: data.listingId };
   });
 
 export const getMarketplaceListing = createServerFn({ method: "GET" })

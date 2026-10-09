@@ -14,6 +14,7 @@ import {
   getCatalogProducts,
   getPublishableInventory,
   getMarketerMarketplaceListings,
+  updateMarketplaceListingPricing,
 } from "@/lib/marketplace-server-functions";
 import { prepareProductImage } from "@/lib/product-image-upload";
 
@@ -65,6 +66,8 @@ function MarketerProductsPage() {
   const [catalogImageDataUrl, setCatalogImageDataUrl] = useState("");
   const [catalogImageName, setCatalogImageName] = useState("");
   const [preparingImage, setPreparingImage] = useState(false);
+  const [updatingListingPricing, setUpdatingListingPricing] = useState(false);
+  const [selectedListingId, setSelectedListingId] = useState("");
 
   const load = async () => {
     const [nextListings, nextCatalogProducts, nextPublishableInventory] = await Promise.all([
@@ -172,6 +175,116 @@ function MarketerProductsPage() {
                   </tbody>
                 </table>
               </div>
+              {listings.length ? (
+                <form
+                  className="grid gap-4 border-t border-border bg-muted/20 px-6 py-5 md:grid-cols-4"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    const formData = new FormData(event.currentTarget);
+                    setUpdatingListingPricing(true);
+                    try {
+                      await updateMarketplaceListingPricing({
+                        data: {
+                          listingId: String(formData.get("listingId")),
+                          retailPricePerKg: Number(formData.get("retailPricePerKg")),
+                          bundlePricePerKg: Number(formData.get("bundlePricePerKg")),
+                          bundleMinimumKg: Number(formData.get("bundleMinimumKg")),
+                        },
+                      });
+                      await load();
+                      toast.success("Listing prices updated");
+                    } catch (error) {
+                      toast.error("Listing prices could not be updated", {
+                        description: error instanceof Error ? error.message : "Please try again.",
+                      });
+                    } finally {
+                      setUpdatingListingPricing(false);
+                    }
+                  }}
+                >
+                  <div className="space-y-2 md:col-span-4">
+                    <Label htmlFor="listing-price-editor">Update an existing listing</Label>
+                    <select
+                      id="listing-price-editor"
+                      name="listingId"
+                      value={selectedListingId}
+                      onChange={(event) => setSelectedListingId(event.target.value)}
+                      required
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="" disabled>
+                        Choose a listing
+                      </option>
+                      {listings.map((listing) => (
+                        <option key={listing.id} value={listing.id}>
+                          {listing.name} — {listing.classification}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {(() => {
+                    const selectedListing = listings.find(
+                      (listing) => listing.id === selectedListingId,
+                    );
+                    const retail =
+                      selectedListing?.retailPricePerKg ?? selectedListing?.pricePerKg ?? "";
+                    const bundle = selectedListing?.bundlePricePerKg ?? "";
+                    const minimum = selectedListing?.bundleMinimumKg ?? "";
+                    return (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="existing-retail-price">Retail ₱ / kg</Label>
+                          <Input
+                            key={`${selectedListingId}-retail`}
+                            id="existing-retail-price"
+                            name="retailPricePerKg"
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            defaultValue={retail}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="existing-bundle-price">Bundle ₱ / kg</Label>
+                          <Input
+                            key={`${selectedListingId}-bundle`}
+                            id="existing-bundle-price"
+                            name="bundlePricePerKg"
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            defaultValue={bundle}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="existing-bundle-minimum">Bundle starts at kg</Label>
+                          <Input
+                            key={`${selectedListingId}-minimum`}
+                            id="existing-bundle-minimum"
+                            name="bundleMinimumKg"
+                            type="number"
+                            min="1"
+                            step="0.01"
+                            defaultValue={minimum}
+                            required
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <Button
+                            type="submit"
+                            className="w-full rounded-full"
+                            disabled={!selectedListingId || updatingListingPricing}
+                          >
+                            {updatingListingPricing ? "Saving…" : "Save prices"}
+                          </Button>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </form>
+              ) : null}
             </section>
           </TabsContent>
           <TabsContent value="catalog" className="mt-6">

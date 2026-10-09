@@ -164,6 +164,7 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.doesNotMatch(marketerPage, /catalog-image-url/);
   assert.match(marketplace, /imageDataUrl/);
   assert.match(marketplace, /Bundle price must be lower than the retail price/);
+  assert.match(marketplace, /export const updateMarketplaceListingPricing/);
   assert.match(marketplace, /listingUnitPrice\(row, item\.quantityKg\)/);
   assert.match(productPage, /Bundle: \{peso\(product\.bundlePricePerKg\)\}/);
   assert.match(schema, /bundlePricePerKg: decimal\("bundle_price_per_kg"/);
