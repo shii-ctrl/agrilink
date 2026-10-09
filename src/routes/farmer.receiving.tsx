@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
+import { ReceivingRecordsTable } from "@/components/receiving-records-table";
 import {
   getFarmerProductStatuses,
   getFarmerReceivingRecords,
@@ -34,40 +35,11 @@ function FarmerReceivingPage() {
               Receiving and classifications are recorded by authorized PROCY personnel.
             </p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left text-sm">
-              <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-6 py-4">Delivery</th>
-                  <th className="px-6 py-4">Product</th>
-                  <th className="px-6 py-4">Total</th>
-                  <th className="px-6 py-4">Classification</th>
-                  <th className="px-6 py-4">Quantity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((record) => (
-                  <tr
-                    key={`${record.id}-${record.classification}`}
-                    className="border-t border-border"
-                  >
-                    <td className="px-6 py-4">{record.id}</td>
-                    <td className="px-6 py-4">{record.product}</td>
-                    <td className="px-6 py-4">{record.totalKg} kg</td>
-                    <td className="px-6 py-4">{record.classification}</td>
-                    <td className="px-6 py-4">{record.quantityKg} kg</td>
-                  </tr>
-                ))}
-                {records.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
-                      No deliveries have been recorded for your account yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <ReceivingRecordsTable
+            records={records}
+            showFarmer={false}
+            emptyMessage="No deliveries have been recorded for your account yet."
+          />
         </section>
         <section className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
           <div className="border-b border-border px-6 py-5">

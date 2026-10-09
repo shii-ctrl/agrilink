@@ -3,6 +3,7 @@ import { CheckCircle2, PackageCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
+import { ReceivingRecordsTable } from "@/components/receiving-records-table";
 import { getReceivingWorkspace } from "@/lib/receiving-server-functions";
 
 export const Route = createFileRoute("/marketer/classification")({
@@ -51,50 +52,10 @@ function MarketerClassificationPage() {
               </p>
             </div>
           </div>
-          {records.length === 0 ? (
-            <p className="px-6 py-10 text-sm text-muted-foreground">
-              No deliveries have been recorded yet. Record a farmer delivery to create classified
-              inventory.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-6 py-4 font-medium">Delivery</th>
-                    <th className="px-6 py-4 font-medium">Farmer</th>
-                    <th className="px-6 py-4 font-medium">Product</th>
-                    <th className="px-6 py-4 font-medium">Classification</th>
-                    <th className="px-6 py-4 font-medium">Quantity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {records.map((record) => (
-                    <tr
-                      key={`${record.id}-${record.classification}`}
-                      className="border-b border-border last:border-0"
-                    >
-                      <td className="px-6 py-4 font-medium">{record.id}</td>
-                      <td className="px-6 py-4">{record.farmer}</td>
-                      <td className="px-6 py-4">{record.product}</td>
-                      <td
-                        className={`px-6 py-4 font-medium ${
-                          record.classification === "Good"
-                            ? "text-good"
-                            : record.classification === "Semi"
-                              ? "text-semi"
-                              : "text-reject"
-                        }`}
-                      >
-                        {record.classification}
-                      </td>
-                      <td className="px-6 py-4">{record.quantityKg} kg</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <ReceivingRecordsTable
+            records={records}
+            emptyMessage="No deliveries have been recorded yet. Record a farmer delivery to create classified inventory."
+          />
         </section>
       </main>
     </MarketerLayout>

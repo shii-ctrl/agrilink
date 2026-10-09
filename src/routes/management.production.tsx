@@ -3,6 +3,7 @@ import { CalendarDays, ClipboardList } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
+import { ProductionRecordsTable } from "@/components/production-records-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,9 +17,6 @@ export const Route = createFileRoute("/management/production")({
 });
 
 type Workspace = Awaited<ReturnType<typeof getManagementProductionWorkspace>>;
-
-const dateLabel = (date: Date | string) =>
-  new Date(date).toLocaleDateString("en-PH", { month: "short", day: "2-digit", year: "numeric" });
 
 function ManagementProductionPage() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -41,33 +39,10 @@ function ManagementProductionPage() {
               Farmers can see only their own saved records; Management records the official data.
             </p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="border-b border-border bg-muted/50 text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-6 py-4">Farmer</th>
-                  <th className="px-6 py-4">Product</th>
-                  <th className="px-6 py-4">Planting</th>
-                  <th className="px-6 py-4">Expected harvest</th>
-                  <th className="px-6 py-4">Harvested</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workspace?.records.map((record) => (
-                  <tr key={record.id} className="border-b border-border last:border-0">
-                    <td className="px-6 py-4 font-medium">{record.farmer}</td>
-                    <td className="px-6 py-4">{record.product ?? "Unlinked product"}</td>
-                    <td className="px-6 py-4">{dateLabel(record.plantingDate)}</td>
-                    <td className="px-6 py-4">{dateLabel(record.expectedHarvestDate)}</td>
-                    <td className="px-6 py-4">
-                      {record.harvestedQuantityKg ?? "Not yet harvested"}
-                      {record.harvestedQuantityKg !== null ? " kg" : ""}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ProductionRecordsTable
+            records={workspace?.records ?? []}
+            emptyMessage="No production records have been saved yet."
+          />
         </section>
         <section className="mt-8 max-w-3xl rounded-3xl border border-border bg-card p-6 shadow-card">
           <div className="flex gap-3">

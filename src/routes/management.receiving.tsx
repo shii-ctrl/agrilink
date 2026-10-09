@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
+import { ReceivingRecordsTable } from "@/components/receiving-records-table";
 import { getManagementReceivingRecords } from "@/lib/receiving-server-functions";
 export const Route = createFileRoute("/management/receiving")({
   component: ManagementReceivingPage,
@@ -29,42 +30,10 @@ function ManagementReceivingPage() {
               Good, Semi, and Reject quantities are stored separately for each delivery.
             </p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px] text-left text-sm">
-              <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-6 py-4">Delivery</th>
-                  <th className="px-6 py-4">Farmer</th>
-                  <th className="px-6 py-4">Product</th>
-                  <th className="px-6 py-4">Total</th>
-                  <th className="px-6 py-4">Class</th>
-                  <th className="px-6 py-4">Quantity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((record) => (
-                  <tr
-                    key={`${record.id}-${record.classification}`}
-                    className="border-t border-border"
-                  >
-                    <td className="px-6 py-4">{record.id}</td>
-                    <td className="px-6 py-4">{record.farmer}</td>
-                    <td className="px-6 py-4">{record.product}</td>
-                    <td className="px-6 py-4">{record.totalKg} kg</td>
-                    <td className="px-6 py-4">{record.classification}</td>
-                    <td className="px-6 py-4">{record.quantityKg} kg</td>
-                  </tr>
-                ))}
-                {records.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
-                      No receiving records have been saved yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <ReceivingRecordsTable
+            records={records}
+            emptyMessage="No receiving records have been saved yet."
+          />
         </section>
       </main>
     </ManagementLayout>

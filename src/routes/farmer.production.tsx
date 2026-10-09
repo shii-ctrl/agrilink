@@ -3,12 +3,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
+import { ProductionRecordsTable } from "@/components/production-records-table";
 import { getFarmerProductionRecords } from "@/lib/production-server-functions";
 
 export const Route = createFileRoute("/farmer/production")({ component: FarmerProductionPage });
-
-const formatDate = (value: Date | string) =>
-  new Date(value).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
 
 function FarmerProductionPage() {
   const [records, setRecords] = useState<Awaited<ReturnType<typeof getFarmerProductionRecords>>>(
@@ -35,41 +33,11 @@ function FarmerProductionPage() {
               Management records official production information for your account.
             </p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-6 py-4 font-medium">Crop</th>
-                  <th className="px-6 py-4 font-medium">Planting date</th>
-                  <th className="px-6 py-4 font-medium">Expected harvest</th>
-                  <th className="px-6 py-4 font-medium">Harvested quantity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((record) => (
-                  <tr key={record.id} className="border-b border-border last:border-0">
-                    <td className="px-6 py-4 font-medium">
-                      {record.product ?? "Unlinked product"}
-                    </td>
-                    <td className="px-6 py-4">{formatDate(record.plantingDate)}</td>
-                    <td className="px-6 py-4">{formatDate(record.expectedHarvestDate)}</td>
-                    <td className="px-6 py-4">
-                      {record.harvestedQuantityKg === null
-                        ? "Not yet harvested"
-                        : `${record.harvestedQuantityKg} kg`}
-                    </td>
-                  </tr>
-                ))}
-                {records.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-10 text-center text-muted-foreground">
-                      No production records have been saved for your account yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <ProductionRecordsTable
+            records={records}
+            showFarmer={false}
+            emptyMessage="No production records have been saved for your account yet."
+          />
         </section>
       </main>
     </FarmerLayout>
