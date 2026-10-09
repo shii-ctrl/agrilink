@@ -6,6 +6,7 @@ import { BuyerLayout, BuyerPageHeader } from "@/components/buyer-layout";
 import { OrderDetails } from "@/components/order-details";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import type { DemoOrder } from "@/lib/demo-orders";
 import {
   getBuyerOrders,
@@ -60,6 +61,7 @@ function BuyerOrdersPage() {
     );
   }, [orderStatus, orders, paymentStatus, query]);
   const hasFilters = query || orderStatus || paymentStatus;
+  const ordersPage = usePagination(visibleOrders);
   const cancelOrder = async (order: DemoOrder) => {
     if (!window.confirm(`Cancel ${order.id}? The reserved stock will return to the marketplace.`)) {
       return;
@@ -207,7 +209,7 @@ function BuyerOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleOrders.map((order) => (
+                {ordersPage.pageItems.map((order) => (
                   <tr key={order.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 font-medium">{order.id}</td>
                     <td className="px-6 py-4">
@@ -255,6 +257,7 @@ function BuyerOrdersPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls {...ordersPage} itemLabel="orders" />
         </section>
         {selectedId &&
           (() => {

@@ -16,6 +16,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import type { Classification } from "@/lib/products";
 import { getPublicDailyPrices } from "@/lib/marketplace-server-functions";
 
@@ -94,6 +95,7 @@ function DailyPricesPage() {
       }),
     [entries, chartProduct],
   );
+  const productRowsPage = usePagination(productRows);
 
   return (
     <div className="min-h-screen">
@@ -153,7 +155,7 @@ function DailyPricesPage() {
                 </tr>
               </thead>
               <tbody>
-                {productRows.map((item) => (
+                {productRowsPage.pageItems.map((item) => (
                   <tr key={item.product} className="border-t border-border">
                     <td className="px-6 py-4 font-semibold">{item.product}</td>
                     <td className="px-6 py-4 text-muted-foreground">{item.crop}</td>
@@ -171,6 +173,7 @@ function DailyPricesPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls {...productRowsPage} itemLabel="priced products" />
         </section>
 
         <section className="mt-8 rounded-3xl border border-border bg-card p-6 shadow-card">

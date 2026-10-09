@@ -7,6 +7,7 @@ import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout
 import { OrderDetails } from "@/components/order-details";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import { type DemoOrder } from "@/lib/demo-orders";
 import {
   confirmDatabaseOrder,
@@ -102,6 +103,7 @@ function MarketerOrdersPage() {
         .includes(query.toLowerCase()) &&
       (!statusFilter || order.status === statusFilter),
   );
+  const ordersPage = usePagination(visibleOrders);
 
   return (
     <MarketerLayout>
@@ -180,7 +182,7 @@ function MarketerOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleOrders.map((order) => (
+                {ordersPage.pageItems.map((order) => (
                   <tr key={order.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 font-medium">{order.id}</td>
                     <td className="px-6 py-4">{order.buyer}</td>
@@ -249,6 +251,7 @@ function MarketerOrdersPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls {...ordersPage} itemLabel="orders" />
         </section>
         {selectedId &&
           (() => {

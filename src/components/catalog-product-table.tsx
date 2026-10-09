@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 
 export type CatalogProductRow = {
   id: string;
@@ -25,7 +26,7 @@ export function CatalogProductTable({
       [...new Set(products.map((product) => product.cropType))].sort((a, b) => a.localeCompare(b)),
     [products],
   );
-  const groupedProducts = useMemo(() => {
+  const matchingProducts = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     const matching = products.filter(
       (product) =>
@@ -35,16 +36,23 @@ export function CatalogProductTable({
             .toLocaleLowerCase()
             .includes(query)),
     );
-    return [...new Set(matching.map((product) => product.cropType))]
+    return matching.sort(
+      (first, second) =>
+        first.cropType.localeCompare(second.cropType) || first.name.localeCompare(second.name),
+    );
+  }, [cropType, products, search]);
+  const catalogPage = usePagination(matchingProducts);
+  const groupedProducts = useMemo(() => {
+    return [...new Set(catalogPage.pageItems.map((product) => product.cropType))]
       .sort((a, b) => a.localeCompare(b))
       .map((type) => ({
         type,
-        products: matching
+        products: catalogPage.pageItems
           .filter((product) => product.cropType === type)
           .sort((first, second) => first.name.localeCompare(second.name)),
       }));
-  }, [cropType, products, search]);
-  const filteredCount = groupedProducts.reduce((count, group) => count + group.products.length, 0);
+  }, [catalogPage.pageItems]);
+  const filteredCount = matchingProducts.length;
   const columnCount = showStatus ? 3 : 2;
 
   return (
@@ -118,6 +126,7 @@ export function CatalogProductTable({
           </tbody>
         </table>
       </div>
+      <PaginationControls {...catalogPage} itemLabel="catalog products" />
     </>
   );
 }

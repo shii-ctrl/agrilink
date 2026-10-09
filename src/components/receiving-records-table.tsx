@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 
 export type ReceivingClassificationRecord = {
   id: string;
@@ -114,6 +115,7 @@ export function ReceivingRecordsTable({
   };
   const hasFilters = search || selectedDate || selectedFarmer || selectedProduct || qualityOnly;
   const columnCount = showFarmer ? 8 : 7;
+  const deliveriesPage = usePagination(visibleDeliveries);
 
   return (
     <>
@@ -193,7 +195,7 @@ export function ReceivingRecordsTable({
             </tr>
           </thead>
           <tbody>
-            {visibleDeliveries.map((delivery) => (
+            {deliveriesPage.pageItems.map((delivery) => (
               <Fragment key={delivery.id}>
                 <tr
                   className="cursor-pointer border-t border-border transition-colors hover:bg-muted/40"
@@ -246,6 +248,7 @@ export function ReceivingRecordsTable({
           </tbody>
         </table>
       </div>
+      <PaginationControls {...deliveriesPage} itemLabel="deliveries" />
     </>
   );
 }

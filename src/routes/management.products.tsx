@@ -7,6 +7,7 @@ import { ManagementLayout, ManagementPageHeader } from "@/components/management-
 import { CatalogProductTable } from "@/components/catalog-product-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getManagementProductWorkspace } from "@/lib/marketplace-server-functions";
 
@@ -135,6 +136,7 @@ function StockTable({
       );
   }, [availableOnly, classification, cropType, listingStatus, query, stock]);
   const hasFilters = query || cropType || classification || listingStatus || availableOnly;
+  const stockPage = usePagination(visibleStock);
 
   return (
     <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
@@ -224,7 +226,7 @@ function StockTable({
             </tr>
           </thead>
           <tbody>
-            {visibleStock.map((item) => (
+            {stockPage.pageItems.map((item) => (
               <tr key={item.id} className="border-b border-border last:border-0">
                 <td className="px-6 py-4 font-medium">{item.name}</td>
                 <td className="px-6 py-4">{item.farmer ?? "Unassigned / legacy stock"}</td>
@@ -249,6 +251,7 @@ function StockTable({
           </tbody>
         </table>
       </div>
+      <PaginationControls {...stockPage} itemLabel="stock records" />
     </section>
   );
 }

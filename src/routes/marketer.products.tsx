@@ -8,6 +8,7 @@ import { CatalogProductTable } from "@/components/catalog-product-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createCatalogProduct,
@@ -118,6 +119,7 @@ function MarketerProductsPage() {
   );
   const hasListingFilters =
     listingQuery || listingCropType || listingClassification || listingAvailability;
+  const listingsPage = usePagination(visibleListings);
 
   return (
     <MarketerLayout>
@@ -221,7 +223,7 @@ function MarketerProductsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleListings.map((listing) => (
+                    {listingsPage.pageItems.map((listing) => (
                       <tr key={listing.id} className="border-b border-border last:border-0">
                         <td className="px-6 py-4">
                           <div className="size-10 overflow-hidden rounded-lg bg-muted">
@@ -274,6 +276,7 @@ function MarketerProductsPage() {
                   </tbody>
                 </table>
               </div>
+              <PaginationControls {...listingsPage} itemLabel="marketplace listings" />
               {listings.length ? (
                 <form
                   className="grid gap-4 border-t border-border bg-muted/20 px-6 py-5 md:grid-cols-4"

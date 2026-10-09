@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AccountingLayout, AccountingPageHeader } from "@/components/accounting-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/transactions")({
@@ -36,6 +37,7 @@ function AccountingTransactionsPage() {
     );
   }, [orderStatus, orders, paymentStatus, query]);
   const hasFilters = query || orderStatus || paymentStatus;
+  const ordersPage = usePagination(visibleOrders);
 
   return (
     <AccountingLayout>
@@ -114,7 +116,7 @@ function AccountingTransactionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleOrders.map((order) => (
+                {ordersPage.pageItems.map((order) => (
                   <tr key={order.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 font-medium">{order.id}</td>
                     <td className="px-6 py-4">{order.buyer}</td>
@@ -146,6 +148,7 @@ function AccountingTransactionsPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls {...ordersPage} itemLabel="transactions" />
         </section>
       </main>
     </AccountingLayout>

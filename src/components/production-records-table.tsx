@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 
 export type ProductionRecordRow = {
   id: string;
@@ -89,6 +90,7 @@ export function ProductionRecordsTable({
     setSelectedProduct("");
     setUnharvestedOnly(false);
   };
+  const recordsPage = usePagination(visibleRecords);
 
   return (
     <>
@@ -171,7 +173,7 @@ export function ProductionRecordsTable({
             </tr>
           </thead>
           <tbody>
-            {visibleRecords.map((record) => (
+            {recordsPage.pageItems.map((record) => (
               <tr key={record.id} className="border-b border-border last:border-0">
                 {showFarmer && <td className="px-6 py-4 font-medium">{record.farmer}</td>}
                 <td className="px-6 py-4">{record.product ?? "Unlinked product"}</td>
@@ -194,6 +196,7 @@ export function ProductionRecordsTable({
           </tbody>
         </table>
       </div>
+      <PaginationControls {...recordsPage} itemLabel="production records" />
     </>
   );
 }

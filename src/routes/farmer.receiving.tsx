@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
 import { ReceivingRecordsTable } from "@/components/receiving-records-table";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import {
   getFarmerProductStatuses,
   getFarmerReceivingRecords,
@@ -31,6 +32,7 @@ function FarmerReceivingPage() {
         .includes(statusQuery.trim().toLocaleLowerCase()) &&
       (!statusFilter || status.status === statusFilter),
   );
+  const statusesPage = usePagination(visibleStatuses);
   return (
     <FarmerLayout>
       <FarmerPageHeader
@@ -90,7 +92,7 @@ function FarmerReceivingPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleStatuses.map((status) => (
+                {statusesPage.pageItems.map((status) => (
                   <tr key={status.id} className="border-t border-border">
                     <td className="px-6 py-4 font-medium">{status.product}</td>
                     <td className="px-6 py-4">{status.classification}</td>
@@ -110,6 +112,7 @@ function FarmerReceivingPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls {...statusesPage} itemLabel="product-status records" />
         </section>
       </main>
     </FarmerLayout>

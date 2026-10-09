@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/sales")({
@@ -40,6 +41,7 @@ function MarketerSalesPage() {
         (!paymentStatus || order.paymentStatus === paymentStatus),
     );
   }, [orders, paymentStatus, query]);
+  const salesPage = usePagination(visibleOrders);
   return (
     <MarketerLayout>
       <MarketerPageHeader
@@ -119,7 +121,7 @@ function MarketerSalesPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleOrders.map((order) => (
+                {salesPage.pageItems.map((order) => (
                   <tr key={order.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 font-medium">{order.product}</td>
                     <td className="px-6 py-4">{order.classification}</td>
@@ -143,6 +145,7 @@ function MarketerSalesPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls {...salesPage} itemLabel="sales records" />
         </section>
       </main>
     </MarketerLayout>

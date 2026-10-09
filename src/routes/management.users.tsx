@@ -6,6 +6,7 @@ import { ManagementLayout, ManagementPageHeader } from "@/components/management-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createManagementUser,
@@ -68,6 +69,9 @@ function ManagementUsersPage() {
       return matchesRole && matchesSearch;
     });
   }, [userRoleFilter, userSearch, users]);
+  // Keep the filtered account list as the source before splitting it into manageable pages.
+  const usersPage = usePagination(visibleUsers.map((user) => user));
+  const activityPage = usePagination(auditLogs);
   useEffect(() => {
     void loadUsers().catch(() => toast.error("Could not load saved user accounts."));
     void loadGuidanceAssignments().catch(() => toast.error("Could not load guidance assignments."));
@@ -163,7 +167,7 @@ function ManagementUsersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleUsers.map((user) => (
+                    {usersPage.pageItems.map((user) => (
                       <tr key={user.id} className="border-b border-border last:border-0">
                         <td className="px-6 py-4 font-medium">{user.name}</td>
                         <td className="px-6 py-4 text-muted-foreground">{user.contact}</td>
@@ -229,6 +233,7 @@ function ManagementUsersPage() {
                   </tbody>
                 </table>
               </div>
+              <PaginationControls {...usersPage} itemLabel="accounts" />
             </section>
           </TabsContent>
 
@@ -257,7 +262,7 @@ function ManagementUsersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {auditLogs.map((log) => (
+                    {activityPage.pageItems.map((log) => (
                       <tr key={log.id} className="border-b border-border last:border-0">
                         <td className="px-6 py-4 text-muted-foreground">
                           {new Date(log.createdAt).toLocaleString()}
@@ -277,6 +282,7 @@ function ManagementUsersPage() {
                   </tbody>
                 </table>
               </div>
+              <PaginationControls {...activityPage} itemLabel="activity records" />
             </section>
           </TabsContent>
 

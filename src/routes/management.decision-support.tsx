@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import { peso } from "@/lib/products";
 import { getManagementDecisionSupport } from "@/lib/marketplace-server-functions";
 import { toast } from "sonner";
@@ -74,6 +75,7 @@ function ManagementDecisionSupportPage() {
     const query = summaryQuery.trim().toLocaleLowerCase();
     return summaries.filter((item) => !query || item.name.toLocaleLowerCase().includes(query));
   }, [summaries, summaryQuery]);
+  const summariesPage = usePagination(visibleSummaries, { pageSize: 8 });
 
   const priceChanges = useMemo(() => {
     const byListing = new Map<string, Support["priceHistory"]>();
@@ -231,7 +233,7 @@ function ManagementDecisionSupportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleSummaries.map((item) => (
+                  {summariesPage.pageItems.map((item) => (
                     <tr key={item.name} className="border-b last:border-0">
                       <td className="py-3 font-medium">{item.name}</td>
                       <td className="py-3">{item.stock} kg</td>
@@ -254,6 +256,7 @@ function ManagementDecisionSupportPage() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls {...summariesPage} itemLabel="product summaries" />
           </article>
           <div className="space-y-6">
             <article className="rounded-3xl border border-border bg-card p-6 shadow-card">

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import type { DemoOrder } from "@/lib/demo-orders";
 import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
 
@@ -44,6 +45,7 @@ function ManagementTransactionsPage() {
     );
   }, [orderStatus, paymentStatus, query, transactions]);
   const hasFilters = query || orderStatus || paymentStatus;
+  const transactionsPage = usePagination(visibleTransactions);
   return (
     <ManagementLayout>
       <ManagementPageHeader
@@ -119,7 +121,7 @@ function ManagementTransactionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleTransactions.map((transaction) => (
+                {transactionsPage.pageItems.map((transaction) => (
                   <tr key={transaction.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 font-medium">{transaction.id}</td>
                     <td className="px-6 py-4">{transaction.buyer}</td>
@@ -144,6 +146,7 @@ function ManagementTransactionsPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls {...transactionsPage} itemLabel="transactions" />
         </section>
 
         <section className="mt-8 grid gap-4 md:grid-cols-2">

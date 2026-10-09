@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
 import { Input } from "@/components/ui/input";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import type { DemoOrder } from "@/lib/demo-orders";
 import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
 
@@ -33,6 +34,7 @@ function ManagementSalesPage() {
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
+  const salesPage = usePagination(visibleSales);
   return (
     <ManagementLayout>
       <ManagementPageHeader
@@ -77,7 +79,7 @@ function ManagementSalesPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleSales.map((sale) => (
+                {salesPage.pageItems.map((sale) => (
                   <tr key={sale.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 font-medium">{sale.product}</td>
                     <td className="px-6 py-4">{sale.classification}</td>
@@ -101,6 +103,7 @@ function ManagementSalesPage() {
               </tbody>
             </table>
           </div>
+          <PaginationControls {...salesPage} itemLabel="sales records" />
         </section>
 
         <section className="mt-8 grid gap-4 md:grid-cols-2">

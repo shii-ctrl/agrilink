@@ -7,6 +7,7 @@ import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PaginationControls, usePagination } from "@/components/pagination-controls";
 import type { Classification } from "@/lib/products";
 import {
   getMarketplaceListings,
@@ -38,6 +39,7 @@ function MarketerDailyPricesPage() {
     () => entries.filter((entry) => entry.date === selectedDate),
     [entries, selectedDate],
   );
+  const pricesPage = usePagination(dateEntries);
 
   return (
     <MarketerLayout>
@@ -150,7 +152,7 @@ function MarketerDailyPricesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dateEntries.map((entry) => (
+                  {pricesPage.pageItems.map((entry) => (
                     <tr key={entry.id} className="border-t border-border">
                       <td className="px-6 py-4 font-medium">{entry.product}</td>
                       <td className="px-6 py-4">{entry.classification}</td>
@@ -198,6 +200,7 @@ function MarketerDailyPricesPage() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls {...pricesPage} itemLabel="price entries" />
           </section>
         </div>
       </main>
