@@ -33,6 +33,7 @@ function MarketerOrdersPage() {
   const [orders, setOrders] = useState<DemoOrder[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [orderDate, setOrderDate] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   useEffect(() => {
     void getDatabaseOrders()
@@ -101,7 +102,8 @@ function MarketerOrdersPage() {
       `${order.id} ${order.buyer} ${order.product} ${order.status}`
         .toLowerCase()
         .includes(query.toLowerCase()) &&
-      (!statusFilter || order.status === statusFilter),
+      (!statusFilter || order.status === statusFilter) &&
+      (!orderDate || order.createdAt?.slice(0, 10) === orderDate),
   );
   const ordersPage = usePagination(visibleOrders);
 
@@ -154,13 +156,20 @@ function MarketerOrdersPage() {
               <option value="Cancelled">Cancelled</option>
               <option value="Rejected">Rejected</option>
             </select>
-            {(query || statusFilter) && (
+            <Input
+              aria-label="Filter orders by date"
+              type="date"
+              value={orderDate}
+              onChange={(event) => setOrderDate(event.target.value)}
+            />
+            {(query || statusFilter || orderDate) && (
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => {
                   setQuery("");
                   setStatusFilter("");
+                  setOrderDate("");
                 }}
               >
                 Clear filters

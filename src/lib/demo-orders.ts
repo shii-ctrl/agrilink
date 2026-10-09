@@ -22,6 +22,7 @@ export type DemoOrder = {
   status: DemoOrderStatus;
   paymentStatus: DemoPaymentStatus;
   date: string;
+  createdAt?: string;
   paymentId?: string;
   paymentMethod?: string;
   paidAt?: string;

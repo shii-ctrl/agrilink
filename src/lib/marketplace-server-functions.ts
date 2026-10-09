@@ -1036,6 +1036,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
         `${order.status.charAt(0).toUpperCase()}${order.status.slice(1)}` as DemoOrder["status"],
       paymentStatus: order.paymentId ? "Paid" : "Unpaid",
       date: order.createdAt.toLocaleDateString("en-PH"),
+      createdAt: order.createdAt.toISOString(),
       ...(order.confirmedAt ? { confirmedAt: order.confirmedAt.toLocaleDateString("en-PH") } : {}),
       ...(order.soldAt ? { soldAt: order.soldAt.toLocaleDateString("en-PH") } : {}),
       ...(order.paymentId ? { paymentId: order.paymentId } : {}),

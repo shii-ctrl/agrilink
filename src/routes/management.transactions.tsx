@@ -27,6 +27,7 @@ function ManagementTransactionsPage() {
   const [query, setQuery] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
+  const [orderDate, setOrderDate] = useState("");
   useEffect(() => {
     void getDatabaseOrders()
       .then(setTransactions)
@@ -41,10 +42,11 @@ function ManagementTransactionsPage() {
             .toLocaleLowerCase()
             .includes(search)) &&
         (!orderStatus || transaction.status === orderStatus) &&
-        (!paymentStatus || transaction.paymentStatus === paymentStatus),
+        (!paymentStatus || transaction.paymentStatus === paymentStatus) &&
+        (!orderDate || transaction.createdAt?.slice(0, 10) === orderDate),
     );
-  }, [orderStatus, paymentStatus, query, transactions]);
-  const hasFilters = query || orderStatus || paymentStatus;
+  }, [orderDate, orderStatus, paymentStatus, query, transactions]);
+  const hasFilters = query || orderStatus || paymentStatus || orderDate;
   const transactionsPage = usePagination(visibleTransactions);
   return (
     <ManagementLayout>
@@ -91,6 +93,12 @@ function ManagementTransactionsPage() {
               <option value="Paid">Paid</option>
               <option value="Unpaid">Unpaid</option>
             </select>
+            <Input
+              aria-label="Filter transactions by date"
+              type="date"
+              value={orderDate}
+              onChange={(event) => setOrderDate(event.target.value)}
+            />
             {hasFilters && (
               <Button
                 type="button"
@@ -99,6 +107,7 @@ function ManagementTransactionsPage() {
                   setQuery("");
                   setOrderStatus("");
                   setPaymentStatus("");
+                  setOrderDate("");
                 }}
               >
                 Clear filters

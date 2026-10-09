@@ -23,6 +23,7 @@ function BuyerOrdersPage() {
   const [query, setQuery] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
+  const [orderDate, setOrderDate] = useState("");
   const loadOrders = async () => {
     const databaseOrders = await getBuyerOrders();
     setOrders(
@@ -40,6 +41,7 @@ function BuyerOrdersPage() {
           `${order.status.charAt(0).toUpperCase()}${order.status.slice(1)}` as DemoOrder["status"],
         paymentStatus: order.paymentStatus as DemoOrder["paymentStatus"],
         date: order.createdAt.toLocaleDateString("en-PH"),
+        createdAt: order.createdAt.toISOString(),
         contact: order.contact,
         pickupNote: order.pickupNote,
         items: [],
@@ -57,10 +59,11 @@ function BuyerOrdersPage() {
         (!search ||
           `${order.id} ${order.product} ${order.status}`.toLocaleLowerCase().includes(search)) &&
         (!orderStatus || order.status === orderStatus) &&
-        (!paymentStatus || order.paymentStatus === paymentStatus),
+        (!paymentStatus || order.paymentStatus === paymentStatus) &&
+        (!orderDate || order.createdAt?.slice(0, 10) === orderDate),
     );
-  }, [orderStatus, orders, paymentStatus, query]);
-  const hasFilters = query || orderStatus || paymentStatus;
+  }, [orderDate, orderStatus, orders, paymentStatus, query]);
+  const hasFilters = query || orderStatus || paymentStatus || orderDate;
   const ordersPage = usePagination(visibleOrders);
   const cancelOrder = async (order: DemoOrder) => {
     if (!window.confirm(`Cancel ${order.id}? The reserved stock will return to the marketplace.`)) {
@@ -181,6 +184,12 @@ function BuyerOrdersPage() {
               <option value="Paid">Paid</option>
               <option value="Unpaid">Unpaid</option>
             </select>
+            <Input
+              aria-label="Filter my orders by date"
+              type="date"
+              value={orderDate}
+              onChange={(event) => setOrderDate(event.target.value)}
+            />
             {hasFilters && (
               <Button
                 type="button"
@@ -189,6 +198,7 @@ function BuyerOrdersPage() {
                   setQuery("");
                   setOrderStatus("");
                   setPaymentStatus("");
+                  setOrderDate("");
                 }}
               >
                 Clear filters

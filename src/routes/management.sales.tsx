@@ -24,15 +24,18 @@ export const Route = createFileRoute("/management/sales")({
 function ManagementSalesPage() {
   const [sales, setSales] = useState<DemoOrder[]>([]);
   const [query, setQuery] = useState("");
+  const [saleDate, setSaleDate] = useState("");
   useEffect(() => {
     void getDatabaseOrders()
       .then((orders) => setSales(orders.filter((order) => order.status === "Sold")))
       .catch(() => toast.error("Could not load saved sales records."));
   }, []);
-  const visibleSales = sales.filter((sale) =>
-    `${sale.id} ${sale.product} ${sale.farmer} ${sale.buyer} ${sale.status}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
+  const visibleSales = sales.filter(
+    (sale) =>
+      `${sale.id} ${sale.product} ${sale.farmer} ${sale.buyer} ${sale.status}`
+        .toLowerCase()
+        .includes(query.toLowerCase()) &&
+      (!saleDate || sale.createdAt?.slice(0, 10) === saleDate),
   );
   const salesPage = usePagination(visibleSales);
   return (
@@ -53,6 +56,13 @@ function ManagementSalesPage() {
               className="h-11 rounded-full pl-11"
             />
           </div>
+          <Input
+            aria-label="Filter sales by date"
+            type="date"
+            value={saleDate}
+            onChange={(event) => setSaleDate(event.target.value)}
+            className="mt-3 max-w-xs"
+          />
           <p className="mt-3 text-xs text-muted-foreground">Live sales data from AgriLink.</p>
         </section>
 
@@ -76,6 +86,7 @@ function ManagementSalesPage() {
                   <th className="px-6 py-4 font-medium">Selling Price</th>
                   <th className="px-6 py-4 font-medium">Sales Status</th>
                   <th className="px-6 py-4 font-medium">Payment Status</th>
+                  <th className="px-6 py-4 font-medium">Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -89,11 +100,12 @@ function ManagementSalesPage() {
                     <td className="px-6 py-4">{sale.total}</td>
                     <td className="px-6 py-4 text-primary">{sale.status}</td>
                     <td className="px-6 py-4 text-primary">{sale.paymentStatus}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{sale.date}</td>
                   </tr>
                 ))}
                 {!visibleSales.length && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-6 py-10 text-center text-muted-foreground">
                       {sales.length
                         ? "No sales match your search."
                         : "No completed sales have been saved yet."}
