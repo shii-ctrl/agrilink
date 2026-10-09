@@ -92,7 +92,11 @@ function Chip({
 function MarketplacePage() {
   const listings = Route.useLoaderData();
   const products = useMemo(
-    () => listings.map((listing) => ({ ...listing, image: marketplaceImageFor(listing.name) })),
+    () =>
+      listings.map((listing) => ({
+        ...listing,
+        image: listing.image || marketplaceImageFor(listing.name),
+      })),
     [listings],
   );
   const cropTypes = useMemo(

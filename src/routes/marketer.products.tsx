@@ -15,6 +15,7 @@ import {
   getPublishableInventory,
   getMarketerMarketplaceListings,
 } from "@/lib/marketplace-server-functions";
+import { prepareProductImage } from "@/lib/product-image-upload";
 
 export const Route = createFileRoute("/marketer/products")({
   head: () => ({
@@ -32,6 +33,9 @@ type MarketplaceListing = {
   cropType: string;
   classification: "Good" | "Semi" | "Reject";
   pricePerKg: number;
+  retailPricePerKg?: number;
+  bundlePricePerKg?: number | null;
+  bundleMinimumKg?: number | null;
   quantityKg: number;
   description: string;
   image: string;
@@ -58,6 +62,9 @@ function MarketerProductsPage() {
   >([]);
   const [savingCatalogProduct, setSavingCatalogProduct] = useState(false);
   const [savingListing, setSavingListing] = useState(false);
+  const [catalogImageDataUrl, setCatalogImageDataUrl] = useState("");
+  const [catalogImageName, setCatalogImageName] = useState("");
+  const [preparingImage, setPreparingImage] = useState(false);
 
   const load = async () => {
     const [nextListings, nextCatalogProducts, nextPublishableInventory] = await Promise.all([
@@ -115,7 +122,7 @@ function MarketerProductsPage() {
                       <th className="px-6 py-4 font-medium">Farmer owner</th>
                       <th className="px-6 py-4 font-medium">Crop Type</th>
                       <th className="px-6 py-4 font-medium">Classification</th>
-                      <th className="px-6 py-4 font-medium">Price</th>
+                      <th className="px-6 py-4 font-medium">Prices</th>
                       <th className="px-6 py-4 font-medium">Available Quantity</th>
                       <th className="px-6 py-4 font-medium">Availability</th>
                     </tr>
@@ -140,7 +147,20 @@ function MarketerProductsPage() {
                         >
                           {listing.classification}
                         </td>
-                        <td className="px-6 py-4">₱{listing.pricePerKg.toFixed(2)} / kg</td>
+                        <td className="px-6 py-4">
+                          <p>
+                            Retail: ₱{(listing.retailPricePerKg ?? listing.pricePerKg).toFixed(2)} /
+                            kg
+                          </p>
+                          {listing.bundlePricePerKg && listing.bundleMinimumKg ? (
+                            <p className="mt-1 text-xs text-primary">
+                              Bundle: ₱{listing.bundlePricePerKg.toFixed(2)} / kg ·{" "}
+                              {listing.bundleMinimumKg}+ kg
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-xs text-muted-foreground">No bundle price</p>
+                          )}
+                        </td>
                         <td className="px-6 py-4">{listing.quantityKg} kg</td>
                         <td className="px-6 py-4">
                           <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">
@@ -181,10 +201,12 @@ function MarketerProductsPage() {
                         name: String(formData.get("name")),
                         cropType: String(formData.get("cropType")) as (typeof cropTypes)[number],
                         description: String(formData.get("description") ?? ""),
-                        imageUrl: String(formData.get("imageUrl") ?? ""),
+                        imageDataUrl: catalogImageDataUrl,
                       },
                     });
                     form.reset();
+                    setCatalogImageDataUrl("");
+                    setCatalogImageName("");
                     await load();
                     toast.success("Product added to catalog", {
                       description: "Next, record a farmer delivery to create classified inventory.",
@@ -226,12 +248,63 @@ function MarketerProductsPage() {
                   <Input id="catalog-description" name="description" maxLength={2000} />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="catalog-image-url">Image URL (optional)</Label>
-                  <Input id="catalog-image-url" name="imageUrl" type="url" maxLength={500} />
+                  <Label htmlFor="catalog-image">Product image (optional)</Label>
+                  <Input
+                    id="catalog-image"
+                    name="image"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={preparingImage || savingCatalogProduct}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) {
+                        setCatalogImageDataUrl("");
+                        setCatalogImageName("");
+                        return;
+                      }
+                      setPreparingImage(true);
+                      void prepareProductImage(file)
+                        .then((imageDataUrl) => {
+                          setCatalogImageDataUrl(imageDataUrl);
+                          setCatalogImageName(file.name);
+                        })
+                        .catch((error) => {
+                          event.currentTarget.value = "";
+                          setCatalogImageDataUrl("");
+                          setCatalogImageName("");
+                          toast.error("Image could not be selected", {
+                            description:
+                              error instanceof Error ? error.message : "Choose another image.",
+                          });
+                        })
+                        .finally(() => setPreparingImage(false));
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Choose a JPG, PNG, or WebP file. AgriLink prepares it for the product listing.
+                  </p>
+                  {catalogImageDataUrl ? (
+                    <div className="flex items-center gap-3 rounded-2xl border border-border p-3">
+                      <img
+                        src={catalogImageDataUrl}
+                        alt="Selected product preview"
+                        className="size-16 rounded-xl object-cover"
+                      />
+                      <p className="text-sm text-muted-foreground">{catalogImageName}</p>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="sm:col-span-2">
-                  <Button type="submit" className="rounded-full" disabled={savingCatalogProduct}>
-                    {savingCatalogProduct ? "Saving…" : "Add catalog product"}
+                  <Button
+                    type="submit"
+                    className="rounded-full"
+                    disabled={savingCatalogProduct || preparingImage}
+                  >
+                    {preparingImage
+                      ? "Preparing image…"
+                      : savingCatalogProduct
+                        ? "Saving…"
+                        : "Add catalog product"}
                   </Button>
                 </div>
               </form>
@@ -276,13 +349,17 @@ function MarketerProductsPage() {
                   event.preventDefault();
                   const form = event.currentTarget;
                   const formData = new FormData(form);
-                  const price = Number(formData.get("price"));
+                  const retailPricePerKg = Number(formData.get("retailPricePerKg"));
+                  const bundlePricePerKg = Number(formData.get("bundlePricePerKg"));
+                  const bundleMinimumKg = Number(formData.get("bundleMinimumKg"));
                   setSavingListing(true);
                   try {
                     await createMarketplaceListing({
                       data: {
                         inventoryId: String(formData.get("inventoryId")),
-                        pricePerKg: price,
+                        retailPricePerKg,
+                        bundlePricePerKg,
+                        bundleMinimumKg,
                       },
                     });
                     form.reset();
@@ -320,11 +397,41 @@ function MarketerProductsPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price per kg (₱)</Label>
-                  <Input id="price" name="price" type="number" min="0.01" step="0.01" required />
+                  <Label htmlFor="retail-price">Retail price per kg (₱)</Label>
+                  <Input
+                    id="retail-price"
+                    name="retailPricePerKg"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bundle-price">Bundle price per kg (₱)</Label>
+                  <Input
+                    id="bundle-price"
+                    name="bundlePricePerKg"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bundle-minimum">Bundle starts at (kg)</Label>
+                  <Input
+                    id="bundle-minimum"
+                    name="bundleMinimumKg"
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    required
+                  />
                 </div>
                 <p className="self-end text-sm text-muted-foreground">
-                  The classification is inherited from the inventory you select.
+                  Bundle price must be lower than retail. The classification is inherited from the
+                  inventory.
                 </p>
                 <div className="flex items-end">
                   <Button

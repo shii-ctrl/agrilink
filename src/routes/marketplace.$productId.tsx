@@ -24,8 +24,14 @@ export const Route = createFileRoute("/marketplace/$productId")({
     if (!product) throw notFound();
     const related = (await getMarketplaceListings())
       .filter((listing) => listing.id !== product.id && listing.name === product.name)
-      .map((listing) => ({ ...listing, image: marketplaceImageFor(listing.name) }));
-    return { product: { ...product, image: marketplaceImageFor(product.name) }, related };
+      .map((listing) => ({
+        ...listing,
+        image: listing.image || marketplaceImageFor(listing.name),
+      }));
+    return {
+      product: { ...product, image: product.image || marketplaceImageFor(product.name) },
+      related,
+    };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
@@ -86,6 +92,15 @@ function ProductDetail() {
   );
   const canDecreaseQuantity = qty > 1;
   const canIncreaseQuantity = qty < maximumSelectableQuantity;
+  const retailPricePerKg = product.retailPricePerKg ?? product.pricePerKg;
+  const pricedQuantityKg = isBuyer ? cartQuantityKg + qty : qty;
+  const qualifiesForBundle =
+    product.bundlePricePerKg !== null &&
+    product.bundlePricePerKg !== undefined &&
+    product.bundleMinimumKg !== null &&
+    product.bundleMinimumKg !== undefined &&
+    pricedQuantityKg >= product.bundleMinimumKg;
+  const currentPricePerKg = qualifiesForBundle ? product.bundlePricePerKg! : retailPricePerKg;
 
   useEffect(() => {
     setQty((current) => Math.min(current, maximumSelectableQuantity));
@@ -122,9 +137,16 @@ function ProductDetail() {
             </p>
 
             <p className="mt-6 font-display text-4xl font-semibold text-primary">
-              {peso(product.pricePerKg)}
+              {peso(currentPricePerKg)}
               <span className="ml-2 text-base font-normal text-muted-foreground">/ kg</span>
             </p>
+            {product.bundlePricePerKg && product.bundleMinimumKg ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Retail: {peso(retailPricePerKg)} / kg · Bundle: {peso(product.bundlePricePerKg)} /
+                kg from {product.bundleMinimumKg} kg
+                {qualifiesForBundle ? " — bundle price applied" : ""}
+              </p>
+            ) : null}
 
             <dl className="mt-6 grid grid-cols-2 gap-3">
               <div className="rounded-2xl border border-border bg-card p-4">
@@ -267,7 +289,9 @@ function ProductDetail() {
 
             <p className="mt-4 text-xs text-muted-foreground">
               {isAvailable
-                ? `Subtotal for ${qty} kg: ${peso(qty * product.pricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
+                ? cartQuantityKg > 0
+                  ? `Cart total for ${pricedQuantityKg} kg: ${peso(pricedQuantityKg * currentPricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
+                  : `Subtotal for ${qty} kg: ${peso(qty * currentPricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
                 : "This listing is currently unavailable."}
             </p>
             {isBuyer && cartQuantityKg > 0 ? (

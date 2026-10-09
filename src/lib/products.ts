@@ -6,6 +6,9 @@ export type Product = {
   cropType: string;
   classification: Classification;
   pricePerKg: number;
+  retailPricePerKg?: number;
+  bundlePricePerKg?: number | null;
+  bundleMinimumKg?: number | null;
   quantityKg: number;
   description: string;
   image: string;

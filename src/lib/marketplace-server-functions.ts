@@ -44,11 +44,18 @@ const dailyPriceStatusInput = z.object({
   id: z.string().uuid(),
   published: z.boolean(),
 });
-const createListingInput = z.object({
-  inventoryId: z.string().uuid(),
-  pricePerKg: z.number().positive().max(100_000),
-  status: z.enum(["draft", "published"]).default("published"),
-});
+const createListingInput = z
+  .object({
+    inventoryId: z.string().uuid(),
+    retailPricePerKg: z.number().positive().max(100_000),
+    bundlePricePerKg: z.number().positive().max(100_000),
+    bundleMinimumKg: z.number().positive().max(10_000),
+    status: z.enum(["draft", "published"]).default("published"),
+  })
+  .refine((data) => data.bundlePricePerKg < data.retailPricePerKg, {
+    message: "Bundle price must be lower than the retail price.",
+    path: ["bundlePricePerKg"],
+  });
 const cropTypes = [
   "Leafy vegetable",
   "Root vegetable",
@@ -63,7 +70,17 @@ const createCatalogProductInput = z.object({
   name: z.string().trim().min(2).max(160),
   cropType: z.enum(cropTypes),
   description: z.string().trim().min(4).max(2000).optional(),
-  imageUrl: z.string().trim().url().max(500).optional().or(z.literal("")),
+  imageDataUrl: z
+    .string()
+    .trim()
+    .max(2_500_000, "Choose an image smaller than 1.8 MB.")
+    .refine(
+      (value) =>
+        value === "" || /^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=\s]+$/i.test(value),
+      "Choose a JPG, PNG, or WebP image.",
+    )
+    .optional()
+    .or(z.literal("")),
 });
 
 type MarketplaceProduct = Product;
@@ -75,22 +92,51 @@ function asProduct(row: {
   cropType: string;
   classification: string;
   pricePerKg: string;
+  retailPricePerKg: string | null;
+  bundlePricePerKg: string | null;
+  bundleMinimumKg: string | null;
   availableKg: string;
   description: string | null;
   imageUrl: string | null;
 }): MarketplaceProduct {
+  const retailPricePerKg = Number(row.retailPricePerKg ?? row.pricePerKg);
+  const bundlePricePerKg =
+    row.bundlePricePerKg === null || row.bundleMinimumKg === null
+      ? null
+      : Number(row.bundlePricePerKg);
+  const bundleMinimumKg = bundlePricePerKg === null ? null : Number(row.bundleMinimumKg);
   return {
     id: row.listingId,
     name: row.name,
     cropType: row.cropType,
     classification: row.classification as Classification,
-    pricePerKg: Number(row.pricePerKg),
+    pricePerKg: retailPricePerKg,
+    retailPricePerKg,
+    bundlePricePerKg,
+    bundleMinimumKg,
     quantityKg: Math.max(0, Number(row.availableKg)),
     description:
       row.description ??
       `${row.name} supplied by PROCY farmer members and classified ${row.classification}.`,
     image: row.imageUrl ?? "",
   };
+}
+
+function listingUnitPrice(
+  row: {
+    pricePerKg: string;
+    retailPricePerKg: string | null;
+    bundlePricePerKg: string | null;
+    bundleMinimumKg: string | null;
+  },
+  quantityKg: number,
+) {
+  const retailPricePerKg = Number(row.retailPricePerKg ?? row.pricePerKg);
+  const bundleMinimumKg = Number(row.bundleMinimumKg ?? 0);
+  const bundlePricePerKg = Number(row.bundlePricePerKg ?? 0);
+  return bundleMinimumKg > 0 && bundlePricePerKg > 0 && quantityKg >= bundleMinimumKg
+    ? bundlePricePerKg
+    : retailPricePerKg;
 }
 
 async function fetchListings(listingId?: string) {
@@ -106,6 +152,9 @@ async function fetchListings(listingId?: string) {
       cropType: products.cropType,
       classification: classifications.name,
       pricePerKg: listings.pricePerKg,
+      retailPricePerKg: listings.retailPricePerKg,
+      bundlePricePerKg: listings.bundlePricePerKg,
+      bundleMinimumKg: listings.bundleMinimumKg,
       availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
       description: products.description,
       imageUrl: products.imageUrl,
@@ -128,6 +177,9 @@ async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
       cropType: products.cropType,
       classification: classifications.name,
       pricePerKg: listings.pricePerKg,
+      retailPricePerKg: listings.retailPricePerKg,
+      bundlePricePerKg: listings.bundlePricePerKg,
+      bundleMinimumKg: listings.bundleMinimumKg,
       availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
       description: products.description,
       imageUrl: products.imageUrl,
@@ -174,7 +226,7 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
       name: data.name,
       cropType: data.cropType,
       ...(data.description ? { description: data.description } : {}),
-      ...(data.imageUrl ? { imageUrl: data.imageUrl } : {}),
+      ...(data.imageDataUrl ? { imageUrl: data.imageDataUrl } : {}),
     });
     await writeAuditLog(actor.id, "product.catalog_create", "product", id, { name: data.name });
     return { id };
@@ -242,7 +294,11 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
       await tx.insert(listings).values({
         id: listingId,
         inventoryId: data.inventoryId,
-        pricePerKg: data.pricePerKg.toFixed(2),
+        // price_per_kg remains the retail fallback for older reports and existing integrations.
+        pricePerKg: data.retailPricePerKg.toFixed(2),
+        retailPricePerKg: data.retailPricePerKg.toFixed(2),
+        bundlePricePerKg: data.bundlePricePerKg.toFixed(2),
+        bundleMinimumKg: data.bundleMinimumKg.toFixed(2),
         status: data.status,
       });
       return { listingId, inventoryId: data.inventoryId };
@@ -368,6 +424,9 @@ async function buyerCartRows(buyerId: string) {
       name: products.name,
       classification: classifications.name,
       pricePerKg: listings.pricePerKg,
+      retailPricePerKg: listings.retailPricePerKg,
+      bundlePricePerKg: listings.bundlePricePerKg,
+      bundleMinimumKg: listings.bundleMinimumKg,
       quantityKg: cartItems.quantityKg,
       availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
       imageUrl: products.imageUrl,
@@ -379,13 +438,25 @@ async function buyerCartRows(buyerId: string) {
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
     .where(eq(carts.buyerId, buyerId));
-  return rows.map((row) => ({
-    ...row,
-    classification: row.classification as Classification,
-    pricePerKg: Number(row.pricePerKg),
-    quantityKg: Number(row.quantityKg),
-    availableKg: Math.max(0, Number(row.availableKg)),
-  }));
+  return rows.map((row) => {
+    const quantityKg = Number(row.quantityKg);
+    const retailPricePerKg = Number(row.retailPricePerKg ?? row.pricePerKg);
+    const bundlePricePerKg =
+      row.bundlePricePerKg === null || row.bundleMinimumKg === null
+        ? null
+        : Number(row.bundlePricePerKg);
+    const bundleMinimumKg = bundlePricePerKg === null ? null : Number(row.bundleMinimumKg);
+    return {
+      ...row,
+      classification: row.classification as Classification,
+      pricePerKg: listingUnitPrice(row, quantityKg),
+      retailPricePerKg,
+      bundlePricePerKg,
+      bundleMinimumKg,
+      quantityKg,
+      availableKg: Math.max(0, Number(row.availableKg)),
+    };
+  });
 }
 
 export const getBuyerCart = createServerFn({ method: "GET" }).handler(async () => {
@@ -524,6 +595,9 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
           name: products.name,
           classification: classifications.name,
           pricePerKg: listings.pricePerKg,
+          retailPricePerKg: listings.retailPricePerKg,
+          bundlePricePerKg: listings.bundlePricePerKg,
+          bundleMinimumKg: listings.bundleMinimumKg,
           quantityKg: inventory.quantityKg,
           reservedKg: inventory.reservedKg,
         })
@@ -549,7 +623,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
             `${row.name} (${row.classification}) has only ${availableKg} kg available.`,
           );
         }
-        totalAmount += item.quantityKg * Number(row.pricePerKg);
+        totalAmount += item.quantityKg * listingUnitPrice(row, item.quantityKg);
       }
 
       await tx.insert(orders).values({
@@ -570,7 +644,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
           orderId,
           listingId: item.listingId,
           quantityKg: item.quantityKg.toFixed(2),
-          pricePerKg: row.pricePerKg,
+          pricePerKg: listingUnitPrice(row, item.quantityKg).toFixed(2),
         });
         const [reservation] = await tx
           .update(inventory)

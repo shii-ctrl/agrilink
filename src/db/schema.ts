@@ -6,6 +6,7 @@ import {
   index,
   int,
   json,
+  mediumtext,
   mysqlEnum,
   mysqlTable,
   primaryKey,
@@ -65,7 +66,9 @@ export const products = mysqlTable(
     name: varchar("name", { length: 160 }).notNull(),
     cropType: varchar("crop_type", { length: 100 }).notNull(),
     description: text("description"),
-    imageUrl: varchar("image_url", { length: 500 }),
+    // Product photos selected by a Marketer are stored as validated, size-limited data URLs.
+    // MEDIUMTEXT leaves enough room for a compressed marketplace image.
+    imageUrl: mediumtext("image_url"),
     active: boolean("active").default(true).notNull(),
     createdAt,
     updatedAt,
@@ -143,6 +146,9 @@ export const listings = mysqlTable(
     id: varchar("id", { length: 36 }).primaryKey(),
     inventoryId: varchar("inventory_id", { length: 36 }).notNull(),
     pricePerKg: decimal("price_per_kg", { precision: 12, scale: 2 }).notNull(),
+    retailPricePerKg: decimal("retail_price_per_kg", { precision: 12, scale: 2 }),
+    bundlePricePerKg: decimal("bundle_price_per_kg", { precision: 12, scale: 2 }),
+    bundleMinimumKg: decimal("bundle_minimum_kg", { precision: 12, scale: 2 }),
     status: mysqlEnum("status", ["draft", "published", "unavailable", "archived"])
       .default("draft")
       .notNull(),

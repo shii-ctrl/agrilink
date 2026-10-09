@@ -37,8 +37,14 @@ export function ProductCard({ product }: { product: Product }) {
           <div>
             <p className="text-xl font-semibold text-primary">{peso(product.pricePerKg)}</p>
             <p className="text-xs text-muted-foreground">
-              per kg · {availableQuantity} kg {availableQuantity > 0 ? "available" : "unavailable"}
+              retail / kg · {availableQuantity} kg{" "}
+              {availableQuantity > 0 ? "available" : "unavailable"}
             </p>
+            {product.bundlePricePerKg && product.bundleMinimumKg ? (
+              <p className="mt-1 text-xs font-medium text-primary">
+                Bundle: {peso(product.bundlePricePerKg)} / kg from {product.bundleMinimumKg} kg
+              </p>
+            ) : null}
           </div>
           <span className="flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
             <ArrowUpRight className="size-4" />

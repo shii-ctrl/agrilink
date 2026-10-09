@@ -150,6 +150,26 @@ test("marketplace cart controls prevent duplicate additions beyond available sto
   assert.match(source, /All \$\{cartQuantityKg\} kg available is already in your cart/);
 });
 
+test("catalog photos use a safe file picker and bundle prices are enforced at checkout", async () => {
+  const [marketplace, productPage, marketerPage, schema, migration] = await Promise.all([
+    readFile("src/lib/marketplace-server-functions.ts", "utf8"),
+    readFile("src/routes/marketplace.$productId.tsx", "utf8"),
+    readFile("src/routes/marketer.products.tsx", "utf8"),
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0010_product_photos_and_bundle_pricing.sql", "utf8"),
+  ]);
+
+  assert.match(marketerPage, /type="file"/);
+  assert.match(marketerPage, /prepareProductImage/);
+  assert.doesNotMatch(marketerPage, /catalog-image-url/);
+  assert.match(marketplace, /imageDataUrl/);
+  assert.match(marketplace, /Bundle price must be lower than the retail price/);
+  assert.match(marketplace, /listingUnitPrice\(row, item\.quantityKg\)/);
+  assert.match(productPage, /Bundle: \{peso\(product\.bundlePricePerKg\)\}/);
+  assert.match(schema, /bundlePricePerKg: decimal\("bundle_price_per_kg"/);
+  assert.match(migration, /MODIFY COLUMN image_url MEDIUMTEXT/);
+});
+
 test("role workflows keep catalog, cart, and Farmer stock states consistent", async () => {
   const [marketplace, receiving, notifications] = await Promise.all([
     readFile("src/lib/marketplace-server-functions.ts", "utf8"),

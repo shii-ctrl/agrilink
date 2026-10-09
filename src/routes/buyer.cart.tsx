@@ -22,7 +22,12 @@ function BuyerCartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const loadCart = async () => {
     const cart = await getBuyerCart();
-    setItems(cart.map((item) => ({ ...item, image: marketplaceImageFor(item.name) })));
+    setItems(
+      cart.map((item) => ({
+        ...item,
+        image: item.imageUrl || marketplaceImageFor(item.name),
+      })),
+    );
   };
   useEffect(() => {
     void loadCart().catch(() => toast.error("Could not load your saved cart."));
@@ -81,6 +86,12 @@ function BuyerCartPage() {
                     <p className="text-sm text-muted-foreground">
                       {item.classification} · {peso(item.pricePerKg)} / kg
                     </p>
+                    {item.bundlePricePerKg && item.bundleMinimumKg ? (
+                      <p className="mt-1 text-xs text-primary">
+                        Bundle: {peso(item.bundlePricePerKg)} / kg from {item.bundleMinimumKg} kg
+                        {item.quantityKg >= item.bundleMinimumKg ? " — applied" : ""}
+                      </p>
+                    ) : null}
                     <p className="mt-1 text-xs text-muted-foreground">
                       {item.availableKg} kg currently available
                     </p>
