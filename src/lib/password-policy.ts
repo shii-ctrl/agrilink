@@ -24,7 +24,7 @@ const commonlyGuessedPasswords = new Set([
 
 export const securePassword = z
   .string()
-  .min(minimumPasswordLength, "Use at least 12 characters.")
+  .min(minimumPasswordLength, "Use at least 8 characters.")
   .max(200)
   .refine((value) => value.trim() === value, "Password cannot start or end with a space.")
   .refine(

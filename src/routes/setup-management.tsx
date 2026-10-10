@@ -112,7 +112,7 @@ function SetupManagementPage() {
                 type="password"
                 autoComplete="new-password"
                 minLength={minimumPasswordLength}
-                placeholder="12+ characters"
+                placeholder="8+ characters"
                 required
               />
             </div>

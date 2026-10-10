@@ -119,7 +119,7 @@ function ForgotPasswordPage() {
               <p className="mt-2 text-sm text-muted-foreground">
                 Enter the 6-digit code sent to{" "}
                 <span className="font-medium text-foreground">{email}</span>, then choose a new
-                password with at least 12 characters.
+                password with at least 8 characters.
               </p>
               <form className="mt-7 space-y-4" onSubmit={resetPassword}>
                 <div className="space-y-2">

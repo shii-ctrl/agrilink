@@ -148,7 +148,7 @@ function RegisterPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   minLength={minimumPasswordLength}
-                  placeholder="At least 12 characters"
+                  placeholder="At least 8 characters"
                   required
                   className="h-11"
                   onChange={(event) => setPassword(event.target.value)}

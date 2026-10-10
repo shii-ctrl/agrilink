@@ -1,2 +1,2 @@
-export const minimumPasswordLength = 12;
-export const passwordHelpText = "Use at least 12 characters. Avoid common passwords.";
+export const minimumPasswordLength = 8;
+export const passwordHelpText = "Use at least 8 characters. Avoid common passwords.";
