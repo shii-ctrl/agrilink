@@ -3,18 +3,18 @@ import { ClipboardCheck, PackageCheck, Search, ShoppingCart } from "lucide-react
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
-import { OrderDetails } from "@/components/order-details";
+import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
+import { OrderDetails } from "@/features/marketplace/components/order-details";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
-import { type DemoOrder } from "@/lib/demo-orders";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { type DemoOrder } from "@/lib/demo/demo-orders";
 import {
   confirmDatabaseOrder,
   getDatabaseOrders,
   markDatabaseOrderSold,
   releaseDatabaseOrder,
-} from "@/lib/marketplace-server-functions";
+} from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/orders")({
   head: () => ({

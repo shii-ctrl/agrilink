@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { CommunityFeed } from "@/components/community-feed";
-import { ConsultantLayout, ConsultantPageHeader } from "@/components/consultant-layout";
+import { CommunityFeed } from "@/features/messaging/components/community-feed";
+import { ConsultantLayout, ConsultantPageHeader } from "@/components/workspaces/consultant-layout";
 
 export const Route = createFileRoute("/consultant/community")({
   component: ConsultantCommunityPage,

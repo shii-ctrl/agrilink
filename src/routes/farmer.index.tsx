@@ -2,10 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ClipboardList, MessageCircle, PackageCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
+import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
 import { Button } from "@/components/ui/button";
-import { getFarmerProductStatuses } from "@/lib/receiving-server-functions";
-import { getFarmerProductionRecords } from "@/lib/production-server-functions";
+import { getFarmerProductStatuses } from "@/services/operations/receiving-server-functions";
+import { getFarmerProductionRecords } from "@/services/operations/production-server-functions";
 export const Route = createFileRoute("/farmer/")({ component: FarmerDashboard });
 function FarmerDashboard() {
   const [statuses, setStatuses] = useState<Awaited<ReturnType<typeof getFarmerProductStatuses>>>(

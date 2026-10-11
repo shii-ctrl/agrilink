@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { ConsultantLayout, ConsultantPageHeader } from "@/components/consultant-layout";
-import { ProductionRecordsTable } from "@/components/production-records-table";
-import { getConsultantProductionRecords } from "@/lib/production-server-functions";
+import { ConsultantLayout, ConsultantPageHeader } from "@/components/workspaces/consultant-layout";
+import { ProductionRecordsTable } from "@/features/operations/components/production-records-table";
+import { getConsultantProductionRecords } from "@/services/operations/production-server-functions";
 
 export const Route = createFileRoute("/consultant/production")({
   component: ConsultantProductionPage,

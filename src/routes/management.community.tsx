@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MessageCircle } from "lucide-react";
-import { CommunityFeed } from "@/components/community-feed";
-import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
+import { CommunityFeed } from "@/features/messaging/components/community-feed";
+import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 
 export const Route = createFileRoute("/management/community")({
   component: ManagementCommunityPage,

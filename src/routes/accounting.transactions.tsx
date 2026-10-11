@@ -3,11 +3,11 @@ import { ReceiptText } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { AccountingLayout, AccountingPageHeader } from "@/components/accounting-layout";
+import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
-import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/transactions")({
   component: AccountingTransactionsPage,

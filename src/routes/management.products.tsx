@@ -3,13 +3,13 @@ import { Boxes, Eye } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
-import { CatalogProductTable } from "@/components/catalog-product-table";
+import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
+import { CatalogProductTable } from "@/features/marketplace/components/catalog-product-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getManagementProductWorkspace } from "@/lib/marketplace-server-functions";
+import { getManagementProductWorkspace } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/management/products")({
   head: () => ({

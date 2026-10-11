@@ -6,8 +6,8 @@ import heroImg from "@/assets/hero-farm.jpg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AuthSwitchLink } from "@/components/auth-switch-link";
-import { loginUser } from "@/lib/auth-functions";
+import { AuthSwitchLink } from "@/features/auth/components/auth-switch-link";
+import { loginUser } from "@/services/auth/auth-functions";
 
 export const Route = createFileRoute("/login")({
   head: () => ({

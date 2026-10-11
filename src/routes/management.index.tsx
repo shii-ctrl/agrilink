@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Database, PackageOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
-import { getManagementReport } from "@/lib/marketplace-server-functions";
+import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
+import { getManagementReport } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/management/")({
   head: () => ({

@@ -3,10 +3,13 @@ import { Send, Sprout } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
+import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { getFarmerGuidance, sendFarmerGuidanceMessage } from "@/lib/guidance-server-functions";
+import {
+  getFarmerGuidance,
+  sendFarmerGuidanceMessage,
+} from "@/services/messaging/guidance-server-functions";
 
 export const Route = createFileRoute("/farmer/guidance")({ component: FarmerGuidancePage });
 

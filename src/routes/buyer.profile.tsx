@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BuyerLayout, BuyerPageHeader } from "@/components/buyer-layout";
-import { LiveProfile } from "@/components/live-profile";
+import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
+import { LiveProfile } from "@/features/auth/components/live-profile";
 export const Route = createFileRoute("/buyer/profile")({ component: BuyerProfilePage });
 function BuyerProfilePage() {
   return (

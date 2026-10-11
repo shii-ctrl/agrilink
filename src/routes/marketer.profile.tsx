@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
-import { LiveProfile } from "@/components/live-profile";
+import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
+import { LiveProfile } from "@/features/auth/components/live-profile";
 export const Route = createFileRoute("/marketer/profile")({ component: MarketerProfilePage });
 function MarketerProfilePage() {
   return (

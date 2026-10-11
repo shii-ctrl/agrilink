@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
-import { LiveProfile } from "@/components/live-profile";
+import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
+import { LiveProfile } from "@/features/auth/components/live-profile";
 export const Route = createFileRoute("/farmer/profile")({ component: FarmerProfilePage });
 function FarmerProfilePage() {
   return (

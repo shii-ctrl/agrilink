@@ -3,9 +3,9 @@ import { CircleDollarSign, ReceiptText, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { AccountingLayout, AccountingPageHeader } from "@/components/accounting-layout";
+import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
 import { Card, CardContent } from "@/components/ui/card";
-import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
+import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/")({ component: AccountingDashboard });
 

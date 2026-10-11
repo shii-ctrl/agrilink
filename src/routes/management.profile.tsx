@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
-import { LiveProfile } from "@/components/live-profile";
+import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
+import { LiveProfile } from "@/features/auth/components/live-profile";
 export const Route = createFileRoute("/management/profile")({ component: ManagementProfilePage });
 function ManagementProfilePage() {
   return (

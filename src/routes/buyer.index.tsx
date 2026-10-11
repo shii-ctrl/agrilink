@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PackageCheck, ShoppingBag, ShoppingCart } from "lucide-react";
-import { BuyerLayout, BuyerPageHeader } from "@/components/buyer-layout";
+import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
 import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/buyer/")({ component: BuyerDashboard });
 function BuyerDashboard() {

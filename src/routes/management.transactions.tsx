@@ -2,12 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { FileBarChart, GitBranch } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
+import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
-import type { DemoOrder } from "@/lib/demo-orders";
-import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import type { DemoOrder } from "@/lib/demo/demo-orders";
+import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/management/transactions")({
   head: () => ({

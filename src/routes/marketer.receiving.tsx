@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
-import { ReceivingRecordsTable } from "@/components/receiving-records-table";
+import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
+import { ReceivingRecordsTable } from "@/features/operations/components/receiving-records-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getReceivingWorkspace, recordReceivingDelivery } from "@/lib/receiving-server-functions";
+import {
+  getReceivingWorkspace,
+  recordReceivingDelivery,
+} from "@/services/operations/receiving-server-functions";
 
 export const Route = createFileRoute("/marketer/receiving")({ component: MarketerReceivingPage });
 type Workspace = Awaited<ReturnType<typeof getReceivingWorkspace>>;

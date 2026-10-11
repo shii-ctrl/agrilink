@@ -6,9 +6,9 @@ import heroImg from "@/assets/hero-farm.jpg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AuthSwitchLink } from "@/components/auth-switch-link";
-import { registerBuyer } from "@/lib/auth-functions";
-import { minimumPasswordLength, passwordHelpText } from "@/lib/password-requirements";
+import { AuthSwitchLink } from "@/features/auth/components/auth-switch-link";
+import { registerBuyer } from "@/services/auth/auth-functions";
+import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
 
 export const Route = createFileRoute("/register")({
   head: () => ({

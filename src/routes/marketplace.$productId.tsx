@@ -2,21 +2,21 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowLeft, LockKeyhole, Minus, PackageCheck, Plus, ShoppingCart, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
-import { ClassificationBadge } from "@/components/classification-badge";
+import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { ClassificationBadge } from "@/features/marketplace/components/classification-badge";
 import { Button } from "@/components/ui/button";
-import { peso } from "@/lib/products";
-import { ProductCard } from "@/components/product-card";
-import { marketplaceImageFor } from "@/lib/marketplace-images";
-import { getCurrentSessionUser } from "@/lib/auth-functions";
-import { notifyBuyerCartChanged } from "@/lib/cart-events";
+import { peso } from "@/features/marketplace/products";
+import { ProductCard } from "@/features/marketplace/components/product-card";
+import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
+import { getCurrentSessionUser } from "@/services/auth/auth-functions";
+import { notifyBuyerCartChanged } from "@/features/marketplace/cart-events";
 import {
   addBuyerCartItem,
   getBuyerCart,
   getMarketplaceListing,
   getMarketplaceListings,
-} from "@/lib/marketplace-server-functions";
+} from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketplace/$productId")({
   loader: async ({ params }) => {

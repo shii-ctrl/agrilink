@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getCurrentSessionUser } from "@/lib/auth-functions";
+import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 
 /**
  * Gets the signed-in account from the server session for a role workspace.

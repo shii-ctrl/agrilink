@@ -13,13 +13,13 @@ import {
 import { useEffect, useState } from "react";
 import heroImg from "@/assets/hero-farm.jpg";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
-import { ProductCard } from "@/components/product-card";
-import type { Product } from "@/lib/products";
-import { getCurrentSessionUser } from "@/lib/auth-functions";
-import { marketplaceImageFor } from "@/lib/marketplace-images";
-import { getMarketplaceListings } from "@/lib/marketplace-server-functions";
+import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { ProductCard } from "@/features/marketplace/components/product-card";
+import type { Product } from "@/features/marketplace/products";
+import { getCurrentSessionUser } from "@/services/auth/auth-functions";
+import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
+import { getMarketplaceListings } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({

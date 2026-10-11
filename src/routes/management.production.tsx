@@ -2,15 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays, ClipboardList } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
-import { ProductionRecordsTable } from "@/components/production-records-table";
+import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
+import { ProductionRecordsTable } from "@/features/operations/components/production-records-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   createManagementProductionRecord,
   getManagementProductionWorkspace,
-} from "@/lib/production-server-functions";
+} from "@/services/operations/production-server-functions";
 
 export const Route = createFileRoute("/management/production")({
   component: ManagementProductionPage,

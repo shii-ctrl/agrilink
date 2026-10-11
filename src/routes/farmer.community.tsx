@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { CommunityFeed } from "@/components/community-feed";
-import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
+import { CommunityFeed } from "@/features/messaging/components/community-feed";
+import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
 
 export const Route = createFileRoute("/farmer/community")({ component: FarmerCommunityPage });
 

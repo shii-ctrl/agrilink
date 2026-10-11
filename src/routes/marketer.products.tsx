@@ -3,12 +3,12 @@ import { Eye, PackagePlus, ShoppingBag } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
-import { CatalogProductTable } from "@/components/catalog-product-table";
+import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
+import { CatalogProductTable } from "@/features/marketplace/components/catalog-product-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createCatalogProduct,
@@ -17,8 +17,8 @@ import {
   getPublishableInventory,
   getMarketerMarketplaceListings,
   updateMarketplaceListingPricing,
-} from "@/lib/marketplace-server-functions";
-import { prepareProductImage } from "@/lib/product-image-upload";
+} from "@/services/marketplace/marketplace-server-functions";
+import { prepareProductImage } from "@/features/marketplace/product-image-upload";
 
 export const Route = createFileRoute("/marketer/products")({
   head: () => ({

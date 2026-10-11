@@ -2,11 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { History, Power, Search, UserPlus, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
+import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createManagementUser,
@@ -16,8 +16,8 @@ import {
   resetManagedUserPassword,
   setManagedUserActive,
   setGuidanceAssignment,
-} from "@/lib/admin-server-functions";
-import { minimumPasswordLength, passwordHelpText } from "@/lib/password-requirements";
+} from "@/services/auth/admin-server-functions";
+import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
 
 export const Route = createFileRoute("/management/users")({
   head: () => ({

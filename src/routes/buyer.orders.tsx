@@ -2,18 +2,18 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PackageCheck, Printer, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BuyerLayout, BuyerPageHeader } from "@/components/buyer-layout";
-import { OrderDetails } from "@/components/order-details";
+import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
+import { OrderDetails } from "@/features/marketplace/components/order-details";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
-import type { DemoOrder } from "@/lib/demo-orders";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import type { DemoOrder } from "@/lib/demo/demo-orders";
 import {
   getBuyerOrders,
   getOrderDetails,
   releaseDatabaseOrder,
   rebuildBuyerCartFromOrder,
-} from "@/lib/marketplace-server-functions";
+} from "@/services/marketplace/marketplace-server-functions";
 export const Route = createFileRoute("/buyer/orders")({ component: BuyerOrdersPage });
 function BuyerOrdersPage() {
   const navigate = useNavigate();

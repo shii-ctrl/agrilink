@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AccountingLayout, AccountingPageHeader } from "@/components/accounting-layout";
-import { LiveProfile } from "@/components/live-profile";
+import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
+import { LiveProfile } from "@/features/auth/components/live-profile";
 export const Route = createFileRoute("/accounting/profile")({ component: AccountingProfilePage });
 function AccountingProfilePage() {
   return (

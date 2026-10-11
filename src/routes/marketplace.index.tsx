@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ChevronDown, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
-import { ProductCard } from "@/components/product-card";
+import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { ProductCard } from "@/features/marketplace/components/product-card";
 import { Input } from "@/components/ui/input";
-import type { Classification } from "@/lib/products";
-import { marketplaceImageFor } from "@/lib/marketplace-images";
-import { getMarketplaceListings } from "@/lib/marketplace-server-functions";
+import type { Classification } from "@/features/marketplace/products";
+import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
+import { getMarketplaceListings } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketplace/")({
   loader: () => getMarketplaceListings(),

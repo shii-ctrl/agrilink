@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
-import { ReceivingRecordsTable } from "@/components/receiving-records-table";
+import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
+import { ReceivingRecordsTable } from "@/features/operations/components/receiving-records-table";
 import { Input } from "@/components/ui/input";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import {
   getFarmerProductStatuses,
   getFarmerReceivingRecords,
-} from "@/lib/receiving-server-functions";
+} from "@/services/operations/receiving-server-functions";
 export const Route = createFileRoute("/farmer/receiving")({ component: FarmerReceivingPage });
 function FarmerReceivingPage() {
   const [records, setRecords] = useState<Awaited<ReturnType<typeof getFarmerReceivingRecords>>>([]);

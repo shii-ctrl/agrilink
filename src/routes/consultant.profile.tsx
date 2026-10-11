@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ConsultantLayout, ConsultantPageHeader } from "@/components/consultant-layout";
-import { LiveProfile } from "@/components/live-profile";
+import { ConsultantLayout, ConsultantPageHeader } from "@/components/workspaces/consultant-layout";
+import { LiveProfile } from "@/features/auth/components/live-profile";
 export const Route = createFileRoute("/consultant/profile")({ component: ConsultantProfilePage });
 function ConsultantProfilePage() {
   return (

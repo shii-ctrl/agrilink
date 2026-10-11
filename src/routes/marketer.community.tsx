@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { CommunityFeed } from "@/components/community-feed";
-import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
+import { CommunityFeed } from "@/features/messaging/components/community-feed";
+import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 
 export const Route = createFileRoute("/marketer/community")({
   head: () => ({ meta: [{ title: "Community — Marketer | AgriLink" }] }),

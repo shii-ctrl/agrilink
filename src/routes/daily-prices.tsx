@@ -12,13 +12,13 @@ import {
   YAxis,
 } from "recharts";
 
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
-import type { Classification } from "@/lib/products";
-import { getPublicDailyPrices } from "@/lib/marketplace-server-functions";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import type { Classification } from "@/features/marketplace/products";
+import { getPublicDailyPrices } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/daily-prices")({
   head: () => ({

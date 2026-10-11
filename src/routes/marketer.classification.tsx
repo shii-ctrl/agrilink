@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, PackageCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
-import { ReceivingRecordsTable } from "@/components/receiving-records-table";
-import { getReceivingWorkspace } from "@/lib/receiving-server-functions";
+import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
+import { ReceivingRecordsTable } from "@/features/operations/components/receiving-records-table";
+import { getReceivingWorkspace } from "@/services/operations/receiving-server-functions";
 
 export const Route = createFileRoute("/marketer/classification")({
   head: () => ({

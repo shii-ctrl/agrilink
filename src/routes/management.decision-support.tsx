@@ -3,11 +3,11 @@ import { BarChart3, CircleAlert, LineChart, PackageSearch, TrendingUp } from "lu
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
+import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { Input } from "@/components/ui/input";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
-import { peso } from "@/lib/products";
-import { getManagementDecisionSupport } from "@/lib/marketplace-server-functions";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { peso } from "@/features/marketplace/products";
+import { getManagementDecisionSupport } from "@/services/marketplace/marketplace-server-functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/management/decision-support")({

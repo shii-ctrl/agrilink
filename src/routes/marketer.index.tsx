@@ -3,11 +3,11 @@ import { ClipboardCheck, PackageCheck, ReceiptText, ShoppingBag } from "lucide-r
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
+import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getMarketerDashboard } from "@/lib/marketplace-server-functions";
+import { getMarketerDashboard } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/")({
   component: MarketerDashboard,

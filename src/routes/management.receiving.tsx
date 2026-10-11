@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ManagementLayout, ManagementPageHeader } from "@/components/management-layout";
-import { ReceivingRecordsTable } from "@/components/receiving-records-table";
-import { getManagementReceivingRecords } from "@/lib/receiving-server-functions";
+import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
+import { ReceivingRecordsTable } from "@/features/operations/components/receiving-records-table";
+import { getManagementReceivingRecords } from "@/services/operations/receiving-server-functions";
 export const Route = createFileRoute("/management/receiving")({
   component: ManagementReceivingPage,
 });

@@ -3,18 +3,18 @@ import { Eye, EyeOff, Tag } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { MarketerLayout, MarketerPageHeader } from "@/components/marketer-layout";
+import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PaginationControls, usePagination } from "@/components/pagination-controls";
-import type { Classification } from "@/lib/products";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import type { Classification } from "@/features/marketplace/products";
 import {
   getMarketplaceListings,
   getMarketerDailyPrices,
   publishDailyPrice,
   setDailyPricePublished,
-} from "@/lib/marketplace-server-functions";
+} from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/daily-prices")({
   component: MarketerDailyPricesPage,

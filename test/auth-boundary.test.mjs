@@ -3,14 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("buyer registration response is an explicit safe DTO", async () => {
-  const source = await readFile("src/lib/auth-functions.ts", "utf8");
+  const source = await readFile("src/services/auth/auth-functions.ts", "utf8");
   const registration = source.slice(source.indexOf("export const registerBuyer"));
   assert.match(registration, /return \{\s*id: user\.id,/);
   assert.doesNotMatch(registration, /return \{ \.\.\.user/);
 });
 
 test("initial Management setup is guarded by a server-side one-time secret", async () => {
-  const source = await readFile("src/lib/admin-server-functions.ts", "utf8");
+  const source = await readFile("src/services/auth/admin-server-functions.ts", "utf8");
   const setup = source.slice(source.indexOf("export const createInitialManagementAccount"));
   assert.match(setup, /INITIAL_MANAGEMENT_SETUP_SECRET/);
   assert.match(setup, /timingSafeEqual/);
@@ -20,7 +20,7 @@ test("initial Management setup is guarded by a server-side one-time secret", asy
 });
 
 test("password changes require authentication and hash the new password", async () => {
-  const source = await readFile("src/lib/auth-functions.ts", "utf8");
+  const source = await readFile("src/services/auth/auth-functions.ts", "utf8");
   const changePassword = source.slice(source.indexOf("export const changeCurrentPassword"));
   assert.match(changePassword, /requireUser/);
   assert.match(changePassword, /bcrypt\.compare\(data\.currentPassword/);
@@ -32,7 +32,7 @@ test("password changes require authentication and hash the new password", async 
 });
 
 test("Management password resets are authenticated and audited", async () => {
-  const source = await readFile("src/lib/admin-server-functions.ts", "utf8");
+  const source = await readFile("src/services/auth/admin-server-functions.ts", "utf8");
   const resetPassword = source.slice(source.indexOf("export const resetManagedUserPassword"));
   assert.match(resetPassword, /requireRole\("Management"\)/);
   assert.match(resetPassword, /bcrypt\.hash\(data\.password, 12\)/);
@@ -43,8 +43,8 @@ test("Management password resets are authenticated and audited", async () => {
 
 test("new and reset account passwords require the stronger shared password policy", async () => {
   const [authSource, adminSource, registrationPage, setupPage] = await Promise.all([
-    readFile("src/lib/auth-functions.ts", "utf8"),
-    readFile("src/lib/admin-server-functions.ts", "utf8"),
+    readFile("src/services/auth/auth-functions.ts", "utf8"),
+    readFile("src/services/auth/admin-server-functions.ts", "utf8"),
     readFile("src/routes/register.tsx", "utf8"),
     readFile("src/routes/setup-management.tsx", "utf8"),
   ]);
@@ -65,7 +65,7 @@ test("new and reset account passwords require the stronger shared password polic
 
 test("email password reset uses a hashed, expiring one-time code", async () => {
   const [source, resetPage] = await Promise.all([
-    readFile("src/lib/auth-functions.ts", "utf8"),
+    readFile("src/services/auth/auth-functions.ts", "utf8"),
     readFile("src/routes/forgot-password.tsx", "utf8"),
   ]);
   const requestReset = source.slice(
@@ -91,9 +91,9 @@ test("email password reset uses a hashed, expiring one-time code", async () => {
 
 test("authentication abuse controls persist beyond a single server process", async () => {
   const [authServer, authFunctions, admin, schema, migration] = await Promise.all([
-    readFile("src/lib/auth-server.ts", "utf8"),
-    readFile("src/lib/auth-functions.ts", "utf8"),
-    readFile("src/lib/admin-server-functions.ts", "utf8"),
+    readFile("src/services/auth/auth-server.ts", "utf8"),
+    readFile("src/services/auth/auth-functions.ts", "utf8"),
+    readFile("src/services/auth/admin-server-functions.ts", "utf8"),
     readFile("src/db/schema.ts", "utf8"),
     readFile("drizzle/0008_security_rate_limits.sql", "utf8"),
   ]);
@@ -127,8 +127,8 @@ test("production responses set browser security headers", async () => {
 
 test("profile photos use optional HTTPS links and Management controls are audited", async () => {
   const [authFunctions, adminFunctions, schema, migration] = await Promise.all([
-    readFile("src/lib/auth-functions.ts", "utf8"),
-    readFile("src/lib/admin-server-functions.ts", "utf8"),
+    readFile("src/services/auth/auth-functions.ts", "utf8"),
+    readFile("src/services/auth/admin-server-functions.ts", "utf8"),
     readFile("src/db/schema.ts", "utf8"),
     readFile("drizzle/0009_user_profile_photos.sql", "utf8"),
   ]);
@@ -154,7 +154,7 @@ test("marketplace cart controls prevent duplicate additions beyond available sto
 
 test("catalog photos use a safe file picker and bundle prices are enforced at checkout", async () => {
   const [marketplace, productPage, marketerPage, schema, migration] = await Promise.all([
-    readFile("src/lib/marketplace-server-functions.ts", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/routes/marketplace.$productId.tsx", "utf8"),
     readFile("src/routes/marketer.products.tsx", "utf8"),
     readFile("src/db/schema.ts", "utf8"),
@@ -177,9 +177,9 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
 
 test("role workflows keep catalog, cart, and Farmer stock states consistent", async () => {
   const [marketplace, receiving, notifications] = await Promise.all([
-    readFile("src/lib/marketplace-server-functions.ts", "utf8"),
-    readFile("src/lib/receiving-server-functions.ts", "utf8"),
-    readFile("src/lib/notification-server.ts", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+    readFile("src/services/operations/receiving-server-functions.ts", "utf8"),
+    readFile("src/services/messaging/notification-server.ts", "utf8"),
   ]);
 
   assert.match(marketplace, /cropType: z\.enum\(cropTypes\)/);
@@ -192,10 +192,10 @@ test("role workflows keep catalog, cart, and Farmer stock states consistent", as
 
 test("reordered carts, community access, and crop guidance protect role boundaries", async () => {
   const [marketplace, community, guidance, admin, migration] = await Promise.all([
-    readFile("src/lib/marketplace-server-functions.ts", "utf8"),
-    readFile("src/lib/community-server-functions.ts", "utf8"),
-    readFile("src/lib/guidance-server-functions.ts", "utf8"),
-    readFile("src/lib/admin-server-functions.ts", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+    readFile("src/services/messaging/community-server-functions.ts", "utf8"),
+    readFile("src/services/messaging/guidance-server-functions.ts", "utf8"),
+    readFile("src/services/auth/admin-server-functions.ts", "utf8"),
     readFile("drizzle/0007_catalog_and_guidance_integrity.sql", "utf8"),
   ]);
 
@@ -214,7 +214,10 @@ test("reordered carts, community access, and crop guidance protect role boundari
 });
 
 test("public marketplace data keeps farmer identities private while Marketer can trace ownership", async () => {
-  const marketplace = await readFile("src/lib/marketplace-server-functions.ts", "utf8");
+  const marketplace = await readFile(
+    "src/services/marketplace/marketplace-server-functions.ts",
+    "utf8",
+  );
   const publicListings = marketplace.slice(
     marketplace.indexOf("async function fetchListings"),
     marketplace.indexOf("async function fetchMarketerListings"),
@@ -231,7 +234,10 @@ test("public marketplace data keeps farmer identities private while Marketer can
 });
 
 test("consultants only receive production records for Farmers assigned to them", async () => {
-  const production = await readFile("src/lib/production-server-functions.ts", "utf8");
+  const production = await readFile(
+    "src/services/operations/production-server-functions.ts",
+    "utf8",
+  );
 
   assert.match(production, /farmerConsultantAssignments/);
   assert.match(
@@ -243,9 +249,9 @@ test("consultants only receive production records for Farmers assigned to them",
 
 test("workspace identity is loaded from the authenticated server session", async () => {
   const [header, hook, roleGate] = await Promise.all([
-    readFile("src/components/site-header.tsx", "utf8"),
+    readFile("src/components/layout/site-header.tsx", "utf8"),
     readFile("src/hooks/use-workspace-user.ts", "utf8"),
-    readFile("src/components/role-gate.tsx", "utf8"),
+    readFile("src/components/layout/role-gate.tsx", "utf8"),
   ]);
 
   assert.match(header, /getCurrentSessionUser/);
@@ -257,11 +263,11 @@ test("workspace identity is loaded from the authenticated server session", async
 
 test("Management monitoring uses saved data instead of browser demo records", async () => {
   const [marketplace, decisionSupport, products, reports, layout] = await Promise.all([
-    readFile("src/lib/marketplace-server-functions.ts", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/routes/management.decision-support.tsx", "utf8"),
     readFile("src/routes/management.products.tsx", "utf8"),
     readFile("src/routes/management.reports.tsx", "utf8"),
-    readFile("src/components/management-layout.tsx", "utf8"),
+    readFile("src/components/workspaces/management-layout.tsx", "utf8"),
   ]);
 
   assert.match(marketplace, /export const getManagementDecisionSupport/);

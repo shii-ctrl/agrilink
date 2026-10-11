@@ -3,14 +3,14 @@ import { Send, Sprout } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { ConsultantLayout, ConsultantPageHeader } from "@/components/consultant-layout";
+import { ConsultantLayout, ConsultantPageHeader } from "@/components/workspaces/consultant-layout";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getConsultantGuidanceWorkspace,
   sendConsultantGuidanceMessage,
-} from "@/lib/guidance-server-functions";
+} from "@/services/messaging/guidance-server-functions";
 
 export const Route = createFileRoute("/consultant/guidance")({ component: ConsultantGuidancePage });
 

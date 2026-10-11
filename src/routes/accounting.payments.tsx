@@ -3,11 +3,14 @@ import { CircleDollarSign, Clock3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { AccountingLayout, AccountingPageHeader } from "@/components/accounting-layout";
+import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { type DemoOrder } from "@/lib/demo-orders";
-import { getDatabaseOrders, recordDatabasePayment } from "@/lib/marketplace-server-functions";
+import { type DemoOrder } from "@/lib/demo/demo-orders";
+import {
+  getDatabaseOrders,
+  recordDatabasePayment,
+} from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/payments")({ component: AccountingPaymentsPage });
 

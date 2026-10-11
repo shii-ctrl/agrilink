@@ -3,12 +3,12 @@ import { KeyRound, Leaf } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import heroImg from "@/assets/hero-farm.jpg";
-import { AuthSwitchLink } from "@/components/auth-switch-link";
+import { AuthSwitchLink } from "@/features/auth/components/auth-switch-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { completePasswordReset, requestPasswordResetCode } from "@/lib/auth-functions";
-import { minimumPasswordLength, passwordHelpText } from "@/lib/password-requirements";
+import { completePasswordReset, requestPasswordResetCode } from "@/services/auth/auth-functions";
+import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({ meta: [{ title: "Reset Password — AgriLink" }] }),

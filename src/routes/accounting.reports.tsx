@@ -3,8 +3,8 @@ import { BarChart3, FileText, ReceiptText } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { AccountingLayout, AccountingPageHeader } from "@/components/accounting-layout";
-import { getDatabaseOrders } from "@/lib/marketplace-server-functions";
+import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
+import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/reports")({ component: AccountingReportsPage });
 

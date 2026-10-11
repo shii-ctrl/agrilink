@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { FarmerLayout, FarmerPageHeader } from "@/components/farmer-layout";
-import { ProductionRecordsTable } from "@/components/production-records-table";
-import { getFarmerProductionRecords } from "@/lib/production-server-functions";
+import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
+import { ProductionRecordsTable } from "@/features/operations/components/production-records-table";
+import { getFarmerProductionRecords } from "@/services/operations/production-server-functions";
 
 export const Route = createFileRoute("/farmer/production")({ component: FarmerProductionPage });
 

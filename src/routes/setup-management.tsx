@@ -5,8 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createInitialManagementAccount } from "@/lib/admin-server-functions";
-import { minimumPasswordLength, passwordHelpText } from "@/lib/password-requirements";
+import { createInitialManagementAccount } from "@/services/auth/admin-server-functions";
+import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
 
 export const Route = createFileRoute("/setup-management")({
   head: () => ({

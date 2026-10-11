@@ -2,17 +2,17 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BuyerLayout, BuyerPageHeader } from "@/components/buyer-layout";
+import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { peso } from "@/lib/products";
-import { marketplaceImageFor } from "@/lib/marketplace-images";
+import { peso } from "@/features/marketplace/products";
+import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import {
   getBuyerCart,
   placeBuyerOrder,
   setBuyerCartItem,
-} from "@/lib/marketplace-server-functions";
+} from "@/services/marketplace/marketplace-server-functions";
 export const Route = createFileRoute("/buyer/cart")({ component: BuyerCartPage });
 
 type CartItem = Awaited<ReturnType<typeof getBuyerCart>>[number] & { image: string };

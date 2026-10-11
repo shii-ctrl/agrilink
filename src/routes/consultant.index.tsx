@@ -2,9 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ClipboardList, MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ConsultantLayout, ConsultantPageHeader } from "@/components/consultant-layout";
+import { ConsultantLayout, ConsultantPageHeader } from "@/components/workspaces/consultant-layout";
 import { Button } from "@/components/ui/button";
-import { getConsultantProductionRecords } from "@/lib/production-server-functions";
+import { getConsultantProductionRecords } from "@/services/operations/production-server-functions";
 export const Route = createFileRoute("/consultant/")({ component: ConsultantDashboard });
 function ConsultantDashboard() {
   const [production, setProduction] = useState<
