@@ -1,5 +1,6 @@
 import { Bell, CheckCheck, ExternalLink } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,31 +12,76 @@ import {
 
 export function NotificationCenter({ role }: { role: string }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [open, setOpen] = useState(false);
+  const knownNotificationIds = useRef<Set<string> | null>(null);
+  const refreshing = useRef(false);
   const unread = useMemo(
     () => notifications.filter((notification) => !notification.read).length,
     [notifications],
   );
 
   useEffect(() => {
-    const refresh = () =>
-      void getCurrentNotifications()
-        .then(setNotifications)
-        .catch(() => setNotifications([]));
-    refresh();
-    const polling = window.setInterval(refresh, 10_000);
-    return () => window.clearInterval(polling);
+    const refresh = async () => {
+      if (refreshing.current) return;
+      refreshing.current = true;
+      try {
+        const next = await getCurrentNotifications();
+        const previous = knownNotificationIds.current;
+        if (previous) {
+          next
+            .filter((notification) => !notification.read && !previous.has(notification.id))
+            .forEach((notification) => {
+              toast(notification.title, { description: notification.message, duration: 6_000 });
+            });
+        }
+        knownNotificationIds.current = new Set(next.map((notification) => notification.id));
+        setNotifications(next);
+      } catch {
+        // Keep the last successful result visible during a short connection interruption.
+      } finally {
+        refreshing.current = false;
+      }
+    };
+    void refresh();
+    const polling = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 4_000);
+    const refreshOnFocus = () => void refresh();
+    const refreshOnVisibility = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibility);
+    return () => {
+      window.clearInterval(polling);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnVisibility);
+    };
   }, [role]);
 
   async function openNotification(notification: Notification) {
-    await markNotificationRead({ data: { id: notification.id } });
-    setNotifications((current) =>
-      current.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
-    );
-    if (notification.target) window.location.assign(notification.target);
+    try {
+      await markNotificationRead({ data: { id: notification.id } });
+      setNotifications((current) =>
+        current.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
+      );
+      if (notification.target) window.location.assign(notification.target);
+    } catch {
+      toast.error("Could not open this notification. Please try again.");
+    }
   }
 
   return (
-    <Popover>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen)
+          void getCurrentNotifications()
+            .then(setNotifications)
+            .catch(() => undefined);
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -67,8 +113,12 @@ export function NotificationCenter({ role }: { role: string }) {
               size="sm"
               className="h-8 text-xs"
               onClick={async () => {
-                await markAllNotificationsRead();
-                setNotifications((current) => current.map((item) => ({ ...item, read: true })));
+                try {
+                  await markAllNotificationsRead();
+                  setNotifications((current) => current.map((item) => ({ ...item, read: true })));
+                } catch {
+                  toast.error("Could not mark notifications as read. Please try again.");
+                }
               }}
             >
               <CheckCheck className="size-3.5" /> Mark all read

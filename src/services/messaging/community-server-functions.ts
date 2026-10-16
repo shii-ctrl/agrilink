@@ -17,10 +17,11 @@ async function assertCommunityMessageExists(messageId: string) {
   const { db } = await import("@/db/client.server");
   const { communityMessages } = await import("@/db/schema");
   const [message] = await db
-    .select({ id: communityMessages.id })
+    .select({ id: communityMessages.id, authorId: communityMessages.authorId })
     .from(communityMessages)
     .where(eq(communityMessages.id, messageId));
   if (!message) throw new Error("This community post is no longer available.");
+  return message;
 }
 
 export const getCommunityMessages = createServerFn({ method: "GET" }).handler(async () => {
@@ -134,6 +135,14 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
     const { communityMessages } = await import("@/db/schema");
     const id = crypto.randomUUID();
     await db.insert(communityMessages).values({ id, authorId: author.id, message: data.message });
+    const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");
+    await notifyCommunityUsers(
+      {
+        title: "New Community post",
+        message: `${author.displayName} shared an update in Community.`,
+      },
+      { excludeUserId: author.id },
+    );
     await writeAuditLog(author.id, "community.post", "community_message", id);
     return { id };
   });
@@ -143,9 +152,18 @@ export const setCommunityReaction = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const user = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
-    await assertCommunityMessageExists(data.messageId);
+    const post = await assertCommunityMessageExists(data.messageId);
     const { db } = await import("@/db/client.server");
     const { communityReactions } = await import("@/db/schema");
+    const [previousReaction] = await db
+      .select({ reaction: communityReactions.reaction })
+      .from(communityReactions)
+      .where(
+        and(
+          eq(communityReactions.messageId, data.messageId),
+          eq(communityReactions.userId, user.id),
+        ),
+      );
     await db
       .insert(communityReactions)
       .values({
@@ -155,6 +173,16 @@ export const setCommunityReaction = createServerFn({ method: "POST" })
         reaction: data.reaction,
       })
       .onDuplicateKeyUpdate({ set: { reaction: data.reaction, updatedAt: new Date() } });
+    if (post.authorId !== user.id && previousReaction?.reaction !== data.reaction) {
+      const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");
+      await notifyCommunityUsers(
+        {
+          title: `New ${data.reaction}`,
+          message: `${user.displayName} ${data.reaction}d your Community post.`,
+        },
+        { userIds: [post.authorId] },
+      );
+    }
     await writeAuditLog(
       user.id,
       `community.reaction.${data.reaction}`,
@@ -188,7 +216,7 @@ export const postCommunityComment = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const author = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
-    await assertCommunityMessageExists(data.messageId);
+    const post = await assertCommunityMessageExists(data.messageId);
     const { db } = await import("@/db/client.server");
     const { communityComments } = await import("@/db/schema");
     const id = crypto.randomUUID();
@@ -198,6 +226,16 @@ export const postCommunityComment = createServerFn({ method: "POST" })
       authorId: author.id,
       message: data.message,
     });
+    if (post.authorId !== author.id) {
+      const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");
+      await notifyCommunityUsers(
+        {
+          title: "New comment on your post",
+          message: `${author.displayName} commented on your Community post.`,
+        },
+        { userIds: [post.authorId] },
+      );
+    }
     await writeAuditLog(author.id, "community.comment", "community_message", data.messageId, {
       commentId: id,
     });

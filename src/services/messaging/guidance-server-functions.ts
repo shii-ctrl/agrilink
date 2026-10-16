@@ -83,6 +83,12 @@ export const sendFarmerGuidanceMessage = createServerFn({ method: "POST" })
       authorId: farmer.id,
       message: data.message,
     });
+    const { notifyUser } = await import("@/services/messaging/notification-server");
+    await notifyUser(consultant.id, {
+      title: "New farmer guidance message",
+      message: `${farmer.displayName} sent you a guidance message.`,
+      target: "/consultant/guidance",
+    });
     await writeAuditLog(farmer.id, "guidance.farmer_message", "guidance_message", id);
     return { id };
   });
@@ -123,6 +129,12 @@ export const sendConsultantGuidanceMessage = createServerFn({ method: "POST" })
       consultantId: consultant.id,
       authorId: consultant.id,
       message: data.message,
+    });
+    const { notifyUser } = await import("@/services/messaging/notification-server");
+    await notifyUser(data.farmerId, {
+      title: "New crop guidance",
+      message: `${consultant.displayName} sent you a guidance message.`,
+      target: "/farmer/guidance",
     });
     await writeAuditLog(consultant.id, "guidance.consultant_message", "guidance_message", id, {
       farmerId: data.farmerId,

@@ -230,6 +230,27 @@ test("community reactions and comments are saved with role checks", async () => 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS community_comments/);
 });
 
+test("new messages and Community activity create timely recipient notifications", async () => {
+  const [community, guidance, notifications, notificationCenter] = await Promise.all([
+    readFile("src/services/messaging/community-server-functions.ts", "utf8"),
+    readFile("src/services/messaging/guidance-server-functions.ts", "utf8"),
+    readFile("src/services/messaging/notification-server.ts", "utf8"),
+    readFile("src/features/messaging/components/notification-center.tsx", "utf8"),
+  ]);
+
+  assert.match(community, /notifyCommunityUsers/);
+  assert.match(community, /New Community post/);
+  assert.match(community, /New comment on your post/);
+  assert.match(guidance, /New farmer guidance message/);
+  assert.match(guidance, /New crop guidance/);
+  assert.match(notifications, /export async function notifyCommunityUsers/);
+  assert.match(notifications, /communityTargetByRole/);
+  assert.match(notifications, /excludeUserId/);
+  assert.match(notificationCenter, /window\.setInterval/);
+  assert.match(notificationCenter, /4_000/);
+  assert.match(notificationCenter, /toast\(notification\.title/);
+});
+
 test("public marketplace data keeps farmer identities private while Marketer can trace ownership", async () => {
   const marketplace = await readFile(
     "src/services/marketplace/marketplace-server-functions.ts",
