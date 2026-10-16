@@ -64,6 +64,26 @@ npm run preview
 
 The Node server entry is `.output/server/index.mjs`. Put it behind HTTPS through a reverse proxy such as Nginx, Caddy, Render, Railway, Fly.io, or a VPS. Configure the host to route all application requests to that Node process.
 
+## Vercel deployment
+
+AgriLink can also deploy to Vercel. The Vite configuration automatically builds
+Vercel Functions when Vercel performs the build, while Render continues to use
+the standard Node server output.
+
+1. In Vercel, choose **Add New → Project** and import `shii-ctrl/agrilink`.
+2. Leave the detected **TanStack Start** framework and default build settings in place.
+3. Under **Environment Variables**, add the production values for `DATABASE_URL`,
+   `DATABASE_SSL` (when required by the database provider), `SESSION_SECRET`,
+   `RESEND_API_KEY`, and `EMAIL_FROM`.
+4. Do not add `NITRO_HOST` or `NITRO_PORT`; Vercel manages the server runtime.
+5. Deploy, then confirm the home page, sign-in, Community, image upload, and a
+   password-reset email work on the generated `*.vercel.app` URL.
+
+Vercel functions need a database that accepts connections from Vercel. Confirm
+that the Layerbase database is reachable remotely and uses TLS when required.
+Keep every secret server-side: never use a `VITE_` prefix for database URLs,
+session secrets, or Resend keys.
+
 ## Database migration procedure
 
 1. Back up the production database.
