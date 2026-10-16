@@ -222,14 +222,31 @@ test("community reactions and comments are saved with role checks", async () => 
   assert.match(community, /export const setCommunityReaction/);
   assert.match(community, /export const removeCommunityReaction/);
   assert.match(community, /export const postCommunityComment/);
+  assert.match(community, /export const updateCommunityMessage/);
+  assert.match(community, /export const deleteCommunityMessage/);
+  assert.match(community, /You can only edit your own Community posts/);
+  assert.match(community, /You can only delete your own Community posts/);
+  assert.match(community, /tx\.delete\(communityComments\)/);
+  assert.match(community, /tx\.delete\(communityReactions\)/);
   assert.match(community, /export const getMyCommunityMessages/);
-  assert.match(community, /communityMessagesForViewer\(viewer, viewer\.id\)/);
+  assert.match(community, /authorId: viewer\.id/);
   assert.match(community, /await assertCommunityMessageExists\(data\.messageId\)/);
   assert.match(community, /onDuplicateKeyUpdate/);
   assert.match(community, /community\.comment/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS community_reactions/);
   assert.match(migration, /UNIQUE KEY community_reactions_message_user_unique/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS community_comments/);
+});
+
+test("Community search and owner-only post controls are available in the feed", async () => {
+  const feed = await readFile("src/features/messaging/components/community-feed.tsx", "utf8");
+  assert.match(feed, /Search Community by post or author/);
+  assert.match(feed, /getCommunityMessages\(\{ data: \{ query: searchQuery \} \}\)/);
+  assert.match(feed, /message\.isOwner/);
+  assert.match(feed, /Edit post/);
+  assert.match(feed, /Delete post/);
+  assert.match(feed, /deleteCommunityMessage/);
+  assert.match(feed, /updateCommunityMessage/);
 });
 
 test("Community users can view only their own saved posts from their profile", async () => {

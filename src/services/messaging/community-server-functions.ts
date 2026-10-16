@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -12,6 +12,9 @@ const reactionInput = z.object({
   reaction: z.enum(["like", "dislike"]),
 });
 const reactionRemovalInput = z.object({ messageId: z.string().uuid() });
+const communityFeedInput = z.object({ query: z.string().trim().max(120).default("") });
+const postUpdateInput = messageInput.extend({ messageId: z.string().uuid() });
+const postRemovalInput = z.object({ messageId: z.string().uuid() });
 
 async function assertCommunityMessageExists(messageId: string) {
   const { db } = await import("@/db/client.server");
@@ -24,10 +27,29 @@ async function assertCommunityMessageExists(messageId: string) {
   return message;
 }
 
-async function communityMessagesForViewer(viewer: { id: string }, authorId?: string) {
+function searchPattern(query: string) {
+  return query
+    ? `%${query.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`
+    : null;
+}
+
+async function communityMessagesForViewer(
+  viewer: { id: string },
+  options: { authorId?: string; query?: string } = {},
+) {
   const { db } = await import("@/db/client.server");
   const { communityComments, communityMessages, communityReactions, roles, userRoles, users } =
     await import("@/db/schema");
+  const pattern = searchPattern(options.query ?? "");
+  const queryFilter = pattern
+    ? or(like(communityMessages.message, pattern), like(users.displayName, pattern))
+    : undefined;
+  const where =
+    options.authorId && queryFilter
+      ? and(eq(communityMessages.authorId, options.authorId), queryFilter)
+      : options.authorId
+        ? eq(communityMessages.authorId, options.authorId)
+        : queryFilter;
   const messageRows = await db
     .select({
       id: communityMessages.id,
@@ -38,7 +60,7 @@ async function communityMessagesForViewer(viewer: { id: string }, authorId?: str
     })
     .from(communityMessages)
     .innerJoin(users, eq(communityMessages.authorId, users.id))
-    .where(authorId ? eq(communityMessages.authorId, authorId) : undefined)
+    .where(where)
     .orderBy(desc(communityMessages.createdAt))
     .limit(100);
 
@@ -112,6 +134,7 @@ async function communityMessagesForViewer(viewer: { id: string }, authorId?: str
 
   return messageRows.map((message) => ({
     id: message.id,
+    isOwner: message.authorId === viewer.id,
     message: message.message,
     author: message.author,
     role: roleByUserId.get(message.authorId) ?? "Community member",
@@ -125,17 +148,21 @@ async function communityMessagesForViewer(viewer: { id: string }, authorId?: str
   }));
 }
 
-export const getCommunityMessages = createServerFn({ method: "GET" }).handler(async () => {
-  const { requireAnyRole } = await import("@/services/auth/auth-server");
-  const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
-  return communityMessagesForViewer(viewer);
-});
+export const getCommunityMessages = createServerFn({ method: "GET" })
+  .validator(communityFeedInput)
+  .handler(async ({ data }) => {
+    const { requireAnyRole } = await import("@/services/auth/auth-server");
+    const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    return communityMessagesForViewer(viewer, { query: data.query });
+  });
 
-export const getMyCommunityMessages = createServerFn({ method: "GET" }).handler(async () => {
-  const { requireAnyRole } = await import("@/services/auth/auth-server");
-  const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
-  return communityMessagesForViewer(viewer, viewer.id);
-});
+export const getMyCommunityMessages = createServerFn({ method: "GET" })
+  .validator(communityFeedInput)
+  .handler(async ({ data }) => {
+    const { requireAnyRole } = await import("@/services/auth/auth-server");
+    const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    return communityMessagesForViewer(viewer, { authorId: viewer.id, query: data.query });
+  });
 
 export const postCommunityMessage = createServerFn({ method: "POST" })
   .validator(messageInput)
@@ -156,6 +183,51 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
     );
     await writeAuditLog(author.id, "community.post", "community_message", id);
     return { id };
+  });
+
+export const updateCommunityMessage = createServerFn({ method: "POST" })
+  .validator(postUpdateInput)
+  .handler(async ({ data }) => {
+    const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const author = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    const post = await assertCommunityMessageExists(data.messageId);
+    if (post.authorId !== author.id) throw new Error("You can only edit your own Community posts.");
+
+    const { db } = await import("@/db/client.server");
+    const { communityMessages } = await import("@/db/schema");
+    await db
+      .update(communityMessages)
+      .set({ message: data.message, updatedAt: new Date() })
+      .where(
+        and(eq(communityMessages.id, data.messageId), eq(communityMessages.authorId, author.id)),
+      );
+    await writeAuditLog(author.id, "community.update", "community_message", data.messageId);
+    return { id: data.messageId };
+  });
+
+export const deleteCommunityMessage = createServerFn({ method: "POST" })
+  .validator(postRemovalInput)
+  .handler(async ({ data }) => {
+    const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const author = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    const post = await assertCommunityMessageExists(data.messageId);
+    if (post.authorId !== author.id)
+      throw new Error("You can only delete your own Community posts.");
+
+    const { db } = await import("@/db/client.server");
+    const { communityComments, communityMessages, communityReactions } =
+      await import("@/db/schema");
+    await db.transaction(async (tx) => {
+      await tx.delete(communityComments).where(eq(communityComments.messageId, data.messageId));
+      await tx.delete(communityReactions).where(eq(communityReactions.messageId, data.messageId));
+      await tx
+        .delete(communityMessages)
+        .where(
+          and(eq(communityMessages.id, data.messageId), eq(communityMessages.authorId, author.id)),
+        );
+    });
+    await writeAuditLog(author.id, "community.delete", "community_message", data.messageId);
+    return { id: data.messageId };
   });
 
 export const setCommunityReaction = createServerFn({ method: "POST" })

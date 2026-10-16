@@ -1,16 +1,30 @@
-import { LoaderCircle, MessageCircle, Radio, Send, ThumbsDown, ThumbsUp } from "lucide-react";
+import {
+  LoaderCircle,
+  MessageCircle,
+  Pencil,
+  Radio,
+  Search,
+  Send,
+  ThumbsDown,
+  ThumbsUp,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
   getCommunityMessages,
   getMyCommunityMessages,
+  deleteCommunityMessage,
   postCommunityComment,
   postCommunityMessage,
   removeCommunityReaction,
   setCommunityReaction,
+  updateCommunityMessage,
 } from "@/services/messaging/community-server-functions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 type CommunityFeedProps = {
@@ -33,21 +47,36 @@ export function CommunityFeed({
   const [busyPost, setBusyPost] = useState(false);
   const [busyReactionId, setBusyReactionId] = useState<string | null>(null);
   const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [busyEditId, setBusyEditId] = useState<string | null>(null);
+  const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const refreshing = useRef(false);
+
+  useEffect(() => {
+    const debounce = window.setTimeout(() => setSearchQuery(search.trim()), 250);
+    return () => window.clearTimeout(debounce);
+  }, [search]);
 
   const load = useCallback(
     async ({ showError = false }: { showError?: boolean } = {}) => {
       if (refreshing.current) return;
       refreshing.current = true;
       try {
-        setMessages(await (scope === "mine" ? getMyCommunityMessages() : getCommunityMessages()));
+        setMessages(
+          await (scope === "mine"
+            ? getMyCommunityMessages({ data: { query: searchQuery } })
+            : getCommunityMessages({ data: { query: searchQuery } })),
+        );
       } catch {
         if (showError) toast.error("Could not load community posts. Please try again.");
       } finally {
         refreshing.current = false;
       }
     },
-    [scope],
+    [scope, searchQuery],
   );
 
   useEffect(() => {
@@ -79,6 +108,19 @@ export function CommunityFeed({
           <Radio className="size-3.5" aria-hidden="true" />
           Live updates are on. New posts, comments, and reactions appear automatically.
         </p>
+        {scope === "all" && (
+          <div className="relative mt-4">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search Community by post or author"
+              aria-label="Search Community posts"
+              className="pl-9"
+              maxLength={120}
+            />
+          </div>
+        )}
         {showComposer && (
           <form
             className="mt-4"
@@ -129,6 +171,9 @@ export function CommunityFeed({
           const commentDraft = commentDrafts[message.id] ?? "";
           const reactionBusy = busyReactionId === message.id;
           const commentBusy = busyCommentId === message.id;
+          const editing = editingPostId === message.id;
+          const editingBusy = busyEditId === message.id;
+          const deleting = busyDeleteId === message.id;
           return (
             <article
               key={message.id}
@@ -146,9 +191,122 @@ export function CommunityFeed({
                   })}
                 </p>
               </div>
-              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                {message.message}
-              </p>
+              {editing ? (
+                <form
+                  className="mt-4 space-y-3"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    const nextMessage = editDraft.trim();
+                    if (!nextMessage) return;
+                    setBusyEditId(message.id);
+                    try {
+                      await updateCommunityMessage({
+                        data: { messageId: message.id, message: nextMessage },
+                      });
+                      setEditingPostId(null);
+                      setEditDraft("");
+                      await load();
+                      toast.success("Community post updated.");
+                    } catch (error) {
+                      toast.error(
+                        error instanceof Error
+                          ? error.message
+                          : "Could not update your Community post.",
+                      );
+                    } finally {
+                      setBusyEditId(null);
+                    }
+                  }}
+                >
+                  <Textarea
+                    value={editDraft}
+                    onChange={(event) => setEditDraft(event.target.value)}
+                    maxLength={4_000}
+                    rows={4}
+                    required
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="submit" size="sm" className="rounded-full" disabled={editingBusy}>
+                      {editingBusy ? (
+                        <LoaderCircle className="size-4 animate-spin" />
+                      ) : (
+                        <Pencil className="size-4" />
+                      )}
+                      Save changes
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-full"
+                      disabled={editingBusy}
+                      onClick={() => {
+                        setEditingPostId(null);
+                        setEditDraft("");
+                      }}
+                    >
+                      <X className="size-4" /> Cancel
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                  {message.message}
+                </p>
+              )}
+              {message.isOwner && !editing && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-full"
+                    disabled={deleting}
+                    onClick={() => {
+                      setEditingPostId(message.id);
+                      setEditDraft(message.message);
+                    }}
+                  >
+                    <Pencil className="size-4" /> Edit post
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-full text-destructive hover:text-destructive"
+                    disabled={deleting}
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          "Delete this Community post and all of its comments and reactions?",
+                        )
+                      )
+                        return;
+                      setBusyDeleteId(message.id);
+                      try {
+                        await deleteCommunityMessage({ data: { messageId: message.id } });
+                        await load();
+                        toast.success("Community post deleted.");
+                      } catch (error) {
+                        toast.error(
+                          error instanceof Error
+                            ? error.message
+                            : "Could not delete your Community post.",
+                        );
+                      } finally {
+                        setBusyDeleteId(null);
+                      }
+                    }}
+                  >
+                    {deleting ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="size-4" />
+                    )}
+                    Delete post
+                  </Button>
+                </div>
+              )}
               <div className="mt-5 flex flex-wrap items-center gap-2 border-y border-border/70 py-2">
                 <Button
                   type="button"
