@@ -1,5 +1,5 @@
-import { LoaderCircle, MessageCircle, Send, ThumbsDown, ThumbsUp } from "lucide-react";
-import { useEffect, useState } from "react";
+import { LoaderCircle, MessageCircle, Radio, Send, ThumbsDown, ThumbsUp } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -20,18 +20,37 @@ export function CommunityFeed({ title, placeholder }: { title: string; placehold
   const [busyPost, setBusyPost] = useState(false);
   const [busyReactionId, setBusyReactionId] = useState<string | null>(null);
   const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
+  const refreshing = useRef(false);
 
-  const load = async () => {
+  const load = useCallback(async ({ showError = false }: { showError?: boolean } = {}) => {
+    if (refreshing.current) return;
+    refreshing.current = true;
     try {
       setMessages(await getCommunityMessages());
     } catch {
-      toast.error("Could not load community posts. Please refresh and try again.");
+      if (showError) toast.error("Could not load community posts. Please try again.");
+    } finally {
+      refreshing.current = false;
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void load();
-  }, []);
+    void load({ showError: true });
+    const polling = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 4_000);
+    const refreshOnFocus = () => void load();
+    const refreshOnVisibility = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibility);
+    return () => {
+      window.clearInterval(polling);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnVisibility);
+    };
+  }, [load]);
 
   return (
     <>
@@ -40,6 +59,10 @@ export function CommunityFeed({ title, placeholder }: { title: string; placehold
           <MessageCircle className="size-5 text-primary" />
           <h2 className="text-lg font-semibold">{title}</h2>
         </div>
+        <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+          <Radio className="size-3.5" aria-hidden="true" />
+          Live updates are on. New posts, comments, and reactions appear automatically.
+        </p>
         <form
           className="mt-4"
           onSubmit={async (event) => {

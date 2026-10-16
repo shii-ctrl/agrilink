@@ -231,12 +231,15 @@ test("community reactions and comments are saved with role checks", async () => 
 });
 
 test("new messages and Community activity create timely recipient notifications", async () => {
-  const [community, guidance, notifications, notificationCenter] = await Promise.all([
-    readFile("src/services/messaging/community-server-functions.ts", "utf8"),
-    readFile("src/services/messaging/guidance-server-functions.ts", "utf8"),
-    readFile("src/services/messaging/notification-server.ts", "utf8"),
-    readFile("src/features/messaging/components/notification-center.tsx", "utf8"),
-  ]);
+  const [community, guidance, notifications, notificationCenter, communityFeed] = await Promise.all(
+    [
+      readFile("src/services/messaging/community-server-functions.ts", "utf8"),
+      readFile("src/services/messaging/guidance-server-functions.ts", "utf8"),
+      readFile("src/services/messaging/notification-server.ts", "utf8"),
+      readFile("src/features/messaging/components/notification-center.tsx", "utf8"),
+      readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
+    ],
+  );
 
   assert.match(community, /notifyCommunityUsers/);
   assert.match(community, /New Community post/);
@@ -249,6 +252,9 @@ test("new messages and Community activity create timely recipient notifications"
   assert.match(notificationCenter, /window\.setInterval/);
   assert.match(notificationCenter, /4_000/);
   assert.match(notificationCenter, /toast\(notification\.title/);
+  assert.match(communityFeed, /Live updates are on/);
+  assert.match(communityFeed, /window\.setInterval/);
+  assert.match(communityFeed, /document\.visibilityState === "visible"/);
 });
 
 test("public marketplace data keeps farmer identities private while Marketer can trace ownership", async () => {
