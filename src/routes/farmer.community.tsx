@@ -14,8 +14,8 @@ function FarmerCommunityPage() {
       />
       <main className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8">
         <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
-          Community supports messages only. Likes, follows, and unrelated social-media features are
-          not included.
+          Share production updates, react thoughtfully, and use comments for helpful public
+          conversations. Use Crop Guidance for private advice from your consultant.
         </div>
         <CommunityFeed title="Post an update" placeholder="Share a production update..." />
       </main>

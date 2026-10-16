@@ -16,8 +16,8 @@ function ConsultantCommunityPage() {
       />
       <main className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8">
         <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
-          Community supports messages only. Reactions, likes, followers, and unrelated social
-          features are not included.
+          Use posts, reactions, and comments for public crop discussions. Keep farmer-specific
+          recommendations in Crop Guidance.
         </div>
         <CommunityFeed
           title="Post an update"

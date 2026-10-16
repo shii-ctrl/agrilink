@@ -17,8 +17,8 @@ function MarketerCommunityPage() {
       />
       <main className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8">
         <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
-          Community supports messages only. Likes, followers, reactions, and unrelated social-media
-          features are not part of AgriLink.
+          Use reactions and comments to keep operational discussions clear. Community activity is
+          saved and visible only to authorized AgriLink members.
         </div>
         <CommunityFeed
           title="Post an operational update"

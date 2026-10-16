@@ -25,8 +25,8 @@ function ManagementCommunityPage() {
           <MessageCircle className="size-6 text-primary" />
           <h2 className="mt-4 text-lg font-semibold">Community guidelines</h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            Messages are saved in AgriLink. Use Crop Guidance for private farmer-to-consultant
-            conversations.
+            Posts, reactions, and comments are saved in AgriLink. Use Crop Guidance for private
+            farmer-to-consultant conversations.
           </p>
         </aside>
       </main>

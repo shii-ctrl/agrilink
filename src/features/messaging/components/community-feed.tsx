@@ -1,22 +1,37 @@
-import { MessageCircle, Send } from "lucide-react";
+import { LoaderCircle, MessageCircle, Send, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
-  postCommunityMessage,
   getCommunityMessages,
+  postCommunityComment,
+  postCommunityMessage,
+  removeCommunityReaction,
+  setCommunityReaction,
 } from "@/services/messaging/community-server-functions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 export function CommunityFeed({ title, placeholder }: { title: string; placeholder: string }) {
   const [messages, setMessages] = useState<Awaited<ReturnType<typeof getCommunityMessages>>>([]);
-  const load = () =>
-    void getCommunityMessages()
-      .then(setMessages)
-      .catch(() => toast.error("Could not load community messages."));
+  const [postMessage, setPostMessage] = useState("");
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [busyPost, setBusyPost] = useState(false);
+  const [busyReactionId, setBusyReactionId] = useState<string | null>(null);
+  const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
 
-  useEffect(load, []);
+  const load = async () => {
+    try {
+      setMessages(await getCommunityMessages());
+    } catch {
+      toast.error("Could not load community posts. Please refresh and try again.");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
 
   return (
     <>
@@ -29,44 +44,222 @@ export function CommunityFeed({ title, placeholder }: { title: string; placehold
           className="mt-4"
           onSubmit={async (event) => {
             event.preventDefault();
-            const form = event.currentTarget;
-            const message = String(new FormData(form).get("message") ?? "").trim();
+            const message = postMessage.trim();
+            if (!message) return;
+            setBusyPost(true);
             try {
               await postCommunityMessage({ data: { message } });
-              form.reset();
-              load();
-              toast.success("Community message posted.");
+              setPostMessage("");
+              await load();
+              toast.success("Your post is now visible in Community.");
             } catch (error) {
               toast.error(
                 error instanceof Error ? error.message : "Could not post community message.",
               );
+            } finally {
+              setBusyPost(false);
             }
           }}
         >
-          <Textarea name="message" placeholder={placeholder} required />
-          <Button type="submit" className="mt-3 rounded-full">
-            <Send className="size-4" /> Post update
-          </Button>
+          <Textarea
+            name="message"
+            value={postMessage}
+            onChange={(event) => setPostMessage(event.target.value)}
+            placeholder={placeholder}
+            maxLength={4_000}
+            required
+          />
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">{postMessage.length}/4000 characters</p>
+            <Button type="submit" className="rounded-full" disabled={busyPost}>
+              {busyPost ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <Send className="size-4" />
+              )}
+              Post update
+            </Button>
+          </div>
         </form>
       </section>
-      <section className="mt-6 space-y-4">
-        {messages.map((message) => (
-          <article
-            key={message.id}
-            className="rounded-3xl border border-border bg-card p-5 shadow-card"
-          >
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <div>
-                <p className="font-semibold">{message.author}</p>
-                <p className="text-xs text-primary">{message.role}</p>
+      <section className="mt-6 space-y-4" aria-live="polite">
+        {messages.map((message) => {
+          const commentsOpen = expandedComments[message.id] ?? false;
+          const commentDraft = commentDrafts[message.id] ?? "";
+          const reactionBusy = busyReactionId === message.id;
+          const commentBusy = busyCommentId === message.id;
+          return (
+            <article
+              key={message.id}
+              className="rounded-3xl border border-border bg-card p-5 shadow-card"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                  <p className="font-semibold">{message.author}</p>
+                  <p className="text-xs text-primary">{message.role}</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(message.time).toLocaleString("en-PH", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {new Date(message.time).toLocaleString("en-PH")}
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                {message.message}
               </p>
-            </div>
-            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{message.message}</p>
-          </article>
-        ))}
+              <div className="mt-5 flex flex-wrap items-center gap-2 border-y border-border/70 py-2">
+                <Button
+                  type="button"
+                  variant={message.reactions.viewerReaction === "like" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="rounded-full"
+                  disabled={reactionBusy}
+                  aria-pressed={message.reactions.viewerReaction === "like"}
+                  onClick={async () => {
+                    setBusyReactionId(message.id);
+                    try {
+                      if (message.reactions.viewerReaction === "like") {
+                        await removeCommunityReaction({ data: { messageId: message.id } });
+                      } else {
+                        await setCommunityReaction({
+                          data: { messageId: message.id, reaction: "like" },
+                        });
+                      }
+                      await load();
+                    } catch (error) {
+                      toast.error(
+                        error instanceof Error ? error.message : "Could not update your reaction.",
+                      );
+                    } finally {
+                      setBusyReactionId(null);
+                    }
+                  }}
+                >
+                  <ThumbsUp className="size-4" /> Like {message.reactions.likes || ""}
+                </Button>
+                <Button
+                  type="button"
+                  variant={message.reactions.viewerReaction === "dislike" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="rounded-full"
+                  disabled={reactionBusy}
+                  aria-pressed={message.reactions.viewerReaction === "dislike"}
+                  onClick={async () => {
+                    setBusyReactionId(message.id);
+                    try {
+                      if (message.reactions.viewerReaction === "dislike") {
+                        await removeCommunityReaction({ data: { messageId: message.id } });
+                      } else {
+                        await setCommunityReaction({
+                          data: { messageId: message.id, reaction: "dislike" },
+                        });
+                      }
+                      await load();
+                    } catch (error) {
+                      toast.error(
+                        error instanceof Error ? error.message : "Could not update your reaction.",
+                      );
+                    } finally {
+                      setBusyReactionId(null);
+                    }
+                  }}
+                >
+                  <ThumbsDown className="size-4" /> Dislike {message.reactions.dislikes || ""}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full"
+                  aria-expanded={commentsOpen}
+                  onClick={() =>
+                    setExpandedComments((current) => ({
+                      ...current,
+                      [message.id]: !commentsOpen,
+                    }))
+                  }
+                >
+                  <MessageCircle className="size-4" />
+                  {message.comments.length} {message.comments.length === 1 ? "comment" : "comments"}
+                </Button>
+              </div>
+              {commentsOpen && (
+                <div className="mt-4 space-y-4">
+                  {message.comments.length > 0 && (
+                    <div className="space-y-3">
+                      {message.comments.map((comment) => (
+                        <div key={comment.id} className="rounded-2xl bg-muted/60 px-4 py-3">
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <p className="text-sm font-semibold">{comment.author}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(comment.time).toLocaleString("en-PH", {
+                                dateStyle: "medium",
+                                timeStyle: "short",
+                              })}
+                            </p>
+                          </div>
+                          <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                            {comment.message}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <form
+                    className="flex flex-col gap-2 sm:flex-row"
+                    onSubmit={async (event) => {
+                      event.preventDefault();
+                      const comment = commentDraft.trim();
+                      if (!comment) return;
+                      setBusyCommentId(message.id);
+                      try {
+                        await postCommunityComment({
+                          data: { messageId: message.id, message: comment },
+                        });
+                        setCommentDrafts((current) => ({ ...current, [message.id]: "" }));
+                        await load();
+                        toast.success("Comment added.");
+                      } catch (error) {
+                        toast.error(
+                          error instanceof Error ? error.message : "Could not add your comment.",
+                        );
+                      } finally {
+                        setBusyCommentId(null);
+                      }
+                    }}
+                  >
+                    <Textarea
+                      value={commentDraft}
+                      onChange={(event) =>
+                        setCommentDrafts((current) => ({
+                          ...current,
+                          [message.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Write a comment..."
+                      maxLength={2_000}
+                      rows={2}
+                      required
+                    />
+                    <Button
+                      type="submit"
+                      className="rounded-full sm:self-end"
+                      disabled={commentBusy}
+                    >
+                      {commentBusy ? (
+                        <LoaderCircle className="size-4 animate-spin" />
+                      ) : (
+                        <Send className="size-4" />
+                      )}
+                      Comment
+                    </Button>
+                  </form>
+                </div>
+              )}
+            </article>
+          );
+        })}
         {messages.length === 0 && (
           <p className="rounded-3xl border border-dashed p-6 text-sm text-muted-foreground">
             No community messages have been posted yet.

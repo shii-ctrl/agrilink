@@ -213,6 +213,23 @@ test("reordered carts, community access, and crop guidance protect role boundari
   assert.match(migration, /CREATE TABLE IF NOT EXISTS farmer_consultant_assignments/);
 });
 
+test("community reactions and comments are saved with role checks", async () => {
+  const [community, migration] = await Promise.all([
+    readFile("src/services/messaging/community-server-functions.ts", "utf8"),
+    readFile("drizzle/0011_community_reactions_and_comments.sql", "utf8"),
+  ]);
+
+  assert.match(community, /export const setCommunityReaction/);
+  assert.match(community, /export const removeCommunityReaction/);
+  assert.match(community, /export const postCommunityComment/);
+  assert.match(community, /await assertCommunityMessageExists\(data\.messageId\)/);
+  assert.match(community, /onDuplicateKeyUpdate/);
+  assert.match(community, /community\.comment/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS community_reactions/);
+  assert.match(migration, /UNIQUE KEY community_reactions_message_user_unique/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS community_comments/);
+});
+
 test("public marketplace data keeps farmer identities private while Marketer can trace ownership", async () => {
   const marketplace = await readFile(
     "src/services/marketplace/marketplace-server-functions.ts",

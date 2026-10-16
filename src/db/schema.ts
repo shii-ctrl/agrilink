@@ -301,6 +301,37 @@ export const communityMessages = mysqlTable("community_messages", {
   createdAt,
   updatedAt,
 });
+export const communityReactions = mysqlTable(
+  "community_reactions",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    messageId: varchar("message_id", { length: 36 }).notNull(),
+    userId: varchar("user_id", { length: 36 }).notNull(),
+    reaction: mysqlEnum("reaction", ["like", "dislike"]).notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("community_reactions_message_user_unique").on(table.messageId, table.userId),
+    index("community_reactions_message_idx").on(table.messageId),
+    index("community_reactions_user_idx").on(table.userId),
+  ],
+);
+export const communityComments = mysqlTable(
+  "community_comments",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    messageId: varchar("message_id", { length: 36 }).notNull(),
+    authorId: varchar("author_id", { length: 36 }).notNull(),
+    message: text("message").notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index("community_comments_message_created_idx").on(table.messageId, table.createdAt),
+    index("community_comments_author_idx").on(table.authorId),
+  ],
+);
 export const guidanceMessages = mysqlTable("guidance_messages", {
   id: varchar("id", { length: 36 }).primaryKey(),
   farmerId: varchar("farmer_id", { length: 36 }).notNull(),
