@@ -11,7 +11,9 @@ config({ path: ".env.local" });
 const databaseUrl = process.env["DATABASE_URL"];
 
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL is missing. Add it to .env.local before starting AgriLink.");
+  throw new Error(
+    "DATABASE_URL is missing. Configure it as a server-side environment variable before starting AgriLink.",
+  );
 }
 
 // Local XAMPP typically does not use TLS, while managed MySQL providers do.
