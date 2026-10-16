@@ -9,7 +9,7 @@ function MarketerProfilePage() {
         title="Profile"
         description="View and update your saved Marketer account information."
       />
-      <LiveProfile role="Marketer" />
+      <LiveProfile role="Marketer" showCommunityPosts />
     </MarketerLayout>
   );
 }

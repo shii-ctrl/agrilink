@@ -9,7 +9,7 @@ function ManagementProfilePage() {
         title="Profile"
         description="View and update your saved Management account information."
       />
-      <LiveProfile role="Management" />
+      <LiveProfile role="Management" showCommunityPosts />
     </ManagementLayout>
   );
 }

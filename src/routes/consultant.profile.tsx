@@ -9,7 +9,7 @@ function ConsultantProfilePage() {
         title="Profile"
         description="View and update your saved Farm Consultant account information."
       />
-      <LiveProfile role="Farm Consultant" />
+      <LiveProfile role="Farm Consultant" showCommunityPosts />
     </ConsultantLayout>
   );
 }

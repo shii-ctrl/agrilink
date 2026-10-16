@@ -222,12 +222,34 @@ test("community reactions and comments are saved with role checks", async () => 
   assert.match(community, /export const setCommunityReaction/);
   assert.match(community, /export const removeCommunityReaction/);
   assert.match(community, /export const postCommunityComment/);
+  assert.match(community, /export const getMyCommunityMessages/);
+  assert.match(community, /communityMessagesForViewer\(viewer, viewer\.id\)/);
   assert.match(community, /await assertCommunityMessageExists\(data\.messageId\)/);
   assert.match(community, /onDuplicateKeyUpdate/);
   assert.match(community, /community\.comment/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS community_reactions/);
   assert.match(migration, /UNIQUE KEY community_reactions_message_user_unique/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS community_comments/);
+});
+
+test("Community users can view only their own saved posts from their profile", async () => {
+  const [profile, feed, farmerProfile, marketerProfile, consultantProfile, managementProfile] =
+    await Promise.all([
+      readFile("src/features/auth/components/live-profile.tsx", "utf8"),
+      readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
+      readFile("src/routes/farmer.profile.tsx", "utf8"),
+      readFile("src/routes/marketer.profile.tsx", "utf8"),
+      readFile("src/routes/consultant.profile.tsx", "utf8"),
+      readFile("src/routes/management.profile.tsx", "utf8"),
+    ]);
+
+  assert.match(profile, /CommunityFeed title="My Community posts" scope="mine"/);
+  assert.match(feed, /getMyCommunityMessages/);
+  assert.match(feed, /scope === "mine"/);
+  assert.match(feed, /You have not posted in Community yet/);
+  for (const source of [farmerProfile, marketerProfile, consultantProfile, managementProfile]) {
+    assert.match(source, /showCommunityPosts/);
+  }
 });
 
 test("new messages and Community activity create timely recipient notifications", async () => {

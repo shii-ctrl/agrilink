@@ -11,8 +11,15 @@ import {
   updateCurrentProfile,
 } from "@/services/auth/auth-functions";
 import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
+import { CommunityFeed } from "@/features/messaging/components/community-feed";
 
-export function LiveProfile({ role }: { role: string }) {
+export function LiveProfile({
+  role,
+  showCommunityPosts = false,
+}: {
+  role: string;
+  showCommunityPosts?: boolean;
+}) {
   const [account, setAccount] = useState<Awaited<ReturnType<typeof getCurrentSessionUser>>>(null);
   useEffect(() => {
     void getCurrentSessionUser().then(setAccount);
@@ -178,6 +185,11 @@ export function LiveProfile({ role }: { role: string }) {
           separately and cannot be changed here.
         </p>
       </aside>
+      {showCommunityPosts && (
+        <div className="mt-6">
+          <CommunityFeed title="My Community posts" scope="mine" showComposer={false} />
+        </div>
+      )}
     </main>
   );
 }

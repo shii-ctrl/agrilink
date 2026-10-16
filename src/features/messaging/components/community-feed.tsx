@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import {
   getCommunityMessages,
+  getMyCommunityMessages,
   postCommunityComment,
   postCommunityMessage,
   removeCommunityReaction,
@@ -12,7 +13,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
-export function CommunityFeed({ title, placeholder }: { title: string; placeholder: string }) {
+type CommunityFeedProps = {
+  title: string;
+  placeholder?: string;
+  scope?: "all" | "mine";
+  showComposer?: boolean;
+};
+
+export function CommunityFeed({
+  title,
+  placeholder = "Share an update...",
+  scope = "all",
+  showComposer = true,
+}: CommunityFeedProps) {
   const [messages, setMessages] = useState<Awaited<ReturnType<typeof getCommunityMessages>>>([]);
   const [postMessage, setPostMessage] = useState("");
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -22,17 +35,20 @@ export function CommunityFeed({ title, placeholder }: { title: string; placehold
   const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
   const refreshing = useRef(false);
 
-  const load = useCallback(async ({ showError = false }: { showError?: boolean } = {}) => {
-    if (refreshing.current) return;
-    refreshing.current = true;
-    try {
-      setMessages(await getCommunityMessages());
-    } catch {
-      if (showError) toast.error("Could not load community posts. Please try again.");
-    } finally {
-      refreshing.current = false;
-    }
-  }, []);
+  const load = useCallback(
+    async ({ showError = false }: { showError?: boolean } = {}) => {
+      if (refreshing.current) return;
+      refreshing.current = true;
+      try {
+        setMessages(await (scope === "mine" ? getMyCommunityMessages() : getCommunityMessages()));
+      } catch {
+        if (showError) toast.error("Could not load community posts. Please try again.");
+      } finally {
+        refreshing.current = false;
+      }
+    },
+    [scope],
+  );
 
   useEffect(() => {
     void load({ showError: true });
@@ -63,47 +79,49 @@ export function CommunityFeed({ title, placeholder }: { title: string; placehold
           <Radio className="size-3.5" aria-hidden="true" />
           Live updates are on. New posts, comments, and reactions appear automatically.
         </p>
-        <form
-          className="mt-4"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            const message = postMessage.trim();
-            if (!message) return;
-            setBusyPost(true);
-            try {
-              await postCommunityMessage({ data: { message } });
-              setPostMessage("");
-              await load();
-              toast.success("Your post is now visible in Community.");
-            } catch (error) {
-              toast.error(
-                error instanceof Error ? error.message : "Could not post community message.",
-              );
-            } finally {
-              setBusyPost(false);
-            }
-          }}
-        >
-          <Textarea
-            name="message"
-            value={postMessage}
-            onChange={(event) => setPostMessage(event.target.value)}
-            placeholder={placeholder}
-            maxLength={4_000}
-            required
-          />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">{postMessage.length}/4000 characters</p>
-            <Button type="submit" className="rounded-full" disabled={busyPost}>
-              {busyPost ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
-              Post update
-            </Button>
-          </div>
-        </form>
+        {showComposer && (
+          <form
+            className="mt-4"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const message = postMessage.trim();
+              if (!message) return;
+              setBusyPost(true);
+              try {
+                await postCommunityMessage({ data: { message } });
+                setPostMessage("");
+                await load();
+                toast.success("Your post is now visible in Community.");
+              } catch (error) {
+                toast.error(
+                  error instanceof Error ? error.message : "Could not post community message.",
+                );
+              } finally {
+                setBusyPost(false);
+              }
+            }}
+          >
+            <Textarea
+              name="message"
+              value={postMessage}
+              onChange={(event) => setPostMessage(event.target.value)}
+              placeholder={placeholder}
+              maxLength={4_000}
+              required
+            />
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">{postMessage.length}/4000 characters</p>
+              <Button type="submit" className="rounded-full" disabled={busyPost}>
+                {busyPost ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Send className="size-4" />
+                )}
+                Post update
+              </Button>
+            </div>
+          </form>
+        )}
       </section>
       <section className="mt-6 space-y-4" aria-live="polite">
         {messages.map((message) => {
@@ -285,7 +303,9 @@ export function CommunityFeed({ title, placeholder }: { title: string; placehold
         })}
         {messages.length === 0 && (
           <p className="rounded-3xl border border-dashed p-6 text-sm text-muted-foreground">
-            No community messages have been posted yet.
+            {scope === "mine"
+              ? "You have not posted in Community yet."
+              : "No community messages have been posted yet."}
           </p>
         )}
       </section>

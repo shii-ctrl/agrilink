@@ -24,9 +24,7 @@ async function assertCommunityMessageExists(messageId: string) {
   return message;
 }
 
-export const getCommunityMessages = createServerFn({ method: "GET" }).handler(async () => {
-  const { requireAnyRole } = await import("@/services/auth/auth-server");
-  const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+async function communityMessagesForViewer(viewer: { id: string }, authorId?: string) {
   const { db } = await import("@/db/client.server");
   const { communityComments, communityMessages, communityReactions, roles, userRoles, users } =
     await import("@/db/schema");
@@ -40,6 +38,7 @@ export const getCommunityMessages = createServerFn({ method: "GET" }).handler(as
     })
     .from(communityMessages)
     .innerJoin(users, eq(communityMessages.authorId, users.id))
+    .where(authorId ? eq(communityMessages.authorId, authorId) : undefined)
     .orderBy(desc(communityMessages.createdAt))
     .limit(100);
 
@@ -124,6 +123,18 @@ export const getCommunityMessages = createServerFn({ method: "GET" }).handler(as
     },
     comments: commentsByMessageId.get(message.id) ?? [],
   }));
+}
+
+export const getCommunityMessages = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireAnyRole } = await import("@/services/auth/auth-server");
+  const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+  return communityMessagesForViewer(viewer);
+});
+
+export const getMyCommunityMessages = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireAnyRole } = await import("@/services/auth/auth-server");
+  const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+  return communityMessagesForViewer(viewer, viewer.id);
 });
 
 export const postCommunityMessage = createServerFn({ method: "POST" })
