@@ -213,6 +213,16 @@ test("landing-page login opens a secure floating sign-in dialog", async () => {
   assert.match(home, /<LoginDialog\s+open=\{loginOpen\}/);
   assert.match(home, /setLoginOpen\(true\)/);
   assert.match(header, /onLogin\?: \(\) => void/);
+  assert.match(
+    header,
+    /import \{ LoginDialog \} from "@\/features\/auth\/components\/login-dialog"/,
+  );
+  assert.match(
+    header,
+    /import \{ RegisterDialog \} from "@\/features\/auth\/components\/register-dialog"/,
+  );
+  assert.match(header, /onLogin \? onLogin\(\) : setLoginOpen\(true\)/);
+  assert.match(header, /onRegister \? onRegister\(\) : setRegisterOpen\(true\)/);
   assert.match(dialog, /loginUser/);
   assert.match(dialog, /destinationForRoles/);
   assert.match(dialog, /Forgot password\?/);
