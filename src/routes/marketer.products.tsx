@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Eye, PackagePlus, ShoppingBag } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, CheckCircle2, Circle, Eye, PackagePlus, ShoppingBag } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -55,6 +55,123 @@ const cropTypes = [
   "Other",
 ] as const;
 
+type ListingAssistantProps = {
+  catalogProductCount: number;
+  hasClassifiedInventory: boolean;
+  listingCount: number;
+  onOpenCatalog: () => void;
+  onOpenListingForm: () => void;
+};
+
+function ListingAssistant({
+  catalogProductCount,
+  hasClassifiedInventory,
+  listingCount,
+  onOpenCatalog,
+  onOpenListingForm,
+}: ListingAssistantProps) {
+  const steps = [
+    {
+      number: 1,
+      title: "Add a product to the catalog",
+      description: "Enter the crop name, type, description, and an optional photo.",
+      complete: catalogProductCount > 0,
+      action: (
+        <Button type="button" variant="outline" size="sm" onClick={onOpenCatalog}>
+          Open catalog <ArrowRight />
+        </Button>
+      ),
+    },
+    {
+      number: 2,
+      title: "Receive and classify a farmer delivery",
+      description:
+        "Record the delivered kilograms and split them into Good, Semi, or Reject stock.",
+      complete: hasClassifiedInventory,
+      action: (
+        <Button asChild type="button" variant="outline" size="sm">
+          <Link to="/marketer/receiving">
+            Record delivery <ArrowRight />
+          </Link>
+        </Button>
+      ),
+    },
+    {
+      number: 3,
+      title: "Set prices and publish the listing",
+      description:
+        "Choose the classified stock, set retail and bundle prices, then make it visible to buyers.",
+      complete: listingCount > 0,
+      action: (
+        <Button type="button" size="sm" onClick={onOpenListingForm}>
+          Create listing <ArrowRight />
+        </Button>
+      ),
+    },
+  ];
+  const completeSteps = steps.filter((step) => step.complete).length;
+  const nextStep = steps.find((step) => !step.complete);
+
+  return (
+    <section
+      aria-labelledby="listing-assistant-title"
+      className="mb-6 overflow-hidden rounded-3xl border border-primary/25 bg-card shadow-card"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border bg-accent/40 px-6 py-5">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            First listing guide
+          </p>
+          <h2 id="listing-assistant-title" className="mt-1 text-xl font-semibold">
+            Listing Assistant
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Follow these steps in order. Your existing catalog, receiving, and listing tools remain
+            available below.
+          </p>
+        </div>
+        <span className="rounded-full bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm">
+          {completeSteps} of {steps.length} steps ready
+        </span>
+      </div>
+      <ol className="grid divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
+        {steps.map((step) => {
+          const Icon = step.complete ? CheckCircle2 : Circle;
+          return (
+            <li key={step.number} className="flex min-h-48 flex-col p-5">
+              <div className="flex items-start gap-3">
+                <Icon
+                  className={`mt-0.5 size-5 shrink-0 ${step.complete ? "text-primary" : "text-muted-foreground"}`}
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Step {step.number} {step.complete ? "complete" : "needed"}
+                  </p>
+                  <h3 className="mt-1 font-semibold">{step.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.description}</p>
+                </div>
+              </div>
+              <div className="mt-auto pt-5">{step.action}</div>
+            </li>
+          );
+        })}
+      </ol>
+      {nextStep ? (
+        <p className="border-t border-border bg-muted/30 px-6 py-3 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">Next recommended action:</span> Step{" "}
+          {nextStep.number} — {nextStep.title}.
+        </p>
+      ) : (
+        <p className="border-t border-border bg-muted/30 px-6 py-3 text-sm text-primary">
+          Your marketplace workflow is ready. You can review prices or create another listing at any
+          time.
+        </p>
+      )}
+    </section>
+  );
+}
+
 function MarketerProductsPage() {
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<
@@ -74,6 +191,7 @@ function MarketerProductsPage() {
   const [listingCropType, setListingCropType] = useState("");
   const [listingClassification, setListingClassification] = useState("");
   const [listingAvailability, setListingAvailability] = useState("");
+  const [activeSection, setActiveSection] = useState("listings");
 
   const load = async () => {
     const [nextListings, nextCatalogProducts, nextPublishableInventory] = await Promise.all([
@@ -120,6 +238,7 @@ function MarketerProductsPage() {
   const hasListingFilters =
     listingQuery || listingCropType || listingClassification || listingAvailability;
   const listingsPage = usePagination(visibleListings);
+  const hasClassifiedInventory = publishableInventory.length > 0 || listings.length > 0;
 
   return (
     <MarketerLayout>
@@ -132,7 +251,14 @@ function MarketerProductsPage() {
           <span className="font-semibold">Live inventory:</span> published listings and available
           quantities are stored in AgriLink and appear in the public marketplace.
         </div>
-        <Tabs defaultValue="listings">
+        <ListingAssistant
+          catalogProductCount={catalogProducts.length}
+          hasClassifiedInventory={hasClassifiedInventory}
+          listingCount={listings.length}
+          onOpenCatalog={() => setActiveSection("catalog")}
+          onOpenListingForm={() => setActiveSection("add")}
+        />
+        <Tabs value={activeSection} onValueChange={setActiveSection}>
           <TabsList aria-label="Product listing sections">
             <TabsTrigger value="listings">Marketplace Listings</TabsTrigger>
             <TabsTrigger value="catalog">Product Catalog</TabsTrigger>

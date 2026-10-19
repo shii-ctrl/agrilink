@@ -175,6 +175,21 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(migration, /MODIFY COLUMN image_url MEDIUMTEXT/);
 });
 
+test("Marketer product listing has a guided workflow without removing the existing tools", async () => {
+  const marketerPage = await readFile("src/routes/marketer.products.tsx", "utf8");
+
+  assert.match(marketerPage, /Listing Assistant/);
+  assert.match(marketerPage, /First listing guide/);
+  assert.match(marketerPage, /Add a product to the catalog/);
+  assert.match(marketerPage, /Receive and classify a farmer delivery/);
+  assert.match(marketerPage, /Set prices and publish the listing/);
+  assert.match(marketerPage, /Link to="\/marketer\/receiving"/);
+  assert.match(marketerPage, /Tabs value=\{activeSection\}/);
+  assert.match(marketerPage, /Marketplace Listings/);
+  assert.match(marketerPage, /Product Catalog/);
+  assert.match(marketerPage, /Create Listing/);
+});
+
 test("role workflows keep catalog, cart, and Farmer stock states consistent", async () => {
   const [marketplace, receiving, notifications] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
