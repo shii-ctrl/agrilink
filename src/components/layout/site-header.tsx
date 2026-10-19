@@ -37,7 +37,15 @@ const workspaceForRoles = [
   ["Farm Consultant", "/consultant"],
 ] as const;
 
-export function SiteHeader({ dark = false, onLogin }: { dark?: boolean; onLogin?: () => void }) {
+export function SiteHeader({
+  dark = false,
+  onLogin,
+  onRegister,
+}: {
+  dark?: boolean;
+  onLogin?: () => void;
+  onRegister?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [account, setAccount] = useState<SessionAccount | null>(null);
   useEffect(() => {
@@ -137,9 +145,15 @@ export function SiteHeader({ dark = false, onLogin }: { dark?: boolean; onLogin?
                   <Link to="/login">Login</Link>
                 </Button>
               )}
-              <Button asChild size="sm" className="rounded-full">
-                <Link to="/register">Register as Buyer</Link>
-              </Button>
+              {onRegister ? (
+                <Button type="button" size="sm" className="rounded-full" onClick={onRegister}>
+                  Register as Buyer
+                </Button>
+              ) : (
+                <Button asChild size="sm" className="rounded-full">
+                  <Link to="/register">Register as Buyer</Link>
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -238,11 +252,25 @@ export function SiteHeader({ dark = false, onLogin }: { dark?: boolean; onLogin?
                       </Link>
                     </Button>
                   )}
-                  <Button asChild size="sm" className="flex-1">
-                    <Link to="/register" onClick={() => setOpen(false)}>
+                  {onRegister ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setOpen(false);
+                        onRegister();
+                      }}
+                    >
                       Register
-                    </Link>
-                  </Button>
+                    </Button>
+                  ) : (
+                    <Button asChild size="sm" className="flex-1">
+                      <Link to="/register" onClick={() => setOpen(false)}>
+                        Register
+                      </Link>
+                    </Button>
+                  )}
                 </>
               )}
             </div>

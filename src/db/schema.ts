@@ -33,7 +33,9 @@ export const users = mysqlTable(
   {
     id: varchar("id", { length: 36 }).primaryKey(),
     username: varchar("username", { length: 120 }).notNull(),
-    email: varchar("email", { length: 255 }).notNull(),
+    // Buyer self-registration is username-based. Internal accounts can still retain an
+    // email address for the existing email recovery flow.
+    email: varchar("email", { length: 255 }),
     passwordHash: varchar("password_hash", { length: 255 }).notNull(),
     displayName: varchar("display_name", { length: 160 }).notNull(),
     contact: varchar("contact", { length: 80 }),

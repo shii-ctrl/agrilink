@@ -19,6 +19,7 @@ import { loginUser } from "@/services/auth/auth-functions";
 type LoginDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRegister?: () => void;
 };
 
 function destinationForRoles(roles: string[]) {
@@ -36,7 +37,7 @@ function destinationForRoles(roles: string[]) {
             : "/";
 }
 
-export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
+export function LoginDialog({ open, onOpenChange, onRegister }: LoginDialogProps) {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -141,9 +142,22 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             New buyer?{" "}
-            <AuthSwitchLink to="/register" className="font-semibold text-primary hover:underline">
-              Register as Buyer
-            </AuthSwitchLink>
+            {onRegister ? (
+              <button
+                type="button"
+                className="font-semibold text-primary hover:underline"
+                onClick={() => {
+                  onOpenChange(false);
+                  onRegister();
+                }}
+              >
+                Register as Buyer
+              </button>
+            ) : (
+              <AuthSwitchLink to="/register" className="font-semibold text-primary hover:underline">
+                Register as Buyer
+              </AuthSwitchLink>
+            )}
           </p>
           <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
             Management, Marketer, Accounting, Farmer, and Consultant accounts are created by

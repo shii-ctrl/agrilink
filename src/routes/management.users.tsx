@@ -64,7 +64,7 @@ function ManagementUsersPage() {
       const matchesRole = userRoleFilter === "All" || user.role === userRoleFilter;
       const matchesSearch =
         !query ||
-        [user.name, user.email, user.contact ?? "", user.role].some((value) =>
+        [user.name, user.email ?? "", user.contact ?? "", user.role].some((value) =>
           value.toLocaleLowerCase().includes(query),
         );
       return matchesRole && matchesSearch;
@@ -600,7 +600,7 @@ type ManagementUser = {
   id: string;
   name: string;
   contact: string | null;
-  email: string;
+  email: string | null;
   active: boolean;
   role: string;
 };

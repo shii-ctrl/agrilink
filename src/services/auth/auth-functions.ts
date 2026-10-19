@@ -9,9 +9,15 @@ const loginInput = z.object({
   password: z.string().min(8).max(200),
 });
 const registrationInput = z.object({
-  name: z.string().trim().min(2).max(160),
-  contact: z.string().trim().min(5).max(80),
-  email: z.string().trim().email().max(255),
+  username: z
+    .string()
+    .trim()
+    .min(3, "Choose a username with at least 3 characters.")
+    .max(120)
+    .regex(
+      /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/,
+      "Use letters, numbers, periods, underscores, or hyphens only.",
+    ),
   password: securePassword,
 });
 const httpsImageUrl = z
@@ -191,7 +197,7 @@ export const requestPasswordResetCode = createServerFn({ method: "POST" })
       .where(and(eq(users.email, email), eq(users.active, true)));
 
     // Return the same response for unknown emails so the endpoint does not disclose accounts.
-    if (!user) return { ok: true };
+    if (!user?.email) return { ok: true };
 
     const crypto = await import("node:crypto");
     const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
@@ -356,19 +362,18 @@ export const registerBuyer = createServerFn({ method: "POST" })
     ) {
       throw new Error("Too many account creation attempts. Please wait 15 minutes and try again.");
     }
-    const email = data.email.toLowerCase();
-    const existing = await findUserByIdentifier(email);
-    if (existing)
-      throw new Error("An account already exists for that email. Please sign in instead.");
+    const username = data.username.toLowerCase();
+    const existing = await findUserByIdentifier(username);
+    if (existing) throw new Error("That username is already in use. Please choose another one.");
     const [buyerRole] = await db.select().from(roles).where(eq(roles.name, "Buyer"));
     if (!buyerRole)
       throw new Error("Buyer role is not configured. Ask Management to initialize the system.");
     const user = {
       id: crypto.randomUUID(),
-      username: email,
-      email,
-      displayName: data.name,
-      contact: data.contact,
+      username,
+      email: null,
+      displayName: username,
+      contact: null,
       passwordHash: await bcrypt.hash(data.password, 12),
     };
     await db.transaction(async (tx) => {

@@ -126,7 +126,11 @@ export function LiveProfile({
           </div>
           <div className="space-y-2">
             <Label htmlFor="profile-email">Email</Label>
-            <Input id="profile-email" value={account.email} readOnly />
+            <Input
+              id="profile-email"
+              value={account.email ?? "No email is linked to this username-only account"}
+              readOnly
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="profile-role">Role</Label>

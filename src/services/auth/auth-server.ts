@@ -18,7 +18,7 @@ export type RateLimitPolicy = {
 export type AuthUser = {
   id: string;
   username: string;
-  email: string;
+  email: string | null;
   displayName: string;
   contact: string | null;
   avatarUrl: string | null;

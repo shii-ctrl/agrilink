@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { LoginDialog } from "@/features/auth/components/login-dialog";
+import { RegisterDialog } from "@/features/auth/components/register-dialog";
 import { ProductCard } from "@/features/marketplace/components/product-card";
 import type { Product } from "@/features/marketplace/products";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
@@ -87,6 +88,7 @@ function Index() {
   const [isBuyer, setIsBuyer] = useState(false);
   const [featured, setFeatured] = useState<Product[]>([]);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
   useEffect(() => {
     void getCurrentSessionUser()
       .then((user) => {
@@ -106,7 +108,7 @@ function Index() {
   }, []);
   return (
     <div className="min-h-screen bg-background">
-      <SiteHeader onLogin={() => setLoginOpen(true)} />
+      <SiteHeader onLogin={() => setLoginOpen(true)} onRegister={() => setRegisterOpen(true)} />
 
       <main>
         {/* Hero */}
@@ -289,11 +291,20 @@ function Index() {
                 : "Anyone can browse the marketplace. Register as a buyer to add items to your cart, check out, and place orders."}
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Button asChild size="lg" className="rounded-full">
-                <Link to={isBuyer ? "/buyer/cart" : "/register"}>
-                  {isBuyer ? "My cart" : "Register as Buyer"}
-                </Link>
-              </Button>
+              {isBuyer ? (
+                <Button asChild size="lg" className="rounded-full">
+                  <Link to="/buyer/cart">My cart</Link>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="lg"
+                  className="rounded-full"
+                  onClick={() => setRegisterOpen(true)}
+                >
+                  Register as Buyer
+                </Button>
+              )}
               {isBuyer ? (
                 <Button asChild size="lg" variant="outline" className="rounded-full">
                   <Link to="/buyer/orders">My orders</Link>
@@ -315,7 +326,16 @@ function Index() {
       </main>
 
       <SiteFooter />
-      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+      <LoginDialog
+        open={loginOpen}
+        onOpenChange={setLoginOpen}
+        onRegister={() => setRegisterOpen(true)}
+      />
+      <RegisterDialog
+        open={registerOpen}
+        onOpenChange={setRegisterOpen}
+        onLogin={() => setLoginOpen(true)}
+      />
     </div>
   );
 }

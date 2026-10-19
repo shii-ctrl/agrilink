@@ -9,6 +9,34 @@ test("buyer registration response is an explicit safe DTO", async () => {
   assert.doesNotMatch(registration, /return \{ \.\.\.user/);
 });
 
+test("Buyer self-registration is username-only and keeps email optional", async () => {
+  const [authFunctions, schema, migration, registerPage, registerDialog, homePage] =
+    await Promise.all([
+      readFile("src/services/auth/auth-functions.ts", "utf8"),
+      readFile("src/db/schema.ts", "utf8"),
+      readFile("drizzle/0012_make_buyer_email_optional.sql", "utf8"),
+      readFile("src/routes/register.tsx", "utf8"),
+      readFile("src/features/auth/components/register-dialog.tsx", "utf8"),
+      readFile("src/routes/index.tsx", "utf8"),
+    ]);
+
+  const registration = authFunctions.slice(
+    authFunctions.indexOf("const registrationInput"),
+    authFunctions.indexOf("const httpsImageUrl"),
+  );
+  assert.match(registration, /username: z/);
+  assert.match(authFunctions, /email: null,/);
+  assert.doesNotMatch(registration, /contact: z\.string\(\)\.trim\(\)\.min\(5\)/);
+  assert.match(schema, /email: varchar\("email", \{ length: 255 \}\),/);
+  assert.match(migration, /ALTER TABLE users MODIFY email VARCHAR\(255\) NULL/);
+  assert.match(registerPage, /name="username"/);
+  assert.doesNotMatch(registerPage, /name="contact"/);
+  assert.doesNotMatch(registerPage, /name="email"/);
+  assert.match(registerDialog, /Create a Buyer account/);
+  assert.match(registerDialog, /Username-only Buyer accounts do not have email password recovery/);
+  assert.match(homePage, /RegisterDialog/);
+});
+
 test("initial Management setup is guarded by a server-side one-time secret", async () => {
   const source = await readFile("src/services/auth/admin-server-functions.ts", "utf8");
   const setup = source.slice(source.indexOf("export const createInitialManagementAccount"));
@@ -182,7 +210,7 @@ test("landing-page login opens a secure floating sign-in dialog", async () => {
     readFile("src/features/auth/components/login-dialog.tsx", "utf8"),
   ]);
 
-  assert.match(home, /LoginDialog open=\{loginOpen\}/);
+  assert.match(home, /<LoginDialog\s+open=\{loginOpen\}/);
   assert.match(home, /setLoginOpen\(true\)/);
   assert.match(header, /onLogin\?: \(\) => void/);
   assert.match(dialog, /loginUser/);

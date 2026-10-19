@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Leaf } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Leaf, LockKeyhole, UserRound } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import heroImg from "@/assets/hero-farm.jpg";
@@ -68,7 +68,7 @@ function RegisterPage() {
         <div className="mt-8 max-w-sm">
           <h1 className="text-3xl font-semibold">Register as Buyer</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Only buyer accounts can self-register. All other roles are created by Management.
+            Choose a username and password. Only buyer accounts can self-register.
           </p>
 
           <form
@@ -82,15 +82,12 @@ function RegisterPage() {
                 });
                 return;
               }
-              const email = String(formData.get("email") ?? "");
               const password = String(formData.get("password") ?? "");
               try {
                 await registerBuyer({
                   data: {
-                    email,
+                    username: String(formData.get("username") ?? ""),
                     password,
-                    name: String(formData.get("name") ?? ""),
-                    contact: String(formData.get("contact") ?? ""),
                   },
                 });
                 toast("Buyer account created", {
@@ -105,54 +102,50 @@ function RegisterPage() {
             }}
           >
             <div className="space-y-2">
-              <Label htmlFor="name">Full name</Label>
-              <Input
-                id="name"
-                name="name"
-                autoComplete="name"
-                placeholder="Juan Dela Cruz"
-                required
-                className="h-11"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact">Contact number</Label>
-              <Input
-                id="contact"
-                name="contact"
-                type="tel"
-                autoComplete="tel"
-                placeholder="0917 000 0000"
-                required
-                className="h-11"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="juan@email.com"
-                required
-                className="h-11"
-              />
+              <Label htmlFor="username">Username</Label>
+              <div className="relative">
+                <UserRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="username"
+                  name="username"
+                  autoComplete="username"
+                  minLength={3}
+                  maxLength={120}
+                  pattern="[A-Za-z0-9][A-Za-z0-9._-]*"
+                  placeholder="Choose a username"
+                  required
+                  className="h-11 pl-10"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Use letters, numbers, periods, underscores, or hyphens.
+              </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  minLength={minimumPasswordLength}
-                  placeholder="At least 8 characters"
-                  required
-                  className="h-11"
-                  onChange={(event) => setPassword(event.target.value)}
-                />
+                <div className="relative">
+                  <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    minLength={minimumPasswordLength}
+                    placeholder="At least 8 characters"
+                    required
+                    className="h-11 px-10"
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Hide passwords" : "Show passwords"}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
                 {passwordStatus && (
                   <p
                     className={`text-xs ${passwordStatus === "Ready" ? "text-good" : "text-reject"}`}
@@ -173,14 +166,6 @@ function RegisterPage() {
                   required
                   className="h-11"
                 />
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={showPassword}
-                    onChange={(event) => setShowPassword(event.target.checked)}
-                  />{" "}
-                  Show passwords
-                </label>
                 <p className="text-xs text-muted-foreground">{passwordHelpText}</p>
               </div>
             </div>
@@ -196,7 +181,7 @@ function RegisterPage() {
             </AuthSwitchLink>
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Your account is securely stored in AgriLink.
+            Username-only Buyer accounts need Management assistance if their password is lost.
           </p>
         </div>
       </div>
