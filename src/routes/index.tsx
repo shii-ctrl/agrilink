@@ -15,6 +15,7 @@ import heroImg from "@/assets/hero-farm.jpg";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { LoginDialog } from "@/features/auth/components/login-dialog";
 import { ProductCard } from "@/features/marketplace/components/product-card";
 import type { Product } from "@/features/marketplace/products";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
@@ -85,6 +86,7 @@ const pillars = [
 function Index() {
   const [isBuyer, setIsBuyer] = useState(false);
   const [featured, setFeatured] = useState<Product[]>([]);
+  const [loginOpen, setLoginOpen] = useState(false);
   useEffect(() => {
     void getCurrentSessionUser()
       .then((user) => {
@@ -104,7 +106,7 @@ function Index() {
   }, []);
   return (
     <div className="min-h-screen bg-background">
-      <SiteHeader />
+      <SiteHeader onLogin={() => setLoginOpen(true)} />
 
       <main>
         {/* Hero */}
@@ -135,16 +137,26 @@ function Index() {
                     Browse products <ArrowRight className="size-4" />
                   </Link>
                 </Button>
-                <Button
-                  asChild
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full border-white/40 bg-white/10 px-6 text-forest-foreground hover:bg-white/20 hover:text-forest-foreground"
-                >
-                  <Link to={isBuyer ? "/buyer/cart" : "/login"}>
-                    {isBuyer ? "Open my cart" : "Login"}
-                  </Link>
-                </Button>
+                {isBuyer ? (
+                  <Button
+                    asChild
+                    size="lg"
+                    variant="outline"
+                    className="rounded-full border-white/40 bg-white/10 px-6 text-forest-foreground hover:bg-white/20 hover:text-forest-foreground"
+                  >
+                    <Link to="/buyer/cart">Open my cart</Link>
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant="outline"
+                    onClick={() => setLoginOpen(true)}
+                    className="rounded-full border-white/40 bg-white/10 px-6 text-forest-foreground hover:bg-white/20 hover:text-forest-foreground"
+                  >
+                    Login
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -282,17 +294,28 @@ function Index() {
                   {isBuyer ? "My cart" : "Register as Buyer"}
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="rounded-full">
-                <Link to={isBuyer ? "/buyer/orders" : "/login"}>
-                  {isBuyer ? "My orders" : "I already have an account"}
-                </Link>
-              </Button>
+              {isBuyer ? (
+                <Button asChild size="lg" variant="outline" className="rounded-full">
+                  <Link to="/buyer/orders">My orders</Link>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => setLoginOpen(true)}
+                >
+                  I already have an account
+                </Button>
+              )}
             </div>
           </div>
         </section>
       </main>
 
       <SiteFooter />
+      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
     </div>
   );
 }

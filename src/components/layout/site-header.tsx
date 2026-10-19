@@ -37,7 +37,7 @@ const workspaceForRoles = [
   ["Farm Consultant", "/consultant"],
 ] as const;
 
-export function SiteHeader({ dark = false }: { dark?: boolean }) {
+export function SiteHeader({ dark = false, onLogin }: { dark?: boolean; onLogin?: () => void }) {
   const [open, setOpen] = useState(false);
   const [account, setAccount] = useState<SessionAccount | null>(null);
   useEffect(() => {
@@ -109,18 +109,34 @@ export function SiteHeader({ dark = false }: { dark?: boolean }) {
             </Button>
           ) : (
             <>
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className={
-                  dark
-                    ? "text-forest-foreground hover:bg-white/10 hover:text-forest-foreground"
-                    : undefined
-                }
-              >
-                <Link to="/login">Login</Link>
-              </Button>
+              {onLogin ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onLogin}
+                  className={
+                    dark
+                      ? "text-forest-foreground hover:bg-white/10 hover:text-forest-foreground"
+                      : undefined
+                  }
+                >
+                  Login
+                </Button>
+              ) : (
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={
+                    dark
+                      ? "text-forest-foreground hover:bg-white/10 hover:text-forest-foreground"
+                      : undefined
+                  }
+                >
+                  <Link to="/login">Login</Link>
+                </Button>
+              )}
               <Button asChild size="sm" className="rounded-full">
                 <Link to="/register">Register as Buyer</Link>
               </Button>
@@ -189,20 +205,39 @@ export function SiteHeader({ dark = false }: { dark?: boolean }) {
                 </Button>
               ) : (
                 <>
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className={`flex-1 ${
-                      dark
-                        ? "border-white/25 bg-transparent text-forest-foreground hover:bg-white/10 hover:text-forest-foreground"
-                        : ""
-                    }`}
-                  >
-                    <Link to="/login" onClick={() => setOpen(false)}>
+                  {onLogin ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setOpen(false);
+                        onLogin();
+                      }}
+                      className={`flex-1 ${
+                        dark
+                          ? "border-white/25 bg-transparent text-forest-foreground hover:bg-white/10 hover:text-forest-foreground"
+                          : ""
+                      }`}
+                    >
                       Login
-                    </Link>
-                  </Button>
+                    </Button>
+                  ) : (
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className={`flex-1 ${
+                        dark
+                          ? "border-white/25 bg-transparent text-forest-foreground hover:bg-white/10 hover:text-forest-foreground"
+                          : ""
+                      }`}
+                    >
+                      <Link to="/login" onClick={() => setOpen(false)}>
+                        Login
+                      </Link>
+                    </Button>
+                  )}
                   <Button asChild size="sm" className="flex-1">
                     <Link to="/register" onClick={() => setOpen(false)}>
                       Register

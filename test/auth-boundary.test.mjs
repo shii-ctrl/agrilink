@@ -175,6 +175,22 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(migration, /MODIFY COLUMN image_url MEDIUMTEXT/);
 });
 
+test("landing-page login opens a secure floating sign-in dialog", async () => {
+  const [home, header, dialog] = await Promise.all([
+    readFile("src/routes/index.tsx", "utf8"),
+    readFile("src/components/layout/site-header.tsx", "utf8"),
+    readFile("src/features/auth/components/login-dialog.tsx", "utf8"),
+  ]);
+
+  assert.match(home, /LoginDialog open=\{loginOpen\}/);
+  assert.match(home, /setLoginOpen\(true\)/);
+  assert.match(header, /onLogin\?: \(\) => void/);
+  assert.match(dialog, /loginUser/);
+  assert.match(dialog, /destinationForRoles/);
+  assert.match(dialog, /Forgot password\?/);
+  assert.match(dialog, /Register as Buyer/);
+});
+
 test("Marketer product listing has a guided workflow without removing the existing tools", async () => {
   const marketerPage = await readFile("src/routes/marketer.products.tsx", "utf8");
 
