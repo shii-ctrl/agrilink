@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LoginDialog } from "@/features/auth/components/login-dialog";
+import { PasswordResetDialog } from "@/features/auth/components/password-reset-dialog";
 import { RegisterDialog } from "@/features/auth/components/register-dialog";
 import { getCurrentSessionUser, logoutUser } from "@/services/auth/auth-functions";
 import { buyerCartChangedEvent } from "@/features/marketplace/cart-events";
@@ -52,6 +53,7 @@ export function SiteHeader({
   const [account, setAccount] = useState<SessionAccount | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [passwordResetOpen, setPasswordResetOpen] = useState(false);
   useEffect(() => {
     let mounted = true;
     void getCurrentSessionUser()
@@ -248,10 +250,16 @@ export function SiteHeader({
         open={loginOpen}
         onOpenChange={setLoginOpen}
         onRegister={() => setRegisterOpen(true)}
+        onForgotPassword={() => setPasswordResetOpen(true)}
       />
       <RegisterDialog
         open={registerOpen}
         onOpenChange={setRegisterOpen}
+        onLogin={() => setLoginOpen(true)}
+      />
+      <PasswordResetDialog
+        open={passwordResetOpen}
+        onOpenChange={setPasswordResetOpen}
         onLogin={() => setLoginOpen(true)}
       />
     </>

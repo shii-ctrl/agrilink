@@ -20,6 +20,7 @@ type LoginDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRegister?: () => void;
+  onForgotPassword?: () => void;
 };
 
 function destinationForRoles(roles: string[]) {
@@ -37,7 +38,12 @@ function destinationForRoles(roles: string[]) {
             : "/";
 }
 
-export function LoginDialog({ open, onOpenChange, onRegister }: LoginDialogProps) {
+export function LoginDialog({
+  open,
+  onOpenChange,
+  onRegister,
+  onForgotPassword,
+}: LoginDialogProps) {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -107,12 +113,25 @@ export function LoginDialog({ open, onOpenChange, onRegister }: LoginDialogProps
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="landing-login-password">Password</Label>
-                <AuthSwitchLink
-                  to="/forgot-password"
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  Forgot password?
-                </AuthSwitchLink>
+                {onForgotPassword ? (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-primary hover:underline"
+                    onClick={() => {
+                      onOpenChange(false);
+                      onForgotPassword();
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                ) : (
+                  <AuthSwitchLink
+                    to="/forgot-password"
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </AuthSwitchLink>
+                )}
               </div>
               <div className="relative">
                 <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

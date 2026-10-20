@@ -29,9 +29,10 @@ test("Buyer self-registration is username-only and keeps email optional", async 
   assert.doesNotMatch(registration, /contact: z\.string\(\)\.trim\(\)\.min\(5\)/);
   assert.match(schema, /email: varchar\("email", \{ length: 255 \}\),/);
   assert.match(migration, /ALTER TABLE users MODIFY email VARCHAR\(255\) NULL/);
-  assert.match(registerPage, /name="username"/);
-  assert.doesNotMatch(registerPage, /name="contact"/);
-  assert.doesNotMatch(registerPage, /name="email"/);
+  assert.match(registerPage, /redirect\(\{ to: "\/", search: \{ auth: "register" \} \}\)/);
+  assert.match(registerDialog, /name="username"/);
+  assert.doesNotMatch(registerDialog, /name="contact"/);
+  assert.doesNotMatch(registerDialog, /name="email"/);
   assert.match(registerDialog, /Create a Buyer account/);
   assert.match(registerDialog, /Username-only Buyer accounts do not have email password recovery/);
   assert.match(homePage, /RegisterDialog/);
@@ -70,10 +71,10 @@ test("Management password resets are authenticated and audited", async () => {
 });
 
 test("new and reset account passwords require the stronger shared password policy", async () => {
-  const [authSource, adminSource, registrationPage, setupPage] = await Promise.all([
+  const [authSource, adminSource, registrationDialog, setupPage] = await Promise.all([
     readFile("src/services/auth/auth-functions.ts", "utf8"),
     readFile("src/services/auth/admin-server-functions.ts", "utf8"),
-    readFile("src/routes/register.tsx", "utf8"),
+    readFile("src/features/auth/components/register-dialog.tsx", "utf8"),
     readFile("src/routes/setup-management.tsx", "utf8"),
   ]);
 
@@ -87,14 +88,14 @@ test("new and reset account passwords require the stronger shared password polic
     adminSource,
     /Include an uppercase letter|Include a lowercase letter|Include a number/,
   );
-  assert.match(registrationPage, /minLength=\{minimumPasswordLength\}/);
+  assert.match(registrationDialog, /minLength=\{minimumPasswordLength\}/);
   assert.match(setupPage, /minLength=\{minimumPasswordLength\}/);
 });
 
 test("email password reset uses a hashed, expiring one-time code", async () => {
-  const [source, resetPage] = await Promise.all([
+  const [source, resetDialog] = await Promise.all([
     readFile("src/services/auth/auth-functions.ts", "utf8"),
-    readFile("src/routes/forgot-password.tsx", "utf8"),
+    readFile("src/features/auth/components/password-reset-dialog.tsx", "utf8"),
   ]);
   const requestReset = source.slice(
     source.indexOf("export const requestPasswordResetCode"),
@@ -111,10 +112,10 @@ test("email password reset uses a hashed, expiring one-time code", async () => {
   assert.match(completeReset, /\.update\(passwordResetTokens\)\s*\.set\(\{ usedAt: now \}\)/);
   assert.match(completeReset, /\.update\(authSessions\)\s*\.set\(\{ revokedAt: now \}\)/);
   assert.match(completeReset, /auth\.password\.reset\.email_otp/);
-  assert.match(resetPage, /value=\{code\}/);
-  assert.match(resetPage, /type="text"/);
-  assert.match(resetPage, /autoComplete="one-time-code"/);
-  assert.match(resetPage, /replace\(\/\\D\/g, ""\)\.slice\(0, 6\)/);
+  assert.match(resetDialog, /value=\{code\}/);
+  assert.match(resetDialog, /type="text"/);
+  assert.match(resetDialog, /autoComplete="one-time-code"/);
+  assert.match(resetDialog, /replace\(\/\\D\/g, ""\)\.slice\(0, 6\)/);
 });
 
 test("authentication abuse controls persist beyond a single server process", async () => {
@@ -203,14 +204,21 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(migration, /MODIFY COLUMN image_url MEDIUMTEXT/);
 });
 
-test("landing-page login opens a secure floating sign-in dialog", async () => {
-  const [home, header, dialog] = await Promise.all([
-    readFile("src/routes/index.tsx", "utf8"),
-    readFile("src/components/layout/site-header.tsx", "utf8"),
-    readFile("src/features/auth/components/login-dialog.tsx", "utf8"),
-  ]);
+test("public authentication uses the floating dialog system", async () => {
+  const [home, header, loginDialog, resetDialog, loginRoute, registerRoute, resetRoute] =
+    await Promise.all([
+      readFile("src/routes/index.tsx", "utf8"),
+      readFile("src/components/layout/site-header.tsx", "utf8"),
+      readFile("src/features/auth/components/login-dialog.tsx", "utf8"),
+      readFile("src/features/auth/components/password-reset-dialog.tsx", "utf8"),
+      readFile("src/routes/login.tsx", "utf8"),
+      readFile("src/routes/register.tsx", "utf8"),
+      readFile("src/routes/forgot-password.tsx", "utf8"),
+    ]);
 
   assert.match(home, /<LoginDialog\s+open=\{loginOpen\}/);
+  assert.match(home, /<RegisterDialog\s+open=\{registerOpen\}/);
+  assert.match(home, /<PasswordResetDialog\s+open=\{passwordResetOpen\}/);
   assert.match(home, /setLoginOpen\(true\)/);
   assert.match(header, /onLogin\?: \(\) => void/);
   assert.match(
@@ -221,12 +229,25 @@ test("landing-page login opens a secure floating sign-in dialog", async () => {
     header,
     /import \{ RegisterDialog \} from "@\/features\/auth\/components\/register-dialog"/,
   );
+  assert.match(
+    header,
+    /import \{ PasswordResetDialog \} from "@\/features\/auth\/components\/password-reset-dialog"/,
+  );
   assert.match(header, /onLogin \? onLogin\(\) : setLoginOpen\(true\)/);
   assert.match(header, /onRegister \? onRegister\(\) : setRegisterOpen\(true\)/);
-  assert.match(dialog, /loginUser/);
-  assert.match(dialog, /destinationForRoles/);
-  assert.match(dialog, /Forgot password\?/);
-  assert.match(dialog, /Register as Buyer/);
+  assert.match(loginDialog, /loginUser/);
+  assert.match(loginDialog, /destinationForRoles/);
+  assert.match(loginDialog, /Forgot password\?/);
+  assert.match(loginDialog, /Register as Buyer/);
+  assert.match(loginDialog, /onForgotPassword/);
+  assert.match(resetDialog, /requestPasswordResetCode/);
+  assert.match(resetDialog, /completePasswordReset/);
+  assert.match(loginRoute, /auth: "login"/);
+  assert.match(registerRoute, /auth: "register"/);
+  assert.match(resetRoute, /auth: "reset"/);
+  assert.doesNotMatch(loginRoute, /auth-panel|auth-visual/);
+  assert.doesNotMatch(registerRoute, /auth-panel|auth-visual/);
+  assert.doesNotMatch(resetRoute, /auth-panel|auth-visual/);
 });
 
 test("Marketer product listing has a guided workflow without removing the existing tools", async () => {

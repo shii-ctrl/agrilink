@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
   ClipboardCheck,
@@ -11,11 +11,13 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import heroImg from "@/assets/hero-farm.jpg";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { LoginDialog } from "@/features/auth/components/login-dialog";
+import { PasswordResetDialog } from "@/features/auth/components/password-reset-dialog";
 import { RegisterDialog } from "@/features/auth/components/register-dialog";
 import { ProductCard } from "@/features/marketplace/components/product-card";
 import type { Product } from "@/features/marketplace/products";
@@ -24,6 +26,9 @@ import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import { getMarketplaceListings } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/")({
+  validateSearch: z.object({
+    auth: z.enum(["login", "register", "reset"]).optional(),
+  }),
   head: () => ({
     meta: [
       { title: "AgriLink — Marketplace & Decision Support for Local Farmers" },
@@ -85,10 +90,19 @@ const pillars = [
 ];
 
 function Index() {
+  const navigate = useNavigate();
+  const { auth } = Route.useSearch();
   const [isBuyer, setIsBuyer] = useState(false);
   const [featured, setFeatured] = useState<Product[]>([]);
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [passwordResetOpen, setPasswordResetOpen] = useState(false);
+  useEffect(() => {
+    setLoginOpen(auth === "login");
+    setRegisterOpen(auth === "register");
+    setPasswordResetOpen(auth === "reset");
+  }, [auth]);
+  const clearAuthSearch = () => navigate({ to: "/", search: {} });
   useEffect(() => {
     void getCurrentSessionUser()
       .then((user) => {
@@ -328,12 +342,27 @@ function Index() {
       <SiteFooter />
       <LoginDialog
         open={loginOpen}
-        onOpenChange={setLoginOpen}
+        onOpenChange={(open) => {
+          setLoginOpen(open);
+          if (!open) clearAuthSearch();
+        }}
         onRegister={() => setRegisterOpen(true)}
+        onForgotPassword={() => setPasswordResetOpen(true)}
       />
       <RegisterDialog
         open={registerOpen}
-        onOpenChange={setRegisterOpen}
+        onOpenChange={(open) => {
+          setRegisterOpen(open);
+          if (!open) clearAuthSearch();
+        }}
+        onLogin={() => setLoginOpen(true)}
+      />
+      <PasswordResetDialog
+        open={passwordResetOpen}
+        onOpenChange={(open) => {
+          setPasswordResetOpen(open);
+          if (!open) clearAuthSearch();
+        }}
         onLogin={() => setLoginOpen(true)}
       />
     </div>
