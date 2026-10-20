@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, Circle, Eye, PackagePlus, ShoppingBag } from "lucide-react";
+import { Boxes, CircleDollarSign, Eye, PackagePlus, ShoppingBag } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createCatalogProduct,
   createMarketplaceListing,
@@ -55,123 +54,6 @@ const cropTypes = [
   "Other",
 ] as const;
 
-type ListingAssistantProps = {
-  catalogProductCount: number;
-  hasClassifiedInventory: boolean;
-  listingCount: number;
-  onOpenCatalog: () => void;
-  onOpenListingForm: () => void;
-};
-
-function ListingAssistant({
-  catalogProductCount,
-  hasClassifiedInventory,
-  listingCount,
-  onOpenCatalog,
-  onOpenListingForm,
-}: ListingAssistantProps) {
-  const steps = [
-    {
-      number: 1,
-      title: "Add a product to the catalog",
-      description: "Enter the crop name, type, description, and an optional photo.",
-      complete: catalogProductCount > 0,
-      action: (
-        <Button type="button" variant="outline" size="sm" onClick={onOpenCatalog}>
-          Open catalog <ArrowRight />
-        </Button>
-      ),
-    },
-    {
-      number: 2,
-      title: "Receive and classify a farmer delivery",
-      description:
-        "Record the delivered kilograms and split them into Good, Semi, or Reject stock.",
-      complete: hasClassifiedInventory,
-      action: (
-        <Button asChild type="button" variant="outline" size="sm">
-          <Link to="/marketer/receiving">
-            Record delivery <ArrowRight />
-          </Link>
-        </Button>
-      ),
-    },
-    {
-      number: 3,
-      title: "Set prices and publish the listing",
-      description:
-        "Choose the classified stock, set retail and bundle prices, then make it visible to buyers.",
-      complete: listingCount > 0,
-      action: (
-        <Button type="button" size="sm" onClick={onOpenListingForm}>
-          Create listing <ArrowRight />
-        </Button>
-      ),
-    },
-  ];
-  const completeSteps = steps.filter((step) => step.complete).length;
-  const nextStep = steps.find((step) => !step.complete);
-
-  return (
-    <section
-      aria-labelledby="listing-assistant-title"
-      className="mb-6 overflow-hidden rounded-3xl border border-primary/25 bg-card shadow-card"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border bg-accent/40 px-6 py-5">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-            First listing guide
-          </p>
-          <h2 id="listing-assistant-title" className="mt-1 text-xl font-semibold">
-            Listing Assistant
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Follow these steps in order. Your existing catalog, receiving, and listing tools remain
-            available below.
-          </p>
-        </div>
-        <span className="rounded-full bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm">
-          {completeSteps} of {steps.length} steps ready
-        </span>
-      </div>
-      <ol className="grid divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
-        {steps.map((step) => {
-          const Icon = step.complete ? CheckCircle2 : Circle;
-          return (
-            <li key={step.number} className="flex min-h-48 flex-col p-5">
-              <div className="flex items-start gap-3">
-                <Icon
-                  className={`mt-0.5 size-5 shrink-0 ${step.complete ? "text-primary" : "text-muted-foreground"}`}
-                  aria-hidden="true"
-                />
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Step {step.number} {step.complete ? "complete" : "needed"}
-                  </p>
-                  <h3 className="mt-1 font-semibold">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.description}</p>
-                </div>
-              </div>
-              <div className="mt-auto pt-5">{step.action}</div>
-            </li>
-          );
-        })}
-      </ol>
-      {nextStep ? (
-        <p className="border-t border-border bg-muted/30 px-6 py-3 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">Next recommended action:</span> Step{" "}
-          {nextStep.number} — {nextStep.title}.
-        </p>
-      ) : (
-        <p className="border-t border-border bg-muted/30 px-6 py-3 text-sm text-primary">
-          Your marketplace workflow is ready. You can review prices or create another listing at any
-          time.
-        </p>
-      )}
-    </section>
-  );
-}
-
 function MarketerProductsPage() {
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<
@@ -191,7 +73,10 @@ function MarketerProductsPage() {
   const [listingCropType, setListingCropType] = useState("");
   const [listingClassification, setListingClassification] = useState("");
   const [listingAvailability, setListingAvailability] = useState("");
-  const [activeSection, setActiveSection] = useState("listings");
+  const [inventoryId, setInventoryId] = useState("");
+  const [retailPricePerKg, setRetailPricePerKg] = useState("");
+  const [bundlePricePerKg, setBundlePricePerKg] = useState("");
+  const [bundleMinimumKg, setBundleMinimumKg] = useState("");
 
   const load = async () => {
     const [nextListings, nextCatalogProducts, nextPublishableInventory] = await Promise.all([
@@ -238,8 +123,13 @@ function MarketerProductsPage() {
   const hasListingFilters =
     listingQuery || listingCropType || listingClassification || listingAvailability;
   const listingsPage = usePagination(visibleListings);
-  const hasClassifiedInventory = publishableInventory.length > 0 || listings.length > 0;
-
+  const selectedInventory = publishableInventory.find((item) => item.id === inventoryId);
+  const retailPrice = Number(retailPricePerKg);
+  const bundlePrice = Number(bundlePricePerKg);
+  const bundleMinimum = Number(bundleMinimumKg);
+  const hasValidPrices =
+    retailPrice > 0 && bundlePrice > 0 && bundleMinimum > 0 && bundlePrice < retailPrice;
+  const listingReady = Boolean(selectedInventory && hasValidPrices);
   return (
     <MarketerLayout>
       <MarketerPageHeader
@@ -251,20 +141,61 @@ function MarketerProductsPage() {
           <span className="font-semibold">Live inventory:</span> published listings and available
           quantities are stored in AgriLink and appear in the public marketplace.
         </div>
-        <ListingAssistant
-          catalogProductCount={catalogProducts.length}
-          hasClassifiedInventory={hasClassifiedInventory}
-          listingCount={listings.length}
-          onOpenCatalog={() => setActiveSection("catalog")}
-          onOpenListingForm={() => setActiveSection("add")}
-        />
-        <Tabs value={activeSection} onValueChange={setActiveSection}>
-          <TabsList aria-label="Product listing sections">
-            <TabsTrigger value="listings">Marketplace Listings</TabsTrigger>
-            <TabsTrigger value="catalog">Product Catalog</TabsTrigger>
-            <TabsTrigger value="add">Create Listing</TabsTrigger>
-          </TabsList>
-          <TabsContent value="listings" className="mt-6">
+        <section className="mb-6 overflow-hidden rounded-3xl border border-primary/25 bg-card shadow-card">
+          <div className="px-6 py-5 md:px-7">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              One-page listing workspace
+            </p>
+            <h2 className="mt-1 text-xl font-semibold">Create and manage marketplace listings</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+              Everything stays on this page. Add a catalog product when needed, choose available
+              classified stock, set buyer prices, and review your published listings below.
+            </p>
+          </div>
+          <div className="grid border-t border-border md:grid-cols-3">
+            <a
+              href="#catalog"
+              className="flex gap-3 border-b border-border p-5 transition-colors hover:bg-muted/40 md:border-b-0 md:border-r"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                <PackagePlus className="size-5" />
+              </span>
+              <span>
+                <span className="block font-semibold">Product details</span>
+                <span className="mt-1 block text-sm text-muted-foreground">
+                  Add or find the crop you need.
+                </span>
+              </span>
+            </a>
+            <a
+              href="#publish"
+              className="flex gap-3 border-b border-border p-5 transition-colors hover:bg-muted/40 md:border-b-0 md:border-r"
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                <CircleDollarSign className="size-5" />
+              </span>
+              <span>
+                <span className="block font-semibold">Stock and price</span>
+                <span className="mt-1 block text-sm text-muted-foreground">
+                  Choose stock, price it, and publish.
+                </span>
+              </span>
+            </a>
+            <a href="#listings" className="flex gap-3 p-5 transition-colors hover:bg-muted/40">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                <Boxes className="size-5" />
+              </span>
+              <span>
+                <span className="block font-semibold">Published listings</span>
+                <span className="mt-1 block text-sm text-muted-foreground">
+                  Search, review, and update prices.
+                </span>
+              </span>
+            </a>
+          </div>
+        </section>
+        <div className="flex flex-col gap-6">
+          <section id="listings" className="order-3 scroll-mt-6">
             <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
               <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5">
                 <div>
@@ -514,15 +445,18 @@ function MarketerProductsPage() {
                 </form>
               ) : null}
             </section>
-          </TabsContent>
-          <TabsContent value="catalog" className="mt-6">
+          </section>
+          <section id="catalog" className="order-1 scroll-mt-6">
             <section className="max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
               <div className="flex items-start gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
                   <PackagePlus className="size-5" />
                 </span>
                 <div>
-                  <h2 className="text-lg font-semibold">Add product to catalog</h2>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                    Product details
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold">Add product to catalog</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Add a crop before recording its farmer delivery. This does not publish it to
                     buyers yet.
@@ -659,15 +593,18 @@ function MarketerProductsPage() {
                 </div>
               </div>
             </section>
-          </TabsContent>
-          <TabsContent value="add" className="mt-6">
+          </section>
+          <section id="publish" className="order-2 scroll-mt-6">
             <section className="max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
               <div className="flex items-start gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
                   <PackagePlus className="size-5" />
                 </span>
                 <div>
-                  <h2 className="text-lg font-semibold">Create PROCY marketplace listing</h2>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                    Stock, pricing, and publishing
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold">Create PROCY marketplace listing</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Use a classified product group to create a buyer-visible listing.
                   </p>
@@ -677,22 +614,20 @@ function MarketerProductsPage() {
                 className="mt-8 grid gap-5 sm:grid-cols-2"
                 onSubmit={async (event) => {
                   event.preventDefault();
-                  const form = event.currentTarget;
-                  const formData = new FormData(form);
-                  const retailPricePerKg = Number(formData.get("retailPricePerKg"));
-                  const bundlePricePerKg = Number(formData.get("bundlePricePerKg"));
-                  const bundleMinimumKg = Number(formData.get("bundleMinimumKg"));
                   setSavingListing(true);
                   try {
                     await createMarketplaceListing({
                       data: {
-                        inventoryId: String(formData.get("inventoryId")),
-                        retailPricePerKg,
-                        bundlePricePerKg,
-                        bundleMinimumKg,
+                        inventoryId,
+                        retailPricePerKg: retailPrice,
+                        bundlePricePerKg: bundlePrice,
+                        bundleMinimumKg: bundleMinimum,
                       },
                     });
-                    form.reset();
+                    setInventoryId("");
+                    setRetailPricePerKg("");
+                    setBundlePricePerKg("");
+                    setBundleMinimumKg("");
                     await load();
                     toast.success("Marketplace listing created", {
                       description: "Published stock is now available to buyers.",
@@ -707,12 +642,13 @@ function MarketerProductsPage() {
                 }}
               >
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="inventoryId">Delivery-backed classified inventory</Label>
+                  <Label htmlFor="inventoryId">Choose available classified stock</Label>
                   <select
                     id="inventoryId"
                     name="inventoryId"
                     required
-                    defaultValue=""
+                    value={inventoryId}
+                    onChange={(event) => setInventoryId(event.target.value)}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
                     <option value="" disabled>
@@ -725,6 +661,29 @@ function MarketerProductsPage() {
                       </option>
                     ))}
                   </select>
+                  {publishableInventory.length === 0 ? (
+                    <p className="rounded-xl bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+                      No unused classified stock is ready yet. Record and classify a farmer delivery
+                      first in{" "}
+                      <Link
+                        to="/marketer/receiving"
+                        className="font-semibold text-primary hover:underline"
+                      >
+                        Product Receiving
+                      </Link>
+                      .
+                    </p>
+                  ) : selectedInventory ? (
+                    <p className="rounded-xl bg-accent/60 px-3 py-2 text-sm text-accent-foreground">
+                      <span className="font-semibold">Selected:</span> {selectedInventory.name} ·{" "}
+                      {selectedInventory.classification} · {selectedInventory.quantityKg} kg
+                      available
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Only available stock that does not already have a listing appears here.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="retail-price">Retail price per kg (₱)</Label>
@@ -734,6 +693,8 @@ function MarketerProductsPage() {
                     type="number"
                     min="0.01"
                     step="0.01"
+                    value={retailPricePerKg}
+                    onChange={(event) => setRetailPricePerKg(event.target.value)}
                     required
                   />
                 </div>
@@ -745,6 +706,8 @@ function MarketerProductsPage() {
                     type="number"
                     min="0.01"
                     step="0.01"
+                    value={bundlePricePerKg}
+                    onChange={(event) => setBundlePricePerKg(event.target.value)}
                     required
                   />
                 </div>
@@ -756,26 +719,54 @@ function MarketerProductsPage() {
                     type="number"
                     min="1"
                     step="0.01"
+                    value={bundleMinimumKg}
+                    onChange={(event) => setBundleMinimumKg(event.target.value)}
                     required
                   />
                 </div>
+                <div className="rounded-2xl border border-border bg-muted/30 p-4 sm:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Buyer price preview
+                  </p>
+                  {selectedInventory ? (
+                    <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
+                      <p className="font-medium">
+                        {selectedInventory.name} · {selectedInventory.classification} stock
+                      </p>
+                      {hasValidPrices ? (
+                        <p className="text-sm text-primary">
+                          Retail ₱{retailPrice.toFixed(2)} / kg · Bundle ₱{bundlePrice.toFixed(2)} /
+                          kg for {bundleMinimum}+ kg
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Add a valid retail and lower bundle price to preview the offer.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Choose stock above to see the product buyers will receive.
+                    </p>
+                  )}
+                </div>
                 <p className="self-end text-sm text-muted-foreground">
                   Bundle price must be lower than retail. The classification is inherited from the
-                  inventory.
+                  selected stock.
                 </p>
-                <div className="flex items-end">
+                <div className="flex items-end sm:justify-end">
                   <Button
                     type="submit"
                     className="w-full rounded-full sm:w-auto"
-                    disabled={savingListing}
+                    disabled={savingListing || !listingReady}
                   >
                     {savingListing ? "Publishing…" : "Create listing"}
                   </Button>
                 </div>
               </form>
             </section>
-          </TabsContent>
-        </Tabs>
+          </section>
+        </div>
         <aside className="mt-8 flex gap-3 rounded-3xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-card">
           <ShoppingBag className="mt-0.5 size-5 shrink-0 text-primary" />
           <p>

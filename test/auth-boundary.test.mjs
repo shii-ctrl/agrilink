@@ -250,19 +250,22 @@ test("public authentication uses the floating dialog system", async () => {
   assert.doesNotMatch(resetRoute, /auth-panel|auth-visual/);
 });
 
-test("Marketer product listing has a guided workflow without removing the existing tools", async () => {
+test("Marketer product listing uses a clear one-page workspace without removing existing tools", async () => {
   const marketerPage = await readFile("src/routes/marketer.products.tsx", "utf8");
 
-  assert.match(marketerPage, /Listing Assistant/);
-  assert.match(marketerPage, /First listing guide/);
-  assert.match(marketerPage, /Add a product to the catalog/);
-  assert.match(marketerPage, /Receive and classify a farmer delivery/);
-  assert.match(marketerPage, /Set prices and publish the listing/);
-  assert.match(marketerPage, /Link to="\/marketer\/receiving"/);
-  assert.match(marketerPage, /Tabs value=\{activeSection\}/);
-  assert.match(marketerPage, /Marketplace Listings/);
-  assert.match(marketerPage, /Product Catalog/);
-  assert.match(marketerPage, /Create Listing/);
+  assert.match(marketerPage, /One-page listing workspace/);
+  assert.match(marketerPage, /id="catalog"/);
+  assert.match(marketerPage, /id="publish"/);
+  assert.match(marketerPage, /id="listings"/);
+  assert.match(marketerPage, /Add product to catalog/);
+  assert.match(marketerPage, /Choose available classified stock/);
+  assert.match(marketerPage, /Buyer price preview/);
+  assert.match(marketerPage, /<Link\s+to="\/marketer\/receiving"/);
+  assert.match(marketerPage, /PROCY marketplace listings/);
+  assert.doesNotMatch(
+    marketerPage,
+    /Listing Assistant|First listing guide|Tabs(?:List|Content|Trigger)/,
+  );
 });
 
 test("role workflows keep catalog, cart, and Farmer stock states consistent", async () => {
