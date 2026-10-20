@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import type { Classification } from "@/features/marketplace/products";
+import { procyMarketCategoryForProduct } from "@/features/marketplace/procy-market-categories";
 import {
   getMarketplaceListings,
   getMarketerDailyPrices,
@@ -110,10 +111,15 @@ function MarketerDailyPricesPage() {
                   </option>
                   {listings.map((product) => (
                     <option key={product.id} value={product.id}>
+                      [{procyMarketCategoryForProduct(product.name) ?? "Not in PROCY guide"}]{" "}
                       {product.name} — {product.classification}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-muted-foreground">
+                  PROCY market categories are a guide for organizing prices. Good, Semi, and Reject
+                  remain the listing quality classifications.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="price">Price per kg (₱)</Label>
@@ -145,6 +151,7 @@ function MarketerDailyPricesPage() {
                 <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
                   <tr>
                     <th className="px-6 py-4">Product</th>
+                    <th className="px-6 py-4">PROCY market category</th>
                     <th className="px-6 py-4">Classification</th>
                     <th className="px-6 py-4">Price / kg</th>
                     <th className="px-6 py-4">Status</th>
@@ -155,6 +162,9 @@ function MarketerDailyPricesPage() {
                   {pricesPage.pageItems.map((entry) => (
                     <tr key={entry.id} className="border-t border-border">
                       <td className="px-6 py-4 font-medium">{entry.product}</td>
+                      <td className="px-6 py-4">
+                        {procyMarketCategoryForProduct(entry.product) ?? "Not in PROCY guide"}
+                      </td>
                       <td className="px-6 py-4">{entry.classification}</td>
                       <td className="px-6 py-4">₱{entry.price.toFixed(2)}</td>
                       <td className="px-6 py-4">{entry.status}</td>
@@ -192,7 +202,7 @@ function MarketerDailyPricesPage() {
                   ))}
                   {dateEntries.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
+                      <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
                         No price entries recorded for this date.
                       </td>
                     </tr>

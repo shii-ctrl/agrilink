@@ -204,6 +204,29 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(migration, /MODIFY COLUMN image_url MEDIUMTEXT/);
 });
 
+test("daily prices use PROCY market categories as an organizing guide", async () => {
+  const [categories, publicPrices, marketerPrices] = await Promise.all([
+    readFile("src/features/marketplace/procy-market-categories.ts", "utf8"),
+    readFile("src/routes/daily-prices.tsx", "utf8"),
+    readFile("src/routes/marketer.daily-prices.tsx", "utf8"),
+  ]);
+
+  for (const category of [
+    "Lowland Crops",
+    "Highland Crops",
+    "Fruits",
+    "Root Crops",
+    "Staple Crops",
+    "Other Commodities",
+  ]) {
+    assert.match(categories, new RegExp(category));
+  }
+  assert.match(publicPrices, /PROCY market category/);
+  assert.match(publicPrices, /Filter daily prices by PROCY market category/);
+  assert.match(marketerPrices, /PROCY market categories are a guide/);
+  assert.doesNotMatch(categories, /70\/60|250\/230/);
+});
+
 test("public authentication uses the floating dialog system", async () => {
   const [home, header, loginDialog, resetDialog, loginRoute, registerRoute, resetRoute] =
     await Promise.all([

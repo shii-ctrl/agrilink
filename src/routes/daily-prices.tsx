@@ -18,6 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import type { Classification } from "@/features/marketplace/products";
+import {
+  procyCategoryOrder,
+  procyMarketCategories,
+  procyMarketCategoryForProduct,
+} from "@/features/marketplace/procy-market-categories";
 import { getPublicDailyPrices } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/daily-prices")({
@@ -37,6 +42,7 @@ function DailyPricesPage() {
   const [date, setDate] = useState("");
   const [entries, setEntries] = useState<DailyPriceEntry[]>([]);
   const [chartProduct, setChartProduct] = useState("Tomato");
+  const [marketCategory, setMarketCategory] = useState("");
 
   useEffect(() => {
     void getPublicDailyPrices().then((dailyPrices) => {
@@ -56,21 +62,28 @@ function DailyPricesPage() {
   );
   const productRows = useMemo(
     () =>
-      [...new Set(entries.map((entry) => entry.product))].map((name) => {
-        const product = entries.find((item) => item.product === name)!;
-        const values = Object.fromEntries(
-          publishedEntries
-            .filter((entry) => entry.product === name)
-            .map((entry) => [entry.classification.toLowerCase(), entry.price]),
-        );
-        return {
-          product: name,
-          crop: product.cropType,
-          good: values["good"],
-          semi: values["semi"],
-          reject: values["reject"],
-        };
-      }),
+      [...new Set(entries.map((entry) => entry.product))]
+        .map((name) => {
+          const product = entries.find((item) => item.product === name)!;
+          const values = Object.fromEntries(
+            publishedEntries
+              .filter((entry) => entry.product === name)
+              .map((entry) => [entry.classification.toLowerCase(), entry.price]),
+          );
+          return {
+            product: name,
+            crop: product.cropType,
+            marketCategory: procyMarketCategoryForProduct(name),
+            good: values["good"],
+            semi: values["semi"],
+            reject: values["reject"],
+          };
+        })
+        .sort(
+          (first, second) =>
+            procyCategoryOrder(first.marketCategory) - procyCategoryOrder(second.marketCategory) ||
+            first.product.localeCompare(second.product),
+        ),
     [entries, publishedEntries],
   );
   const chartData = useMemo(
@@ -95,7 +108,14 @@ function DailyPricesPage() {
       }),
     [entries, chartProduct],
   );
-  const productRowsPage = usePagination(productRows);
+  const visibleProductRows = useMemo(
+    () =>
+      marketCategory
+        ? productRows.filter((item) => item.marketCategory === marketCategory)
+        : productRows,
+    [marketCategory, productRows],
+  );
+  const productRowsPage = usePagination(visibleProductRows);
 
   return (
     <div className="min-h-screen">
@@ -136,18 +156,43 @@ function DailyPricesPage() {
           </p>
         </div>
 
+        <div className="mt-4 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
+          <span className="font-semibold text-foreground">PROCY market categories:</span> Lowland
+          Crops, Highland Crops, Fruits, Root Crops, Staple Crops, and Other Commodities. These
+          labels organize the price guide and do not replace Good, Semi, or Reject quality classes.
+        </div>
+
         <section className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-          <div className="border-b border-border px-6 py-5">
-            <h2 className="text-lg font-semibold">Price per kilogram</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              A dash means that classification has no published price for this date.
-            </p>
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border px-6 py-5">
+            <div>
+              <h2 className="text-lg font-semibold">Price per kilogram</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A dash means that classification has no published price for this date.
+              </p>
+            </div>
+            <label className="space-y-1 text-sm font-medium">
+              <span className="text-muted-foreground">PROCY market category</span>
+              <select
+                aria-label="Filter daily prices by PROCY market category"
+                value={marketCategory}
+                onChange={(event) => setMarketCategory(event.target.value)}
+                className="block h-9 rounded-md border border-input bg-background px-3 text-sm font-normal"
+              >
+                <option value="">All categories</option>
+                {procyMarketCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[780px] text-left text-sm">
+            <table className="w-full min-w-[920px] text-left text-sm">
               <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-6 py-4">Product</th>
+                  <th className="px-6 py-4">PROCY market category</th>
                   <th className="px-6 py-4">Crop Type</th>
                   <th className="px-6 py-4">Good</th>
                   <th className="px-6 py-4">Semi</th>
@@ -158,6 +203,15 @@ function DailyPricesPage() {
                 {productRowsPage.pageItems.map((item) => (
                   <tr key={item.product} className="border-t border-border">
                     <td className="px-6 py-4 font-semibold">{item.product}</td>
+                    <td className="px-6 py-4">
+                      {item.marketCategory ? (
+                        <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">
+                          {item.marketCategory}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Not in PROCY guide</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-muted-foreground">{item.crop}</td>
                     <td className="px-6 py-4 font-medium text-good">
                       {item.good ? `₱${item.good}` : "—"}
