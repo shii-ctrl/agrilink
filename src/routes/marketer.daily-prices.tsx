@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Eye, EyeOff, Tag } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Eye, EyeOff, Pencil, RefreshCw, Tag, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import type { Classification } from "@/features/marketplace/products";
 import { procyMarketCategoryForProduct } from "@/features/marketplace/procy-market-categories";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import {
   getMarketplaceListings,
   getMarketerDailyPrices,
@@ -21,26 +23,66 @@ export const Route = createFileRoute("/marketer/daily-prices")({
   component: MarketerDailyPricesPage,
 });
 
+const today = () => new Date().toLocaleDateString("en-CA");
+
 function MarketerDailyPricesPage() {
   const [entries, setEntries] = useState<DailyPriceEntry[]>([]);
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [formDate, setFormDate] = useState(today);
+  const [listingId, setListingId] = useState("");
+  const [price, setPrice] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    void Promise.all([getMarketerDailyPrices(), getMarketplaceListings()]).then(
-      ([dailyPrices, marketplaceListings]) => {
-        setEntries(dailyPrices);
-        setListings(marketplaceListings);
-        setSelectedDate((current) => current || dailyPrices.at(-1)?.date || "");
-      },
-    );
+  const load = useCallback(async () => {
+    const [dailyPrices, marketplaceListings] = await Promise.all([
+      getMarketerDailyPrices(),
+      getMarketplaceListings(),
+    ]);
+    setEntries(dailyPrices);
+    setListings(marketplaceListings);
+    setLoadError(null);
   }, []);
 
+  const loadWorkspace = useCallback(async () => {
+    setLoading(true);
+    try {
+      await load();
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [load]);
+
+  useEffect(() => void loadWorkspace(), [loadWorkspace]);
+  useAutoRefresh(() => load().catch(() => undefined));
+
   const dateEntries = useMemo(
-    () => entries.filter((entry) => entry.date === selectedDate),
-    [entries, selectedDate],
+    () =>
+      entries.filter(
+        (entry) =>
+          entry.date === selectedDate &&
+          (!query ||
+            `${entry.product} ${entry.classification} ${procyMarketCategoryForProduct(entry.product) ?? ""}`
+              .toLocaleLowerCase()
+              .includes(query.trim().toLocaleLowerCase())),
+      ),
+    [entries, query, selectedDate],
   );
   const pricesPage = usePagination(dateEntries);
+  const editingEntry = entries.find((entry) => entry.id === editingId) ?? null;
+
+  const resetForm = () => {
+    setEditingId(null);
+    setFormDate(today());
+    setListingId("");
+    setPrice("");
+  };
 
   return (
     <MarketerLayout>
@@ -49,170 +91,251 @@ function MarketerDailyPricesPage() {
         description="Publish PROCY daily product prices. Published entries appear immediately on the public Daily Prices page."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
-        <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
-          <span className="font-semibold">Shared price history:</span> published prices are visible
-          publicly for their selected date, while hidden prices remain internal.
-        </div>
-        <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
-          <section className="rounded-3xl border border-border bg-card p-6 shadow-card">
-            <div className="flex gap-3">
-              <Tag className="mt-0.5 size-5 text-primary" />
-              <div>
-                <h2 className="text-lg font-semibold">Publish daily price</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Publishing again for the same date and classification updates that price.
-                </p>
-              </div>
+        <WorkspaceLoadState
+          loading={loading}
+          error={loadError}
+          onRetry={() => void loadWorkspace()}
+          label="daily-price workspace"
+        />
+        {!loading && !loadError ? (
+          <>
+            <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
+              <span className="font-semibold">Shared price history:</span> published prices are
+              visible publicly for their selected date, while hidden prices remain internal.
             </div>
-            <form
-              className="mt-6 space-y-4"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                const form = event.currentTarget;
-                const data = new FormData(form);
-                try {
-                  await publishDailyPrice({
-                    data: {
-                      date: String(data.get("date")),
-                      listingId: String(data.get("listingId")),
-                      price: Number(data.get("price")),
-                    },
-                  });
-                  const refreshed = await getMarketerDailyPrices();
-                  setEntries(refreshed);
-                  setSelectedDate(String(data.get("date")));
-                  form.reset();
-                  toast.success("Daily price published", {
-                    description:
-                      "The public Daily Prices page now shows this entry for the selected date.",
-                  });
-                } catch (error) {
-                  toast.error("Daily price could not be saved", {
-                    description: error instanceof Error ? error.message : "Please try again.",
-                  });
-                }
-              }}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="date">Price date</Label>
-                <Input id="date" name="date" type="date" defaultValue={selectedDate} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="listingId">Product classification</Label>
-                <select
-                  id="listingId"
-                  name="listingId"
-                  defaultValue=""
-                  required
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
+              <section className="rounded-3xl border border-border bg-card p-6 shadow-card">
+                <div className="flex gap-3">
+                  <Tag className="mt-0.5 size-5 text-primary" />
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      {editingEntry ? `Edit ${editingEntry.product} price` : "Publish daily price"}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {editingEntry
+                        ? "Update the price, then save. Visibility stays under your control."
+                        : "Choose a published product, date, and price. Today is selected by default."}
+                    </p>
+                  </div>
+                </div>
+                <form
+                  className="mt-6 space-y-4"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    setSaving(true);
+                    try {
+                      await publishDailyPrice({
+                        data: { date: formDate, listingId, price: Number(price) },
+                      });
+                      setSelectedDate(formDate);
+                      await load();
+                      toast.success(
+                        editingEntry ? "Daily price updated" : "Daily price published",
+                        {
+                          description: "The selected price is now saved in AgriLink.",
+                        },
+                      );
+                      resetForm();
+                    } catch (error) {
+                      toast.error("Daily price could not be saved", {
+                        description: error instanceof Error ? error.message : "Please try again.",
+                      });
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
                 >
-                  <option value="" disabled>
-                    Select a classified listing
-                  </option>
-                  {listings.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      [{procyMarketCategoryForProduct(product.name) ?? "Not in PROCY guide"}]{" "}
-                      {product.name} — {product.classification}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground">
-                  PROCY market categories are a guide for organizing prices. Good, Semi, and Reject
-                  remain the listing quality classifications.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="price">Price per kg (₱)</Label>
-                <Input id="price" name="price" type="number" min="0.01" step="0.01" required />
-              </div>
-              <Button type="submit" className="rounded-full">
-                Publish daily price
-              </Button>
-            </form>
-          </section>
-          <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5">
-              <div>
-                <h2 className="text-lg font-semibold">Published price history</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Review or hide entries for a selected price date.
-                </p>
-              </div>
-              <Input
-                aria-label="Select price history date"
-                type="date"
-                value={selectedDate}
-                onChange={(event) => setSelectedDate(event.target.value)}
-                className="w-40"
-              />
+                  <div className="space-y-2">
+                    <Label htmlFor="date">Price date</Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      value={formDate}
+                      onChange={(event) => setFormDate(event.target.value)}
+                      disabled={Boolean(editingEntry)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="listingId">Product classification</Label>
+                    <select
+                      id="listingId"
+                      value={listingId}
+                      onChange={(event) => setListingId(event.target.value)}
+                      disabled={Boolean(editingEntry)}
+                      required
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <option value="" disabled>
+                        Select a published listing
+                      </option>
+                      {listings.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          [{procyMarketCategoryForProduct(product.name) ?? "Not in PROCY guide"}]{" "}
+                          {product.name} — {product.classification}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      PROCY market categories are a guide for organizing prices. Good, Semi, and
+                      Reject remain the listing quality classifications.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Price per kg (₱)</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={price}
+                      onChange={(event) => setPrice(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Button type="submit" className="rounded-full" disabled={saving}>
+                      {saving ? "Saving…" : editingEntry ? "Save price" : "Publish daily price"}
+                    </Button>
+                    {editingEntry ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={resetForm}
+                      >
+                        <X className="size-4" /> Cancel edit
+                      </Button>
+                    ) : null}
+                  </div>
+                </form>
+              </section>
+              <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5">
+                  <div>
+                    <h2 className="text-lg font-semibold">Daily price history</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Review, edit, publish, or hide entries for one date.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => void load()}
+                  >
+                    <RefreshCw className="size-3.5" /> Refresh
+                  </Button>
+                </div>
+                <div className="grid gap-3 border-b border-border px-6 py-4 sm:grid-cols-2">
+                  <Input
+                    aria-label="Select price history date"
+                    type="date"
+                    value={selectedDate}
+                    onChange={(event) => setSelectedDate(event.target.value)}
+                  />
+                  <Input
+                    aria-label="Search price history"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search product, category, or quality"
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-left text-sm">
+                    <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
+                      <tr>
+                        <th className="px-6 py-4">Product</th>
+                        <th className="px-6 py-4">PROCY market category</th>
+                        <th className="px-6 py-4">Classification</th>
+                        <th className="px-6 py-4">Price / kg</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pricesPage.pageItems.map((entry) => (
+                        <tr key={entry.id} className="border-t border-border">
+                          <td className="px-6 py-4 font-medium">{entry.product}</td>
+                          <td className="px-6 py-4">
+                            {procyMarketCategoryForProduct(entry.product) ?? "Not in PROCY guide"}
+                          </td>
+                          <td className="px-6 py-4">{entry.classification}</td>
+                          <td className="px-6 py-4">₱{entry.price.toFixed(2)}</td>
+                          <td className="px-6 py-4">{entry.status}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={() => {
+                                  setEditingId(entry.id);
+                                  setFormDate(entry.date);
+                                  setListingId(entry.listingId);
+                                  setPrice(String(entry.price));
+                                }}
+                              >
+                                <Pencil className="size-3" /> Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={async () => {
+                                  try {
+                                    await setDailyPricePublished({
+                                      data: {
+                                        id: entry.id,
+                                        published: entry.status !== "Published",
+                                      },
+                                    });
+                                    await load();
+                                    toast.success(
+                                      entry.status === "Published"
+                                        ? "Daily price hidden"
+                                        : "Daily price published",
+                                    );
+                                  } catch (error) {
+                                    toast.error("Price visibility could not be changed", {
+                                      description:
+                                        error instanceof Error
+                                          ? error.message
+                                          : "Please try again.",
+                                    });
+                                  }
+                                }}
+                              >
+                                {entry.status === "Published" ? (
+                                  <>
+                                    <EyeOff className="size-3" /> Hide
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye className="size-3" /> Publish
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {dateEntries.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
+                            No price entries match this date and search.
+                          </td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+                <PaginationControls {...pricesPage} itemLabel="price entries" />
+              </section>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[650px] text-left text-sm">
-                <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-6 py-4">Product</th>
-                    <th className="px-6 py-4">PROCY market category</th>
-                    <th className="px-6 py-4">Classification</th>
-                    <th className="px-6 py-4">Price / kg</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pricesPage.pageItems.map((entry) => (
-                    <tr key={entry.id} className="border-t border-border">
-                      <td className="px-6 py-4 font-medium">{entry.product}</td>
-                      <td className="px-6 py-4">
-                        {procyMarketCategoryForProduct(entry.product) ?? "Not in PROCY guide"}
-                      </td>
-                      <td className="px-6 py-4">{entry.classification}</td>
-                      <td className="px-6 py-4">₱{entry.price.toFixed(2)}</td>
-                      <td className="px-6 py-4">{entry.status}</td>
-                      <td className="px-6 py-4">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="rounded-full"
-                          onClick={async () => {
-                            try {
-                              await setDailyPricePublished({
-                                data: { id: entry.id, published: entry.status !== "Published" },
-                              });
-                              setEntries(await getMarketerDailyPrices());
-                            } catch (error) {
-                              toast.error("Price visibility could not be changed", {
-                                description:
-                                  error instanceof Error ? error.message : "Please try again.",
-                              });
-                            }
-                          }}
-                        >
-                          {entry.status === "Published" ? (
-                            <>
-                              <EyeOff className="size-3" /> Hide
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="size-3" /> Publish
-                            </>
-                          )}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {dateEntries.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
-                        No price entries recorded for this date.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <PaginationControls {...pricesPage} itemLabel="price entries" />
-          </section>
-        </div>
+          </>
+        ) : null}
       </main>
     </MarketerLayout>
   );

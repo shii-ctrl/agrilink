@@ -44,28 +44,52 @@ const dailyPriceStatusInput = z.object({
   id: z.string().uuid(),
   published: z.boolean(),
 });
-const bundlePricingFields = {
+const listingPricingFields = {
   retailPricePerKg: z.number().positive().max(100_000),
-  bundlePricePerKg: z.number().positive().max(100_000),
-  bundleMinimumKg: z.number().positive().max(10_000),
+  bundlePricePerKg: z.number().positive().max(100_000).nullable(),
+  bundleMinimumKg: z.number().positive().max(10_000).nullable(),
 };
 
 const createListingInput = z
   .object({
     inventoryId: z.string().uuid(),
-    ...bundlePricingFields,
-    status: z.enum(["draft", "published"]).default("published"),
+    ...listingPricingFields,
+    status: z.enum(["draft", "published"]).default("draft"),
   })
-  .refine((data) => data.bundlePricePerKg < data.retailPricePerKg, {
-    message: "Bundle price must be lower than the retail price.",
-    path: ["bundlePricePerKg"],
-  });
+  .superRefine(validateBundlePricing);
 const updateListingPricingInput = z
-  .object({ listingId: z.string().uuid(), ...bundlePricingFields })
-  .refine((data) => data.bundlePricePerKg < data.retailPricePerKg, {
-    message: "Bundle price must be lower than the retail price.",
-    path: ["bundlePricePerKg"],
-  });
+  .object({ listingId: z.string().uuid(), ...listingPricingFields })
+  .superRefine(validateBundlePricing);
+const listingStatusInput = z.object({
+  listingId: z.string().uuid(),
+  status: z.enum(["draft", "published", "archived"]),
+});
+
+function validateBundlePricing(
+  data: {
+    retailPricePerKg: number;
+    bundlePricePerKg: number | null;
+    bundleMinimumKg: number | null;
+  },
+  context: z.RefinementCtx,
+) {
+  const hasBundlePrice = data.bundlePricePerKg !== null;
+  const hasBundleMinimum = data.bundleMinimumKg !== null;
+  if (hasBundlePrice !== hasBundleMinimum) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Enter both bundle price and minimum quantity, or leave both blank.",
+      path: hasBundlePrice ? ["bundleMinimumKg"] : ["bundlePricePerKg"],
+    });
+  }
+  if (hasBundlePrice && data.bundlePricePerKg! >= data.retailPricePerKg) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Bundle price must be lower than the retail price.",
+      path: ["bundlePricePerKg"],
+    });
+  }
+}
 const cropTypes = [
   "Leafy vegetable",
   "Root vegetable",
@@ -125,7 +149,10 @@ function assertSafeProductImage(dataUrl: string | undefined) {
 }
 
 type MarketplaceProduct = Product;
-type MarketerMarketplaceProduct = MarketplaceProduct & { farmer: string | null };
+type MarketerMarketplaceProduct = MarketplaceProduct & {
+  farmer: string | null;
+  status: "draft" | "published" | "unavailable" | "archived";
+};
 
 function asProduct(row: {
   listingId: string;
@@ -225,14 +252,14 @@ async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
       description: products.description,
       imageUrl: products.imageUrl,
       farmer: users.displayName,
+      status: listings.status,
     })
     .from(listings)
     .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-    .leftJoin(users, eq(inventory.farmerId, users.id))
-    .where(eq(listings.status, "published"));
-  return rows.map((row) => ({ ...asProduct(row), farmer: row.farmer }));
+    .leftJoin(users, eq(inventory.farmerId, users.id));
+  return rows.map((row) => ({ ...asProduct(row), farmer: row.farmer, status: row.status }));
 }
 
 export const getMarketplaceListings = createServerFn({ method: "GET" }).handler(async () =>
@@ -339,8 +366,8 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
         // price_per_kg remains the retail fallback for older reports and existing integrations.
         pricePerKg: data.retailPricePerKg.toFixed(2),
         retailPricePerKg: data.retailPricePerKg.toFixed(2),
-        bundlePricePerKg: data.bundlePricePerKg.toFixed(2),
-        bundleMinimumKg: data.bundleMinimumKg.toFixed(2),
+        bundlePricePerKg: data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
+        bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
         status: data.status,
       });
       return { listingId, inventoryId: data.inventoryId };
@@ -363,8 +390,8 @@ export const updateMarketplaceListingPricing = createServerFn({ method: "POST" }
       .set({
         pricePerKg: data.retailPricePerKg.toFixed(2),
         retailPricePerKg: data.retailPricePerKg.toFixed(2),
-        bundlePricePerKg: data.bundlePricePerKg.toFixed(2),
-        bundleMinimumKg: data.bundleMinimumKg.toFixed(2),
+        bundlePricePerKg: data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
+        bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
       })
       .where(eq(listings.id, data.listingId));
     if (updated.affectedRows !== 1) throw new Error("The marketplace listing could not be found.");
@@ -374,6 +401,34 @@ export const updateMarketplaceListingPricing = createServerFn({ method: "POST" }
       bundleMinimumKg: data.bundleMinimumKg,
     });
     return { id: data.listingId };
+  });
+
+export const setMarketplaceListingStatus = createServerFn({ method: "POST" })
+  .validator(listingStatusInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    const { db } = await import("@/db/client.server");
+    const { inventory, listings } = await import("@/db/schema");
+    if (data.status === "published") {
+      const [stock] = await db
+        .select({ availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}` })
+        .from(listings)
+        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+        .where(eq(listings.id, data.listingId));
+      if (!stock || Number(stock.availableKg) <= 0) {
+        throw new Error("Only listings with available stock can be published.");
+      }
+    }
+    const [updated] = await db
+      .update(listings)
+      .set({ status: data.status })
+      .where(eq(listings.id, data.listingId));
+    if (updated.affectedRows !== 1) throw new Error("The marketplace listing could not be found.");
+    await writeAuditLog(actor.id, "listing.status.update", "marketplace_listing", data.listingId, {
+      status: data.status,
+    });
+    return { id: data.listingId, status: data.status };
   });
 
 export const getMarketplaceListing = createServerFn({ method: "GET" })
@@ -431,10 +486,12 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
     const { db } = await import("@/db/client.server");
     const { dailyPrices, listings } = await import("@/db/schema");
     const [listing] = await db
-      .select({ id: listings.id })
+      .select({ id: listings.id, status: listings.status })
       .from(listings)
       .where(eq(listings.id, data.listingId));
-    if (!listing) throw new Error("The selected marketplace listing no longer exists.");
+    if (!listing || listing.status !== "published") {
+      throw new Error("Choose a currently published marketplace listing.");
+    }
     const [existing] = await db
       .select({ id: dailyPrices.id })
       .from(dailyPrices)
@@ -1301,14 +1358,32 @@ export const getMarketerDashboard = createServerFn({ method: "GET" }).handler(as
   const { requireRole } = await import("@/services/auth/auth-server");
   await requireRole("Marketer");
   const { db } = await import("@/db/client.server");
-  const { inventory, listings, orders, receivingRecords } = await import("@/db/schema");
-  const [receiving, stock, publishedListings, pendingOrders] = await Promise.all([
+  const { classifications, inventory, listings, orders, products, receivingRecords } =
+    await import("@/db/schema");
+  const [receiving, stock, publishedListings, pendingOrders, lowStock] = await Promise.all([
     db.select({ totalKg: receivingRecords.totalKg }).from(receivingRecords),
     db
       .select({ quantityKg: inventory.quantityKg, reservedKg: inventory.reservedKg })
       .from(inventory),
     db.select({ id: listings.id }).from(listings).where(eq(listings.status, "published")),
     db.select({ id: orders.id }).from(orders).where(eq(orders.status, "pending")),
+    db
+      .select({
+        id: inventory.id,
+        name: products.name,
+        classification: classifications.name,
+        availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
+      })
+      .from(listings)
+      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+      .innerJoin(products, eq(inventory.productId, products.id))
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .where(
+        and(
+          eq(listings.status, "published"),
+          sql`${inventory.quantityKg} - ${inventory.reservedKg} <= 5`,
+        ),
+      ),
   ]);
   const receivedKg = receiving.reduce((total, row) => total + Number(row.totalKg), 0);
   const availableKg = stock.reduce(
@@ -1320,6 +1395,9 @@ export const getMarketerDashboard = createServerFn({ method: "GET" }).handler(as
     publishedListings: publishedListings.length,
     availableKg,
     pendingOrders: pendingOrders.length,
+    lowStock: lowStock
+      .map((row) => ({ ...row, availableKg: Math.max(0, Number(row.availableKg)) }))
+      .sort((first, second) => first.availableKg - second.availableKg),
   };
 });
 
