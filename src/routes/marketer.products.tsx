@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { CatalogProductTable } from "@/features/marketplace/components/catalog-product-table";
+import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,15 +58,7 @@ type MarketplaceListing = {
   status: "draft" | "published" | "unavailable" | "archived";
 };
 
-const cropTypes = [
-  "Leafy vegetable",
-  "Root vegetable",
-  "Fruiting vegetable",
-  "Cruciferous vegetable",
-  "Legume",
-  "Herb",
-  "Other",
-] as const;
+const cropTypes = procyMarketCategories;
 
 function MarketerProductsPage() {
   const [listings, setListings] = useState<MarketplaceListing[]>([]);

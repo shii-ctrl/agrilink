@@ -31,40 +31,33 @@ export const Route = createFileRoute("/marketplace/")({
 
 const classifications: Classification[] = ["Good", "Semi", "Reject"];
 
-const vegetableGuide = [
+const procyMarketGuide = [
   [
-    "Leafy Vegetables / Leaf Vegetables",
-    "Leaves are eaten",
-    "Repolyo, pechay, lettuce, spinach, kangkong, mustard greens",
+    "Lowland Crops",
+    "Vegetables commonly supplied from lowland growing areas.",
+    "Ampalaya, upo, cucumber, eggplant, okra, sitaw, kamatis",
   ],
   [
-    "Fruit Vegetables",
-    "The fruit of the plant is eaten",
-    "Kalabasa, sayote, kamatis, talong, pipino, ampalaya, bell pepper, okra",
+    "Highland Crops",
+    "Vegetables commonly supplied from highland growing areas.",
+    "Bell pepper, broccoli, cabbage, carrots, cauliflower, lettuce",
   ],
   [
-    "Pod / Legume Vegetables",
-    "Pods or beans are eaten",
-    "Sitaw, baguio beans, snap beans, green peas",
+    "Fruits",
+    "Fresh fruits sold through the PROCY market.",
+    "Mango, calamansi, melon, papaya, pineapple, banana, watermelon",
   ],
   [
-    "Root Vegetables",
-    "Underground roots are eaten",
-    "Carrots, radish/labanos, singkamas, beetroot",
+    "Root Crops",
+    "Edible roots, rhizomes, and tubers.",
+    "Cassava, ginger, ube, radish, sweet potato, taro",
   ],
   [
-    "Tuber Vegetables",
-    "Underground swollen stems or roots",
-    "Potato, sweet potato/kamote, cassava/kamoteng kahoy",
+    "Staple Crops",
+    "Basic crop commodities used as common food staples.",
+    "Coconut, white corn, yellow corn",
   ],
-  ["Bulb Vegetables", "Underground bulb is eaten", "Onion/sibuyas, garlic/bawang"],
-  ["Stem Vegetables", "Stem or stalk is eaten", "Celery, asparagus, bamboo shoots/labong"],
-  ["Flower Vegetables", "Flower or flower buds are eaten", "Broccoli, cauliflower"],
-  [
-    "Herbs / Aromatic Vegetables",
-    "Mainly used for flavoring",
-    "Spring onion, parsley, basil, coriander/cilantro",
-  ],
+  ["Other Commodities", "Other PROCY market goods.", "Eggs, mung beans, banana blossom, singkamas"],
 ] as const;
 function Chip({
   active,
@@ -198,7 +191,7 @@ function MarketplacePage() {
         <section className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
           <div className="flex flex-col gap-4 border-b border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold">Vegetable Classification Guide</h2>
+              <h2 className="text-lg font-semibold">PROCY Market Categories</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Use these crop groups to understand product types in the PROCY marketplace.
               </p>
@@ -207,7 +200,7 @@ function MarketplacePage() {
               type="button"
               onClick={() => setIsGuideExpanded((expanded) => !expanded)}
               aria-expanded={isGuideExpanded}
-              aria-controls="vegetable-classification-guide"
+              aria-controls="procy-market-category-guide"
               className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-accent hover:text-accent-foreground"
             >
               {isGuideExpanded ? "Hide guide" : "Show guide"}
@@ -219,7 +212,7 @@ function MarketplacePage() {
             </button>
           </div>
           <div
-            id="vegetable-classification-guide"
+            id="procy-market-category-guide"
             className={`grid transition-[grid-template-rows] duration-300 ease-out ${
               isGuideExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
             }`}
@@ -229,13 +222,13 @@ function MarketplacePage() {
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-6 py-4 font-medium">Classification</th>
-                      <th className="px-6 py-4 font-medium">Meaning</th>
+                      <th className="px-6 py-4 font-medium">Market category</th>
+                      <th className="px-6 py-4 font-medium">Description</th>
                       <th className="px-6 py-4 font-medium">Examples</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {vegetableGuide.map(([name, meaning, examples]) => (
+                    {procyMarketGuide.map(([name, meaning, examples]) => (
                       <tr key={name} className="border-t border-border">
                         <td className="px-6 py-4 font-semibold">{name}</td>
                         <td className="px-6 py-4 text-muted-foreground">{meaning}</td>

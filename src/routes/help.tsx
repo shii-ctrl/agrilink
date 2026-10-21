@@ -25,7 +25,7 @@ function HelpPage() {
     {
       icon: CircleHelp,
       title: "Understand classifications",
-      text: "Each product is listed separately as Good, Semi, or Reject. The Vegetable Classification Guide explains the crop types.",
+      text: "Each product is listed separately as Good, Semi, or Reject. The PROCY Market Categories guide explains the crop groups.",
     },
     {
       icon: LogIn,

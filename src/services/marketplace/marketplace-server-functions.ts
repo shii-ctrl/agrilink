@@ -5,6 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import type { Classification, Product } from "@/features/marketplace/products";
+import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
 import type { DemoOrder } from "@/lib/demo/demo-orders";
 
 const listingInput = z.object({ listingId: z.string().uuid() });
@@ -90,15 +91,7 @@ function validateBundlePricing(
     });
   }
 }
-const cropTypes = [
-  "Leafy vegetable",
-  "Root vegetable",
-  "Fruiting vegetable",
-  "Cruciferous vegetable",
-  "Legume",
-  "Herb",
-  "Other",
-] as const;
+const cropTypes = procyMarketCategories;
 
 const createCatalogProductInput = z.object({
   name: z.string().trim().min(2).max(160),

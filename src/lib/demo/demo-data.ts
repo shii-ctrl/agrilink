@@ -15,7 +15,7 @@ export const demoPublicProducts: Product[] = [
   {
     id: "tomato-good",
     name: "Tomato",
-    cropType: "Fruit Vegetable",
+    cropType: "Lowland Crops",
     classification: "Good",
     pricePerKg: 78,
     quantityKg: 45,
@@ -25,7 +25,7 @@ export const demoPublicProducts: Product[] = [
   {
     id: "tomato-semi",
     name: "Tomato",
-    cropType: "Fruit Vegetable",
+    cropType: "Lowland Crops",
     classification: "Semi",
     pricePerKg: 52,
     quantityKg: 20,
@@ -35,7 +35,7 @@ export const demoPublicProducts: Product[] = [
   {
     id: "tomato-reject",
     name: "Tomato",
-    cropType: "Fruit Vegetable",
+    cropType: "Lowland Crops",
     classification: "Reject",
     pricePerKg: 24,
     quantityKg: 10,
@@ -45,7 +45,7 @@ export const demoPublicProducts: Product[] = [
   {
     id: "cabbage-good",
     name: "Cabbage",
-    cropType: "Leafy Vegetable",
+    cropType: "Highland Crops",
     classification: "Good",
     pricePerKg: 60,
     quantityKg: 120,
@@ -97,7 +97,7 @@ export const demoReceivingRecords = [
 export const demoMarketplaceListings = [
   {
     product: "Tomato",
-    cropType: "Fruit Vegetable",
+    cropType: "Lowland Crops",
     classification: "Good",
     price: "₱78 / kg",
     quantity: "45 kg",
@@ -105,7 +105,7 @@ export const demoMarketplaceListings = [
   },
   {
     product: "Tomato",
-    cropType: "Fruit Vegetable",
+    cropType: "Lowland Crops",
     classification: "Semi",
     price: "₱52 / kg",
     quantity: "20 kg",
@@ -113,7 +113,7 @@ export const demoMarketplaceListings = [
   },
   {
     product: "Tomato",
-    cropType: "Fruit Vegetable",
+    cropType: "Lowland Crops",
     classification: "Reject",
     price: "₱24 / kg",
     quantity: "10 kg",
@@ -121,7 +121,7 @@ export const demoMarketplaceListings = [
   },
   {
     product: "Cabbage",
-    cropType: "Leafy Vegetable",
+    cropType: "Highland Crops",
     classification: "Good",
     price: "₱60 / kg",
     quantity: "120 kg",
