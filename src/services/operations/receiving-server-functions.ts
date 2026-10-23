@@ -48,7 +48,7 @@ export const recordReceivingDelivery = createServerFn({ method: "POST" })
       users,
     } = await import("@/db/schema");
 
-    return db.transaction(async (tx) => {
+    const savedDelivery = await db.transaction(async (tx) => {
       const [existing] = await tx
         .select({
           id: receivingRecords.id,
@@ -84,14 +84,14 @@ export const recordReceivingDelivery = createServerFn({ method: "POST" })
       }
 
       const [farmer] = await tx
-        .select({ id: users.id })
+        .select({ id: users.id, name: users.displayName })
         .from(users)
         .innerJoin(userRoles, eq(userRoles.userId, users.id))
         .innerJoin(roles, eq(userRoles.roleId, roles.id))
         .where(and(eq(users.id, data.farmerId), eq(users.active, true), eq(roles.name, "Farmer")));
       if (!farmer) throw new Error("Choose an active Farmer account.");
       const [product] = await tx
-        .select({ id: products.id })
+        .select({ id: products.id, name: products.name })
         .from(products)
         .where(and(eq(products.id, data.productId), eq(products.active, true)));
       if (!product) throw new Error("Choose an active product.");
@@ -157,8 +157,30 @@ export const recordReceivingDelivery = createServerFn({ method: "POST" })
         entityId: data.id,
         details: { farmerId: data.farmerId, productId: data.productId, totalKg: data.totalKg },
       });
-      return { id: data.id, duplicate: false };
+      return {
+        id: data.id,
+        duplicate: false,
+        farmerId: farmer.id,
+        farmerName: farmer.name,
+        productName: product.name,
+      };
     });
+    if (!savedDelivery.duplicate && "farmerId" in savedDelivery) {
+      const { notifyRole, notifyUser } = await import("@/services/messaging/notification-server");
+      await Promise.all([
+        notifyUser(savedDelivery.farmerId, {
+          title: "Delivery received and classified",
+          message: `${savedDelivery.productName} was recorded in your receiving history.`,
+          target: "/farmer/receiving",
+        }),
+        notifyRole("Management", {
+          title: "New farmer delivery received",
+          message: `${savedDelivery.farmerName}'s ${savedDelivery.productName} delivery was classified and added to inventory.`,
+          target: "/management/receiving",
+        }),
+      ]);
+    }
+    return savedDelivery;
   });
 
 export const getReceivingWorkspace = createServerFn({ method: "GET" }).handler(async () => {

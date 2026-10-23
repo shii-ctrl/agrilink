@@ -122,7 +122,7 @@ export const setManagedUserActive = createServerFn({ method: "POST" })
     const { db } = await import("@/db/client.server");
     const { authSessions, roles, userRoles, users } = await import("@/db/schema");
     const [target] = await db
-      .select({ id: users.id, active: users.active, role: roles.name })
+      .select({ id: users.id, name: users.displayName, active: users.active, role: roles.name })
       .from(users)
       .innerJoin(userRoles, eq(userRoles.userId, users.id))
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -158,6 +158,24 @@ export const setManagedUserActive = createServerFn({ method: "POST" })
       "user",
       data.userId,
     );
+    const { notifyRole, notifyUser } = await import("@/services/messaging/notification-server");
+    if (data.active) {
+      await notifyUser(target.id, {
+        title: "Account activated",
+        message: "Your AgriLink account is active. You can sign in again.",
+        target: "/login",
+      });
+    } else {
+      await notifyRole(
+        "Management",
+        {
+          title: "Account deactivated",
+          message: `${target.name}'s ${target.role} account was deactivated and active sessions were signed out.`,
+          target: "/management/users",
+        },
+        { excludeUserId: actor.id },
+      );
+    }
     return { active: data.active };
   });
 

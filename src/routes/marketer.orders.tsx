@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { OrderDetails } from "@/features/marketplace/components/order-details";
 import { Button } from "@/components/ui/button";
+import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
@@ -39,6 +40,7 @@ function MarketerOrdersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const load = useCallback(async () => {
     setOrders(await getDatabaseOrders());
     setLoadError(null);
@@ -58,9 +60,12 @@ function MarketerOrdersPage() {
 
   async function confirmOrder(id: string) {
     if (
-      !window.confirm(
-        "Confirm this buyer order? Make sure the classified listing has enough stock.",
-      )
+      !(await requestConfirmation({
+        title: "Confirm buyer order?",
+        description:
+          "Make sure the classified listing has enough stock before confirming this order.",
+        confirmLabel: "Confirm order",
+      }))
     )
       return;
     const order = orders.find((item) => item.id === id);
@@ -79,7 +84,14 @@ function MarketerOrdersPage() {
   }
 
   async function markSold(id: string) {
-    if (!window.confirm("Mark this order as Sold? Accounting can then record its payment.")) return;
+    if (
+      !(await requestConfirmation({
+        title: "Mark order as sold?",
+        description: "Accounting can record its payment after the sale is saved.",
+        confirmLabel: "Mark as sold",
+      }))
+    )
+      return;
     const order = orders.find((item) => item.id === id);
     if (!order) return;
     try {
@@ -96,7 +108,14 @@ function MarketerOrdersPage() {
   }
 
   async function rejectOrder(id: string) {
-    if (!window.confirm("Reject this order? Its reserved stock will return to the marketplace.")) {
+    if (
+      !(await requestConfirmation({
+        title: "Reject this order?",
+        description: "Its reserved stock will return to the marketplace.",
+        confirmLabel: "Reject order",
+        destructive: true,
+      }))
+    ) {
       return;
     }
     try {
@@ -107,6 +126,30 @@ function MarketerOrdersPage() {
       toast.success("Order rejected", { description: "Reserved stock was released." });
     } catch (error) {
       toast.error("Order could not be rejected", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    }
+  }
+
+  async function cancelConfirmedOrder(id: string) {
+    if (
+      !(await requestConfirmation({
+        title: "Cancel confirmed order?",
+        description: "Its reserved stock will return to the marketplace.",
+        confirmLabel: "Cancel order",
+        destructive: true,
+      }))
+    ) {
+      return;
+    }
+    try {
+      await releaseDatabaseOrder({
+        data: { orderNumber: id, outcome: "cancelled", reason: "Cancelled by Marketer." },
+      });
+      await load();
+      toast.success("Confirmed order cancelled", { description: "Reserved stock was released." });
+    } catch (error) {
+      toast.error("Order could not be cancelled", {
         description: error instanceof Error ? error.message : "Please try again.",
       });
     }
@@ -124,6 +167,7 @@ function MarketerOrdersPage() {
 
   return (
     <MarketerLayout>
+      {confirmationDialog}
       <MarketerPageHeader
         title="Buyer Orders"
         description="Review buyer requests for PROCY marketplace listings and confirm availability before the order moves forward."
@@ -268,13 +312,23 @@ function MarketerOrdersPage() {
                                 </Button>
                               </>
                             ) : order.status === "Confirmed" ? (
-                              <Button
-                                size="sm"
-                                className="rounded-full"
-                                onClick={() => markSold(order.id)}
-                              >
-                                Mark sold
-                              </Button>
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="rounded-full"
+                                  onClick={() => markSold(order.id)}
+                                >
+                                  Mark sold
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-full"
+                                  onClick={() => cancelConfirmedOrder(order.id)}
+                                >
+                                  Cancel order
+                                </Button>
+                              </>
                             ) : (
                               <span className="text-muted-foreground">Completed</span>
                             )}

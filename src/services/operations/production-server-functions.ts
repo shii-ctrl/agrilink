@@ -19,7 +19,8 @@ export const getManagementProductionWorkspace = createServerFn({ method: "GET" }
     const { requireRole } = await import("@/services/auth/auth-server");
     await requireRole("Management");
     const { db } = await import("@/db/client.server");
-    const { products, productionRecords, roles, userRoles, users } = await import("@/db/schema");
+    const { farmerConsultantAssignments, products, productionRecords, roles, userRoles, users } =
+      await import("@/db/schema");
     const [farmers, productRows, records] = await Promise.all([
       db
         .select({ id: users.id, name: users.displayName })
@@ -54,10 +55,11 @@ export const createManagementProductionRecord = createServerFn({ method: "POST" 
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Management");
     const { db } = await import("@/db/client.server");
-    const { products, productionRecords, roles, userRoles, users } = await import("@/db/schema");
+    const { farmerConsultantAssignments, products, productionRecords, roles, userRoles, users } =
+      await import("@/db/schema");
     const [farmer, product] = await Promise.all([
       db
-        .select({ id: users.id })
+        .select({ id: users.id, name: users.displayName })
         .from(users)
         .innerJoin(userRoles, eq(userRoles.userId, users.id))
         .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -83,6 +85,23 @@ export const createManagementProductionRecord = createServerFn({ method: "POST" 
       recordedById: actor.id,
     });
     await writeAuditLog(actor.id, "production.create", "production_record", id, data);
+    const [assignment] = await db
+      .select({ consultantId: farmerConsultantAssignments.consultantId })
+      .from(farmerConsultantAssignments)
+      .where(eq(farmerConsultantAssignments.farmerId, farmer[0].id));
+    const { notifyUser } = await import("@/services/messaging/notification-server");
+    await notifyUser(farmer[0].id, {
+      title: "Production record updated",
+      message: `${product[0].name} was added to your production records.`,
+      target: "/farmer/production",
+    });
+    if (assignment) {
+      await notifyUser(assignment.consultantId, {
+        title: "Farmer production updated",
+        message: `${farmer[0].name}'s ${product[0].name} production record is ready for review.`,
+        target: "/consultant/production",
+      });
+    }
     return { id };
   });
 

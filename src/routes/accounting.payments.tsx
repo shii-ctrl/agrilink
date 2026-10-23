@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { type DemoOrder } from "@/lib/demo/demo-orders";
 import {
   getDatabaseOrders,
@@ -24,6 +25,11 @@ function AccountingPaymentsPage() {
       .then(setOrders)
       .catch(() => toast.error("Could not load payments."));
   }, []);
+  useAutoRefresh(() =>
+    getDatabaseOrders()
+      .then(setOrders)
+      .catch(() => undefined),
+  );
 
   const awaitingPayment = useMemo(
     () => orders.filter((order) => order.status === "Sold" && order.paymentStatus === "Unpaid"),

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { ChevronDown, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -7,6 +7,7 @@ import { ProductCard } from "@/features/marketplace/components/product-card";
 import { Input } from "@/components/ui/input";
 import type { Classification } from "@/features/marketplace/products";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getMarketplaceListings } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketplace/")({
@@ -83,7 +84,9 @@ function Chip({
 }
 
 function MarketplacePage() {
+  const router = useRouter();
   const listings = Route.useLoaderData();
+  useAutoRefresh(() => router.invalidate());
   const products = useMemo(
     () =>
       listings.map((listing) => ({

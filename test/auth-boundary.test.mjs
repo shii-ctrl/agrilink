@@ -227,6 +227,56 @@ test("daily prices use PROCY market categories as an organizing guide", async ()
   assert.doesNotMatch(categories, /70\/60|250\/230/);
 });
 
+test("public daily prices require an active, in-stock listing", async () => {
+  const marketplace = await readFile(
+    "src/services/marketplace/marketplace-server-functions.ts",
+    "utf8",
+  );
+
+  assert.match(marketplace, /eq\(dailyPrices\.published, true\)/);
+  assert.match(marketplace, /eq\(listings\.status, "published"\)/);
+  assert.match(marketplace, /inventory\.quantityKg\} - \$\{inventory\.reservedKg\} > 0/);
+});
+
+test("role workspaces refresh saved operational data while users are active", async () => {
+  const [
+    hook,
+    buyerCart,
+    buyerOrders,
+    farmerReceiving,
+    farmerGuidance,
+    consultantProduction,
+    managementProducts,
+    accountingPayments,
+    marketplace,
+  ] = await Promise.all([
+    readFile("src/hooks/use-auto-refresh.ts", "utf8"),
+    readFile("src/routes/buyer.cart.tsx", "utf8"),
+    readFile("src/routes/buyer.orders.tsx", "utf8"),
+    readFile("src/routes/farmer.receiving.tsx", "utf8"),
+    readFile("src/routes/farmer.guidance.tsx", "utf8"),
+    readFile("src/routes/consultant.production.tsx", "utf8"),
+    readFile("src/routes/management.products.tsx", "utf8"),
+    readFile("src/routes/accounting.payments.tsx", "utf8"),
+    readFile("src/routes/marketplace.index.tsx", "utf8"),
+  ]);
+
+  assert.match(hook, /window\.addEventListener\("focus", refreshWhenVisible\)/);
+  assert.match(hook, /document\.addEventListener\("visibilitychange", refreshWhenVisible\)/);
+  for (const source of [
+    farmerReceiving,
+    farmerGuidance,
+    consultantProduction,
+    managementProducts,
+  ]) {
+    assert.match(source, /useWorkspaceData/);
+    assert.match(source, /WorkspaceLoadState/);
+  }
+  for (const source of [buyerCart, buyerOrders, accountingPayments, marketplace]) {
+    assert.match(source, /use(?:AutoRefresh|WorkspaceData)/);
+  }
+});
+
 test("public authentication uses the floating dialog system", async () => {
   const [home, header, loginDialog, resetDialog, loginRoute, registerRoute, resetRoute] =
     await Promise.all([
@@ -357,7 +407,7 @@ test("community reactions and comments are saved with role checks", async () => 
 test("Community search and owner-only post controls are available in the feed", async () => {
   const feed = await readFile("src/features/messaging/components/community-feed.tsx", "utf8");
   assert.match(feed, /Search Community by post or author/);
-  assert.match(feed, /getCommunityMessages\(\{ data: \{ query: searchQuery \} \}\)/);
+  assert.match(feed, /getCommunityMessages\(\{ data \}\)/);
   assert.match(feed, /message\.isOwner/);
   assert.match(feed, /Edit post/);
   assert.match(feed, /Delete post/);
@@ -410,6 +460,52 @@ test("new messages and Community activity create timely recipient notifications"
   assert.match(communityFeed, /Live updates are on/);
   assert.match(communityFeed, /window\.setInterval/);
   assert.match(communityFeed, /document\.visibilityState === "visible"/);
+  assert.match(communityFeed, /Load more posts/);
+  assert.match(communityFeed, /COMMUNITY_PAGE_SIZE = 25/);
+  assert.match(communityFeed, /preservePages/);
+  assert.match(communityFeed, /messagesRef\.current\.length > COMMUNITY_PAGE_SIZE/);
+  assert.match(community, /pageSize: z\.number\(\)\.int\(\)\.min\(1\)\.max\(100\)/);
+  assert.match(community, /\.limit\(pageSize \+ 1\)/);
+  assert.match(community, /nextOffset/);
+});
+
+test("operational changes notify the users who need to respond", async () => {
+  const [marketplace, receiving, production, accounts, notifications] = await Promise.all([
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+    readFile("src/services/operations/receiving-server-functions.ts", "utf8"),
+    readFile("src/services/operations/production-server-functions.ts", "utf8"),
+    readFile("src/services/auth/admin-server-functions.ts", "utf8"),
+    readFile("src/services/messaging/notification-server.ts", "utf8"),
+  ]);
+
+  assert.match(receiving, /Delivery received and classified/);
+  assert.match(receiving, /New farmer delivery received/);
+  assert.match(production, /Production record updated/);
+  assert.match(production, /Farmer production updated/);
+  assert.match(accounts, /Account activated/);
+  assert.match(accounts, /Account deactivated/);
+  assert.match(marketplace, /New marketplace listing/);
+  assert.match(marketplace, /Marketplace listing changed/);
+  assert.match(marketplace, /Daily price updated/);
+  assert.match(marketplace, /Daily price hidden/);
+  assert.match(notifications, /export async function notifyCartHoldersForListing/);
+});
+
+test("buyers can cancel only pending orders while Marketers handle confirmed cancellations", async () => {
+  const [marketplace, buyerOrders, marketerOrders] = await Promise.all([
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+    readFile("src/routes/buyer.orders.tsx", "utf8"),
+    readFile("src/routes/marketer.orders.tsx", "utf8"),
+  ]);
+
+  assert.match(marketplace, /const isMarketer = actor\.roles\.includes\("Marketer"\)/);
+  assert.match(marketplace, /buyerIsCancellingOwnOrder && order\.status !== "pending"/);
+  assert.match(marketplace, /Confirmed orders can only be cancelled by a Marketer/);
+  assert.match(marketplace, /Only a Pending order can be cancelled/);
+  assert.match(buyerOrders, /order\.status === "Pending"/);
+  assert.match(buyerOrders, /Contact PROCY if you need it cancelled/);
+  assert.match(marketerOrders, /cancelConfirmedOrder/);
+  assert.match(marketerOrders, /Cancelled by Marketer/);
 });
 
 test("public marketplace data keeps farmer identities private while Marketer can trace ownership", async () => {
@@ -489,4 +585,23 @@ test("Management can filter and search saved user accounts by role", async () =>
   assert.match(page, /const visibleUsers = useMemo/);
   assert.match(page, /Search name, email, contact, or role/);
   assert.match(page, /visibleUsers\.map/);
+});
+
+test("action confirmations use the shared branded dialog instead of browser prompts", async () => {
+  const files = [
+    "src/routes/buyer.orders.tsx",
+    "src/routes/marketer.orders.tsx",
+    "src/routes/management.users.tsx",
+    "src/routes/marketer.products.tsx",
+    "src/features/messaging/components/community-feed.tsx",
+  ];
+  const sources = await Promise.all(files.map((file) => readFile(file, "utf8")));
+  const dialog = await readFile("src/components/ui/confirm-action-dialog.tsx", "utf8");
+
+  for (const source of sources) {
+    assert.match(source, /useConfirmAction/);
+    assert.doesNotMatch(source, /window\.confirm/);
+  }
+  assert.match(dialog, /AlertDialog/);
+  assert.match(dialog, /requestConfirmation/);
 });

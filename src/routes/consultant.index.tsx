@@ -1,20 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ClipboardList, MessageCircle } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useCallback } from "react";
 import { ConsultantLayout, ConsultantPageHeader } from "@/components/workspaces/consultant-layout";
 import { Button } from "@/components/ui/button";
+import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
+import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { getConsultantProductionRecords } from "@/services/operations/production-server-functions";
 export const Route = createFileRoute("/consultant/")({ component: ConsultantDashboard });
 function ConsultantDashboard() {
-  const [production, setProduction] = useState<
-    Awaited<ReturnType<typeof getConsultantProductionRecords>>
-  >([]);
-  useEffect(() => {
-    void getConsultantProductionRecords()
-      .then(setProduction)
-      .catch(() => toast.error("Could not load saved farmer records."));
-  }, []);
+  const request = useCallback(() => getConsultantProductionRecords(), []);
+  const { data, loading, error, reload } = useWorkspaceData(request);
+  const production = data ?? [];
   const farmers = new Set(production.map((record) => record.farmerId)).size;
   return (
     <ConsultantLayout>
@@ -23,34 +19,44 @@ function ConsultantDashboard() {
         description="Review farmer production information and provide focused crop guidance to farmer members."
       />
       <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
-        <section className="grid gap-4 md:grid-cols-3">
-          <Card
-            icon={ClipboardList}
-            title="Farmer Members"
-            value={String(farmers)}
-            note="Farmer accounts with saved production records"
-            to="/consultant/production"
-          />
-          <Card
-            icon={ClipboardList}
-            title="Production Records"
-            value={String(production.length)}
-            note="Available for guidance context"
-            to="/consultant/production"
-          />
-          <Card
-            icon={MessageCircle}
-            title="Guidance Conversations"
-            value="Saved"
-            note="Open guidance to view and send saved messages"
-            to="/consultant/guidance"
-          />
-        </section>
-        <section className="mt-6 rounded-3xl border border-primary/20 bg-accent p-6 text-sm text-accent-foreground">
-          <span className="font-semibold">Consultant scope:</span> provide crop guidance and
-          relevant production support. Marketplace listings, buyer orders, sales, and payments are
-          outside this role.
-        </section>
+        <WorkspaceLoadState
+          loading={loading}
+          error={error}
+          onRetry={() => void reload()}
+          label="consultant dashboard"
+        />
+        {!loading && !error && (
+          <>
+            <section className="grid gap-4 md:grid-cols-3">
+              <Card
+                icon={ClipboardList}
+                title="Farmer Members"
+                value={String(farmers)}
+                note="Farmer accounts with saved production records"
+                to="/consultant/production"
+              />
+              <Card
+                icon={ClipboardList}
+                title="Production Records"
+                value={String(production.length)}
+                note="Available for guidance context"
+                to="/consultant/production"
+              />
+              <Card
+                icon={MessageCircle}
+                title="Guidance Conversations"
+                value="Saved"
+                note="Open guidance to view and send saved messages"
+                to="/consultant/guidance"
+              />
+            </section>
+            <section className="mt-6 rounded-3xl border border-primary/20 bg-accent p-6 text-sm text-accent-foreground">
+              <span className="font-semibold">Consultant scope:</span> provide crop guidance and
+              relevant production support. Marketplace listings, buyer orders, sales, and payments
+              are outside this role.
+            </section>
+          </>
+        )}
       </main>
     </ConsultantLayout>
   );

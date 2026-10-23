@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
 import { ArrowLeft, LockKeyhole, Minus, PackageCheck, Plus, ShoppingCart, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { peso } from "@/features/marketplace/products";
 import { ProductCard } from "@/features/marketplace/components/product-card";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import { notifyBuyerCartChanged } from "@/features/marketplace/cart-events";
 import {
@@ -54,11 +55,13 @@ export const Route = createFileRoute("/marketplace/$productId")({
 });
 
 function ProductDetail() {
+  const router = useRouter();
   const { product, related } = Route.useLoaderData();
   const [qty, setQty] = useState(1);
   const [isBuyer, setIsBuyer] = useState(false);
   const [cartQuantityKg, setCartQuantityKg] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
+  useAutoRefresh(() => router.invalidate());
   useEffect(() => {
     let mounted = true;
     void getCurrentSessionUser()

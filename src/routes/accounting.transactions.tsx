@@ -7,6 +7,7 @@ import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/transactions")({
@@ -25,6 +26,11 @@ function AccountingTransactionsPage() {
       .then(setOrders)
       .catch(() => toast.error("Could not load saved transactions."));
   }, []);
+  useAutoRefresh(() =>
+    getDatabaseOrders()
+      .then(setOrders)
+      .catch(() => undefined),
+  );
   const visibleOrders = useMemo(() => {
     const search = query.trim().toLocaleLowerCase();
     return orders.filter(

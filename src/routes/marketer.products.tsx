@@ -16,6 +16,7 @@ import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/mark
 import { CatalogProductTable } from "@/features/marketplace/components/catalog-product-table";
 import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
 import { Button } from "@/components/ui/button";
+import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
@@ -78,6 +79,7 @@ function MarketerProductsPage() {
   const [listingQuery, setListingQuery] = useState("");
   const [listingCropType, setListingCropType] = useState("");
   const [listingClassification, setListingClassification] = useState("");
+  const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const [listingAvailability, setListingAvailability] = useState("");
   const [listingStatus, setListingStatus] = useState("");
   const [inventoryId, setInventoryId] = useState("");
@@ -165,6 +167,7 @@ function MarketerProductsPage() {
   const listingReady = Boolean(selectedInventory && hasValidPrices);
   return (
     <MarketerLayout>
+      {confirmationDialog}
       <MarketerPageHeader
         title="Products & Marketplace Listings"
         description="Publish and manage PROCY product listings. Farmer members supply PROCY; buyers browse and order from PROCY listings only."
@@ -458,9 +461,13 @@ function MarketerProductsPage() {
                                     className="rounded-full"
                                     onClick={async () => {
                                       if (
-                                        !window.confirm(
-                                          `Archive ${listing.name}? It will stay in your records but buyers cannot see it.`,
-                                        )
+                                        !(await requestConfirmation({
+                                          title: `Archive ${listing.name}?`,
+                                          description:
+                                            "It will stay in your records, but buyers will no longer see it.",
+                                          confirmLabel: "Archive listing",
+                                          destructive: true,
+                                        }))
                                       )
                                         return;
                                       try {

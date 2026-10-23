@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/reports")({ component: AccountingReportsPage });
@@ -15,6 +16,11 @@ function AccountingReportsPage() {
       .then(setOrders)
       .catch(() => toast.error("Could not load saved reports."));
   }, []);
+  useAutoRefresh(() =>
+    getDatabaseOrders()
+      .then(setOrders)
+      .catch(() => undefined),
+  );
   const reports = useMemo(() => {
     const paid = orders.filter((order) => order.paymentStatus === "Paid");
     const total = paid.reduce((sum, order) => sum + (order.amount ?? 0), 0);

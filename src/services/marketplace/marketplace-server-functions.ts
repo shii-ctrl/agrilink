@@ -402,14 +402,19 @@ export const setMarketplaceListingStatus = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { inventory, listings } = await import("@/db/schema");
+    const { inventory, listings, products } = await import("@/db/schema");
+    const [listing] = await db
+      .select({
+        availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
+        productName: products.name,
+      })
+      .from(listings)
+      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+      .innerJoin(products, eq(inventory.productId, products.id))
+      .where(eq(listings.id, data.listingId));
+    if (!listing) throw new Error("The marketplace listing could not be found.");
     if (data.status === "published") {
-      const [stock] = await db
-        .select({ availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}` })
-        .from(listings)
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-        .where(eq(listings.id, data.listingId));
-      if (!stock || Number(stock.availableKg) <= 0) {
+      if (Number(listing.availableKg) <= 0) {
         throw new Error("Only listings with available stock can be published.");
       }
     }
@@ -421,6 +426,21 @@ export const setMarketplaceListingStatus = createServerFn({ method: "POST" })
     await writeAuditLog(actor.id, "listing.status.update", "marketplace_listing", data.listingId, {
       status: data.status,
     });
+    const { notifyCartHoldersForListing, notifyRole } =
+      await import("@/services/messaging/notification-server");
+    if (data.status === "published") {
+      await notifyRole("Buyer", {
+        title: "New marketplace listing",
+        message: `${listing.productName} is now available in the PROCY marketplace.`,
+        target: "/marketplace",
+      });
+    } else {
+      await notifyCartHoldersForListing(data.listingId, {
+        title: "Marketplace listing changed",
+        message: `${listing.productName} is no longer available. Review your cart before ordering.`,
+        target: "/buyer/cart",
+      });
+    }
     return { id: data.listingId, status: data.status };
   });
 
@@ -451,7 +471,18 @@ async function fetchDailyPrices(publicOnly: boolean) {
     .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-    .where(publicOnly ? eq(dailyPrices.published, true) : undefined)
+    // A public price is only meaningful while its listing is buyer-visible and
+    // has stock that can still be purchased. Marketers retain the full history
+    // (including hidden, archived, and sold-out listing prices) in their view.
+    .where(
+      publicOnly
+        ? and(
+            eq(dailyPrices.published, true),
+            eq(listings.status, "published"),
+            sql`${inventory.quantityKg} - ${inventory.reservedKg} > 0`,
+          )
+        : undefined,
+    )
     .orderBy(asc(dailyPrices.priceDate));
   return rows.map((row) => ({
     ...row,
@@ -477,10 +508,12 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { dailyPrices, listings } = await import("@/db/schema");
+    const { dailyPrices, inventory, listings, products } = await import("@/db/schema");
     const [listing] = await db
-      .select({ id: listings.id, status: listings.status })
+      .select({ id: listings.id, status: listings.status, productName: products.name })
       .from(listings)
+      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+      .innerJoin(products, eq(inventory.productId, products.id))
       .where(eq(listings.id, data.listingId));
     if (!listing || listing.status !== "published") {
       throw new Error("Choose a currently published marketplace listing.");
@@ -500,6 +533,12 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
         .set({ price: data.price.toFixed(2), published: true, createdById: actor.id })
         .where(eq(dailyPrices.id, existing.id));
       await writeAuditLog(actor.id, "daily_price.update", "daily_price", existing.id, data);
+      const { notifyRole } = await import("@/services/messaging/notification-server");
+      await notifyRole("Buyer", {
+        title: "Daily price updated",
+        message: `${listing.productName} is now ₱${data.price.toFixed(2)} per kg for ${data.date}.`,
+        target: "/daily-prices",
+      });
       return { id: existing.id, updated: true };
     }
     const id = crypto.randomUUID();
@@ -512,6 +551,12 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
       createdById: actor.id,
     });
     await writeAuditLog(actor.id, "daily_price.publish", "daily_price", id, data);
+    const { notifyRole } = await import("@/services/messaging/notification-server");
+    await notifyRole("Buyer", {
+      title: "New daily price",
+      message: `${listing.productName} is ₱${data.price.toFixed(2)} per kg for ${data.date}.`,
+      target: "/daily-prices",
+    });
     return { id, updated: false };
   });
 
@@ -521,13 +566,29 @@ export const setDailyPricePublished = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { dailyPrices } = await import("@/db/schema");
+    const { dailyPrices, inventory, listings, products } = await import("@/db/schema");
+    const [dailyPrice] = await db
+      .select({ productName: products.name })
+      .from(dailyPrices)
+      .innerJoin(listings, eq(dailyPrices.listingId, listings.id))
+      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+      .innerJoin(products, eq(inventory.productId, products.id))
+      .where(eq(dailyPrices.id, data.id));
+    if (!dailyPrice) throw new Error("The daily price could not be found.");
     const [result] = await db
       .update(dailyPrices)
       .set({ published: data.published })
       .where(eq(dailyPrices.id, data.id));
     if (result.affectedRows !== 1) throw new Error("The daily price could not be found.");
     await writeAuditLog(actor.id, "daily_price.visibility", "daily_price", data.id, data);
+    const { notifyRole } = await import("@/services/messaging/notification-server");
+    await notifyRole("Buyer", {
+      title: data.published ? "Daily price published" : "Daily price hidden",
+      message: data.published
+        ? `${dailyPrice.productName}'s daily price is now available to view.`
+        : `${dailyPrice.productName}'s daily price is no longer publicly available.`,
+      target: "/daily-prices",
+    });
     return { id: data.id, published: data.published };
   });
 
@@ -1544,17 +1605,37 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
       if (!order) throw new Error("The requested order could not be found.");
 
       const isBuyer = actor.roles.includes("Buyer");
-      const isStaff = actor.roles.some((role) => ["Management", "Marketer"].includes(role));
-      if (!isStaff && (!isBuyer || order.buyerId !== actor.id || data.outcome !== "cancelled")) {
-        throw new Error("You do not have permission to release this order.");
+      const isMarketer = actor.roles.includes("Marketer");
+      const buyerIsCancellingOwnOrder =
+        isBuyer && order.buyerId === actor.id && data.outcome === "cancelled";
+
+      if (!buyerIsCancellingOwnOrder && !isMarketer) {
+        throw new Error("Only the Buyer or a Marketer can change this order.");
+      }
+
+      if (buyerIsCancellingOwnOrder && order.status !== "pending") {
+        throw new Error(
+          "Confirmed orders can only be cancelled by a Marketer. Please contact PROCY for assistance.",
+        );
       }
 
       const [transition] = await tx
         .update(orders)
         .set({ status: data.outcome })
-        .where(and(eq(orders.id, order.id), sql`${orders.status} IN ('pending', 'confirmed')`));
+        .where(
+          and(
+            eq(orders.id, order.id),
+            isMarketer
+              ? sql`${orders.status} IN ('pending', 'confirmed')`
+              : eq(orders.status, "pending"),
+          ),
+        );
       if (transition.affectedRows !== 1) {
-        throw new Error("Only a Pending or Confirmed order can be cancelled or rejected.");
+        throw new Error(
+          isMarketer
+            ? "Only a Pending or Confirmed order can be cancelled or rejected."
+            : "Only a Pending order can be cancelled.",
+        );
       }
 
       const lines = await tx
@@ -1611,6 +1692,13 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
         title: releasedOrder.status === "rejected" ? "Order rejected" : "Order cancelled",
         message: `${releasedOrder.orderNumber} was ${releasedOrder.status}; reserved stock was released.`,
         target: "/buyer/orders",
+      });
+    } else {
+      const { notifyRole } = await import("@/services/messaging/notification-server");
+      await notifyRole("Marketer", {
+        title: "Buyer cancelled an order",
+        message: `${releasedOrder.orderNumber} was cancelled while it was still Pending.`,
+        target: "/marketer/orders",
       });
     }
     return releasedOrder;

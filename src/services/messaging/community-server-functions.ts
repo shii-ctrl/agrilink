@@ -12,7 +12,11 @@ const reactionInput = z.object({
   reaction: z.enum(["like", "dislike"]),
 });
 const reactionRemovalInput = z.object({ messageId: z.string().uuid() });
-const communityFeedInput = z.object({ query: z.string().trim().max(120).default("") });
+const communityFeedInput = z.object({
+  query: z.string().trim().max(120).default(""),
+  offset: z.number().int().min(0).max(100_000).default(0),
+  pageSize: z.number().int().min(1).max(100).default(25),
+});
 const postUpdateInput = messageInput.extend({ messageId: z.string().uuid() });
 const postRemovalInput = z.object({ messageId: z.string().uuid() });
 
@@ -35,7 +39,7 @@ function searchPattern(query: string) {
 
 async function communityMessagesForViewer(
   viewer: { id: string },
-  options: { authorId?: string; query?: string } = {},
+  options: { authorId?: string; query?: string; offset?: number; pageSize?: number } = {},
 ) {
   const { db } = await import("@/db/client.server");
   const { communityComments, communityMessages, communityReactions, roles, userRoles, users } =
@@ -50,6 +54,7 @@ async function communityMessagesForViewer(
       : options.authorId
         ? eq(communityMessages.authorId, options.authorId)
         : queryFilter;
+  const pageSize = options.pageSize ?? 25;
   const messageRows = await db
     .select({
       id: communityMessages.id,
@@ -62,12 +67,17 @@ async function communityMessagesForViewer(
     .innerJoin(users, eq(communityMessages.authorId, users.id))
     .where(where)
     .orderBy(desc(communityMessages.createdAt))
-    .limit(100);
+    .limit(pageSize + 1)
+    .offset(options.offset ?? 0);
 
-  if (messageRows.length === 0) return [];
+  const hasMore = messageRows.length > pageSize;
+  const pageRows = hasMore ? messageRows.slice(0, pageSize) : messageRows;
+  if (pageRows.length === 0) {
+    return { messages: [], hasMore: false, nextOffset: null };
+  }
 
-  const messageIds = messageRows.map((message) => message.id);
-  const authorIds = [...new Set(messageRows.map((message) => message.authorId))];
+  const messageIds = pageRows.map((message) => message.id);
+  const authorIds = [...new Set(pageRows.map((message) => message.authorId))];
   const [roleRows, reactionRows, commentRows] = await Promise.all([
     db
       .select({ userId: userRoles.userId, role: roles.name })
@@ -132,20 +142,24 @@ async function communityMessagesForViewer(
     commentsByMessageId.set(comment.messageId, comments);
   }
 
-  return messageRows.map((message) => ({
-    id: message.id,
-    isOwner: message.authorId === viewer.id,
-    message: message.message,
-    author: message.author,
-    role: roleByUserId.get(message.authorId) ?? "Community member",
-    time: message.createdAt.toISOString(),
-    reactions: reactionsByMessageId.get(message.id) ?? {
-      likes: 0,
-      dislikes: 0,
-      viewerReaction: null,
-    },
-    comments: commentsByMessageId.get(message.id) ?? [],
-  }));
+  return {
+    messages: pageRows.map((message) => ({
+      id: message.id,
+      isOwner: message.authorId === viewer.id,
+      message: message.message,
+      author: message.author,
+      role: roleByUserId.get(message.authorId) ?? "Community member",
+      time: message.createdAt.toISOString(),
+      reactions: reactionsByMessageId.get(message.id) ?? {
+        likes: 0,
+        dislikes: 0,
+        viewerReaction: null,
+      },
+      comments: commentsByMessageId.get(message.id) ?? [],
+    })),
+    hasMore,
+    nextOffset: hasMore ? (options.offset ?? 0) + pageRows.length : null,
+  };
 }
 
 export const getCommunityMessages = createServerFn({ method: "GET" })
@@ -153,7 +167,7 @@ export const getCommunityMessages = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { requireAnyRole } = await import("@/services/auth/auth-server");
     const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
-    return communityMessagesForViewer(viewer, { query: data.query });
+    return communityMessagesForViewer(viewer, data);
   });
 
 export const getMyCommunityMessages = createServerFn({ method: "GET" })
@@ -161,7 +175,7 @@ export const getMyCommunityMessages = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { requireAnyRole } = await import("@/services/auth/auth-server");
     const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
-    return communityMessagesForViewer(viewer, { authorId: viewer.id, query: data.query });
+    return communityMessagesForViewer(viewer, { ...data, authorId: viewer.id });
   });
 
 export const postCommunityMessage = createServerFn({ method: "POST" })

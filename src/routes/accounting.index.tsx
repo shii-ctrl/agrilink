@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/")({ component: AccountingDashboard });
@@ -16,6 +17,11 @@ function AccountingDashboard() {
       .then(setOrders)
       .catch(() => toast.error("Could not load accounting totals."));
   }, []);
+  useAutoRefresh(() =>
+    getDatabaseOrders()
+      .then(setOrders)
+      .catch(() => undefined),
+  );
   const summary = useMemo(() => {
     const paid = orders.filter((order) => order.paymentStatus === "Paid");
     const collected = paid.reduce((sum, order) => sum + (order.amount ?? 0), 0);
