@@ -330,13 +330,23 @@ test("public authentication uses the floating dialog system", async () => {
   assert.doesNotMatch(resetRoute, /auth-panel|auth-visual/);
 });
 
-test("Marketer product listing uses a clear one-page workspace without removing existing tools", async () => {
-  const marketerPage = await readFile("src/routes/marketer.products.tsx", "utf8");
+test("Marketer product listing uses separate workflow pages without removing existing tools", async () => {
+  const [marketerPage, marketerLayout, pricePublishPage, publishedListingsPage] = await Promise.all([
+    readFile("src/routes/marketer.products.tsx", "utf8"),
+    readFile("src/components/workspaces/marketer-layout.tsx", "utf8"),
+    readFile("src/routes/marketer.price-publish.tsx", "utf8"),
+    readFile("src/routes/marketer.published-listings.tsx", "utf8"),
+  ]);
 
-  assert.match(marketerPage, /One-page listing workspace/);
-  assert.match(marketerPage, /id="catalog"/);
-  assert.match(marketerPage, /id="publish"/);
-  assert.match(marketerPage, /id="listings"/);
+  assert.match(marketerLayout, /Product workflow/);
+  assert.match(marketerLayout, /Add Product/);
+  assert.match(marketerLayout, /Price & Publish/);
+  assert.match(marketerLayout, /Published Listings/);
+  assert.match(marketerPage, /view === "catalog"/);
+  assert.match(marketerPage, /view === "publish"/);
+  assert.match(marketerPage, /view === "listings"/);
+  assert.match(pricePublishPage, /MarketerProductsPage view="publish"/);
+  assert.match(publishedListingsPage, /MarketerProductsPage view="listings"/);
   assert.match(marketerPage, /Add product to catalog/);
   assert.match(marketerPage, /Choose available classified stock/);
   assert.match(marketerPage, /Buyer price preview/);

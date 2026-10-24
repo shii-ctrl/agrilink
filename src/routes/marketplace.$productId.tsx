@@ -6,7 +6,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { ClassificationBadge } from "@/features/marketplace/components/classification-badge";
 import { Button } from "@/components/ui/button";
-import { peso } from "@/features/marketplace/products";
+import { peso, type Product } from "@/features/marketplace/products";
 import { ProductCard } from "@/features/marketplace/components/product-card";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
@@ -54,9 +54,11 @@ export const Route = createFileRoute("/marketplace/$productId")({
   component: ProductDetail,
 });
 
+type MarketplaceProductDetailData = { product: Product; related: Product[] };
+
 function ProductDetail() {
   const router = useRouter();
-  const { product, related } = Route.useLoaderData();
+  const { product, related } = Route.useLoaderData() as MarketplaceProductDetailData;
   const [qty, setQty] = useState(1);
   const [isBuyer, setIsBuyer] = useState(false);
   const [cartQuantityKg, setCartQuantityKg] = useState(0);

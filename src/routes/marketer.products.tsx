@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Archive,
   Boxes,
-  CircleDollarSign,
   Eye,
   EyeOff,
   PackagePlus,
@@ -40,8 +39,10 @@ export const Route = createFileRoute("/marketer/products")({
       { name: "description", content: "Manage PROCY marketplace listings in AgriLink." },
     ],
   }),
-  component: MarketerProductsPage,
+  component: AddProductPage,
 });
+
+export type ProductWorkspaceView = "catalog" | "publish" | "listings";
 
 type MarketplaceListing = {
   id: string;
@@ -60,8 +61,27 @@ type MarketplaceListing = {
 };
 
 const cropTypes = procyMarketCategories;
+const workspacePageCopy: Record<ProductWorkspaceView, { title: string; description: string }> = {
+  catalog: {
+    title: "Add Product",
+    description: "Add a crop to the catalog before recording a farmer delivery.",
+  },
+  publish: {
+    title: "Price & Publish",
+    description: "Choose classified stock, set the buyer price, then save or publish the listing.",
+  },
+  listings: {
+    title: "Published Listings",
+    description: "Review, update, publish, or archive your PROCY marketplace listings.",
+  },
+};
 
-function MarketerProductsPage() {
+function AddProductPage() {
+  return <MarketerProductsPage view="catalog" />;
+}
+
+export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
+  const pageCopy = workspacePageCopy[view];
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<
     Awaited<ReturnType<typeof getCatalogProducts>>
@@ -169,8 +189,8 @@ function MarketerProductsPage() {
     <MarketerLayout>
       {confirmationDialog}
       <MarketerPageHeader
-        title="Products & Marketplace Listings"
-        description="Publish and manage PROCY product listings. Farmer members supply PROCY; buyers browse and order from PROCY listings only."
+        title={pageCopy.title}
+        description={pageCopy.description}
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
         <WorkspaceLoadState
@@ -181,70 +201,9 @@ function MarketerProductsPage() {
         />
         {!loading && !loadError ? (
           <>
-            <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
-              <span className="font-semibold">Live inventory:</span> published listings and
-              available quantities are stored in AgriLink and appear in the public marketplace.
-            </div>
-            <section className="mb-6 overflow-hidden rounded-3xl border border-primary/25 bg-card shadow-card">
-              <div className="px-6 py-5 md:px-7">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                  One-page listing workspace
-                </p>
-                <h2 className="mt-1 text-xl font-semibold">
-                  Create and manage marketplace listings
-                </h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Everything stays on this page. Add a catalog product when needed, choose available
-                  classified stock, set buyer prices, then save a draft or publish it to buyers.
-                </p>
-              </div>
-              <div className="grid border-t border-border md:grid-cols-3">
-                <a
-                  href="#catalog"
-                  className="flex min-w-0 items-center gap-3 border-b border-border px-5 py-6 transition-colors hover:bg-muted/40 md:min-h-[116px] md:border-b-0 md:border-r md:px-7"
-                >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-                    <PackagePlus className="size-5" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block font-semibold">Product details</span>
-                    <span className="mt-1 block text-sm text-muted-foreground">
-                      Add or find the crop you need.
-                    </span>
-                  </span>
-                </a>
-                <a
-                  href="#publish"
-                  className="flex min-w-0 items-center gap-3 border-b border-border px-5 py-6 transition-colors hover:bg-muted/40 md:min-h-[116px] md:border-b-0 md:border-r md:px-7"
-                >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-                    <CircleDollarSign className="size-5" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block font-semibold">Stock and price</span>
-                    <span className="mt-1 block text-sm text-muted-foreground">
-                      Choose stock, price it, and publish.
-                    </span>
-                  </span>
-                </a>
-                <a
-                  href="#listings"
-                  className="flex min-w-0 items-center gap-3 px-5 py-6 transition-colors hover:bg-muted/40 md:min-h-[116px] md:px-7"
-                >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-                    <Boxes className="size-5" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block font-semibold">Published listings</span>
-                    <span className="mt-1 block text-sm text-muted-foreground">
-                      Search, review, edit, and control visibility.
-                    </span>
-                  </span>
-                </a>
-              </div>
-            </section>
             <div className="flex flex-col gap-6">
-              <section id="listings" className="order-3 scroll-mt-6">
+              {view === "listings" ? (
+                <section id="listings" className="scroll-mt-6">
                 <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
                   <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5">
                     <div>
@@ -647,8 +606,10 @@ function MarketerProductsPage() {
                     </form>
                   ) : null}
                 </section>
-              </section>
-              <section id="catalog" className="order-1 scroll-mt-6">
+                </section>
+              ) : null}
+              {view === "catalog" ? (
+                <section id="catalog" className="scroll-mt-6">
                 <section className="max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
                   <div className="flex items-start gap-3">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
@@ -798,8 +759,10 @@ function MarketerProductsPage() {
                     </div>
                   </div>
                 </section>
-              </section>
-              <section id="publish" className="order-2 scroll-mt-6">
+                </section>
+              ) : null}
+              {view === "publish" ? (
+                <section id="publish" className="scroll-mt-6">
                 <section className="max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
                   <div className="flex items-start gap-3">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
@@ -999,7 +962,8 @@ function MarketerProductsPage() {
                     </div>
                   </form>
                 </section>
-              </section>
+                </section>
+              ) : null}
             </div>
             <aside className="mt-8 flex gap-3 rounded-3xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-card">
               <ShoppingBag className="mt-0.5 size-5 shrink-0 text-primary" />

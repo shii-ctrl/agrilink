@@ -36,17 +36,24 @@ import {
 const marketerSections = [
   { title: "Main", items: [{ title: "Dashboard", to: "/marketer", icon: BarChart3 }] },
   {
+    title: "Product workflow",
+    items: [
+      { title: "Add Product", to: "/marketer/products", icon: ShoppingBag },
+      { title: "Product Receiving", to: "/marketer/receiving", icon: ReceiptText },
+      { title: "Classification", to: "/marketer/classification", icon: PackageCheck },
+      { title: "Price & Publish", to: "/marketer/price-publish", icon: Tag },
+      { title: "Published Listings", to: "/marketer/published-listings", icon: Boxes },
+    ],
+  },
+  {
     title: "Marketplace",
     items: [
-      { title: "Products", to: "/marketer/products", icon: ShoppingBag },
       { title: "Daily Prices & Deals", to: "/marketer/daily-prices", icon: Tag },
     ],
   },
   {
     title: "Operations",
     items: [
-      { title: "Product Receiving", to: "/marketer/receiving", icon: ReceiptText },
-      { title: "Classification", to: "/marketer/classification", icon: PackageCheck },
       { title: "Orders", to: "/marketer/orders", icon: ClipboardCheck },
       { title: "Sales Monitoring", to: "/marketer/sales", icon: Boxes },
     ],

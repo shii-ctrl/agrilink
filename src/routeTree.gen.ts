@@ -55,8 +55,10 @@ import { Route as MarketerClassificationRouteImport } from './routes/marketer.cl
 import { Route as MarketerCommunityRouteImport } from './routes/marketer.community'
 import { Route as MarketerDailyPricesRouteImport } from './routes/marketer.daily-prices'
 import { Route as MarketerOrdersRouteImport } from './routes/marketer.orders'
+import { Route as MarketerPricePublishRouteImport } from './routes/marketer.price-publish'
 import { Route as MarketerProductsRouteImport } from './routes/marketer.products'
 import { Route as MarketerProfileRouteImport } from './routes/marketer.profile'
+import { Route as MarketerPublishedListingsRouteImport } from './routes/marketer.published-listings'
 import { Route as MarketerReceivingRouteImport } from './routes/marketer.receiving'
 import { Route as MarketerSalesRouteImport } from './routes/marketer.sales'
 import { Route as MarketplaceIndexRouteImport } from './routes/marketplace.index'
@@ -293,6 +295,11 @@ const MarketerOrdersRoute = MarketerOrdersRouteImport.update({
   path: '/marketer/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketerPricePublishRoute = MarketerPricePublishRouteImport.update({
+  id: '/marketer/price-publish',
+  path: '/marketer/price-publish',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketerProductsRoute = MarketerProductsRouteImport.update({
   id: '/marketer/products',
   path: '/marketer/products',
@@ -303,6 +310,12 @@ const MarketerProfileRoute = MarketerProfileRouteImport.update({
   path: '/marketer/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketerPublishedListingsRoute =
+  MarketerPublishedListingsRouteImport.update({
+    id: '/marketer/published-listings',
+    path: '/marketer/published-listings',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MarketerReceivingRoute = MarketerReceivingRouteImport.update({
   id: '/marketer/receiving',
   path: '/marketer/receiving',
@@ -365,8 +378,10 @@ export interface FileRoutesByFullPath {
   '/marketer/community': typeof MarketerCommunityRoute
   '/marketer/daily-prices': typeof MarketerDailyPricesRoute
   '/marketer/orders': typeof MarketerOrdersRoute
+  '/marketer/price-publish': typeof MarketerPricePublishRoute
   '/marketer/products': typeof MarketerProductsRoute
   '/marketer/profile': typeof MarketerProfileRoute
+  '/marketer/published-listings': typeof MarketerPublishedListingsRoute
   '/marketer/receiving': typeof MarketerReceivingRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
@@ -419,8 +434,10 @@ export interface FileRoutesByTo {
   '/marketer/community': typeof MarketerCommunityRoute
   '/marketer/daily-prices': typeof MarketerDailyPricesRoute
   '/marketer/orders': typeof MarketerOrdersRoute
+  '/marketer/price-publish': typeof MarketerPricePublishRoute
   '/marketer/products': typeof MarketerProductsRoute
   '/marketer/profile': typeof MarketerProfileRoute
+  '/marketer/published-listings': typeof MarketerPublishedListingsRoute
   '/marketer/receiving': typeof MarketerReceivingRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
@@ -474,8 +491,10 @@ export interface FileRoutesById {
   '/marketer/community': typeof MarketerCommunityRoute
   '/marketer/daily-prices': typeof MarketerDailyPricesRoute
   '/marketer/orders': typeof MarketerOrdersRoute
+  '/marketer/price-publish': typeof MarketerPricePublishRoute
   '/marketer/products': typeof MarketerProductsRoute
   '/marketer/profile': typeof MarketerProfileRoute
+  '/marketer/published-listings': typeof MarketerPublishedListingsRoute
   '/marketer/receiving': typeof MarketerReceivingRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
@@ -530,8 +549,10 @@ export interface FileRouteTypes {
     | '/marketer/community'
     | '/marketer/daily-prices'
     | '/marketer/orders'
+    | '/marketer/price-publish'
     | '/marketer/products'
     | '/marketer/profile'
+    | '/marketer/published-listings'
     | '/marketer/receiving'
     | '/marketer/sales'
     | '/marketplace/$productId'
@@ -584,8 +605,10 @@ export interface FileRouteTypes {
     | '/marketer/community'
     | '/marketer/daily-prices'
     | '/marketer/orders'
+    | '/marketer/price-publish'
     | '/marketer/products'
     | '/marketer/profile'
+    | '/marketer/published-listings'
     | '/marketer/receiving'
     | '/marketer/sales'
     | '/marketplace/$productId'
@@ -638,8 +661,10 @@ export interface FileRouteTypes {
     | '/marketer/community'
     | '/marketer/daily-prices'
     | '/marketer/orders'
+    | '/marketer/price-publish'
     | '/marketer/products'
     | '/marketer/profile'
+    | '/marketer/published-listings'
     | '/marketer/receiving'
     | '/marketer/sales'
     | '/marketplace/$productId'
@@ -693,8 +718,10 @@ export interface RootRouteChildren {
   MarketerCommunityRoute: typeof MarketerCommunityRoute
   MarketerDailyPricesRoute: typeof MarketerDailyPricesRoute
   MarketerOrdersRoute: typeof MarketerOrdersRoute
+  MarketerPricePublishRoute: typeof MarketerPricePublishRoute
   MarketerProductsRoute: typeof MarketerProductsRoute
   MarketerProfileRoute: typeof MarketerProfileRoute
+  MarketerPublishedListingsRoute: typeof MarketerPublishedListingsRoute
   MarketerReceivingRoute: typeof MarketerReceivingRoute
   MarketerSalesRoute: typeof MarketerSalesRoute
   MarketplaceProductIdRoute: typeof MarketplaceProductIdRoute
@@ -1031,6 +1058,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketerOrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/marketer/price-publish': {
+      id: '/marketer/price-publish'
+      path: '/marketer/price-publish'
+      fullPath: '/marketer/price-publish'
+      preLoaderRoute: typeof MarketerPricePublishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/marketer/products': {
       id: '/marketer/products'
       path: '/marketer/products'
@@ -1043,6 +1077,13 @@ declare module '@tanstack/react-router' {
       path: '/marketer/profile'
       fullPath: '/marketer/profile'
       preLoaderRoute: typeof MarketerProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketer/published-listings': {
+      id: '/marketer/published-listings'
+      path: '/marketer/published-listings'
+      fullPath: '/marketer/published-listings'
+      preLoaderRoute: typeof MarketerPublishedListingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/marketer/receiving': {
@@ -1117,8 +1158,10 @@ const rootRouteChildren: RootRouteChildren = {
   MarketerCommunityRoute: MarketerCommunityRoute,
   MarketerDailyPricesRoute: MarketerDailyPricesRoute,
   MarketerOrdersRoute: MarketerOrdersRoute,
+  MarketerPricePublishRoute: MarketerPricePublishRoute,
   MarketerProductsRoute: MarketerProductsRoute,
   MarketerProfileRoute: MarketerProfileRoute,
+  MarketerPublishedListingsRoute: MarketerPublishedListingsRoute,
   MarketerReceivingRoute: MarketerReceivingRoute,
   MarketerSalesRoute: MarketerSalesRoute,
   MarketplaceProductIdRoute: MarketplaceProductIdRoute,
@@ -1133,13 +1176,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
