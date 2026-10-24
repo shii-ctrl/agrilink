@@ -3,7 +3,6 @@ import {
   BarChart3,
   Boxes,
   ClipboardCheck,
-  Leaf,
   LogOut,
   MessageCircle,
   PackageCheck,
@@ -16,6 +15,7 @@ import type { ReactNode } from "react";
 
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
 import { RoleGate } from "@/components/layout/role-gate";
+import { ProcyLogo } from "@/components/layout/procy-logo";
 import { NotificationCenter } from "@/features/messaging/components/notification-center";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import {
@@ -67,7 +67,7 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
           <SidebarHeader className="p-4">
             <Link to="/" className="flex items-center gap-2.5 px-2 py-2">
               <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                <Leaf className="size-5" />
+                <ProcyLogo className="size-8" />
               </span>
               <span>
                 <span className="block font-display text-lg font-semibold leading-none text-foreground">

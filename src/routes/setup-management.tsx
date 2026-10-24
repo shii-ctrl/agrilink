@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Leaf, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ProcyLogo } from "@/components/layout/procy-logo";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createInitialManagementAccount } from "@/services/auth/admin-server-functions";
@@ -27,7 +28,7 @@ function SetupManagementPage() {
       <section className="w-full max-w-lg rounded-3xl border bg-card p-8 shadow-sm sm:p-10">
         <Link to="/" className="flex items-center gap-2">
           <span className="flex size-9 items-center justify-center rounded-full surface-sprout">
-            <Leaf className="size-5" />
+            <ProcyLogo className="size-8" />
           </span>
           <span className="font-display text-lg font-semibold">AgriLink</span>
         </Link>

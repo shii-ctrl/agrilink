@@ -1,9 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, Leaf, LockKeyhole, UserRound } from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ProcyLogo } from "@/components/layout/procy-logo";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +35,7 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
         <div className="px-6 pb-7 pt-4 sm:px-9 sm:pb-9">
           <DialogHeader className="items-center pt-2 text-center sm:text-center">
             <span className="flex size-14 items-center justify-center rounded-2xl surface-sprout shadow-sm">
-              <Leaf className="size-7" />
+              <ProcyLogo className="size-12" />
             </span>
             <p className="pt-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
               AgriLink

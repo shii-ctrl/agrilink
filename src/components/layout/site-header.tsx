@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Leaf, LogOut, Menu, ShoppingBag, ShoppingCart, UserRound, X } from "lucide-react";
+import { LogOut, Menu, ShoppingBag, ShoppingCart, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { ProcyLogo } from "@/components/layout/procy-logo";
 import { LoginDialog } from "@/features/auth/components/login-dialog";
 import { PasswordResetDialog } from "@/features/auth/components/password-reset-dialog";
 import { RegisterDialog } from "@/features/auth/components/register-dialog";
@@ -90,7 +91,7 @@ export function SiteHeader({
         <div className="mx-auto flex h-[5.75rem] max-w-[1500px] items-center justify-between gap-4 px-4 sm:px-6 xl:px-8">
           <Link to="/" className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-full surface-sprout">
-              <Leaf className="size-5" />
+              <ProcyLogo className="size-8" />
             </span>
             <span className="font-display text-lg font-semibold tracking-tight">AgriLink</span>
           </Link>

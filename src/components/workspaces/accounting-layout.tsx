@@ -3,7 +3,6 @@ import {
   BarChart3,
   CircleDollarSign,
   FileBarChart,
-  Leaf,
   LogOut,
   ReceiptText,
   Settings,
@@ -12,6 +11,7 @@ import type { ReactNode } from "react";
 
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
 import { RoleGate } from "@/components/layout/role-gate";
+import { ProcyLogo } from "@/components/layout/procy-logo";
 import { NotificationCenter } from "@/features/messaging/components/notification-center";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import {
@@ -46,7 +46,7 @@ export function AccountingLayout({ children }: { children: ReactNode }) {
           <SidebarHeader className="p-4">
             <Link to="/" className="flex items-center gap-2 rounded-lg px-2 py-2">
               <span className="flex size-9 items-center justify-center rounded-full bg-lime text-forest">
-                <Leaf className="size-5" />
+                <ProcyLogo className="size-8" />
               </span>
               <span>
                 <span className="block font-display text-lg font-semibold">AgriLink</span>

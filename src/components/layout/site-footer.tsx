@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Leaf } from "lucide-react";
+import { ProcyLogo } from "@/components/layout/procy-logo";
 
 export function SiteFooter() {
   return (
@@ -8,7 +8,7 @@ export function SiteFooter() {
         <div className="md:col-span-2">
           <div className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-full bg-lime text-forest">
-              <Leaf className="size-5" />
+              <ProcyLogo className="size-8" />
             </span>
             <span className="font-display text-lg font-semibold">AgriLink</span>
           </div>
