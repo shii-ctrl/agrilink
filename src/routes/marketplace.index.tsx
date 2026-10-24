@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { ChevronDown, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -7,6 +7,7 @@ import { ProductCard } from "@/features/marketplace/components/product-card";
 import { Input } from "@/components/ui/input";
 import type { Classification, Product } from "@/features/marketplace/products";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
+import { procyMarketCategoryGuide } from "@/features/marketplace/procy-market-categories";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getMarketplaceListings } from "@/services/marketplace/marketplace-server-functions";
 
@@ -32,34 +33,6 @@ export const Route = createFileRoute("/marketplace/")({
 
 const classifications: Classification[] = ["Good", "Semi", "Reject"];
 
-const procyMarketGuide = [
-  [
-    "Lowland Crops",
-    "Vegetables commonly supplied from lowland growing areas.",
-    "Ampalaya, upo, cucumber, eggplant, okra, sitaw, kamatis",
-  ],
-  [
-    "Highland Crops",
-    "Vegetables commonly supplied from highland growing areas.",
-    "Bell pepper, broccoli, cabbage, carrots, cauliflower, lettuce",
-  ],
-  [
-    "Fruits",
-    "Fresh fruits sold through the PROCY market.",
-    "Mango, calamansi, melon, papaya, pineapple, banana, watermelon",
-  ],
-  [
-    "Root Crops",
-    "Edible roots, rhizomes, and tubers.",
-    "Cassava, ginger, ube, radish, sweet potato, taro",
-  ],
-  [
-    "Staple Crops",
-    "Basic crop commodities used as common food staples.",
-    "Coconut, white corn, yellow corn",
-  ],
-  ["Other Commodities", "Other PROCY market goods.", "Eggs, mung beans, banana blossom, singkamas"],
-] as const;
 function Chip({
   active,
   onClick,
@@ -103,7 +76,6 @@ function MarketplacePage() {
   const [crop, setCrop] = useState<string | null>(null);
   const [grade, setGrade] = useState<Classification | null>(null);
   const [inStockOnly, setInStockOnly] = useState(false);
-  const [isGuideExpanded, setIsGuideExpanded] = useState(false);
   const results = useMemo(
     () =>
       products.filter((p) => {
@@ -190,60 +162,6 @@ function MarketplacePage() {
             </div>
           </div>
         </div>
-
-        <section className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-          <div className="flex flex-col gap-4 border-b border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">PROCY Market Categories</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Use these crop groups to understand product types in the PROCY marketplace.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsGuideExpanded((expanded) => !expanded)}
-              aria-expanded={isGuideExpanded}
-              aria-controls="procy-market-category-guide"
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-accent hover:text-accent-foreground"
-            >
-              {isGuideExpanded ? "Hide guide" : "Show guide"}
-              <ChevronDown
-                className={`size-4 transition-transform duration-300 ${
-                  isGuideExpanded ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-          </div>
-          <div
-            id="procy-market-category-guide"
-            className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-              isGuideExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-            }`}
-          >
-            <div className="min-h-0 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-6 py-4 font-medium">Market category</th>
-                      <th className="px-6 py-4 font-medium">Description</th>
-                      <th className="px-6 py-4 font-medium">Examples</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {procyMarketGuide.map(([name, meaning, examples]) => (
-                      <tr key={name} className="border-t border-border">
-                        <td className="px-6 py-4 font-semibold">{name}</td>
-                        <td className="px-6 py-4 text-muted-foreground">{meaning}</td>
-                        <td className="px-6 py-4 text-muted-foreground">{examples}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
 
         {results.length > 0 ? (
           <>

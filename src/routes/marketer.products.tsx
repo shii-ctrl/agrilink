@@ -15,7 +15,10 @@ import { toast } from "sonner";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { CatalogProductTable } from "@/features/marketplace/components/catalog-product-table";
-import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
+import {
+  procyMarketCategories,
+  procyMarketCategoryGuide,
+} from "@/features/marketplace/procy-market-categories";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
@@ -98,6 +101,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
   const [catalogImageDataUrl, setCatalogImageDataUrl] = useState("");
   const [catalogImageName, setCatalogImageName] = useState("");
   const [catalogCropType, setCatalogCropType] = useState("");
+  const [isMarketGuideExpanded, setIsMarketGuideExpanded] = useState(false);
   const [preparingImage, setPreparingImage] = useState(false);
   const [updatingListingPricing, setUpdatingListingPricing] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState("");
@@ -667,6 +671,65 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                         </p>
                       </div>
                     </div>
+                    <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-background/40">
+                      <div className="flex flex-col gap-4 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="font-semibold">PROCY Market Categories</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Check the crop group before adding a product to the catalog.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0 rounded-full"
+                          onClick={() => setIsMarketGuideExpanded((expanded) => !expanded)}
+                          aria-expanded={isMarketGuideExpanded}
+                          aria-controls="catalog-market-category-guide"
+                        >
+                          {isMarketGuideExpanded ? "Hide guide" : "Show guide"}
+                          <ChevronDown
+                            className={`size-4 transition-transform duration-300 ${
+                              isMarketGuideExpanded ? "rotate-180" : ""
+                            }`}
+                          />
+                        </Button>
+                      </div>
+                      <div
+                        id="catalog-market-category-guide"
+                        className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+                          isMarketGuideExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                        }`}
+                      >
+                        <div className="min-h-0 overflow-hidden">
+                          <div className="overflow-x-auto">
+                            <table className="w-full min-w-[720px] text-left text-sm">
+                              <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
+                                <tr>
+                                  <th className="px-5 py-3 font-medium">Market category</th>
+                                  <th className="px-5 py-3 font-medium">Description</th>
+                                  <th className="px-5 py-3 font-medium">Examples</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {procyMarketCategoryGuide.map((category) => (
+                                  <tr key={category.name} className="border-t border-border">
+                                    <td className="px-5 py-3 font-semibold">{category.name}</td>
+                                    <td className="px-5 py-3 text-muted-foreground">
+                                      {category.description}
+                                    </td>
+                                    <td className="px-5 py-3 text-muted-foreground">
+                                      {category.examples}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
                     <form
                       className="mt-8 grid gap-5 sm:grid-cols-2"
                       onSubmit={async (event) => {

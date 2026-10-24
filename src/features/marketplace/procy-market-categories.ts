@@ -9,6 +9,39 @@ export const procyMarketCategories = [
 
 export type ProcyMarketCategory = (typeof procyMarketCategories)[number];
 
+export const procyMarketCategoryGuide = [
+  {
+    name: "Lowland Crops",
+    description: "Vegetables commonly supplied from lowland growing areas.",
+    examples: "Ampalaya, upo, cucumber, eggplant, okra, sitaw, kamatis",
+  },
+  {
+    name: "Highland Crops",
+    description: "Vegetables commonly supplied from highland growing areas.",
+    examples: "Bell pepper, broccoli, cabbage, carrots, cauliflower, lettuce",
+  },
+  {
+    name: "Fruits",
+    description: "Fresh fruits sold through the PROCY market.",
+    examples: "Mango, calamansi, melon, papaya, pineapple, banana, watermelon",
+  },
+  {
+    name: "Root Crops",
+    description: "Edible roots, rhizomes, and tubers.",
+    examples: "Cassava, ginger, ube, radish, sweet potato, taro",
+  },
+  {
+    name: "Staple Crops",
+    description: "Basic crop commodities used as common food staples.",
+    examples: "Coconut, white corn, yellow corn",
+  },
+  {
+    name: "Other Commodities",
+    description: "Other PROCY market goods.",
+    examples: "Eggs, mung beans, banana blossom, singkamas",
+  },
+] as const;
+
 const namesByCategory: Record<ProcyMarketCategory, readonly string[]> = {
   "Lowland Crops": [
     "ampalaya galaxy",
