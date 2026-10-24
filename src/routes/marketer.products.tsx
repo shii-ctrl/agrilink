@@ -250,12 +250,12 @@ function MarketerProductsPage() {
               <div className="grid border-t border-border md:grid-cols-3">
                 <a
                   href="#catalog"
-                  className="flex gap-3 border-b border-border p-5 transition-colors hover:bg-muted/40 md:border-b-0 md:border-r"
+                  className="flex min-w-0 items-center gap-3 border-b border-border px-5 py-6 transition-colors hover:bg-muted/40 md:min-h-[116px] md:border-b-0 md:border-r md:px-7"
                 >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
                     <PackagePlus className="size-5" />
                   </span>
-                  <span>
+                  <span className="min-w-0">
                     <span className="block font-semibold">Product details</span>
                     <span className="mt-1 block text-sm text-muted-foreground">
                       Add or find the crop you need.
@@ -264,23 +264,26 @@ function MarketerProductsPage() {
                 </a>
                 <a
                   href="#publish"
-                  className="flex gap-3 border-b border-border p-5 transition-colors hover:bg-muted/40 md:border-b-0 md:border-r"
+                  className="flex min-w-0 items-center gap-3 border-b border-border px-5 py-6 transition-colors hover:bg-muted/40 md:min-h-[116px] md:border-b-0 md:border-r md:px-7"
                 >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
                     <CircleDollarSign className="size-5" />
                   </span>
-                  <span>
+                  <span className="min-w-0">
                     <span className="block font-semibold">Stock and price</span>
                     <span className="mt-1 block text-sm text-muted-foreground">
                       Choose stock, price it, and publish.
                     </span>
                   </span>
                 </a>
-                <a href="#listings" className="flex gap-3 p-5 transition-colors hover:bg-muted/40">
+                <a
+                  href="#listings"
+                  className="flex min-w-0 items-center gap-3 px-5 py-6 transition-colors hover:bg-muted/40 md:min-h-[116px] md:px-7"
+                >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
                     <Boxes className="size-5" />
                   </span>
-                  <span>
+                  <span className="min-w-0">
                     <span className="block font-semibold">Published listings</span>
                     <span className="mt-1 block text-sm text-muted-foreground">
                       Search, review, edit, and control visibility.
