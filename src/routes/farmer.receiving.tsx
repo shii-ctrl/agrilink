@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
 import { ReceivingRecordsTable } from "@/features/operations/components/receiving-records-table";
 import { Input } from "@/components/ui/input";
+import { AppSelect } from "@/components/ui/app-select";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
@@ -74,19 +75,17 @@ function FarmerReceivingPage() {
                   onChange={(event) => setStatusQuery(event.target.value)}
                   placeholder="Search product, classification, or status"
                 />
-                <select
-                  aria-label="Filter product status"
+                <AppSelect
+                  ariaLabel="Filter product status"
                   value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">All availability states</option>
-                  {[...new Set(statuses.map((status) => status.status))].sort().map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setStatusFilter}
+                  options={[
+                    { value: "", label: "All availability states" },
+                    ...[...new Set(statuses.map((status) => status.status))]
+                      .sort()
+                      .map((status) => ({ value: status, label: status })),
+                  ]}
+                />
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px] text-left text-sm">

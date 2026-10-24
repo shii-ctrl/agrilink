@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { Label } from "@/components/ui/label";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { type DemoOrder } from "@/lib/demo/demo-orders";
@@ -105,22 +106,17 @@ function AccountingPaymentsPage() {
               <form className="mt-7 space-y-5" onSubmit={recordPayment}>
                 <div className="space-y-2">
                   <Label htmlFor="transaction">Sold order</Label>
-                  <select
+                  <AppSelect
                     id="transaction"
                     value={selectedOrderId}
-                    onChange={(event) => setSelectedOrderId(event.target.value)}
-                    required
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="" disabled>
-                      Select a Sold order
-                    </option>
-                    {awaitingPayment.map((order) => (
-                      <option key={order.id} value={order.id}>
-                        {order.id} — {order.buyer} · {order.total}
-                      </option>
-                    ))}
-                  </select>
+                    onValueChange={setSelectedOrderId}
+                    placeholder="Select a Sold order"
+                    options={awaitingPayment.map((order) => ({
+                      value: order.id,
+                      label: `${order.id} — ${order.buyer}`,
+                      description: order.total,
+                    }))}
+                  />
                 </div>
                 {selectedOrder && (
                   <div className="rounded-2xl bg-muted p-4 text-sm">
@@ -133,20 +129,17 @@ function AccountingPaymentsPage() {
                 )}
                 <div className="space-y-2">
                   <Label htmlFor="method">Payment method</Label>
-                  <select
+                  <AppSelect
                     id="method"
                     value={method}
-                    onChange={(event) => setMethod(event.target.value)}
-                    required
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="" disabled>
-                      Select a method
-                    </option>
-                    <option>Cash</option>
-                    <option>Bank Transfer</option>
-                    <option>Other recorded method</option>
-                  </select>
+                    onValueChange={setMethod}
+                    placeholder="Select a method"
+                    options={[
+                      { value: "Cash", label: "Cash" },
+                      { value: "Bank Transfer", label: "Bank Transfer" },
+                      { value: "Other recorded method", label: "Other recorded method" },
+                    ]}
+                  />
                 </div>
                 <Button type="submit" className="rounded-full">
                   Record payment as Paid

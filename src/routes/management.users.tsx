@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +49,37 @@ const userRoleFilters = [
 type UserRoleFilter = (typeof userRoleFilters)[number];
 const EMPTY_USERS: ManagementUser[] = [];
 const EMPTY_AUDIT_LOGS: Awaited<ReturnType<typeof getManagementAuditLogs>> = [];
+
+function ManagedSelect({
+  id,
+  name,
+  defaultValue = "",
+  placeholder,
+  options,
+  disabled = false,
+}: {
+  id?: string;
+  name: string;
+  defaultValue?: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  disabled?: boolean;
+}) {
+  const [value, setValue] = useState(defaultValue);
+
+  return (
+    <AppSelect
+      id={id}
+      name={name}
+      value={value}
+      onValueChange={setValue}
+      onReset={() => setValue(defaultValue)}
+      placeholder={placeholder}
+      options={options}
+      disabled={disabled}
+    />
+  );
+}
 
 function ManagementUsersPage() {
   const [userRoleFilter, setUserRoleFilter] = useState<UserRoleFilter>("All");
@@ -352,22 +384,16 @@ function ManagementUsersPage() {
                         }}
                       >
                         <p className="min-w-44 font-medium">{farmer.name}</p>
-                        <select
+                        <ManagedSelect
                           name="consultantId"
                           defaultValue={farmer.consultantId ?? ""}
-                          required
                           disabled={!guidanceAssignments.consultants.length}
-                          className="flex h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring"
-                        >
-                          <option value="" disabled>
-                            Select a consultant
-                          </option>
-                          {guidanceAssignments.consultants.map((consultant) => (
-                            <option key={consultant.id} value={consultant.id}>
-                              {consultant.name}
-                            </option>
-                          ))}
-                        </select>
+                          placeholder="Select a consultant"
+                          options={guidanceAssignments.consultants.map((consultant) => ({
+                            value: consultant.id,
+                            label: consultant.name,
+                          }))}
+                        />
                         <Button
                           type="submit"
                           variant="outline"
@@ -453,34 +479,25 @@ function ManagementUsersPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="account-role">Role</Label>
-                      <select
+                      <ManagedSelect
                         id="account-role"
                         name="role"
-                        required
-                        defaultValue=""
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring"
-                      >
-                        <option value="" disabled>
-                          Select a role
-                        </option>
-                        {roles.map((role) => (
-                          <option key={role} value={role}>
-                            {role}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select a role"
+                        options={roles.map((role) => ({ value: role, label: role }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="account-status">Account status</Label>
-                      <select
+                      <ManagedSelect
                         id="account-status"
                         name="status"
                         defaultValue="active"
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring"
-                      >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
+                        placeholder="Select account status"
+                        options={[
+                          { value: "active", label: "Active" },
+                          { value: "inactive", label: "Inactive" },
+                        ]}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="account-email">Email address</Label>
@@ -557,22 +574,15 @@ function ManagementUsersPage() {
                   >
                     <div className="space-y-2 sm:col-span-2">
                       <Label htmlFor="reset-account">Account</Label>
-                      <select
+                      <ManagedSelect
                         id="reset-account"
                         name="userId"
-                        defaultValue=""
-                        required
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring"
-                      >
-                        <option value="" disabled>
-                          Select an account
-                        </option>
-                        {users.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.name} — {user.role}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Select an account"
+                        options={users.map((user) => ({
+                          value: user.id,
+                          label: `${user.name} — ${user.role}`,
+                        }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="reset-password">New password</Label>

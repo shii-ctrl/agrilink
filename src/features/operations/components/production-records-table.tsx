@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 
@@ -45,7 +46,12 @@ export function ProductionRecordsTable({
   const [selectedProduct, setSelectedProduct] = useState("");
   const [unharvestedOnly, setUnharvestedOnly] = useState(false);
   const farmers = useMemo(
-    () => [...new Set(records.map((record) => record.farmer).filter(Boolean))].sort(),
+    () =>
+      [
+        ...new Set(
+          records.map((record) => record.farmer).filter((value): value is string => Boolean(value)),
+        ),
+      ].sort(),
     [records],
   );
   const products = useMemo(
@@ -119,33 +125,25 @@ export function ProductionRecordsTable({
             onChange={(event) => setHarvestDate(event.target.value)}
           />
         </label>
-        <select
-          aria-label="Filter by product"
+        <AppSelect
+          ariaLabel="Filter by product"
           value={selectedProduct}
-          onChange={(event) => setSelectedProduct(event.target.value)}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All crops</option>
-          {products.map((product) => (
-            <option key={product} value={product}>
-              {product}
-            </option>
-          ))}
-        </select>
+          onValueChange={setSelectedProduct}
+          options={[
+            { value: "", label: "All crops" },
+            ...products.map((product) => ({ value: product, label: product })),
+          ]}
+        />
         {showFarmer && (
-          <select
-            aria-label="Filter by farmer"
+          <AppSelect
+            ariaLabel="Filter by farmer"
             value={selectedFarmer}
-            onChange={(event) => setSelectedFarmer(event.target.value)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-          >
-            <option value="">All farmers</option>
-            {farmers.map((farmer) => (
-              <option key={farmer} value={farmer}>
-                {farmer}
-              </option>
-            ))}
-          </select>
+            onValueChange={setSelectedFarmer}
+            options={[
+              { value: "", label: "All farmers" },
+              ...farmers.map((farmer) => ({ value: farmer, label: farmer })),
+            ]}
+          />
         )}
         <label className="flex h-10 items-center gap-2 rounded-md border border-input px-3 text-sm">
           <input

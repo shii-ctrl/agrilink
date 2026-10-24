@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
 import { OrderDetails } from "@/features/marketplace/components/order-details";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
@@ -178,29 +179,28 @@ function BuyerOrdersPage() {
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search order, product, or status"
                 />
-                <select
-                  aria-label="Filter my orders by status"
+                <AppSelect
+                  ariaLabel="Filter my orders by status"
                   value={orderStatus}
-                  onChange={(event) => setOrderStatus(event.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">All order states</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Confirmed">Confirmed</option>
-                  <option value="Sold">Sold</option>
-                  <option value="Cancelled">Cancelled</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
-                <select
-                  aria-label="Filter my orders by payment status"
+                  onValueChange={setOrderStatus}
+                  options={[
+                    { value: "", label: "All order states" },
+                    ...["Pending", "Confirmed", "Sold", "Cancelled", "Rejected"].map((value) => ({
+                      value,
+                      label: value,
+                    })),
+                  ]}
+                />
+                <AppSelect
+                  ariaLabel="Filter my orders by payment status"
                   value={paymentStatus}
-                  onChange={(event) => setPaymentStatus(event.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">All payment states</option>
-                  <option value="Paid">Paid</option>
-                  <option value="Unpaid">Unpaid</option>
-                </select>
+                  onValueChange={setPaymentStatus}
+                  options={[
+                    { value: "", label: "All payment states" },
+                    { value: "Paid", label: "Paid" },
+                    { value: "Unpaid", label: "Unpaid" },
+                  ]}
+                />
                 <Input
                   aria-label="Filter my orders by date"
                   type="date"

@@ -327,6 +327,7 @@ export const getPublishableInventory = createServerFn({ method: "GET" }).handler
     .select({
       id: inventory.id,
       name: products.name,
+      cropType: products.cropType,
       classification: classifications.name,
       quantityKg: inventory.quantityKg,
       farmer: users.displayName,

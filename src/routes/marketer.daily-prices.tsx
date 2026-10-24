@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
@@ -158,24 +159,17 @@ function MarketerDailyPricesPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="listingId">Product classification</Label>
-                    <select
+                    <AppSelect
                       id="listingId"
                       value={listingId}
-                      onChange={(event) => setListingId(event.target.value)}
+                      onValueChange={setListingId}
                       disabled={Boolean(editingEntry)}
-                      required
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <option value="" disabled>
-                        Select a published listing
-                      </option>
-                      {listings.map((product) => (
-                        <option key={product.id} value={product.id}>
-                          [{procyMarketCategoryForProduct(product.name) ?? "Not in PROCY guide"}]{" "}
-                          {product.name} — {product.classification}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Select a published listing"
+                      options={listings.map((product) => ({
+                        value: product.id,
+                        label: `[${procyMarketCategoryForProduct(product.name) ?? "Not in PROCY guide"}] ${product.name} — ${product.classification}`,
+                      }))}
+                    />
                     <p className="text-xs text-muted-foreground">
                       PROCY market categories are a guide for organizing prices. Good, Semi, and
                       Reject remain the listing quality classifications.

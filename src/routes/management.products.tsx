@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { CatalogProductTable } from "@/features/marketplace/components/catalog-product-table";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
@@ -159,41 +160,33 @@ function StockTable({
           placeholder="Search product, farmer, crop, or status"
           className="xl:col-span-2"
         />
-        <select
-          aria-label="Filter stock by crop type"
+        <AppSelect
+          ariaLabel="Filter stock by crop type"
           value={cropType}
-          onChange={(event) => setCropType(event.target.value)}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All crop types</option>
-          {cropTypes.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Filter stock by classification"
+          onValueChange={setCropType}
+          options={[
+            { value: "", label: "All crop types" },
+            ...cropTypes.map((type) => ({ value: type, label: type })),
+          ]}
+        />
+        <AppSelect
+          ariaLabel="Filter stock by classification"
           value={classification}
-          onChange={(event) => setClassification(event.target.value)}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All classifications</option>
-          <option value="Good">Good</option>
-          <option value="Semi">Semi</option>
-          <option value="Reject">Reject</option>
-        </select>
-        <select
-          aria-label="Filter stock by listing status"
+          onValueChange={setClassification}
+          options={[
+            { value: "", label: "All classifications" },
+            ...["Good", "Semi", "Reject"].map((value) => ({ value, label: value })),
+          ]}
+        />
+        <AppSelect
+          ariaLabel="Filter stock by listing status"
           value={listingStatus}
-          onChange={(event) => setListingStatus(event.target.value)}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All listing states</option>
-          <option value="published">Published</option>
-          <option value="draft">Draft</option>
-          <option value="Not listed">Not listed</option>
-        </select>
+          onValueChange={setListingStatus}
+          options={[
+            { value: "", label: "All listing states" },
+            ...["published", "draft", "Not listed"].map((value) => ({ value, label: value })),
+          ]}
+        />
         <label className="flex h-10 items-center gap-2 rounded-md border border-input px-3 text-sm xl:col-start-4">
           <input
             type="checkbox"

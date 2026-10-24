@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 
@@ -82,7 +83,14 @@ export function ReceivingRecordsTable({
   const [expandedDeliveryId, setExpandedDeliveryId] = useState<string | null>(null);
   const deliveries = useMemo(() => groupDeliveries(records), [records]);
   const farmers = useMemo(
-    () => [...new Set(deliveries.map((delivery) => delivery.farmer).filter(Boolean))].sort(),
+    () =>
+      [
+        ...new Set(
+          deliveries
+            .map((delivery) => delivery.farmer)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ].sort(),
     [deliveries],
   );
   const products = useMemo(
@@ -137,35 +145,27 @@ export function ReceivingRecordsTable({
           />
         </label>
         {showFarmer ? (
-          <select
-            aria-label="Filter by farmer"
+          <AppSelect
+            ariaLabel="Filter by farmer"
             value={selectedFarmer}
-            onChange={(event) => setSelectedFarmer(event.target.value)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-          >
-            <option value="">All farmers</option>
-            {farmers.map((farmer) => (
-              <option key={farmer} value={farmer}>
-                {farmer}
-              </option>
-            ))}
-          </select>
+            onValueChange={setSelectedFarmer}
+            options={[
+              { value: "", label: "All farmers" },
+              ...farmers.map((farmer) => ({ value: farmer, label: farmer })),
+            ]}
+          />
         ) : (
           <div className="hidden xl:block" />
         )}
-        <select
-          aria-label="Filter by product"
+        <AppSelect
+          ariaLabel="Filter by product"
           value={selectedProduct}
-          onChange={(event) => setSelectedProduct(event.target.value)}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All products</option>
-          {products.map((product) => (
-            <option key={product} value={product}>
-              {product}
-            </option>
-          ))}
-        </select>
+          onValueChange={setSelectedProduct}
+          options={[
+            { value: "", label: "All products" },
+            ...products.map((product) => ({ value: product, label: product })),
+          ]}
+        />
         <label className="flex h-10 items-center gap-2 rounded-md border border-input px-3 text-sm xl:col-start-5">
           <input
             type="checkbox"

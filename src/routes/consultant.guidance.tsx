@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { ConsultantLayout, ConsultantPageHeader } from "@/components/workspaces/consultant-layout";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,18 +60,15 @@ function ConsultantGuidancePage() {
               </div>
               <div className="mt-5 space-y-2">
                 <Label htmlFor="farmerId">Farmer</Label>
-                <select
+                <AppSelect
                   id="farmerId"
                   value={farmerId}
-                  onChange={(event) => setFarmerId(event.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  {workspace?.farmers.map((farmer) => (
-                    <option key={farmer.id} value={farmer.id}>
-                      {farmer.name}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setFarmerId}
+                  options={(workspace?.farmers ?? []).map((farmer) => ({
+                    value: farmer.id,
+                    label: farmer.name,
+                  }))}
+                />
               </div>
               <form
                 className="mt-5"

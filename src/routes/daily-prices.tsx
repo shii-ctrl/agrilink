@@ -15,6 +15,7 @@ import {
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import type { Classification } from "@/features/marketplace/products";
@@ -172,19 +173,18 @@ function DailyPricesPage() {
             </div>
             <label className="space-y-1 text-sm font-medium">
               <span className="text-muted-foreground">PROCY market category</span>
-              <select
-                aria-label="Filter daily prices by PROCY market category"
+              <AppSelect
+                ariaLabel="Filter daily prices by PROCY market category"
                 value={marketCategory}
-                onChange={(event) => setMarketCategory(event.target.value)}
-                className="block h-9 rounded-md border border-input bg-background px-3 text-sm font-normal"
-              >
-                <option value="">All categories</option>
-                {procyMarketCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setMarketCategory}
+                options={[
+                  { value: "", label: "All categories" },
+                  ...procyMarketCategories.map((category) => ({
+                    value: category,
+                    label: category,
+                  })),
+                ]}
+              />
             </label>
           </div>
           <div className="overflow-x-auto">
@@ -241,17 +241,14 @@ function DailyPricesPage() {
                 Compare Good, Semi, and Reject published prices for one PROCY vegetable.
               </p>
             </div>
-            <select
+            <AppSelect
               value={chartProduct}
-              onChange={(event) => setChartProduct(event.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              {[...new Set(entries.map((entry) => entry.product))].map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
+              onValueChange={setChartProduct}
+              options={[...new Set(entries.map((entry) => entry.product))].map((name) => ({
+                value: name,
+                label: name,
+              }))}
+            />
           </div>
           <div className="mt-6 h-64">
             <ResponsiveContainer width="100%" height="100%">

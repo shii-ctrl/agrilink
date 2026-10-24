@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { AppSelect } from "@/components/ui/app-select";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 
 export type CatalogProductRow = {
@@ -64,19 +65,15 @@ export function CatalogProductTable({
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search product or crop type"
         />
-        <select
-          aria-label="Filter catalog by crop type"
+        <AppSelect
+          ariaLabel="Filter catalog by crop type"
           value={cropType}
-          onChange={(event) => setCropType(event.target.value)}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All crop types</option>
-          {cropTypes.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
+          onValueChange={setCropType}
+          options={[
+            { value: "", label: "All crop types" },
+            ...cropTypes.map((type) => ({ value: type, label: type })),
+          ]}
+        />
         <p className="text-sm text-muted-foreground sm:col-span-2">
           Crop types and products are sorted from A to Z.
         </p>

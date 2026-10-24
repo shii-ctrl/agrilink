@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays, ClipboardList } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { ProductionRecordsTable } from "@/features/operations/components/production-records-table";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
@@ -125,22 +126,20 @@ function Select({
   name: string;
   options: { id: string; name: string }[];
 }) {
+  const [value, setValue] = useState("");
+
   return (
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>
-      <select
+      <AppSelect
         id={name}
         name={name}
-        required
-        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-      >
-        <option value="">Select {label.toLowerCase()}</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
+        value={value}
+        onValueChange={setValue}
+        onReset={() => setValue("")}
+        placeholder={`Select ${label.toLowerCase()}`}
+        options={options.map((option) => ({ value: option.id, label: option.name }))}
+      />
     </div>
   );
 }

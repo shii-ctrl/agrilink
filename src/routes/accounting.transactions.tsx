@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
@@ -71,29 +72,28 @@ function AccountingTransactionsPage() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search order, buyer, farmer, or product"
             />
-            <select
-              aria-label="Filter transactions by order status"
+            <AppSelect
+              ariaLabel="Filter transactions by order status"
               value={orderStatus}
-              onChange={(event) => setOrderStatus(event.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">All order states</option>
-              <option value="Pending">Pending</option>
-              <option value="Confirmed">Confirmed</option>
-              <option value="Sold">Sold</option>
-              <option value="Cancelled">Cancelled</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-            <select
-              aria-label="Filter transactions by payment status"
+              onValueChange={setOrderStatus}
+              options={[
+                { value: "", label: "All order states" },
+                ...["Pending", "Confirmed", "Sold", "Cancelled", "Rejected"].map((value) => ({
+                  value,
+                  label: value,
+                })),
+              ]}
+            />
+            <AppSelect
+              ariaLabel="Filter transactions by payment status"
               value={paymentStatus}
-              onChange={(event) => setPaymentStatus(event.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">All payment states</option>
-              <option value="Paid">Paid</option>
-              <option value="Unpaid">Unpaid</option>
-            </select>
+              onValueChange={setPaymentStatus}
+              options={[
+                { value: "", label: "All payment states" },
+                { value: "Paid", label: "Paid" },
+                { value: "Unpaid", label: "Unpaid" },
+              ]}
+            />
             <Input
               aria-label="Filter transactions by date"
               type="date"

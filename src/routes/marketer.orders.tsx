@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { OrderDetails } from "@/features/marketplace/components/order-details";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
@@ -221,19 +222,18 @@ function MarketerOrdersPage() {
                     className="pl-9"
                   />
                 </label>
-                <select
-                  aria-label="Filter orders by status"
+                <AppSelect
+                  ariaLabel="Filter orders by status"
                   value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">All order states</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Confirmed">Confirmed</option>
-                  <option value="Sold">Sold</option>
-                  <option value="Cancelled">Cancelled</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
+                  onValueChange={setStatusFilter}
+                  options={[
+                    { value: "", label: "All order states" },
+                    ...["Pending", "Confirmed", "Sold", "Cancelled", "Rejected"].map((value) => ({
+                      value,
+                      label: value,
+                    })),
+                  ]}
+                />
                 <Input
                   aria-label="Filter orders by date"
                   type="date"

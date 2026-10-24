@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
@@ -121,16 +122,16 @@ function MarketerSalesPage() {
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search product, farmer, buyer, or order"
                 />
-                <select
-                  aria-label="Filter sales by payment status"
+                <AppSelect
+                  ariaLabel="Filter sales by payment status"
                   value={paymentStatus}
-                  onChange={(event) => setPaymentStatus(event.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">All payment states</option>
-                  <option value="Paid">Paid</option>
-                  <option value="Unpaid">Unpaid</option>
-                </select>
+                  onValueChange={setPaymentStatus}
+                  options={[
+                    { value: "", label: "All payment states" },
+                    { value: "Paid", label: "Paid" },
+                    { value: "Unpaid", label: "Unpaid" },
+                  ]}
+                />
                 <Input
                   aria-label="Filter sales by date"
                   type="date"

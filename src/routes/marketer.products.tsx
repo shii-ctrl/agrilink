@@ -17,6 +17,7 @@ import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/mark
 import { CatalogProductTable } from "@/features/marketplace/components/catalog-product-table";
 import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
 import { Button } from "@/components/ui/button";
+import { AppSelect } from "@/components/ui/app-select";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,6 +97,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
   const [savingListing, setSavingListing] = useState(false);
   const [catalogImageDataUrl, setCatalogImageDataUrl] = useState("");
   const [catalogImageName, setCatalogImageName] = useState("");
+  const [catalogCropType, setCatalogCropType] = useState("");
   const [preparingImage, setPreparingImage] = useState(false);
   const [updatingListingPricing, setUpdatingListingPricing] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState("");
@@ -276,51 +278,50 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                         onChange={(event) => setListingQuery(event.target.value)}
                         placeholder="Search product, farmer, crop, or class"
                       />
-                      <select
-                        aria-label="Filter listings by crop type"
+                      <AppSelect
+                        ariaLabel="Filter listings by crop type"
                         value={listingCropType}
-                        onChange={(event) => setListingCropType(event.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      >
-                        <option value="">All crop types</option>
-                        {listingCropTypes.map((cropType) => (
-                          <option key={cropType} value={cropType}>
-                            {cropType}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        aria-label="Filter listings by visibility"
+                        onValueChange={setListingCropType}
+                        options={[
+                          { value: "", label: "All crop types" },
+                          ...listingCropTypes.map((cropType) => ({
+                            value: cropType,
+                            label: cropType,
+                          })),
+                        ]}
+                      />
+                      <AppSelect
+                        ariaLabel="Filter listings by visibility"
                         value={listingStatus}
-                        onChange={(event) => setListingStatus(event.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      >
-                        <option value="">All listing states</option>
-                        <option value="draft">Draft</option>
-                        <option value="published">Published</option>
-                        <option value="archived">Archived</option>
-                      </select>
-                      <select
-                        aria-label="Filter listings by classification"
+                        onValueChange={setListingStatus}
+                        options={[
+                          { value: "", label: "All listing states" },
+                          { value: "draft", label: "Draft" },
+                          { value: "published", label: "Published" },
+                          { value: "archived", label: "Archived" },
+                        ]}
+                      />
+                      <AppSelect
+                        ariaLabel="Filter listings by classification"
                         value={listingClassification}
-                        onChange={(event) => setListingClassification(event.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      >
-                        <option value="">All classifications</option>
-                        <option value="Good">Good</option>
-                        <option value="Semi">Semi</option>
-                        <option value="Reject">Reject</option>
-                      </select>
-                      <select
-                        aria-label="Filter listings by availability"
+                        onValueChange={setListingClassification}
+                        options={[
+                          { value: "", label: "All classifications" },
+                          { value: "Good", label: "Good" },
+                          { value: "Semi", label: "Semi" },
+                          { value: "Reject", label: "Reject" },
+                        ]}
+                      />
+                      <AppSelect
+                        ariaLabel="Filter listings by availability"
                         value={listingAvailability}
-                        onChange={(event) => setListingAvailability(event.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      >
-                        <option value="">All availability</option>
-                        <option value="available">Available</option>
-                        <option value="unavailable">Unavailable</option>
-                      </select>
+                        onValueChange={setListingAvailability}
+                        options={[
+                          { value: "", label: "All availability" },
+                          { value: "available", label: "Available" },
+                          { value: "unavailable", label: "Unavailable" },
+                        ]}
+                      />
                       {hasListingFilters && (
                         <Button
                           type="button"
@@ -571,23 +572,18 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                       >
                         <div className="space-y-2 md:col-span-4">
                           <Label htmlFor="listing-price-editor">Update an existing listing</Label>
-                          <select
+                          <AppSelect
                             id="listing-price-editor"
                             name="listingId"
                             value={selectedListingId}
-                            onChange={(event) => setSelectedListingId(event.target.value)}
-                            required
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                          >
-                            <option value="" disabled>
-                              Choose a listing
-                            </option>
-                            {listings.map((listing) => (
-                              <option key={listing.id} value={listing.id}>
-                                {listing.name} — {listing.classification}
-                              </option>
-                            ))}
-                          </select>
+                            onValueChange={setSelectedListingId}
+                            placeholder="Choose a listing"
+                            options={listings.map((listing) => ({
+                              value: listing.id,
+                              label: `${listing.name} — ${listing.classification}`,
+                              description: `${listing.cropType} · ${listing.quantityKg} kg available`,
+                            }))}
+                          />
                         </div>
                         {(() => {
                           const selectedListing = listings.find(
@@ -692,6 +688,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                           form.reset();
                           setCatalogImageDataUrl("");
                           setCatalogImageName("");
+                          setCatalogCropType("");
                           await load();
                           toast.success("Product added to catalog", {
                             description:
@@ -713,22 +710,17 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="catalog-crop-type">Crop type</Label>
-                        <select
+                        <AppSelect
                           id="catalog-crop-type"
                           name="cropType"
-                          required
-                          defaultValue=""
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                        >
-                          <option value="" disabled>
-                            Choose a crop type
-                          </option>
-                          {cropTypes.map((cropType) => (
-                            <option key={cropType} value={cropType}>
-                              {cropType}
-                            </option>
-                          ))}
-                        </select>
+                          value={catalogCropType}
+                          onValueChange={setCatalogCropType}
+                          placeholder="Choose a crop type"
+                          options={cropTypes.map((cropType) => ({
+                            value: cropType,
+                            label: cropType,
+                          }))}
+                        />
                       </div>
                       <div className="space-y-2 sm:col-span-2">
                         <Label htmlFor="catalog-description">Description (optional)</Label>
@@ -1110,17 +1102,17 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                       </div>
                       <div className="space-y-2 sm:col-span-2">
                         <Label htmlFor="listing-status">When ready</Label>
-                        <select
+                        <AppSelect
                           id="listing-status"
                           value={newListingStatus}
-                          onChange={(event) =>
-                            setNewListingStatus(event.target.value as "draft" | "published")
+                          onValueChange={(value) =>
+                            setNewListingStatus(value as "draft" | "published")
                           }
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                        >
-                          <option value="draft">Save as draft — only Marketers can see it</option>
-                          <option value="published">Publish now — buyers can see it</option>
-                        </select>
+                          options={[
+                            { value: "draft", label: "Save as draft — only Marketers can see it" },
+                            { value: "published", label: "Publish now — buyers can see it" },
+                          ]}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="retail-price">Retail price per kg (₱)</Label>
