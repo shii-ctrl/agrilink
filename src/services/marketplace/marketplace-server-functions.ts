@@ -95,7 +95,15 @@ const cropTypes = procyMarketCategories;
 const createCatalogProductInput = z.object({
   name: z.string().trim().min(2).max(160),
   cropType: z.enum(cropTypes),
-  description: z.string().trim().min(4).max(2000).optional(),
+  description: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine(
+      (value) => value.length === 0 || value.length >= 4,
+      "Description must contain at least 4 characters when provided.",
+    )
+    .optional(),
   imageDataUrl: z
     .string()
     .trim()

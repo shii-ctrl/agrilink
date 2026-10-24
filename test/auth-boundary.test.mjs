@@ -204,6 +204,13 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(migration, /MODIFY COLUMN image_url MEDIUMTEXT/);
 });
 
+test("catalog product descriptions may be left blank", async () => {
+  const marketplace = await readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8");
+
+  assert.match(marketplace, /value\.length === 0 \|\| value\.length >= 4/);
+  assert.match(marketplace, /Description must contain at least 4 characters when provided/);
+});
+
 test("daily prices use PROCY market categories as an organizing guide", async () => {
   const [categories, publicPrices, marketerPrices] = await Promise.all([
     readFile("src/features/marketplace/procy-market-categories.ts", "utf8"),
