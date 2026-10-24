@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
-import { ReceivingRecordsTable } from "@/features/operations/components/receiving-records-table";
 import { Button } from "@/components/ui/button";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Input } from "@/components/ui/input";
@@ -62,20 +61,7 @@ function MarketerReceivingPage() {
         />
         {!loading && !loadError ? (
           <>
-            <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-              <div className="border-b border-border px-6 py-5">
-                <h2 className="text-lg font-semibold">Saved receiving records</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  One row represents one delivery. Select a row to see its full classification
-                  details.
-                </p>
-              </div>
-              <ReceivingRecordsTable
-                records={workspace?.rows ?? []}
-                emptyMessage="No deliveries have been recorded yet."
-              />
-            </section>
-            <section className="mt-8 max-w-3xl rounded-3xl border border-border bg-card p-6 shadow-card">
+            <section className="max-w-3xl rounded-3xl border border-border bg-card p-6 shadow-card">
               <h2 className="text-lg font-semibold">Record delivery</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Good + Semi + Reject must exactly equal the delivered quantity.
