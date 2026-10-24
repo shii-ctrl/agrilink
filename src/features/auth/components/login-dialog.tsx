@@ -179,13 +179,6 @@ export function LoginDialog({
               </AuthSwitchLink>
             )}
           </p>
-          <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
-            Management, Marketer, Accounting, Farmer, and Consultant accounts are created by
-            Management.
-          </p>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            Authorized AgriLink users only.
-          </p>
         </div>
       </DialogContent>
     </Dialog>
