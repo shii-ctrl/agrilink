@@ -307,3 +307,15 @@
     animation: none;
   }
 }
+
+/* Keep numeric fields clean while preserving native numeric validation and keyboards. */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
