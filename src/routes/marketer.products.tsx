@@ -8,6 +8,7 @@ import {
   PackagePlus,
   RefreshCw,
   ShoppingBag,
+  Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ import {
   getCatalogProducts,
   getPublishableInventory,
   getMarketerMarketplaceListings,
+  resetTestProductData,
   setMarketplaceListingStatus,
   updateMarketplaceListingPricing,
 } from "@/services/marketplace/marketplace-server-functions";
@@ -71,6 +73,7 @@ function MarketerProductsPage() {
   >([]);
   const [savingCatalogProduct, setSavingCatalogProduct] = useState(false);
   const [savingListing, setSavingListing] = useState(false);
+  const [resettingProductData, setResettingProductData] = useState(false);
   const [catalogImageDataUrl, setCatalogImageDataUrl] = useState("");
   const [catalogImageName, setCatalogImageName] = useState("");
   const [preparingImage, setPreparingImage] = useState(false);
@@ -173,6 +176,52 @@ function MarketerProductsPage() {
         description="Publish and manage PROCY product listings. Farmer members supply PROCY; buyers browse and order from PROCY listings only."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
+        <section className="mb-6 flex flex-col gap-4 rounded-2xl border border-destructive/25 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-foreground">Reset test product data</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Permanently removes all products, listings, stock, prices, product photos, receiving,
+              production, carts, orders, and payments. User accounts remain unchanged.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            className="shrink-0"
+            disabled={resettingProductData}
+            onClick={async () => {
+              if (
+                !(await requestConfirmation({
+                  title: "Delete all test product data?",
+                  description:
+                    "This permanently removes every product and its related listings, stock, prices, receiving records, production records, carts, orders, and payments. User accounts will not be deleted.",
+                  confirmLabel: "Delete all test products",
+                  destructive: true,
+                }))
+              )
+                return;
+              setResettingProductData(true);
+              try {
+                const result = await resetTestProductData({
+                  data: { confirmation: "DELETE ALL TEST PRODUCTS" },
+                });
+                await load();
+                toast.success("Test product data deleted.", {
+                  description: `${result.productsRemoved} product${result.productsRemoved === 1 ? "" : "s"} removed. User accounts were kept.`,
+                });
+              } catch (error) {
+                toast.error("Product data could not be deleted", {
+                  description: error instanceof Error ? error.message : "Please try again.",
+                });
+              } finally {
+                setResettingProductData(false);
+              }
+            }}
+          >
+            <Trash2 className="size-4" />
+            {resettingProductData ? "Deleting…" : "Reset test products"}
+          </Button>
+        </section>
         <WorkspaceLoadState
           loading={loading}
           error={loadError}

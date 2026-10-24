@@ -65,6 +65,9 @@ const listingStatusInput = z.object({
   listingId: z.string().uuid(),
   status: z.enum(["draft", "published", "archived"]),
 });
+const resetTestProductDataInput = z.object({
+  confirmation: z.literal("DELETE ALL TEST PRODUCTS"),
+});
 
 function validateBundlePricing(
   data: {
@@ -266,6 +269,61 @@ export const getMarketerMarketplaceListings = createServerFn({ method: "GET" }).
     return fetchMarketerListings();
   },
 );
+
+/**
+ * Removes every product and record that depends on a product.  This is deliberately
+ * limited to a Marketer session and leaves accounts, roles, sessions, community
+ * activity, guidance, and notifications in place.
+ */
+export const resetTestProductData = createServerFn({ method: "POST" })
+  .validator(resetTestProductDataInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    const { db } = await import("@/db/client.server");
+    const {
+      cartItems,
+      dailyPrices,
+      inventory,
+      inventoryMovements,
+      listings,
+      orderItems,
+      orders,
+      orderStatusHistory,
+      payments,
+      products,
+      productionRecords,
+      receivingClassifications,
+      receivingRecords,
+    } = await import("@/db/schema");
+
+    const summary = await db.transaction(async (tx) => {
+      const [productTotal] = await tx.select({ count: sql<number>`count(*)` }).from(products);
+
+      // Delete child records before their product, inventory, listing, or order parent.
+      await tx.delete(cartItems);
+      await tx.delete(dailyPrices);
+      await tx.delete(payments);
+      await tx.delete(orderStatusHistory);
+      await tx.delete(orderItems);
+      await tx.delete(orders);
+      await tx.delete(inventoryMovements);
+      await tx.delete(listings);
+      await tx.delete(receivingClassifications);
+      await tx.delete(receivingRecords);
+      await tx.delete(productionRecords);
+      await tx.delete(inventory);
+      await tx.delete(products);
+
+      return { productsRemoved: Number(productTotal?.count ?? 0) };
+    });
+
+    await writeAuditLog(actor.id, "marketplace.reset_test_product_data", "product_catalog", "all", {
+      ...summary,
+      confirmation: data.confirmation,
+    });
+    return summary;
+  });
 
 export const createCatalogProduct = createServerFn({ method: "POST" })
   .validator(createCatalogProductInput)
