@@ -205,7 +205,10 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
 });
 
 test("catalog product descriptions may be left blank", async () => {
-  const marketplace = await readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8");
+  const marketplace = await readFile(
+    "src/services/marketplace/marketplace-server-functions.ts",
+    "utf8",
+  );
 
   assert.match(marketplace, /value\.length === 0 \|\| value\.length >= 4/);
   assert.match(marketplace, /Description must contain at least 4 characters when provided/);
@@ -331,12 +334,14 @@ test("public authentication uses the floating dialog system", async () => {
 });
 
 test("Marketer product listing uses separate workflow pages without removing existing tools", async () => {
-  const [marketerPage, marketerLayout, pricePublishPage, publishedListingsPage] = await Promise.all([
-    readFile("src/routes/marketer.products.tsx", "utf8"),
-    readFile("src/components/workspaces/marketer-layout.tsx", "utf8"),
-    readFile("src/routes/marketer.price-publish.tsx", "utf8"),
-    readFile("src/routes/marketer.published-listings.tsx", "utf8"),
-  ]);
+  const [marketerPage, marketerLayout, pricePublishPage, publishedListingsPage] = await Promise.all(
+    [
+      readFile("src/routes/marketer.products.tsx", "utf8"),
+      readFile("src/components/workspaces/marketer-layout.tsx", "utf8"),
+      readFile("src/routes/marketer.price-publish.tsx", "utf8"),
+      readFile("src/routes/marketer.published-listings.tsx", "utf8"),
+    ],
+  );
 
   assert.match(marketerLayout, /Product workflow/);
   assert.match(marketerLayout, /Add Product/);
@@ -349,6 +354,9 @@ test("Marketer product listing uses separate workflow pages without removing exi
   assert.match(publishedListingsPage, /MarketerProductsPage view="listings"/);
   assert.match(marketerPage, /Add product to catalog/);
   assert.match(marketerPage, /Choose available classified stock/);
+  assert.match(marketerPage, /Available stock/);
+  assert.match(marketerPage, /Choose a crop type, then a quality group/);
+  assert.match(marketerPage, /\["Good", "Semi", "Reject"\]/);
   assert.match(marketerPage, /Buyer price preview/);
   assert.match(marketerPage, /<Link\s+to="\/marketer\/receiving"/);
   assert.match(marketerPage, /PROCY marketplace listings/);
