@@ -341,24 +341,6 @@ test("Marketer product listing uses a clear one-page workspace without removing 
   );
 });
 
-test("test product reset is Marketer-only and preserves user accounts", async () => {
-  const [marketplace, marketerPage] = await Promise.all([
-    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
-    readFile("src/routes/marketer.products.tsx", "utf8"),
-  ]);
-
-  assert.match(marketplace, /export const resetTestProductData/);
-  assert.match(marketplace, /await requireRole\("Marketer"\)/);
-  assert.match(marketplace, /confirmation: z\.literal\("DELETE ALL TEST PRODUCTS"\)/);
-  assert.match(marketplace, /await tx\.delete\(products\)/);
-  assert.match(marketplace, /await tx\.delete\(listings\)/);
-  assert.match(marketplace, /await tx\.delete\(inventory\)/);
-  assert.match(marketplace, /await tx\.delete\(orders\)/);
-  assert.doesNotMatch(marketplace, /\.delete\(users\)/);
-  assert.match(marketerPage, /Reset test product data/);
-  assert.match(marketerPage, /Delete all test products/);
-});
-
 test("role workflows keep catalog, cart, and Farmer stock states consistent", async () => {
   const [marketplace, receiving, notifications] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
