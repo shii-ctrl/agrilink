@@ -107,6 +107,9 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
   const [listingStatus, setListingStatus] = useState("");
   const [inventoryId, setInventoryId] = useState("");
   const [stockPickerOpen, setStockPickerOpen] = useState(false);
+  const [stockSearch, setStockSearch] = useState("");
+  const [expandedCropTypes, setExpandedCropTypes] = useState<string[]>([]);
+  const [expandedStockGroups, setExpandedStockGroups] = useState<string[]>([]);
   const [retailPricePerKg, setRetailPricePerKg] = useState("");
   const [bundlePricePerKg, setBundlePricePerKg] = useState("");
   const [bundleMinimumKg, setBundleMinimumKg] = useState("");
@@ -181,10 +184,20 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
     listingStatus;
   const listingsPage = usePagination(visibleListings);
   const selectedInventory = publishableInventory.find((item) => item.id === inventoryId);
+  const normalizedStockSearch = stockSearch.trim().toLocaleLowerCase();
   const inventoryByCropType = useMemo(() => {
     const stockByCropType = new Map<string, typeof publishableInventory>();
 
     for (const item of publishableInventory) {
+      if (
+        normalizedStockSearch &&
+        !`${item.name} ${item.cropType} ${item.classification} ${item.farmer ?? ""}`
+          .toLocaleLowerCase()
+          .includes(normalizedStockSearch)
+      ) {
+        continue;
+      }
+
       const cropStock = stockByCropType.get(item.cropType) ?? [];
       cropStock.push(item);
       stockByCropType.set(item.cropType, cropStock);
@@ -206,8 +219,9 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
               ),
           }))
           .filter(({ items }) => items.length > 0),
-      }));
-  }, [publishableInventory]);
+      }))
+      .filter(({ classifications }) => classifications.length > 0);
+  }, [normalizedStockSearch, publishableInventory]);
   const retailPrice = Number(retailPricePerKg);
   const bundlePrice = Number(bundlePricePerKg);
   const bundleMinimum = Number(bundleMinimumKg);
@@ -859,7 +873,13 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                       <div className="space-y-2 sm:col-span-2">
                         <Label htmlFor="inventoryId">Choose available classified stock</Label>
                         <input name="inventoryId" type="hidden" value={inventoryId} />
-                        <Popover open={stockPickerOpen} onOpenChange={setStockPickerOpen}>
+                        <Popover
+                          open={stockPickerOpen}
+                          onOpenChange={(open) => {
+                            setStockPickerOpen(open);
+                            if (!open) setStockSearch("");
+                          }}
+                        >
                           <PopoverTrigger asChild>
                             <Button
                               id="inventoryId"
@@ -894,81 +914,173 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                           <PopoverContent
                             align="start"
                             sideOffset={8}
-                            className="w-[min(92vw,52rem)] max-h-[min(62vh,40rem)] overflow-y-auto p-0"
+                            className="w-[min(92vw,46rem)] max-h-[min(68vh,42rem)] overflow-y-auto p-0"
                           >
                             <div className="sticky top-0 z-10 border-b border-border bg-popover px-5 py-4">
-                              <h3 className="font-semibold">Available stock</h3>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Choose a crop type, then a quality group.
-                              </p>
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <h3 className="font-semibold">Available stock</h3>
+                                  <p className="mt-1 text-sm text-muted-foreground">
+                                    Search, then open only the crop and quality you need.
+                                  </p>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                                  {publishableInventory.length} stocks
+                                </span>
+                              </div>
+                              <Label htmlFor="stock-search" className="sr-only">
+                                Search available stock
+                              </Label>
+                              <Input
+                                id="stock-search"
+                                autoFocus
+                                value={stockSearch}
+                                onChange={(event) => setStockSearch(event.target.value)}
+                                placeholder="Search product, crop type, farmer, or quality"
+                                className="mt-4"
+                              />
                             </div>
                             <div className="space-y-5 p-5">
-                              {inventoryByCropType.map(({ cropType, classifications }) => (
-                                <section key={cropType}>
-                                  <h4 className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-primary">
-                                    {cropType}
-                                  </h4>
-                                  <div className="grid gap-3 md:grid-cols-3">
-                                    {classifications.map(({ classification, items }) => (
-                                      <div
-                                        key={classification}
-                                        className="rounded-2xl border border-border bg-muted/30 p-3"
+                              {inventoryByCropType.length === 0 ? (
+                                <p className="rounded-xl bg-muted/60 px-4 py-6 text-center text-sm text-muted-foreground">
+                                  No available stock matches that search.
+                                </p>
+                              ) : (
+                                inventoryByCropType.map(({ cropType, classifications }) => {
+                                  const cropIsOpen =
+                                    Boolean(normalizedStockSearch) ||
+                                    expandedCropTypes.includes(cropType);
+                                  const cropStockCount = classifications.reduce(
+                                    (total, group) => total + group.items.length,
+                                    0,
+                                  );
+
+                                  return (
+                                    <section
+                                      key={cropType}
+                                      className="overflow-hidden rounded-2xl border border-border"
+                                    >
+                                      <button
+                                        type="button"
+                                        aria-expanded={cropIsOpen}
+                                        onClick={() =>
+                                          setExpandedCropTypes((current) =>
+                                            current.includes(cropType)
+                                              ? current.filter((item) => item !== cropType)
+                                              : [...current, cropType],
+                                          )
+                                        }
+                                        className="flex w-full items-center justify-between gap-3 bg-muted/30 px-4 py-3 text-left hover:bg-muted/50"
                                       >
-                                        <p
-                                          className={
-                                            classification === "Good"
-                                              ? "text-sm font-semibold text-good"
-                                              : classification === "Semi"
-                                                ? "text-sm font-semibold text-semi"
-                                                : "text-sm font-semibold text-reject"
-                                          }
-                                        >
-                                          {classification}
-                                        </p>
-                                        <div className="mt-2 space-y-2">
-                                          {items.map((item) => {
-                                            const isSelected = item.id === inventoryId;
+                                        <span>
+                                          <span className="block text-sm font-semibold uppercase tracking-[0.14em] text-primary">
+                                            {cropType}
+                                          </span>
+                                          <span className="mt-1 block text-xs text-muted-foreground">
+                                            {cropStockCount} available{" "}
+                                            {cropStockCount === 1 ? "stock" : "stocks"}
+                                          </span>
+                                        </span>
+                                        <ChevronDown
+                                          className={`size-4 shrink-0 text-muted-foreground transition-transform ${
+                                            cropIsOpen ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+                                      {cropIsOpen ? (
+                                        <div className="space-y-2 border-t border-border p-3">
+                                          {classifications.map(({ classification, items }) => {
+                                            const groupKey = `${cropType}:${classification}`;
+                                            const groupIsOpen =
+                                              Boolean(normalizedStockSearch) ||
+                                              expandedStockGroups.includes(groupKey);
 
                                             return (
-                                              <button
-                                                key={item.id}
-                                                type="button"
-                                                aria-pressed={isSelected}
-                                                onClick={() => {
-                                                  setInventoryId(item.id);
-                                                  setStockPickerOpen(false);
-                                                }}
-                                                className={`w-full rounded-xl border p-3 text-left transition hover:border-primary/60 hover:bg-accent/50 ${
-                                                  isSelected
-                                                    ? "border-primary bg-accent ring-1 ring-primary"
-                                                    : "border-border bg-background"
-                                                }`}
+                                              <div
+                                                key={classification}
+                                                className="overflow-hidden rounded-xl border border-border bg-background"
                                               >
-                                                <span className="flex items-start justify-between gap-2">
-                                                  <span className="min-w-0">
-                                                    <span className="block truncate text-sm font-medium">
-                                                      {item.name}
-                                                    </span>
-                                                    <span className="mt-1 block text-xs text-muted-foreground">
-                                                      {item.quantityKg} kg available
-                                                    </span>
-                                                    <span className="mt-1 block truncate text-xs text-muted-foreground">
-                                                      {item.farmer ?? "Legacy / mixed stock"}
-                                                    </span>
+                                                <button
+                                                  type="button"
+                                                  aria-expanded={groupIsOpen}
+                                                  onClick={() =>
+                                                    setExpandedStockGroups((current) =>
+                                                      current.includes(groupKey)
+                                                        ? current.filter(
+                                                            (item) => item !== groupKey,
+                                                          )
+                                                        : [...current, groupKey],
+                                                    )
+                                                  }
+                                                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-muted/50"
+                                                >
+                                                  <span
+                                                    className={
+                                                      classification === "Good"
+                                                        ? "text-sm font-semibold text-good"
+                                                        : classification === "Semi"
+                                                          ? "text-sm font-semibold text-semi"
+                                                          : "text-sm font-semibold text-reject"
+                                                    }
+                                                  >
+                                                    {classification} ({items.length})
                                                   </span>
-                                                  {isSelected ? (
-                                                    <Check className="size-4 shrink-0 text-primary" />
-                                                  ) : null}
-                                                </span>
-                                              </button>
+                                                  <ChevronDown
+                                                    className={`size-4 shrink-0 text-muted-foreground transition-transform ${
+                                                      groupIsOpen ? "rotate-180" : ""
+                                                    }`}
+                                                  />
+                                                </button>
+                                                {groupIsOpen ? (
+                                                  <div className="space-y-1 border-t border-border p-2">
+                                                    {items.map((item) => {
+                                                      const isSelected = item.id === inventoryId;
+
+                                                      return (
+                                                        <button
+                                                          key={item.id}
+                                                          type="button"
+                                                          aria-pressed={isSelected}
+                                                          onClick={() => {
+                                                            setInventoryId(item.id);
+                                                            setStockSearch("");
+                                                            setStockPickerOpen(false);
+                                                          }}
+                                                          className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-accent/50 ${
+                                                            isSelected ? "bg-accent" : ""
+                                                          }`}
+                                                        >
+                                                          <span className="min-w-0">
+                                                            <span className="block truncate text-sm font-medium">
+                                                              {item.name}
+                                                            </span>
+                                                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                                                              {item.farmer ??
+                                                                "Legacy / mixed stock"}{" "}
+                                                              · {item.quantityKg} kg available
+                                                            </span>
+                                                          </span>
+                                                          {isSelected ? (
+                                                            <Check className="size-4 shrink-0 text-primary" />
+                                                          ) : (
+                                                            <span className="shrink-0 text-xs font-medium text-primary">
+                                                              Select
+                                                            </span>
+                                                          )}
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                ) : null}
+                                              </div>
                                             );
                                           })}
                                         </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </section>
-                              ))}
+                                      ) : null}
+                                    </section>
+                                  );
+                                })
+                              )}
                             </div>
                           </PopoverContent>
                         </Popover>

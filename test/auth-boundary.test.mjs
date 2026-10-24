@@ -355,7 +355,8 @@ test("Marketer product listing uses separate workflow pages without removing exi
   assert.match(marketerPage, /Add product to catalog/);
   assert.match(marketerPage, /Choose available classified stock/);
   assert.match(marketerPage, /Available stock/);
-  assert.match(marketerPage, /Choose a crop type, then a quality group/);
+  assert.match(marketerPage, /Search, then open only the crop and quality you need/);
+  assert.match(marketerPage, /Search product, crop type, farmer, or quality/);
   assert.match(marketerPage, /\["Good", "Semi", "Reject"\]/);
   assert.match(marketerPage, /Buyer price preview/);
   assert.match(marketerPage, /<Link\s+to="\/marketer\/receiving"/);
