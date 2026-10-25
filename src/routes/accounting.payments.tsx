@@ -16,6 +16,14 @@ import {
 
 export const Route = createFileRoute("/accounting/payments")({ component: AccountingPaymentsPage });
 
+function paymentMethodLabel(method: string | null | undefined) {
+  if (method === "cash_on_delivery") return "Cash on Delivery (COD)";
+  if (method === "cash") return "Cash";
+  if (method === "bank_transfer") return "Bank Transfer";
+  if (method === "manual_reference") return "Other recorded method";
+  return method ?? "Recorded method";
+}
+
 function AccountingPaymentsPage() {
   const [orders, setOrders] = useState<DemoOrder[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState("");
@@ -46,17 +54,11 @@ function AccountingPaymentsPage() {
     event.preventDefault();
     if (!selectedOrder || !method) return;
 
-    const databaseMethod =
-      method === "Cash"
-        ? "cash"
-        : method === "Bank Transfer"
-          ? "bank_transfer"
-          : "manual_reference";
     try {
       const result = await recordDatabasePayment({
         data: {
           orderNumber: selectedOrder.id,
-          method: databaseMethod,
+          method: method as "cash" | "cash_on_delivery",
         },
       });
       setOrders(await getDatabaseOrders());
@@ -135,9 +137,8 @@ function AccountingPaymentsPage() {
                     onValueChange={setMethod}
                     placeholder="Select a method"
                     options={[
-                      { value: "Cash", label: "Cash" },
-                      { value: "Bank Transfer", label: "Bank Transfer" },
-                      { value: "Other recorded method", label: "Other recorded method" },
+                      { value: "cash_on_delivery", label: "Cash on Delivery (COD)" },
+                      { value: "cash", label: "Cash" },
                     ]}
                   />
                 </div>
@@ -163,7 +164,7 @@ function AccountingPaymentsPage() {
                   <div>
                     <p className="font-medium">{order.paymentId ?? "Payment recorded"}</p>
                     <p className="text-sm text-muted-foreground">
-                      {order.id} · {order.buyer} · {order.paymentMethod ?? "Recorded method"}
+                      {order.id} · {order.buyer} · {paymentMethodLabel(order.paymentMethod)}
                     </p>
                   </div>
                   <div className="text-right">

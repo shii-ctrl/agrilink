@@ -30,7 +30,7 @@ const workflowActionInput = z.object({
   orderNumber: z.string().trim().min(3).max(40),
 });
 const paymentInput = workflowActionInput.extend({
-  method: z.enum(["cash", "bank_transfer", "manual_reference"]),
+  method: z.enum(["cash", "cash_on_delivery"]),
 });
 const releaseOrderInput = workflowActionInput.extend({
   outcome: z.enum(["cancelled", "rejected"]),

@@ -245,7 +245,14 @@ export const payments = mysqlTable(
     id: varchar("id", { length: 36 }).primaryKey(),
     paymentNumber: varchar("payment_number", { length: 40 }).notNull(),
     orderId: varchar("order_id", { length: 36 }).notNull(),
-    method: mysqlEnum("method", ["cash", "bank_transfer", "manual_reference"]).notNull(),
+    // Legacy values stay readable for existing payment records. New payments are restricted to
+    // cash and cash_on_delivery by paymentInput in marketplace-server-functions.ts.
+    method: mysqlEnum("method", [
+      "cash",
+      "cash_on_delivery",
+      "bank_transfer",
+      "manual_reference",
+    ]).notNull(),
     amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
     recordedById: varchar("recorded_by_id", { length: 36 }).notNull(),
     paidAt: datetime("paid_at").notNull(),
