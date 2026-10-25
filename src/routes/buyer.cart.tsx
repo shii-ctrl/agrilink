@@ -37,11 +37,11 @@ function BuyerCartPage() {
   );
   async function update(id: string, quantityKg: number) {
     const item = items.find((cartItem) => cartItem.id === id);
-    const availableQuantity = item?.availableKg ?? 0;
-    const nextQuantity = Math.min(quantityKg, availableQuantity);
-    if (quantityKg > availableQuantity) {
+    const maximumQuantity = (item?.availableKg ?? 0) + (item?.quantityKg ?? 0);
+    const nextQuantity = Math.min(quantityKg, maximumQuantity);
+    if (quantityKg > maximumQuantity) {
       toast("Only the available quantity can be ordered", {
-        description: `This classified listing currently has ${availableQuantity} kg available.`,
+        description: `This classified listing currently has ${maximumQuantity} kg available for your cart.`,
       });
     }
     try {
@@ -103,7 +103,7 @@ function BuyerCartPage() {
                         </p>
                       ) : null}
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {item.availableKg} kg currently available
+                        {item.availableKg} kg still available to other buyers
                       </p>
                     </div>
                     <div className="flex items-center rounded-full border border-border p-1">
@@ -120,7 +120,7 @@ function BuyerCartPage() {
                       <button
                         className="flex size-8 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                         onClick={() => void update(item.id, item.quantityKg + 1)}
-                        disabled={item.quantityKg >= item.availableKg}
+                        disabled={item.availableKg <= 0}
                         aria-label="Increase quantity"
                       >
                         <Plus className="size-4" />

@@ -79,6 +79,7 @@ function ProductDetail() {
         const cart = await getBuyerCart();
         if (!mounted) return;
         setCartQuantityKg(cart.find((item) => item.id === product.id)?.quantityKg ?? 0);
+        void router.invalidate();
       })
       .catch(() => {
         if (!mounted) return;
@@ -91,11 +92,8 @@ function ProductDetail() {
   }, [product.id]);
   const availableQuantity = product.quantityKg;
   const isAvailable = availableQuantity > 0;
-  const remainingCartableQuantity = Math.max(0, availableQuantity - cartQuantityKg);
-  const maximumSelectableQuantity = Math.max(
-    1,
-    isBuyer ? remainingCartableQuantity : availableQuantity,
-  );
+  const remainingCartableQuantity = Math.max(0, availableQuantity);
+  const maximumSelectableQuantity = Math.max(1, availableQuantity);
   const requestedQuantity = Number(quantityInput);
   const qty = Number.isFinite(requestedQuantity) ? requestedQuantity : 0;
   const hasValidQuantity = qty >= 0.01 && qty <= maximumSelectableQuantity;
@@ -243,6 +241,7 @@ function ProductDetail() {
                         setCartQuantityKg(
                           cart.find((item) => item.id === product.id)?.quantityKg ?? 0,
                         );
+                        void router.invalidate();
                         notifyBuyerCartChanged();
                         toast.success("Added to your cart", {
                           description: `${qty} kg of ${product.name} is saved to your account.`,

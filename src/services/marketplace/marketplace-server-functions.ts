@@ -1,5 +1,5 @@
 // Server functions are client-safe RPC stubs; their handlers stay on the server.
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/mysql-core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -645,9 +645,85 @@ async function buyerCartRows(buyerId: string) {
   });
 }
 
+/**
+ * Cart items now reserve stock immediately. The movement row also lets existing
+ * carts created before this behaviour be safely reserved once, without reserving
+ * them again on every cart refresh.
+ */
+async function reserveExistingBuyerCartStock(buyerId: string) {
+  const { db } = await import("@/db/client.server");
+  const { cartItems, carts, inventory, inventoryMovements, listings } = await import("@/db/schema");
+
+  await db.transaction(async (tx) => {
+    // The same Buyer page can load the cart button and product details together.
+    // Locking the cart first prevents both requests from reserving a legacy item.
+    await tx.select({ id: carts.id }).from(carts).where(eq(carts.buyerId, buyerId)).for("update");
+    const unreservedItems = await tx
+      .select({
+        cartItemId: cartItems.id,
+        inventoryId: inventory.id,
+        quantityKg: cartItems.quantityKg,
+        stockKg: inventory.quantityKg,
+        reservedKg: inventory.reservedKg,
+      })
+      .from(carts)
+      .innerJoin(cartItems, eq(cartItems.cartId, carts.id))
+      .innerJoin(listings, eq(cartItems.listingId, listings.id))
+      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+      .leftJoin(
+        inventoryMovements,
+        and(
+          eq(inventoryMovements.referenceType, "cart"),
+          eq(inventoryMovements.referenceId, cartItems.id),
+          eq(inventoryMovements.movementType, "reservation"),
+        ),
+      )
+      .where(and(eq(carts.buyerId, buyerId), isNull(inventoryMovements.id)))
+      .for("update");
+
+    for (const item of unreservedItems) {
+      const availableKg = Math.max(0, Number(item.stockKg) - Number(item.reservedKg));
+      const reservableKg = Math.min(Number(item.quantityKg), availableKg);
+      if (reservableKg <= 0) {
+        await tx.delete(cartItems).where(eq(cartItems.id, item.cartItemId));
+        continue;
+      }
+
+      const [reserved] = await tx
+        .update(inventory)
+        .set({ reservedKg: sql`${inventory.reservedKg} + ${reservableKg}` })
+        .where(
+          and(
+            eq(inventory.id, item.inventoryId),
+            sql`${inventory.quantityKg} - ${inventory.reservedKg} >= ${reservableKg}`,
+          ),
+        );
+      if (reserved.affectedRows !== 1) continue;
+
+      if (reservableKg < Number(item.quantityKg)) {
+        await tx
+          .update(cartItems)
+          .set({ quantityKg: reservableKg.toFixed(2) })
+          .where(eq(cartItems.id, item.cartItemId));
+      }
+      await tx.insert(inventoryMovements).values({
+        id: crypto.randomUUID(),
+        inventoryId: item.inventoryId,
+        movementType: "reservation",
+        reservedChangeKg: reservableKg.toFixed(2),
+        referenceType: "cart",
+        referenceId: item.cartItemId,
+        recordedById: buyerId,
+        note: "Reserved in buyer cart.",
+      });
+    }
+  });
+}
+
 export const getBuyerCart = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
   const buyer = await requireRole("Buyer");
+  await reserveExistingBuyerCartStock(buyer.id);
   return buyerCartRows(buyer.id);
 });
 
@@ -656,8 +732,10 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole } = await import("@/services/auth/auth-server");
     const buyer = await requireRole("Buyer");
+    await reserveExistingBuyerCartStock(buyer.id);
     const { db } = await import("@/db/client.server");
-    const { cartItems, carts, inventory, listings } = await import("@/db/schema");
+    const { cartItems, carts, inventory, inventoryMovements, listings } =
+      await import("@/db/schema");
     await db.transaction(async (tx) => {
       const [listing] = await tx
         .select({
@@ -685,13 +763,14 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
         .where(eq(carts.buyerId, buyer.id));
       if (!cart) throw new Error("Your cart could not be prepared.");
       const [existing] = await tx
-        .select({ quantityKg: cartItems.quantityKg })
+        .select({ id: cartItems.id, quantityKg: cartItems.quantityKg })
         .from(cartItems)
         .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
       const nextQuantity = Number(existing?.quantityKg ?? 0) + data.quantityKg;
-      if (nextQuantity > availableKg) {
+      if (data.quantityKg > availableKg) {
         throw new Error(`Only ${availableKg} kg is currently available.`);
       }
+      const cartItemId = existing?.id ?? crypto.randomUUID();
       if (existing) {
         await tx
           .update(cartItems)
@@ -699,12 +778,34 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
           .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
       } else {
         await tx.insert(cartItems).values({
-          id: crypto.randomUUID(),
+          id: cartItemId,
           cartId: cart.id,
           listingId: data.listingId,
           quantityKg: data.quantityKg.toFixed(2),
         });
       }
+      const [reservation] = await tx
+        .update(inventory)
+        .set({ reservedKg: sql`${inventory.reservedKg} + ${data.quantityKg}` })
+        .where(
+          and(
+            eq(inventory.id, listing.inventoryId),
+            sql`${inventory.quantityKg} - ${inventory.reservedKg} >= ${data.quantityKg}`,
+          ),
+        );
+      if (reservation.affectedRows !== 1) {
+        throw new Error("Stock changed before your cart could be updated. Please try again.");
+      }
+      await tx.insert(inventoryMovements).values({
+        id: crypto.randomUUID(),
+        inventoryId: listing.inventoryId,
+        movementType: "reservation",
+        reservedChangeKg: data.quantityKg.toFixed(2),
+        referenceType: "cart",
+        referenceId: cartItemId,
+        recordedById: buyer.id,
+        note: "Reserved in buyer cart.",
+      });
     });
     return buyerCartRows(buyer.id);
   });
@@ -714,34 +815,113 @@ export const setBuyerCartItem = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole } = await import("@/services/auth/auth-server");
     const buyer = await requireRole("Buyer");
+    await reserveExistingBuyerCartStock(buyer.id);
     const { db } = await import("@/db/client.server");
-    const { cartItems, carts, inventory, listings } = await import("@/db/schema");
+    const { cartItems, carts, inventory, inventoryMovements, listings } =
+      await import("@/db/schema");
     await db.transaction(async (tx) => {
       const [cart] = await tx
         .select({ id: carts.id })
         .from(carts)
         .where(eq(carts.buyerId, buyer.id));
       if (!cart) return;
+      const [existing] = await tx
+        .select({ id: cartItems.id, quantityKg: cartItems.quantityKg })
+        .from(cartItems)
+        .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
+      if (!existing) throw new Error("That item is no longer in your cart.");
+      const [listing] = await tx
+        .select({
+          inventoryId: inventory.id,
+          quantityKg: inventory.quantityKg,
+          reservedKg: inventory.reservedKg,
+        })
+        .from(listings)
+        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+        .where(eq(listings.id, data.listingId));
+      if (!listing) throw new Error("That listing is no longer available.");
+      const currentQuantityKg = Number(existing.quantityKg);
       if (data.quantityKg === 0) {
+        const [released] = await tx
+          .update(inventory)
+          .set({ reservedKg: sql`${inventory.reservedKg} - ${currentQuantityKg}` })
+          .where(
+            and(
+              eq(inventory.id, listing.inventoryId),
+              sql`${inventory.reservedKg} >= ${currentQuantityKg}`,
+            ),
+          );
+        if (released.affectedRows !== 1) {
+          throw new Error(
+            "Reserved stock is inconsistent, so this cart item could not be removed.",
+          );
+        }
         await tx
           .delete(cartItems)
           .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
+        await tx.insert(inventoryMovements).values({
+          id: crypto.randomUUID(),
+          inventoryId: listing.inventoryId,
+          movementType: "release",
+          reservedChangeKg: `-${currentQuantityKg.toFixed(2)}`,
+          referenceType: "cart",
+          referenceId: existing.id,
+          recordedById: buyer.id,
+          note: "Removed from buyer cart.",
+        });
         return;
       }
-      const [listing] = await tx
-        .select({ quantityKg: inventory.quantityKg, reservedKg: inventory.reservedKg })
-        .from(listings)
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-        .where(and(eq(listings.id, data.listingId), eq(listings.status, "published")));
-      const availableKg = listing ? Number(listing.quantityKg) - Number(listing.reservedKg) : 0;
-      if (data.quantityKg > availableKg) {
-        throw new Error(`Only ${availableKg} kg is currently available.`);
+      const differenceKg = data.quantityKg - currentQuantityKg;
+      if (differenceKg > 0) {
+        const [reserved] = await tx
+          .update(inventory)
+          .set({ reservedKg: sql`${inventory.reservedKg} + ${differenceKg}` })
+          .where(
+            and(
+              eq(inventory.id, listing.inventoryId),
+              sql`${inventory.quantityKg} - ${inventory.reservedKg} >= ${differenceKg}`,
+            ),
+          );
+        if (reserved.affectedRows !== 1) {
+          const availableKg = Math.max(0, Number(listing.quantityKg) - Number(listing.reservedKg));
+          throw new Error(`Only ${availableKg} kg is currently available.`);
+        }
+      } else if (differenceKg < 0) {
+        const [released] = await tx
+          .update(inventory)
+          .set({ reservedKg: sql`${inventory.reservedKg} + ${differenceKg}` })
+          .where(
+            and(
+              eq(inventory.id, listing.inventoryId),
+              sql`${inventory.reservedKg} >= ${Math.abs(differenceKg)}`,
+            ),
+          );
+        if (released.affectedRows !== 1) {
+          throw new Error(
+            "Reserved stock is inconsistent, so this cart item could not be updated.",
+          );
+        }
       }
       const [updated] = await tx
         .update(cartItems)
         .set({ quantityKg: data.quantityKg.toFixed(2) })
         .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
       if (updated.affectedRows !== 1) throw new Error("That item is no longer in your cart.");
+      if (differenceKg !== 0) {
+        await tx.insert(inventoryMovements).values({
+          id: crypto.randomUUID(),
+          inventoryId: listing.inventoryId,
+          movementType: differenceKg > 0 ? "reservation" : "release",
+          reservedChangeKg: differenceKg.toFixed(2),
+          referenceType: "cart",
+          referenceId: existing.id,
+          recordedById: buyer.id,
+          note:
+            differenceKg > 0
+              ? "Increased buyer cart reservation."
+              : "Reduced buyer cart reservation.",
+        });
+      }
     });
     return buyerCartRows(buyer.id);
   });
@@ -751,10 +931,10 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const buyer = await requireRole("Buyer");
+    await reserveExistingBuyerCartStock(buyer.id);
     const { db } = await import("@/db/client.server");
     const {
       inventory,
-      inventoryMovements,
       listings,
       orders,
       orderItems,
@@ -774,6 +954,25 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         ([listingId, quantityKg]) => ({ listingId, quantityKg }),
       );
       const listingIds = requestedItems.map((item) => item.listingId);
+      const [cart] = await tx
+        .select({ id: carts.id })
+        .from(carts)
+        .where(eq(carts.buyerId, buyer.id));
+      if (!cart) throw new Error("Your cart is empty. Add items before placing an order.");
+      const cartLines = await tx
+        .select({ listingId: cartItems.listingId, quantityKg: cartItems.quantityKg })
+        .from(cartItems)
+        .where(and(eq(cartItems.cartId, cart.id), inArray(cartItems.listingId, listingIds)));
+      if (
+        cartLines.length !== requestedItems.length ||
+        requestedItems.some(
+          (item) =>
+            Number(cartLines.find((line) => line.listingId === item.listingId)?.quantityKg) !==
+            item.quantityKg,
+        )
+      ) {
+        throw new Error("Your cart changed. Refresh it before placing the order.");
+      }
       const rows = await tx
         .select({
           listingId: listings.id,
@@ -803,10 +1002,9 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
       for (const item of requestedItems) {
         const row = rows.find((candidate) => candidate.listingId === item.listingId);
         if (!row) throw new Error("A selected listing could not be found.");
-        const availableKg = Number(row.quantityKg) - Number(row.reservedKg);
-        if (item.quantityKg > availableKg) {
+        if (item.quantityKg > Number(row.reservedKg)) {
           throw new Error(
-            `${row.name} (${row.classification}) has only ${availableKg} kg available.`,
+            `${row.name} (${row.classification}) no longer has enough reserved stock. Refresh your cart.`,
           );
         }
         totalAmount += item.quantityKg * listingUnitPrice(row, item.quantityKg);
@@ -832,30 +1030,6 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
           quantityKg: item.quantityKg.toFixed(2),
           pricePerKg: listingUnitPrice(row, item.quantityKg).toFixed(2),
         });
-        const [reservation] = await tx
-          .update(inventory)
-          .set({ reservedKg: sql`${inventory.reservedKg} + ${item.quantityKg}` })
-          .where(
-            and(
-              eq(inventory.id, row.inventoryId),
-              sql`${inventory.quantityKg} - ${inventory.reservedKg} >= ${item.quantityKg}`,
-            ),
-          );
-        if (reservation.affectedRows !== 1) {
-          throw new Error(
-            `${row.name} (${row.classification}) no longer has enough quantity available. Please refresh your cart.`,
-          );
-        }
-        await tx.insert(inventoryMovements).values({
-          id: crypto.randomUUID(),
-          inventoryId: row.inventoryId,
-          movementType: "reservation",
-          reservedChangeKg: item.quantityKg.toFixed(2),
-          referenceType: "order",
-          referenceId: orderId,
-          recordedById: buyer.id,
-          note: `Reserved for ${orderNumber}.`,
-        });
       }
 
       await tx.insert(orderStatusHistory).values({
@@ -867,15 +1041,9 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         changedAt: new Date(),
       });
 
-      const [cart] = await tx
-        .select({ id: carts.id })
-        .from(carts)
-        .where(eq(carts.buyerId, buyer.id));
-      if (cart) {
-        await tx
-          .delete(cartItems)
-          .where(and(eq(cartItems.cartId, cart.id), inArray(cartItems.listingId, listingIds)));
-      }
+      await tx
+        .delete(cartItems)
+        .where(and(eq(cartItems.cartId, cart.id), inArray(cartItems.listingId, listingIds)));
 
       await writeAuditLog(buyer.id, "order.create", "order", orderId, { orderNumber });
       return { id: orderId, orderNumber, totalAmount, buyerName: buyer.displayName };
@@ -920,8 +1088,9 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const buyer = await requireRole("Buyer");
+    await reserveExistingBuyerCartStock(buyer.id);
     const { db } = await import("@/db/client.server");
-    const { cartItems, carts, inventory, listings, orderItems, orders } =
+    const { cartItems, carts, inventory, inventoryMovements, listings, orderItems, orders } =
       await import("@/db/schema");
     const [order] = await db
       .select({ id: orders.id, status: orders.status })
@@ -948,6 +1117,7 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
       const stocks = await tx
         .select({
           id: listings.id,
+          inventoryId: inventory.id,
           quantityKg: inventory.quantityKg,
           reservedKg: inventory.reservedKg,
         })
@@ -971,17 +1141,17 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
       if (!cart) throw new Error("Your cart could not be prepared.");
 
       const existingItems = await tx
-        .select({ listingId: cartItems.listingId, quantityKg: cartItems.quantityKg })
+        .select({
+          id: cartItems.id,
+          listingId: cartItems.listingId,
+          quantityKg: cartItems.quantityKg,
+        })
         .from(cartItems)
         .where(and(eq(cartItems.cartId, cart.id), inArray(cartItems.listingId, listingIds)));
-      const existingByListing = new Map(
-        existingItems.map((item) => [item.listingId, Number(item.quantityKg)]),
-      );
-
       for (const [listingId, requestedKg] of requestedItems) {
         const stock = stockByListing.get(listingId)!;
         const availableKg = Number(stock.quantityKg) - Number(stock.reservedKg);
-        if ((existingByListing.get(listingId) ?? 0) + requestedKg > availableKg) {
+        if (requestedKg > availableKg) {
           throw new Error(
             `Only ${Math.max(0, availableKg)} kg is currently available for one of these products.`,
           );
@@ -989,10 +1159,12 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
       }
 
       for (const [listingId, requestedKg] of requestedItems) {
-        const existingKg = existingByListing.get(listingId);
+        const existingItem = existingItems.find((item) => item.listingId === listingId);
+        const existingKg = existingItem ? Number(existingItem.quantityKg) : undefined;
+        const cartItemId = existingItem?.id ?? crypto.randomUUID();
         if (existingKg === undefined) {
           await tx.insert(cartItems).values({
-            id: crypto.randomUUID(),
+            id: cartItemId,
             cartId: cart.id,
             listingId,
             quantityKg: requestedKg.toFixed(2),
@@ -1003,6 +1175,29 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
             .set({ quantityKg: (existingKg + requestedKg).toFixed(2) })
             .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, listingId)));
         }
+        const stock = stockByListing.get(listingId)!;
+        const [reservation] = await tx
+          .update(inventory)
+          .set({ reservedKg: sql`${inventory.reservedKg} + ${requestedKg}` })
+          .where(
+            and(
+              eq(inventory.id, stock.inventoryId),
+              sql`${inventory.quantityKg} - ${inventory.reservedKg} >= ${requestedKg}`,
+            ),
+          );
+        if (reservation.affectedRows !== 1) {
+          throw new Error("Stock changed before this order could be added back to your cart.");
+        }
+        await tx.insert(inventoryMovements).values({
+          id: crypto.randomUUID(),
+          inventoryId: stock.inventoryId,
+          movementType: "reservation",
+          reservedChangeKg: requestedKg.toFixed(2),
+          referenceType: "cart",
+          referenceId: cartItemId,
+          recordedById: buyer.id,
+          note: "Reserved after reordering a completed purchase.",
+        });
       }
     });
     const quantityKg = [...requestedItems.values()].reduce((total, amount) => total + amount, 0);
