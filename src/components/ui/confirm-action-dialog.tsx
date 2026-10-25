@@ -1,4 +1,5 @@
 import { CircleAlert, ShieldAlert } from "lucide-react";
+import type { ReactNode } from "react";
 import { useCallback, useRef, useState } from "react";
 
 import {
@@ -17,6 +18,7 @@ type ConfirmationOptions = {
   description: string;
   confirmLabel: string;
   cancelLabel?: string;
+  details?: ReactNode;
   destructive?: boolean;
 };
 
@@ -58,6 +60,7 @@ export function useConfirmAction() {
           </span>
           <AlertDialogTitle>{options?.title}</AlertDialogTitle>
           <AlertDialogDescription>{options?.description}</AlertDialogDescription>
+          {options?.details ? <div className="mt-2">{options.details}</div> : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => finish(false)}>

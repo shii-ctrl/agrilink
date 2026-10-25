@@ -86,6 +86,44 @@ function BuyerCartPage() {
       description: `You are submitting ${items.length} product group${items.length === 1 ? "" : "s"} (${totalKg} kg) for ${peso(total)}. PROCY will review the ${fulfillmentLabel.toLocaleLowerCase()} arrangement before confirming it.`,
       confirmLabel: "Confirm order",
       cancelLabel: "Edit order",
+      details: (
+        <section className="rounded-2xl border border-border bg-muted/40 p-4 text-left text-sm">
+          <h3 className="font-semibold">Order details</h3>
+          <div className="mt-3 space-y-3">
+            {items.map((item) => (
+              <div key={item.id} className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.classification} · {item.quantityKg} kg × {peso(item.pricePerKg)}
+                  </p>
+                </div>
+                <span className="shrink-0 font-medium">
+                  {peso(item.quantityKg * item.pricePerKg)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <dl className="mt-4 space-y-2 border-t border-border pt-3 text-xs">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Contact</dt>
+              <dd className="text-right font-medium">{contact}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Arrangement</dt>
+              <dd className="text-right font-medium">{fulfillmentLabel}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Details</dt>
+              <dd className="max-w-48 text-right font-medium">{arrangementNote}</dd>
+            </div>
+          </dl>
+          <div className="mt-4 flex items-end justify-between border-t border-border pt-3">
+            <span className="font-semibold">Final total</span>
+            <span className="font-display text-xl font-semibold">{peso(total)}</span>
+          </div>
+        </section>
+      ),
     });
     if (!accepted) return;
 
