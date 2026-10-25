@@ -116,7 +116,10 @@ function Index() {
         listings
           .filter((listing) => listing.classification === "Good")
           .slice(0, 3)
-          .map((listing) => ({ ...listing, image: marketplaceImageFor(listing.name) })),
+          .map((listing) => ({
+            ...listing,
+            image: listing.image || marketplaceImageFor(listing.name),
+          })),
       );
     });
   }, []);
