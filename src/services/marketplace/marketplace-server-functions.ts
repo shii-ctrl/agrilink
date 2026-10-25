@@ -1,5 +1,5 @@
 // Server functions are client-safe RPC stubs; their handlers stay on the server.
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/mysql-core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -1113,7 +1113,8 @@ export const getBuyerOrders = createServerFn({ method: "GET" }).handler(async ()
     })
     .from(orders)
     .leftJoin(payments, eq(payments.orderId, orders.id))
-    .where(eq(orders.buyerId, buyer.id));
+    .where(eq(orders.buyerId, buyer.id))
+    .orderBy(desc(orders.createdAt), desc(orders.id));
   return rows.map((row) => ({
     ...row,
     totalAmount: Number(row.totalAmount),
@@ -1372,7 +1373,8 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
     })
     .from(orders)
     .innerJoin(users, eq(orders.buyerId, users.id))
-    .leftJoin(payments, eq(payments.orderId, orders.id));
+    .leftJoin(payments, eq(payments.orderId, orders.id))
+    .orderBy(desc(orders.createdAt), desc(orders.id));
   if (!orderRows.length) return [] as DemoOrder[];
   const items = await db
     .select({
