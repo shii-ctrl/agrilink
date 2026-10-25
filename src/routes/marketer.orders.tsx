@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { OrderDetails } from "@/features/marketplace/components/order-details";
 import { Button } from "@/components/ui/button";
-import { AppSelect } from "@/components/ui/app-select";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
@@ -32,6 +31,8 @@ export const Route = createFileRoute("/marketer/orders")({
   }),
   component: MarketerOrdersPage,
 });
+
+const orderStatusFilters = ["Pending", "Confirmed", "Sold", "Cancelled", "Rejected"] as const;
 
 function MarketerOrdersPage() {
   const [orders, setOrders] = useState<DemoOrder[]>([]);
@@ -212,7 +213,7 @@ function MarketerOrdersPage() {
                   <RefreshCw className="size-3.5" /> Refresh
                 </Button>
               </div>
-              <div className="grid gap-3 border-b border-border px-6 py-4 md:grid-cols-3">
+              <div className="grid gap-3 border-b border-border px-6 py-4 md:grid-cols-[minmax(0,1fr)_minmax(11rem,0.6fr)]">
                 <label className="relative block">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -222,28 +223,48 @@ function MarketerOrdersPage() {
                     className="pl-9"
                   />
                 </label>
-                <AppSelect
-                  ariaLabel="Filter orders by status"
-                  value={statusFilter}
-                  onValueChange={setStatusFilter}
-                  options={[
-                    { value: "", label: "All order states" },
-                    ...["Pending", "Confirmed", "Sold", "Cancelled", "Rejected"].map((value) => ({
-                      value,
-                      label: value,
-                    })),
-                  ]}
-                />
                 <Input
                   aria-label="Filter orders by date"
                   type="date"
                   value={orderDate}
                   onChange={(event) => setOrderDate(event.target.value)}
                 />
+                <div className="md:col-span-2">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Filter by order status
+                  </p>
+                  <div className="flex flex-wrap gap-2" aria-label="Filter orders by status">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={statusFilter === "" ? "default" : "outline"}
+                      className="rounded-full"
+                      onClick={() => setStatusFilter("")}
+                    >
+                      All <span className="ml-1 opacity-75">{orders.length}</span>
+                    </Button>
+                    {orderStatusFilters.map((status) => (
+                      <Button
+                        key={status}
+                        type="button"
+                        size="sm"
+                        variant={statusFilter === status ? "default" : "outline"}
+                        className="rounded-full"
+                        onClick={() => setStatusFilter(status)}
+                      >
+                        {status}{" "}
+                        <span className="ml-1 opacity-75">
+                          {orders.filter((order) => order.status === status).length}
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
                 {(query || statusFilter || orderDate) && (
                   <Button
                     type="button"
                     variant="outline"
+                    className="md:col-span-2 md:justify-self-start"
                     onClick={() => {
                       setQuery("");
                       setStatusFilter("");
