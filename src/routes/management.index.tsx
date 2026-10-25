@@ -48,7 +48,7 @@ function ManagementDashboard() {
     summaryByLabel.get("Sales"),
     summaryByLabel.get("Demand"),
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
-  const qualityColors = ["var(--primary)", "var(--chart-2)", "var(--destructive)"];
+  const qualityColors = ["var(--primary)", "var(--semi)", "var(--destructive)"];
 
   return (
     <ManagementLayout>
