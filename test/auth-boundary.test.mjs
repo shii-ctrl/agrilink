@@ -668,3 +668,18 @@ test("action confirmations use the shared branded dialog instead of browser prom
   assert.match(dialog, /AlertDialog/);
   assert.match(dialog, /requestConfirmation/);
 });
+
+test("Management dashboard keeps daily history available without altering saved records", async () => {
+  const [dashboard, marketplace] = await Promise.all([
+    readFile("src/routes/management.index.tsx", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+  ]);
+
+  assert.match(dashboard, /getManagementDashboard/);
+  assert.match(dashboard, /DatePicker/);
+  assert.match(dashboard, /Asia\/Manila/);
+  assert.match(marketplace, /export const getManagementDashboard/);
+  assert.match(marketplace, /requireRole\("Management"\)/);
+  assert.match(marketplace, /inventoryMovements/);
+  assert.match(marketplace, /End-of-day classified stock after reservations/);
+});

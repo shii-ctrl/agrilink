@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Database, PackageOpen, PieChart as PieChartIcon, TrendingUp } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -17,8 +17,10 @@ import {
 } from "recharts";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Button } from "@/components/ui/button";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
-import { getManagementReport } from "@/services/marketplace/marketplace-server-functions";
+import { getManagementDashboard } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/management/")({
   head: () => ({
@@ -33,20 +35,46 @@ export const Route = createFileRoute("/management/")({
   component: ManagementDashboard,
 });
 
-type ManagementReport = Awaited<ReturnType<typeof getManagementReport>>;
+function manilaDateValue(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value["year"]}-${value["month"]}-${value["day"]}`;
+}
 
 function ManagementDashboard() {
-  const request = useCallback(() => getManagementReport(), []);
+  const today = manilaDateValue();
+  const [selectedDate, setSelectedDate] = useState(today);
+  const request = useCallback(
+    () => getManagementDashboard({ data: { date: selectedDate } }),
+    [selectedDate],
+  );
+
+  useEffect(() => {
+    const keepTodayCurrent = () => {
+      const currentToday = manilaDateValue();
+      setSelectedDate((currentDate) =>
+        currentDate === today ? currentToday : currentDate,
+      );
+    };
+
+    const interval = window.setInterval(keepTodayCurrent, 60_000);
+    return () => window.clearInterval(interval);
+  }, [today]);
   const { data: report, loading, error, reload } = useWorkspaceData(request);
   const summaryByLabel = useMemo(
     () => new Map((report?.summaries ?? []).map((item) => [item.label, item])),
     [report],
   );
   const dashboardMetrics = [
-    summaryByLabel.get("Marketplace availability"),
-    summaryByLabel.get("Classified stock"),
-    summaryByLabel.get("Sales"),
-    summaryByLabel.get("Demand"),
+    summaryByLabel.get("Available stock"),
+    summaryByLabel.get("Supply received"),
+    summaryByLabel.get("Sales completed"),
+    summaryByLabel.get("Buyer orders"),
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
   const qualityColors = ["var(--primary)", "var(--semi)", "var(--destructive)"];
 
@@ -54,7 +82,7 @@ function ManagementDashboard() {
     <ManagementLayout>
       <ManagementPageHeader
         title="Operational Dashboard"
-        description="A live view of marketplace inventory, sales, supply, and buyer demand."
+        description="Review one saved operational day at a time, including inventory, sales, supply, and buyer demand."
       />
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
@@ -67,14 +95,34 @@ function ManagementDashboard() {
         {!loading && !error && (
           <>
             <section className="rounded-3xl border border-primary/20 bg-accent p-5 text-sm text-accent-foreground">
-              <div className="flex items-start gap-3">
-                <Database className="mt-0.5 size-5 shrink-0" />
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                <div className="flex items-start gap-3">
+                  <Database className="mt-0.5 size-5 shrink-0" />
                 <div>
-                  <h2 className="font-semibold">Live operational data</h2>
+                  <h2 className="font-semibold">Daily operational data</h2>
                   <p className="mt-1 opacity-85">
-                    Every value below is calculated from saved production, receiving, inventory,
-                    order, and payment records.
+                    This dashboard starts on today and refreshes as records are saved. Choose an
+                    earlier date to review the saved history for that day.
                   </p>
+                </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <DatePicker
+                    value={selectedDate}
+                    onValueChange={setSelectedDate}
+                    max={today}
+                    ariaLabel="Choose dashboard date"
+                    className="sm:min-w-44"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl"
+                    disabled={selectedDate === today}
+                    onClick={() => setSelectedDate(today)}
+                  >
+                    Today
+                  </Button>
                 </div>
               </div>
             </section>
@@ -84,12 +132,12 @@ function ManagementDashboard() {
                 <div>
                   <h2 className="text-lg font-semibold">Operational overview</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Important marketplace totals at a glance.
+                    Saved results for the selected day.
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
                   <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
-                  Live saved data
+                  {report?.date === today ? "Today" : "Historical day"}
                 </span>
               </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -114,7 +162,7 @@ function ManagementDashboard() {
                   <div>
                     <h2 className="text-lg font-semibold">Sales and order activity</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Buyer orders and completed sales across the latest seven days.
+                      Buyer orders and completed sales by hour for the selected day.
                     </p>
                   </div>
                   <TrendingUp className="size-5 shrink-0 text-primary" />
@@ -129,7 +177,7 @@ function ManagementDashboard() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                      <XAxis dataKey="label" interval={3} tickLine={false} axisLine={false} />
                       <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                       <Tooltip
                         formatter={(value: number, name: string) => [
@@ -167,7 +215,9 @@ function ManagementDashboard() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-semibold">Stock quality</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">Current classified stock.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Classified stock at the end of the selected day.
+                    </p>
                   </div>
                   <PieChartIcon className="size-5 shrink-0 text-primary" />
                 </div>
@@ -213,7 +263,7 @@ function ManagementDashboard() {
                   <div>
                     <h2 className="text-lg font-semibold">Available stock by product</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Buyer-ready and classified quantities after reservations.
+                      End-of-day quantities after reservations. Top 10 products are shown.
                     </p>
                   </div>
                   <PackageOpen className="size-5 shrink-0 text-primary" />
@@ -236,7 +286,7 @@ function ManagementDashboard() {
                   <h2 className="text-lg font-semibold">Decision support</h2>
                   <p className="mt-2 text-sm text-muted-foreground">
                     Compare supply, reserved demand, sales, and payment records in Management Reports.
-                    Availability uses current classified stock after reservations.
+                    The dashboard keeps every day's data available through the date picker.
                   </p>
                 </article>
                 <article className="rounded-3xl border border-border bg-card p-6 shadow-card">

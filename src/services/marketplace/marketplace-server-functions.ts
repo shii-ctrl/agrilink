@@ -45,6 +45,9 @@ const dailyPriceStatusInput = z.object({
   id: z.string().uuid(),
   published: z.boolean(),
 });
+const managementDashboardDateInput = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid dashboard date."),
+});
 const listingPricingFields = {
   retailPricePerKg: z.number().positive().max(100_000),
   bundlePricePerKg: z.number().positive().max(100_000).nullable(),
@@ -1703,6 +1706,149 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
     },
   };
 });
+
+/**
+ * Builds a daily Management view from the saved operational records. Inventory is
+ * reconstructed at the end of the selected Manila calendar day from its movement
+ * history, so selecting an older date does not replace it with today's stock.
+ */
+export const getManagementDashboard = createServerFn({ method: "GET" })
+  .validator(managementDashboardDateInput)
+  .handler(async ({ data }) => {
+    const { requireRole } = await import("@/services/auth/auth-server");
+    await requireRole("Management");
+    const { db } = await import("@/db/client.server");
+    const {
+      classifications,
+      inventory,
+      inventoryMovements,
+      orders,
+      payments,
+      products,
+      receivingRecords,
+    } = await import("@/db/schema");
+
+    // Manila has no daylight-saving changes, so an explicit +08:00 boundary keeps
+    // a dashboard day consistent for users and for the Vercel server runtime.
+    const dayStart = new Date(`${data.date}T00:00:00+08:00`);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const occursOnSelectedDay = (date: Date | null) =>
+      Boolean(date && date >= dayStart && date < dayEnd);
+
+    const [stockRows, movements, received, databaseOrders, databasePayments] = await Promise.all([
+      db
+        .select({
+          id: inventory.id,
+          name: products.name,
+          classification: classifications.name,
+          quantityKg: inventory.quantityKg,
+          reservedKg: inventory.reservedKg,
+        })
+        .from(inventory)
+        .innerJoin(products, eq(inventory.productId, products.id))
+        .innerJoin(classifications, eq(inventory.classificationId, classifications.id)),
+      db.select({
+        inventoryId: inventoryMovements.inventoryId,
+        availableChangeKg: inventoryMovements.availableChangeKg,
+        reservedChangeKg: inventoryMovements.reservedChangeKg,
+        createdAt: inventoryMovements.createdAt,
+      }).from(inventoryMovements),
+      db.select({ totalKg: receivingRecords.totalKg, receivedAt: receivingRecords.receivedAt }).from(receivingRecords),
+      db
+        .select({ status: orders.status, createdAt: orders.createdAt, soldAt: orders.soldAt })
+        .from(orders),
+      db.select({ amount: payments.amount, paidAt: payments.paidAt }).from(payments),
+    ]);
+
+    const changesAfterSelectedDay = new Map<string, number>();
+    for (const movement of movements) {
+      if (movement.createdAt < dayEnd) continue;
+      const availabilityChange =
+        Number(movement.availableChangeKg) - Number(movement.reservedChangeKg);
+      changesAfterSelectedDay.set(
+        movement.inventoryId,
+        (changesAfterSelectedDay.get(movement.inventoryId) ?? 0) + availabilityChange,
+      );
+    }
+    const stockAtDayEnd = stockRows.map((row) => ({
+      ...row,
+      availableKg: Math.max(
+        0,
+        Number(row.quantityKg) -
+          Number(row.reservedKg) -
+          (changesAfterSelectedDay.get(row.id) ?? 0),
+      ),
+    }));
+    const selectedReceiving = received.filter((row) => occursOnSelectedDay(row.receivedAt));
+    const selectedOrders = databaseOrders.filter((order) => occursOnSelectedDay(order.createdAt));
+    const selectedSales = databaseOrders.filter(
+      (order) => order.status === "sold" && occursOnSelectedDay(order.soldAt),
+    );
+    const selectedPayments = databasePayments.filter((payment) => occursOnSelectedDay(payment.paidAt));
+    const supplyKg = selectedReceiving.reduce((total, row) => total + Number(row.totalKg), 0);
+    const stockKg = stockAtDayEnd.reduce((total, row) => total + row.availableKg, 0);
+    const salesAmount = selectedPayments.reduce((total, payment) => total + Number(payment.amount), 0);
+    const qualityOrder = ["Good", "Semi", "Reject"] as const;
+    const quality = qualityOrder.map((classification) => ({
+      name: classification,
+      value: stockAtDayEnd
+        .filter((row) => row.classification === classification)
+        .reduce((total, row) => total + row.availableKg, 0),
+    }));
+    const stockByProduct = [...stockAtDayEnd
+      .reduce((grouped, row) => {
+        grouped.set(row.name, (grouped.get(row.name) ?? 0) + row.availableKg);
+        return grouped;
+      }, new Map<string, number>())]
+      .map(([name, value]) => ({ name, value }))
+      .filter((item) => item.value > 0)
+      .sort((first, second) => second.value - first.value)
+      .slice(0, 10);
+    const activityByHour = new Map<number, { orders: number; sales: number }>();
+    for (let hour = 0; hour < 24; hour += 1) activityByHour.set(hour, { orders: 0, sales: 0 });
+    for (const order of selectedOrders) {
+      const hour = (order.createdAt.getUTCHours() + 8) % 24;
+      activityByHour.get(hour)!.orders += 1;
+    }
+    for (const sale of selectedSales) {
+      if (!sale.soldAt) continue;
+      const hour = (sale.soldAt.getUTCHours() + 8) % 24;
+      activityByHour.get(hour)!.sales += 1;
+    }
+    const activity = [...activityByHour.entries()].map(([hour, value]) => ({
+      label: `${hour === 0 || hour === 12 ? 12 : hour % 12} ${hour < 12 ? "AM" : "PM"}`,
+      ...value,
+    }));
+
+    return {
+      date: data.date,
+      summaries: [
+        {
+          label: "Available stock",
+          value: `${stockKg} kg`,
+          detail: "End-of-day classified stock after reservations",
+        },
+        {
+          label: "Supply received",
+          value: `${supplyKg} kg`,
+          detail: "Farmer deliveries recorded on this day",
+        },
+        {
+          label: "Sales completed",
+          value: `${selectedSales.length} sale${selectedSales.length === 1 ? "" : "s"}`,
+          detail: "Orders fulfilled on this day",
+        },
+        {
+          label: "Buyer orders",
+          value: `${selectedOrders.length} order${selectedOrders.length === 1 ? "" : "s"}`,
+          detail: "Orders submitted on this day",
+        },
+      ],
+      paymentTotal: salesAmount,
+      paymentCount: selectedPayments.length,
+      dashboard: { activity, quality, stockByProduct },
+    };
+  });
 
 export const getMarketerDashboard = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
