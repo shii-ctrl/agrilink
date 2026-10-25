@@ -319,3 +319,34 @@ input[type="number"] {
   appearance: textfield;
   -moz-appearance: textfield;
 }
+
+/* Date inputs use the same generous, branded treatment as the floating selectors. */
+input[type="date"] {
+  color-scheme: light;
+}
+
+.dark input[type="date"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-datetime-edit {
+  padding: 0.1rem 0;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  border-radius: 0.65rem;
+  margin-right: -0.2rem;
+  padding: 0.4rem;
+  opacity: 0.82;
+  transition:
+    background-color 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background-color: color-mix(in oklab, var(--primary) 18%, transparent);
+  opacity: 1;
+  transform: scale(1.06);
+}
