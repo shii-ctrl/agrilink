@@ -19,6 +19,14 @@ const communityFeedInput = z.object({
 });
 const postUpdateInput = messageInput.extend({ messageId: z.string().uuid() });
 const postRemovalInput = z.object({ messageId: z.string().uuid() });
+const communityRoles = [
+  "Management",
+  "Marketer",
+  "Accounting",
+  "Farmer",
+  "Farm Consultant",
+  "Buyer",
+];
 
 async function assertCommunityMessageExists(messageId: string) {
   const { db } = await import("@/db/client.server");
@@ -166,7 +174,7 @@ export const getCommunityMessages = createServerFn({ method: "GET" })
   .validator(communityFeedInput)
   .handler(async ({ data }) => {
     const { requireAnyRole } = await import("@/services/auth/auth-server");
-    const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    const viewer = await requireAnyRole(communityRoles);
     return communityMessagesForViewer(viewer, data);
   });
 
@@ -174,7 +182,7 @@ export const getMyCommunityMessages = createServerFn({ method: "GET" })
   .validator(communityFeedInput)
   .handler(async ({ data }) => {
     const { requireAnyRole } = await import("@/services/auth/auth-server");
-    const viewer = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    const viewer = await requireAnyRole(communityRoles);
     return communityMessagesForViewer(viewer, { ...data, authorId: viewer.id });
   });
 
@@ -182,7 +190,7 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
   .validator(messageInput)
   .handler(async ({ data }) => {
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const author = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    const author = await requireAnyRole(communityRoles);
     const { db } = await import("@/db/client.server");
     const { communityMessages } = await import("@/db/schema");
     const id = crypto.randomUUID();
@@ -203,7 +211,7 @@ export const updateCommunityMessage = createServerFn({ method: "POST" })
   .validator(postUpdateInput)
   .handler(async ({ data }) => {
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const author = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    const author = await requireAnyRole(communityRoles);
     const post = await assertCommunityMessageExists(data.messageId);
     if (post.authorId !== author.id) throw new Error("You can only edit your own Community posts.");
 
@@ -223,7 +231,7 @@ export const deleteCommunityMessage = createServerFn({ method: "POST" })
   .validator(postRemovalInput)
   .handler(async ({ data }) => {
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const author = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    const author = await requireAnyRole(communityRoles);
     const post = await assertCommunityMessageExists(data.messageId);
     if (post.authorId !== author.id)
       throw new Error("You can only delete your own Community posts.");
@@ -248,7 +256,7 @@ export const setCommunityReaction = createServerFn({ method: "POST" })
   .validator(reactionInput)
   .handler(async ({ data }) => {
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const user = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    const user = await requireAnyRole(communityRoles);
     const post = await assertCommunityMessageExists(data.messageId);
     const { db } = await import("@/db/client.server");
     const { communityReactions } = await import("@/db/schema");
@@ -293,7 +301,7 @@ export const removeCommunityReaction = createServerFn({ method: "POST" })
   .validator(reactionRemovalInput)
   .handler(async ({ data }) => {
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const user = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    const user = await requireAnyRole(communityRoles);
     const { db } = await import("@/db/client.server");
     const { communityReactions } = await import("@/db/schema");
     await db
@@ -312,7 +320,7 @@ export const postCommunityComment = createServerFn({ method: "POST" })
   .validator(commentInput)
   .handler(async ({ data }) => {
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const author = await requireAnyRole(["Management", "Marketer", "Farmer", "Farm Consultant"]);
+    const author = await requireAnyRole(communityRoles);
     const post = await assertCommunityMessageExists(data.messageId);
     const { db } = await import("@/db/client.server");
     const { communityComments } = await import("@/db/schema");

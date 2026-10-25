@@ -20,12 +20,14 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SetupManagementRouteImport } from './routes/setup-management'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AccountingIndexRouteImport } from './routes/accounting.index'
+import { Route as AccountingCommunityRouteImport } from './routes/accounting.community'
 import { Route as AccountingPaymentsRouteImport } from './routes/accounting.payments'
 import { Route as AccountingProfileRouteImport } from './routes/accounting.profile'
 import { Route as AccountingReportsRouteImport } from './routes/accounting.reports'
 import { Route as AccountingTransactionsRouteImport } from './routes/accounting.transactions'
 import { Route as BuyerIndexRouteImport } from './routes/buyer.index'
 import { Route as BuyerCartRouteImport } from './routes/buyer.cart'
+import { Route as BuyerCommunityRouteImport } from './routes/buyer.community'
 import { Route as BuyerOrdersRouteImport } from './routes/buyer.orders'
 import { Route as BuyerProfileRouteImport } from './routes/buyer.profile'
 import { Route as ConsultantIndexRouteImport } from './routes/consultant.index'
@@ -119,6 +121,11 @@ const AccountingIndexRoute = AccountingIndexRouteImport.update({
   path: '/accounting/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountingCommunityRoute = AccountingCommunityRouteImport.update({
+  id: '/accounting/community',
+  path: '/accounting/community',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccountingPaymentsRoute = AccountingPaymentsRouteImport.update({
   id: '/accounting/payments',
   path: '/accounting/payments',
@@ -147,6 +154,11 @@ const BuyerIndexRoute = BuyerIndexRouteImport.update({
 const BuyerCartRoute = BuyerCartRouteImport.update({
   id: '/buyer/cart',
   path: '/buyer/cart',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BuyerCommunityRoute = BuyerCommunityRouteImport.update({
+  id: '/buyer/community',
+  path: '/buyer/community',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BuyerOrdersRoute = BuyerOrdersRouteImport.update({
@@ -348,11 +360,13 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/setup-management': typeof SetupManagementRoute
   '/terms': typeof TermsRoute
+  '/accounting/community': typeof AccountingCommunityRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
   '/accounting/reports': typeof AccountingReportsRoute
   '/accounting/transactions': typeof AccountingTransactionsRoute
   '/buyer/cart': typeof BuyerCartRoute
+  '/buyer/community': typeof BuyerCommunityRoute
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
   '/consultant/community': typeof ConsultantCommunityRoute
@@ -404,11 +418,13 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/setup-management': typeof SetupManagementRoute
   '/terms': typeof TermsRoute
+  '/accounting/community': typeof AccountingCommunityRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
   '/accounting/reports': typeof AccountingReportsRoute
   '/accounting/transactions': typeof AccountingTransactionsRoute
   '/buyer/cart': typeof BuyerCartRoute
+  '/buyer/community': typeof BuyerCommunityRoute
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
   '/consultant/community': typeof ConsultantCommunityRoute
@@ -461,11 +477,13 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/setup-management': typeof SetupManagementRoute
   '/terms': typeof TermsRoute
+  '/accounting/community': typeof AccountingCommunityRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
   '/accounting/reports': typeof AccountingReportsRoute
   '/accounting/transactions': typeof AccountingTransactionsRoute
   '/buyer/cart': typeof BuyerCartRoute
+  '/buyer/community': typeof BuyerCommunityRoute
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
   '/consultant/community': typeof ConsultantCommunityRoute
@@ -519,11 +537,13 @@ export interface FileRouteTypes {
     | '/register'
     | '/setup-management'
     | '/terms'
+    | '/accounting/community'
     | '/accounting/payments'
     | '/accounting/profile'
     | '/accounting/reports'
     | '/accounting/transactions'
     | '/buyer/cart'
+    | '/buyer/community'
     | '/buyer/orders'
     | '/buyer/profile'
     | '/consultant/community'
@@ -575,11 +595,13 @@ export interface FileRouteTypes {
     | '/register'
     | '/setup-management'
     | '/terms'
+    | '/accounting/community'
     | '/accounting/payments'
     | '/accounting/profile'
     | '/accounting/reports'
     | '/accounting/transactions'
     | '/buyer/cart'
+    | '/buyer/community'
     | '/buyer/orders'
     | '/buyer/profile'
     | '/consultant/community'
@@ -631,11 +653,13 @@ export interface FileRouteTypes {
     | '/register'
     | '/setup-management'
     | '/terms'
+    | '/accounting/community'
     | '/accounting/payments'
     | '/accounting/profile'
     | '/accounting/reports'
     | '/accounting/transactions'
     | '/buyer/cart'
+    | '/buyer/community'
     | '/buyer/orders'
     | '/buyer/profile'
     | '/consultant/community'
@@ -688,11 +712,13 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   SetupManagementRoute: typeof SetupManagementRoute
   TermsRoute: typeof TermsRoute
+  AccountingCommunityRoute: typeof AccountingCommunityRoute
   AccountingPaymentsRoute: typeof AccountingPaymentsRoute
   AccountingProfileRoute: typeof AccountingProfileRoute
   AccountingReportsRoute: typeof AccountingReportsRoute
   AccountingTransactionsRoute: typeof AccountingTransactionsRoute
   BuyerCartRoute: typeof BuyerCartRoute
+  BuyerCommunityRoute: typeof BuyerCommunityRoute
   BuyerOrdersRoute: typeof BuyerOrdersRoute
   BuyerProfileRoute: typeof BuyerProfileRoute
   ConsultantCommunityRoute: typeof ConsultantCommunityRoute
@@ -813,6 +839,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountingIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accounting/community': {
+      id: '/accounting/community'
+      path: '/accounting/community'
+      fullPath: '/accounting/community'
+      preLoaderRoute: typeof AccountingCommunityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/accounting/payments': {
       id: '/accounting/payments'
       path: '/accounting/payments'
@@ -853,6 +886,13 @@ declare module '@tanstack/react-router' {
       path: '/buyer/cart'
       fullPath: '/buyer/cart'
       preLoaderRoute: typeof BuyerCartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/buyer/community': {
+      id: '/buyer/community'
+      path: '/buyer/community'
+      fullPath: '/buyer/community'
+      preLoaderRoute: typeof BuyerCommunityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/buyer/orders': {
@@ -1128,11 +1168,13 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   SetupManagementRoute: SetupManagementRoute,
   TermsRoute: TermsRoute,
+  AccountingCommunityRoute: AccountingCommunityRoute,
   AccountingPaymentsRoute: AccountingPaymentsRoute,
   AccountingProfileRoute: AccountingProfileRoute,
   AccountingReportsRoute: AccountingReportsRoute,
   AccountingTransactionsRoute: AccountingTransactionsRoute,
   BuyerCartRoute: BuyerCartRoute,
+  BuyerCommunityRoute: BuyerCommunityRoute,
   BuyerOrdersRoute: BuyerOrdersRoute,
   BuyerProfileRoute: BuyerProfileRoute,
   ConsultantCommunityRoute: ConsultantCommunityRoute,
@@ -1176,3 +1218,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

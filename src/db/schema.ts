@@ -341,6 +341,26 @@ export const communityComments = mysqlTable(
     index("community_comments_author_idx").on(table.authorId),
   ],
 );
+export const directMessages = mysqlTable(
+  "direct_messages",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    senderId: varchar("sender_id", { length: 36 }).notNull(),
+    recipientId: varchar("recipient_id", { length: 36 }).notNull(),
+    message: text("message").notNull(),
+    readAt: datetime("read_at"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    index("direct_messages_sender_recipient_created_idx").on(
+      table.senderId,
+      table.recipientId,
+      table.createdAt,
+    ),
+    index("direct_messages_recipient_read_idx").on(table.recipientId, table.readAt),
+  ],
+);
 export const guidanceMessages = mysqlTable("guidance_messages", {
   id: varchar("id", { length: 36 }).primaryKey(),
   farmerId: varchar("farmer_id", { length: 36 }).notNull(),

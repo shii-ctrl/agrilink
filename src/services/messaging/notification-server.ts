@@ -2,13 +2,22 @@ import { and, eq, inArray } from "drizzle-orm";
 
 type NotificationDetails = { title: string; message: string; target?: string };
 
-const communityRoles = ["Management", "Marketer", "Farmer", "Farm Consultant"] as const;
+const communityRoles = [
+  "Management",
+  "Marketer",
+  "Accounting",
+  "Farmer",
+  "Farm Consultant",
+  "Buyer",
+] as const;
 
 const communityTargetByRole: Record<(typeof communityRoles)[number], string> = {
   Management: "/management/community",
   Marketer: "/marketer/community",
+  Accounting: "/accounting/community",
   Farmer: "/farmer/community",
   "Farm Consultant": "/consultant/community",
+  Buyer: "/buyer/community",
 };
 
 export async function notifyUser(userId: string, details: NotificationDetails) {

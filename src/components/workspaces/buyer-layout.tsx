@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, ShoppingBag, ShoppingCart, Store, UserRound } from "lucide-react";
+import { LogOut, MessageCircle, ShoppingBag, ShoppingCart, Store, UserRound } from "lucide-react";
 import { type ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
 import { RoleGate } from "@/components/layout/role-gate";
@@ -25,6 +25,7 @@ const nav = [
   { label: "Browse Products", to: "/marketplace", icon: Store },
   { label: "My Cart", to: "/buyer/cart", icon: ShoppingCart },
   { label: "My Orders", to: "/buyer/orders", icon: ShoppingBag },
+  { label: "Community", to: "/buyer/community", icon: MessageCircle },
 ] as const;
 export function BuyerLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();

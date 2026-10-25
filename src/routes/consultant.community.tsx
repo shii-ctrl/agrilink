@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { CommunityFeed } from "@/features/messaging/components/community-feed";
+import { CommunityWorkspace } from "@/features/messaging/components/community-workspace";
 import { ConsultantLayout, ConsultantPageHeader } from "@/components/workspaces/consultant-layout";
 
 export const Route = createFileRoute("/consultant/community")({
@@ -19,9 +19,9 @@ function ConsultantCommunityPage() {
           Use posts, reactions, and comments for public crop discussions. Keep farmer-specific
           recommendations in Crop Guidance.
         </div>
-        <CommunityFeed
-          title="Post an update"
-          placeholder="Share crop guidance or an operational update..."
+        <CommunityWorkspace
+          postTitle="Share a crop or operational update"
+          placeholder="What is on your mind? Share crop guidance or an operational update..."
         />
       </main>
     </ConsultantLayout>

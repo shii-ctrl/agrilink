@@ -4,6 +4,7 @@ import {
   CircleDollarSign,
   FileBarChart,
   LogOut,
+  MessageCircle,
   ReceiptText,
   Settings,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const navigation = [
   { label: "Transactions", to: "/accounting/transactions", icon: ReceiptText },
   { label: "Record Payment", to: "/accounting/payments", icon: CircleDollarSign },
   { label: "Reports", to: "/accounting/reports", icon: FileBarChart },
+  { label: "Community", to: "/accounting/community", icon: MessageCircle },
 ] as const;
 
 export function AccountingLayout({ children }: { children: ReactNode }) {

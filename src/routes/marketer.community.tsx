@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { CommunityFeed } from "@/features/messaging/components/community-feed";
+import { CommunityWorkspace } from "@/features/messaging/components/community-workspace";
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 
 export const Route = createFileRoute("/marketer/community")({
@@ -20,9 +20,9 @@ function MarketerCommunityPage() {
           Use reactions and comments to keep operational discussions clear. Community activity is
           saved and visible only to authorized AgriLink members.
         </div>
-        <CommunityFeed
-          title="Post an operational update"
-          placeholder="Share a PROCY operations update..."
+        <CommunityWorkspace
+          postTitle="Share an operational update"
+          placeholder="What is happening in the marketplace today?"
         />
       </main>
     </MarketerLayout>

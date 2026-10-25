@@ -394,15 +394,34 @@ test("reordered carts, community access, and crop guidance protect role boundari
   assert.match(marketplace, /export const rebuildBuyerCartFromOrder/);
   assert.match(marketplace, /await db\.transaction/);
   assert.match(marketplace, /One or more products from this order are no longer available/);
-  assert.match(
-    community,
-    /requireAnyRole\(\["Management", "Marketer", "Farmer", "Farm Consultant"\]\)/,
-  );
+  assert.match(community, /const communityRoles = \[/);
+  assert.match(community, /"Accounting"/);
+  assert.match(community, /"Buyer"/);
   assert.match(guidance, /farmerConsultantAssignments/);
   assert.match(guidance, /not assigned to your guidance workspace/);
   assert.match(admin, /export const setGuidanceAssignment/);
   assert.match(migration, /UNIQUE KEY products_name_unique/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS farmer_consultant_assignments/);
+});
+
+test("private messages enforce the Community role recipient rules", async () => {
+  const [directMessages, migration, panel] = await Promise.all([
+    readFile("src/services/messaging/direct-message-server-functions.ts", "utf8"),
+    readFile("drizzle/0015_direct_messages.sql", "utf8"),
+    readFile("src/features/messaging/components/direct-messages-panel.tsx", "utf8"),
+  ]);
+
+  assert.match(directMessages, /Management.*Marketer.*Accounting.*Farm Consultant/s);
+  assert.match(directMessages, /Marketer.*Farmer.*Buyer/s);
+  assert.match(directMessages, /farmerConsultantAssignments/);
+  assert.match(directMessages, /export const getDirectConversation/);
+  assert.match(directMessages, /export const sendDirectMessage/);
+  assert.match(directMessages, /Your role cannot start a private message/);
+  assert.match(directMessages, /New private message/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS direct_messages/);
+  assert.match(migration, /fk_direct_message_sender/);
+  assert.match(panel, /Private messages/);
+  assert.match(panel, /Message only the people your role is allowed to contact/);
 });
 
 test("community reactions and comments are saved with role checks", async () => {
