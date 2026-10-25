@@ -78,11 +78,12 @@ export function CommunityFeed({
     async ({
       append = false,
       preservePages = false,
-    }: { append?: boolean; preservePages?: boolean } = {}) => {
+      silent = false,
+    }: { append?: boolean; preservePages?: boolean; silent?: boolean } = {}) => {
       if (refreshing.current) return;
       refreshing.current = true;
       if (append) setLoadingMore(true);
-      else setLoading(true);
+      else if (!silent) setLoading(true);
       try {
         const data = {
           query: searchQuery,
@@ -120,10 +121,12 @@ export function CommunityFeed({
         setNextOffset(nextOffsetRef.current);
         setLoadError(null);
       } catch (error) {
-        setLoadError(error instanceof Error ? error.message : "Please try again.");
+        if (!silent) {
+          setLoadError(error instanceof Error ? error.message : "Please try again.");
+        }
       } finally {
         if (append) setLoadingMore(false);
-        else setLoading(false);
+        else if (!silent) setLoading(false);
         refreshing.current = false;
       }
     },
@@ -133,11 +136,15 @@ export function CommunityFeed({
   useEffect(() => {
     void load();
     const polling = window.setInterval(() => {
-      if (document.visibilityState === "visible") void load({ preservePages: true });
+      if (document.visibilityState === "visible") {
+        void load({ preservePages: true, silent: true });
+      }
     }, 4_000);
-    const refreshOnFocus = () => void load({ preservePages: true });
+    const refreshOnFocus = () => void load({ preservePages: true, silent: true });
     const refreshOnVisibility = () => {
-      if (document.visibilityState === "visible") void load({ preservePages: true });
+      if (document.visibilityState === "visible") {
+        void load({ preservePages: true, silent: true });
+      }
     };
     window.addEventListener("focus", refreshOnFocus);
     document.addEventListener("visibilitychange", refreshOnVisibility);

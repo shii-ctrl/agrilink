@@ -53,19 +53,21 @@ export function DirectMessagesPanel() {
     }
   }, []);
 
-  const loadConversation = useCallback(async (participantId: string) => {
+  const loadConversation = useCallback(async (participantId: string, silent = false) => {
     if (!participantId) {
       setMessages([]);
       return;
     }
-    setLoadingConversation(true);
+    if (!silent) setLoadingConversation(true);
     try {
       setMessages(await getDirectConversation({ data: { participantId } }));
       setError(null);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not load this conversation.");
+      if (!silent) {
+        setError(reason instanceof Error ? reason.message : "Could not load this conversation.");
+      }
     } finally {
-      setLoadingConversation(false);
+      if (!silent) setLoadingConversation(false);
     }
   }, []);
 
@@ -81,7 +83,7 @@ export function DirectMessagesPanel() {
     const polling = window.setInterval(() => {
       if (document.visibilityState === "visible") {
         void loadWorkspace();
-        void loadConversation(selectedContactId);
+        void loadConversation(selectedContactId, true);
       }
     }, 5_000);
     return () => window.clearInterval(polling);
