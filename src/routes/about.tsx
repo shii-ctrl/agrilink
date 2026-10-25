@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { Button } from "@/components/ui/button";
+import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -38,6 +40,17 @@ const roles = [
 ];
 
 function AboutPage() {
+  const [account, setAccount] = useState<
+    Awaited<ReturnType<typeof getCurrentSessionUser>> | undefined
+  >(undefined);
+  const isBuyer = Boolean(account?.roles.includes("Buyer"));
+
+  useEffect(() => {
+    void getCurrentSessionUser()
+      .then(setAccount)
+      .catch(() => setAccount(null));
+  }, []);
+
   return (
     <div className="min-h-screen">
       <SiteHeader />
@@ -125,9 +138,15 @@ function AboutPage() {
             <Button asChild size="lg" className="rounded-full">
               <Link to="/marketplace">Browse products</Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="rounded-full">
-              <Link to="/register">Register as Buyer</Link>
-            </Button>
+            {account === null ? (
+              <Button asChild size="lg" variant="outline" className="rounded-full">
+                <Link to="/register">Register as Buyer</Link>
+              </Button>
+            ) : isBuyer ? (
+              <Button asChild size="lg" variant="outline" className="rounded-full">
+                <Link to="/buyer/orders">My orders</Link>
+              </Button>
+            ) : null}
           </div>
         </section>
       </main>

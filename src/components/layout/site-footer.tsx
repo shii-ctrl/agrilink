@@ -1,7 +1,17 @@
 import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { ProcyLogo } from "@/components/layout/procy-logo";
+import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 
 export function SiteFooter() {
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void getCurrentSessionUser()
+      .then((account) => setSignedIn(Boolean(account)))
+      .catch(() => setSignedIn(false));
+  }, []);
+
   return (
     <footer className="mt-24 surface-field">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-4">
@@ -31,16 +41,20 @@ export function SiteFooter() {
                 About AgriLink
               </Link>
             </li>
-            <li>
-              <Link to="/login" className="hover:underline">
-                Login
-              </Link>
-            </li>
-            <li>
-              <Link to="/register" className="hover:underline">
-                Register as Buyer
-              </Link>
-            </li>
+            {signedIn === false && (
+              <>
+                <li>
+                  <Link to="/login" className="hover:underline">
+                    Login
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/register" className="hover:underline">
+                    Register as Buyer
+                  </Link>
+                </li>
+              </>
+            )}
           </ul>
         </div>
 
