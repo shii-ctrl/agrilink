@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, LogOut, ShoppingBag, ShoppingCart, UserRound } from "lucide-react";
+import { LayoutDashboard, LogOut, ShoppingBag, ShoppingCart, Store, UserRound } from "lucide-react";
 import { type ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
 import { RoleGate } from "@/components/layout/role-gate";
@@ -23,6 +23,7 @@ import {
 
 const nav = [
   { label: "Dashboard", to: "/buyer", icon: LayoutDashboard },
+  { label: "Browse Products", to: "/marketplace", icon: Store },
   { label: "My Cart", to: "/buyer/cart", icon: ShoppingCart },
   { label: "My Orders", to: "/buyer/orders", icon: ShoppingBag },
 ] as const;
