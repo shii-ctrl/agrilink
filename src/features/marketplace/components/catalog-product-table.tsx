@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppSelect } from "@/components/ui/app-select";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
@@ -8,6 +9,7 @@ export type CatalogProductRow = {
   name: string;
   cropType: string;
   description?: string | null;
+  imageUrl?: string | null;
   active?: boolean;
 };
 
@@ -15,10 +17,14 @@ export function CatalogProductTable({
   products,
   emptyMessage,
   showStatus = false,
+  onReplaceImage,
+  replacingImageProductId,
 }: {
   products: CatalogProductRow[];
   emptyMessage: string;
   showStatus?: boolean;
+  onReplaceImage?: (product: CatalogProductRow) => void;
+  replacingImageProductId?: string | null;
 }) {
   const [search, setSearch] = useState("");
   const [cropType, setCropType] = useState("");
@@ -54,7 +60,7 @@ export function CatalogProductTable({
       }));
   }, [catalogPage.pageItems]);
   const filteredCount = matchingProducts.length;
-  const columnCount = showStatus ? 3 : 2;
+  const columnCount = 2 + (showStatus ? 1 : 0) + (onReplaceImage ? 1 : 0);
 
   return (
     <>
@@ -85,6 +91,7 @@ export function CatalogProductTable({
               <th className="px-6 py-4 font-medium">Product</th>
               <th className="px-6 py-4 font-medium">Crop type</th>
               {showStatus && <th className="px-6 py-4 font-medium">Status</th>}
+              {onReplaceImage && <th className="px-6 py-4 font-medium">Photo</th>}
             </tr>
           </thead>
           <tbody>
@@ -108,6 +115,34 @@ export function CatalogProductTable({
                   {showStatus && (
                     <td className="px-6 py-4 text-primary">
                       {product.active === false ? "Inactive" : "Active"}
+                    </td>
+                  )}
+                  {onReplaceImage && (
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={`${product.name} product photo`}
+                            className="size-10 rounded-lg border border-border object-cover"
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No photo</span>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onReplaceImage(product)}
+                          disabled={replacingImageProductId === product.id}
+                        >
+                          {replacingImageProductId === product.id
+                            ? "Saving…"
+                            : product.imageUrl
+                              ? "Replace"
+                              : "Upload photo"}
+                        </Button>
+                      </div>
                     </td>
                   )}
                 </tr>

@@ -117,6 +117,19 @@ const createCatalogProductInput = z.object({
     .or(z.literal("")),
 });
 
+const updateCatalogProductImageInput = z.object({
+  productId: z.string().uuid(),
+  imageDataUrl: z
+    .string()
+    .trim()
+    .min(1, "Choose a product image.")
+    .max(2_500_000, "Choose an image smaller than 1.8 MB.")
+    .refine(
+      (value) => /^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=\s]+$/i.test(value),
+      "Choose a JPG, PNG, or WebP image.",
+    ),
+});
+
 function hasImageSignature(image: Buffer, contentType: "jpeg" | "png" | "webp") {
   if (contentType === "jpeg")
     return image.length >= 3 && image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff;
@@ -301,6 +314,30 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
     return { id };
   });
 
+export const updateCatalogProductImage = createServerFn({ method: "POST" })
+  .validator(updateCatalogProductImageInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    assertSafeProductImage(data.imageDataUrl);
+    const { db } = await import("@/db/client.server");
+    const { products } = await import("@/db/schema");
+    const [product] = await db
+      .select({ id: products.id, name: products.name })
+      .from(products)
+      .where(and(eq(products.id, data.productId), eq(products.active, true)));
+    if (!product) throw new Error("This catalog product is no longer available.");
+
+    await db
+      .update(products)
+      .set({ imageUrl: data.imageDataUrl })
+      .where(eq(products.id, product.id));
+    await writeAuditLog(actor.id, "product.catalog_image_update", "product", product.id, {
+      name: product.name,
+    });
+    return { id: product.id };
+  });
+
 export const getCatalogProducts = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
   await requireRole("Marketer");
@@ -312,6 +349,7 @@ export const getCatalogProducts = createServerFn({ method: "GET" }).handler(asyn
       name: products.name,
       cropType: products.cropType,
       description: products.description,
+      imageUrl: products.imageUrl,
     })
     .from(products)
     .where(eq(products.active, true))

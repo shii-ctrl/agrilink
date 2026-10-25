@@ -10,7 +10,7 @@ import {
   RefreshCw,
   ShoppingBag,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
@@ -35,6 +35,7 @@ import {
   getPublishableInventory,
   getMarketerMarketplaceListings,
   setMarketplaceListingStatus,
+  updateCatalogProductImage,
   updateMarketplaceListingPricing,
 } from "@/services/marketplace/marketplace-server-functions";
 import { prepareProductImage } from "@/features/marketplace/product-image-upload";
@@ -101,6 +102,9 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
   const [catalogImageDataUrl, setCatalogImageDataUrl] = useState("");
   const [catalogImageName, setCatalogImageName] = useState("");
   const [catalogCropType, setCatalogCropType] = useState("");
+  const catalogImageInputRef = useRef<HTMLInputElement>(null);
+  const [catalogImageTargetId, setCatalogImageTargetId] = useState<string | null>(null);
+  const [updatingCatalogImageId, setUpdatingCatalogImageId] = useState<string | null>(null);
   const [isMarketGuideExpanded, setIsMarketGuideExpanded] = useState(false);
   const [preparingImage, setPreparingImage] = useState(false);
   const [updatingListingPricing, setUpdatingListingPricing] = useState(false);
@@ -855,10 +859,54 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                     </form>
                     <div className="mt-8 border-t border-border pt-6">
                       <h3 className="font-semibold">Saved catalog products</h3>
+                      <input
+                        ref={catalogImageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        onChange={(event) => {
+                          const file = event.currentTarget.files?.[0];
+                          const productId = catalogImageTargetId;
+                          event.currentTarget.value = "";
+                          if (!file || !productId) return;
+
+                          setUpdatingCatalogImageId(productId);
+                          void prepareProductImage(file)
+                            .then((imageDataUrl) =>
+                              updateCatalogProductImage({
+                                data: { productId, imageDataUrl },
+                              }),
+                            )
+                            .then(async () => {
+                              await load();
+                              toast.success("Product photo updated", {
+                                description:
+                                  "The photo will now appear on this product's marketplace listing.",
+                              });
+                            })
+                            .catch((error) => {
+                              toast.error("Product photo could not be updated", {
+                                description:
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Please try another image.",
+                              });
+                            })
+                            .finally(() => {
+                              setUpdatingCatalogImageId(null);
+                              setCatalogImageTargetId(null);
+                            });
+                        }}
+                      />
                       <div className="mt-3 overflow-hidden rounded-2xl border border-border">
                         <CatalogProductTable
                           products={catalogProducts}
                           emptyMessage="No products have been added to the catalog yet."
+                          replacingImageProductId={updatingCatalogImageId}
+                          onReplaceImage={(product) => {
+                            setCatalogImageTargetId(product.id);
+                            catalogImageInputRef.current?.click();
+                          }}
                         />
                       </div>
                     </div>
