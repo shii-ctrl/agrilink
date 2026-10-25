@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -54,3 +54,26 @@ export const markAllNotificationsRead = createServerFn({ method: "POST" }).handl
     .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt)));
   return { ok: true };
 });
+
+/** Read notifications belong only to their recipient and can be safely removed from their inbox. */
+export const deleteReadNotification = createServerFn({ method: "POST" })
+  .validator(notificationIdInput)
+  .handler(async ({ data }) => {
+    const { requireUser } = await import("@/services/auth/auth-server");
+    const user = await requireUser();
+    const { db } = await import("@/db/client.server");
+    const { notifications } = await import("@/db/schema");
+    const [deleted] = await db
+      .delete(notifications)
+      .where(
+        and(
+          eq(notifications.id, data.id),
+          eq(notifications.userId, user.id),
+          isNotNull(notifications.readAt),
+        ),
+      );
+    if (deleted.affectedRows !== 1) {
+      throw new Error("Only notifications you have already read can be deleted.");
+    }
+    return { id: data.id };
+  });

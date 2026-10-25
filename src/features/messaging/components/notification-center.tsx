@@ -1,10 +1,11 @@
-import { Bell, CheckCheck, ExternalLink } from "lucide-react";
+import { Bell, CheckCheck, ExternalLink, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  deleteReadNotification,
   getCurrentNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -71,6 +72,20 @@ export function NotificationCenter({ role }: { role: string }) {
     }
   }
 
+  async function deleteNotification(notification: Notification) {
+    if (!notification.read) return;
+    try {
+      await deleteReadNotification({ data: { id: notification.id } });
+      setNotifications((current) => current.filter((item) => item.id !== notification.id));
+      knownNotificationIds.current?.delete(notification.id);
+      toast.success("Notification deleted");
+    } catch (error) {
+      toast.error("Could not delete this notification", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    }
+  }
+
   return (
     <Popover
       open={open}
@@ -127,38 +142,55 @@ export function NotificationCenter({ role }: { role: string }) {
         </div>
         <div className="max-h-[min(55vh,420px)] overflow-y-auto">
           {notifications.map((notification) => (
-            <button
+            <div
               key={notification.id}
-              className={`flex w-full gap-3 border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/70 ${
+              className={`flex gap-2 border-b border-border pr-2 last:border-b-0 ${
                 notification.read ? "" : "bg-primary/[0.045]"
               }`}
-              onClick={() => openNotification(notification)}
             >
-              <span
-                className={`mt-1.5 size-2 shrink-0 rounded-full ${notification.read ? "bg-muted-foreground/30" : "bg-primary"}`}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-start justify-between gap-3">
-                  <span className="font-medium">{notification.title}</span>
-                  <span className="shrink-0 text-[11px] text-muted-foreground">
-                    {new Date(notification.time).toLocaleString("en-PH", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 gap-3 px-2 py-3 text-left transition-colors hover:bg-muted/70"
+                onClick={() => openNotification(notification)}
+              >
+                <span
+                  className={`mt-1.5 size-2 shrink-0 rounded-full ${notification.read ? "bg-muted-foreground/30" : "bg-primary"}`}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="font-medium">{notification.title}</span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {new Date(notification.time).toLocaleString("en-PH", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </span>
-                </span>
-                <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">
-                  {notification.message}
-                </span>
-                {notification.target && (
-                  <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
-                    Open related record <ExternalLink className="size-3" />
+                  <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">
+                    {notification.message}
                   </span>
-                )}
-              </span>
-            </button>
+                  {notification.target && (
+                    <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                      Open related record <ExternalLink className="size-3" />
+                    </span>
+                  )}
+                </span>
+              </button>
+              {notification.read ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="mt-2 size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                  aria-label={`Delete notification: ${notification.title}`}
+                  onClick={() => void deleteNotification(notification)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              ) : null}
+            </div>
           ))}
           {notifications.length === 0 && (
             <div className="px-6 py-10 text-center text-sm text-muted-foreground">
