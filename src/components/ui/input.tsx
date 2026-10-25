@@ -3,7 +3,16 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, value, defaultValue, onChange, ...props }, ref) => {
+    const isDateInput = type === "date";
+    const [hasDateValue, setHasDateValue] = React.useState(() =>
+      isDateInput ? Boolean(value ?? defaultValue) : false,
+    );
+
+    React.useEffect(() => {
+      if (isDateInput && value !== undefined) setHasDateValue(Boolean(value));
+    }, [isDateInput, value]);
+
     return (
       <input
         type={type}
@@ -14,6 +23,13 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className,
         )}
         ref={ref}
+        value={value}
+        defaultValue={defaultValue}
+        data-empty-date={isDateInput && !hasDateValue ? "true" : undefined}
+        onChange={(event) => {
+          if (isDateInput) setHasDateValue(Boolean(event.currentTarget.value));
+          onChange?.(event);
+        }}
         {...props}
       />
     );

@@ -333,6 +333,11 @@ input[type="date"]::-webkit-datetime-edit {
   padding: 0.1rem 0;
 }
 
+/* Keep an empty date filter clean: open it with the calendar icon, then show the selected date. */
+input[type="date"][data-empty-date="true"]::-webkit-datetime-edit {
+  color: transparent;
+}
+
 input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   border-radius: 0.65rem;
