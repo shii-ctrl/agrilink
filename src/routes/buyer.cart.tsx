@@ -1,15 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { toast } from "sonner";
 import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
 import { Button } from "@/components/ui/button";
+import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { peso } from "@/features/marketplace/products";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
+import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import {
   getBuyerCart,
   placeBuyerOrder,
@@ -31,10 +34,30 @@ function BuyerCartPage() {
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(request);
   const items = data ?? emptyCartItems;
+  const [contact, setContact] = useState("");
+  const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
+  const [arrangementNote, setArrangementNote] = useState("");
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const total = useMemo(
     () => items.reduce((sum, item) => sum + item.pricePerKg * item.quantityKg, 0),
     [items],
   );
+  const totalKg = useMemo(() => items.reduce((sum, item) => sum + item.quantityKg, 0), [items]);
+  const retailSubtotal = useMemo(
+    () => items.reduce((sum, item) => sum + item.retailPricePerKg * item.quantityKg, 0),
+    [items],
+  );
+  const bundleSavings = Math.max(0, retailSubtotal - total);
+
+  useEffect(() => {
+    void getCurrentSessionUser()
+      .then((user) => {
+        if (user?.contact) setContact((currentContact) => currentContact || user.contact);
+      })
+      .catch(() => undefined);
+  }, []);
+
   async function update(id: string, quantityKg: number) {
     const item = items.find((cartItem) => cartItem.id === id);
     const maximumQuantity = (item?.availableKg ?? 0) + (item?.quantityKg ?? 0);
@@ -53,8 +76,49 @@ function BuyerCartPage() {
       });
     }
   }
+
+  async function submitOrder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const fulfillmentLabel = fulfillment === "pickup" ? "Pickup" : "Delivery";
+    const pickupNote = `${fulfillmentLabel}: ${arrangementNote.trim()}`;
+    const accepted = await requestConfirmation({
+      title: "Confirm your order?",
+      description: `You are submitting ${items.length} product group${items.length === 1 ? "" : "s"} (${totalKg} kg) for ${peso(total)}. PROCY will review the ${fulfillmentLabel.toLocaleLowerCase()} arrangement before confirming it.`,
+      confirmLabel: "Confirm order",
+      cancelLabel: "Edit order",
+    });
+    if (!accepted) return;
+
+    setPlacingOrder(true);
+    try {
+      const databaseOrder = await placeBuyerOrder({
+        data: {
+          contact,
+          pickupNote,
+          items: items.map((item) => ({
+            listingId: item.id,
+            quantityKg: item.quantityKg,
+          })),
+        },
+      });
+      await reload();
+      toast.success("Order submitted", {
+        description: `${databaseOrder.orderNumber} is Pending PROCY confirmation.`,
+      });
+      window.location.assign("/buyer/orders");
+    } catch (error) {
+      toast.error("Order could not be submitted", {
+        description:
+          error instanceof Error ? error.message : "Please refresh the marketplace and try again.",
+      });
+    } finally {
+      setPlacingOrder(false);
+    }
+  }
+
   return (
     <BuyerLayout>
+      {confirmationDialog}
       <BuyerPageHeader
         title="My Cart"
         description="Review your selected PROCY marketplace items before submitting a buyer order."
@@ -132,62 +196,125 @@ function BuyerCartPage() {
                   </article>
                 ))}
               </section>
-              <section className="h-fit rounded-3xl border border-border bg-card p-6 shadow-card">
-                <h2 className="text-lg font-semibold">Order summary</h2>
-                <p className="mt-4 text-sm text-muted-foreground">
-                  {items.length} product group(s)
-                </p>
-                <p className="mt-2 font-display text-3xl font-semibold">{peso(total)}</p>
-                <form
-                  className="mt-6 space-y-4"
-                  onSubmit={async (event) => {
-                    event.preventDefault();
-                    const formData = new FormData(event.currentTarget);
-                    try {
-                      const databaseOrder = await placeBuyerOrder({
-                        data: {
-                          contact: String(formData.get("contact")),
-                          pickupNote: String(formData.get("pickup")),
-                          items: items.map((item) => ({
-                            listingId: item.id,
-                            quantityKg: item.quantityKg,
-                          })),
-                        },
-                      });
-                      await reload();
-                      toast.success("Order submitted", {
-                        description: `${databaseOrder.orderNumber} is Pending PROCY confirmation.`,
-                      });
-                      window.location.assign("/buyer/orders");
-                    } catch (error) {
-                      toast.error("Order could not be submitted", {
-                        description:
-                          error instanceof Error
-                            ? error.message
-                            : "Please refresh the marketplace and try again.",
-                      });
-                    }
-                  }}
-                >
+              <section className="h-fit rounded-3xl border border-border bg-card p-6 shadow-card lg:sticky lg:top-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold">Order summary</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {items.length} product group{items.length === 1 ? "" : "s"} · {totalKg} kg
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground">
+                    {totalKg} kg
+                  </span>
+                </div>
+
+                <div className="mt-5 space-y-3 rounded-2xl border border-border bg-muted/35 p-4 text-sm">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.classification} · {item.quantityKg} kg × {peso(item.pricePerKg)}
+                        </p>
+                      </div>
+                      <p className="shrink-0 font-medium">
+                        {peso(item.quantityKg * item.pricePerKg)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 space-y-2 border-b border-border pb-5 text-sm">
+                  <div className="flex justify-between gap-4 text-muted-foreground">
+                    <span>Retail subtotal</span>
+                    <span>{peso(retailSubtotal)}</span>
+                  </div>
+                  {bundleSavings > 0 ? (
+                    <div className="flex justify-between gap-4 text-primary">
+                      <span>Bundle savings</span>
+                      <span>−{peso(bundleSavings)}</span>
+                    </div>
+                  ) : null}
+                  <div className="flex items-end justify-between gap-4 pt-2">
+                    <span className="font-semibold">Order total</span>
+                    <span className="font-display text-3xl font-semibold">{peso(total)}</span>
+                  </div>
+                </div>
+
+                <form className="mt-6 space-y-5" onSubmit={submitOrder}>
                   <div className="space-y-2">
                     <Label htmlFor="contact">Contact number</Label>
-                    <Input id="contact" name="contact" placeholder="0917 000 0000" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="pickup">Pickup or delivery note</Label>
                     <Input
-                      id="pickup"
-                      name="pickup"
-                      placeholder="Enter your preferred arrangement"
+                      id="contact"
+                      name="contact"
+                      value={contact}
+                      onChange={(event) => setContact(event.target.value)}
+                      placeholder="0917 000 0000"
+                      minLength={5}
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full rounded-full">
-                    Place order
+                  <fieldset className="space-y-2">
+                    <legend className="text-sm font-medium">
+                      How would you like to receive it?
+                    </legend>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(
+                        [
+                          ["pickup", "Pickup", "Arrange a time with PROCY"],
+                          ["delivery", "Delivery", "Provide an address and schedule"],
+                        ] as const
+                      ).map(([value, label, description]) => (
+                        <label
+                          key={value}
+                          className={`cursor-pointer rounded-2xl border p-3 transition-colors ${
+                            fulfillment === value
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:bg-muted/40"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="fulfillment"
+                            value={value}
+                            checked={fulfillment === value}
+                            onChange={() => setFulfillment(value)}
+                            className="sr-only"
+                          />
+                          <span className="block text-sm font-semibold">{label}</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {description}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <div className="space-y-2">
+                    <Label htmlFor="arrangement-note">
+                      {fulfillment === "pickup" ? "Pickup details" : "Delivery details"}
+                    </Label>
+                    <Input
+                      id="arrangement-note"
+                      name="arrangementNote"
+                      value={arrangementNote}
+                      onChange={(event) => setArrangementNote(event.target.value)}
+                      placeholder={
+                        fulfillment === "pickup"
+                          ? "Preferred pickup date and time"
+                          : "Complete address and preferred delivery schedule"
+                      }
+                      minLength={3}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full rounded-full" disabled={placingOrder}>
+                    {placingOrder ? "Submitting order…" : "Review and place order"}
                   </Button>
                 </form>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  No payment gateway. PROCY will review and confirm this order.
+                  No online payment yet. PROCY will review and confirm this order before arranging
+                  payment.
                 </p>
               </section>
             </div>

@@ -16,6 +16,7 @@ type ConfirmationOptions = {
   title: string;
   description: string;
   confirmLabel: string;
+  cancelLabel?: string;
   destructive?: boolean;
 };
 
@@ -59,7 +60,9 @@ export function useConfirmAction() {
           <AlertDialogDescription>{options?.description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => finish(false)}>Keep it</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => finish(false)}>
+            {options?.cancelLabel ?? "Keep it"}
+          </AlertDialogCancel>
           <AlertDialogAction
             className={
               options?.destructive
