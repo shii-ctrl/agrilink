@@ -1574,7 +1574,13 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
       .leftJoin(listings, eq(listings.inventoryId, inventory.id)),
     db.select({ totalKg: receivingRecords.totalKg }).from(receivingRecords),
     db.select({ harvestedKg: productionRecords.harvestedQuantityKg }).from(productionRecords),
-    db.select({ status: orders.status }).from(orders),
+    db
+      .select({
+        status: orders.status,
+        createdAt: orders.createdAt,
+        soldAt: orders.soldAt,
+      })
+      .from(orders),
     db.select({ id: payments.id }).from(payments),
   ]);
   const availableKg = stock.reduce(
@@ -1595,6 +1601,48 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
     (order) => order.status === "pending" || order.status === "confirmed",
   ).length;
   const sold = databaseOrders.filter((order) => order.status === "sold").length;
+  const qualityOrder = ["Good", "Semi", "Reject"] as const;
+  const quality = qualityOrder.map((classification) => ({
+    name: classification,
+    value: stock
+      .filter((row) => row.classification.toLocaleLowerCase() === classification.toLocaleLowerCase())
+      .reduce(
+        (total, row) => total + Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
+        0,
+      ),
+  }));
+  const stockByProduct = [...stock
+    .reduce((grouped, row) => {
+      const available = Math.max(0, Number(row.quantityKg) - Number(row.reservedKg));
+      grouped.set(row.name, (grouped.get(row.name) ?? 0) + available);
+      return grouped;
+    }, new Map<string, number>())]
+    .map(([name, value]) => ({ name, value }))
+    .filter((item) => item.value > 0)
+    .sort((first, second) => second.value - first.value)
+    .slice(0, 5);
+  const formatDay = (date: Date) => date.toISOString().slice(0, 10);
+  const activityByDay = new Map<string, { orders: number; sales: number }>();
+  for (let offset = 6; offset >= 0; offset -= 1) {
+    const day = new Date();
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - offset);
+    activityByDay.set(formatDay(day), { orders: 0, sales: 0 });
+  }
+  for (const order of databaseOrders) {
+    const orderDay = formatDay(order.createdAt);
+    const orderActivity = activityByDay.get(orderDay);
+    if (orderActivity) orderActivity.orders += 1;
+    if (order.status === "sold" && order.soldAt) {
+      const saleActivity = activityByDay.get(formatDay(order.soldAt));
+      if (saleActivity) saleActivity.sales += 1;
+    }
+  }
+  const activity = [...activityByDay.entries()].map(([date, value]) => ({
+    date,
+    label: new Date(`${date}T00:00:00`).toLocaleDateString("en-PH", { weekday: "short" }),
+    ...value,
+  }));
   return {
     summaries: [
       {
@@ -1648,6 +1696,11 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
       label: `${row.name} — ${row.classification} Available Quantity (kg)`,
       value: Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
     })),
+    dashboard: {
+      activity,
+      quality,
+      stockByProduct,
+    },
   };
 });
 

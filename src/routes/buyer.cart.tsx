@@ -53,7 +53,7 @@ function BuyerCartPage() {
   useEffect(() => {
     void getCurrentSessionUser()
       .then((user) => {
-        if (user?.contact) setContact((currentContact) => currentContact || user.contact);
+        if (user?.contact) setContact((currentContact) => currentContact || user.contact || "");
       })
       .catch(() => undefined);
   }, []);
