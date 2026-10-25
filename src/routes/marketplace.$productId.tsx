@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { ClassificationBadge } from "@/features/marketplace/components/classification-badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { peso, type Product } from "@/features/marketplace/products";
 import { ProductCard } from "@/features/marketplace/components/product-card";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
@@ -59,7 +60,7 @@ type MarketplaceProductDetailData = { product: Product; related: Product[] };
 function ProductDetail() {
   const router = useRouter();
   const { product, related } = Route.useLoaderData() as MarketplaceProductDetailData;
-  const [qty, setQty] = useState(1);
+  const [quantityInput, setQuantityInput] = useState("1");
   const [isBuyer, setIsBuyer] = useState(false);
   const [cartQuantityKg, setCartQuantityKg] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
@@ -95,7 +96,10 @@ function ProductDetail() {
     1,
     isBuyer ? remainingCartableQuantity : availableQuantity,
   );
-  const canDecreaseQuantity = qty > 1;
+  const requestedQuantity = Number(quantityInput);
+  const qty = Number.isFinite(requestedQuantity) ? requestedQuantity : 0;
+  const hasValidQuantity = qty >= 0.01 && qty <= maximumSelectableQuantity;
+  const canDecreaseQuantity = qty > 0.01;
   const canIncreaseQuantity = qty < maximumSelectableQuantity;
   const retailPricePerKg = product.retailPricePerKg ?? product.pricePerKg;
   const pricedQuantityKg = isBuyer ? cartQuantityKg + qty : qty;
@@ -108,8 +112,17 @@ function ProductDetail() {
   const currentPricePerKg = qualifiesForBundle ? product.bundlePricePerKg! : retailPricePerKg;
 
   useEffect(() => {
-    setQty((current) => Math.min(current, maximumSelectableQuantity));
+    setQuantityInput((current) => {
+      const currentQuantity = Number(current);
+      return Number.isFinite(currentQuantity) && currentQuantity > maximumSelectableQuantity
+        ? String(maximumSelectableQuantity)
+        : current;
+    });
   }, [maximumSelectableQuantity]);
+
+  function clampQuantity(value: number) {
+    return Math.min(maximumSelectableQuantity, Math.max(0.01, Math.round(value * 100) / 100));
+  }
 
   return (
     <div className="min-h-screen">
@@ -182,16 +195,29 @@ function ProductDetail() {
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-1 rounded-full border border-border bg-card p-1">
                 <button
-                  onClick={() => setQty((q) => Math.max(1, q - 1))}
+                  onClick={() => setQuantityInput(String(clampQuantity((qty || 0.01) - 1)))}
                   disabled={!isAvailable || !canDecreaseQuantity}
                   className="flex size-9 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label="Decrease quantity"
                 >
                   <Minus className="size-4" />
                 </button>
-                <span className="w-14 text-center font-semibold">{qty} kg</span>
+                <Input
+                  aria-label="Quantity in kilograms"
+                  type="number"
+                  inputMode="decimal"
+                  min="0.01"
+                  max={maximumSelectableQuantity}
+                  step="0.01"
+                  value={quantityInput}
+                  disabled={!isAvailable}
+                  onChange={(event) => setQuantityInput(event.target.value)}
+                  onBlur={() => setQuantityInput(String(clampQuantity(Number(quantityInput) || 1)))}
+                  className="h-9 w-20 border-0 bg-transparent px-1 text-center font-semibold shadow-none focus-visible:ring-0"
+                />
+                <span className="pr-1 text-sm text-muted-foreground">kg</span>
                 <button
-                  onClick={() => setQty((q) => Math.min(maximumSelectableQuantity, q + 1))}
+                  onClick={() => setQuantityInput(String(clampQuantity((qty || 0) + 1)))}
                   disabled={!isAvailable || !canIncreaseQuantity}
                   className="flex size-9 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label="Increase quantity"
@@ -203,7 +229,12 @@ function ProductDetail() {
               <Button
                 size="lg"
                 className="rounded-full"
-                disabled={!isAvailable || isAdding || (isBuyer && remainingCartableQuantity <= 0)}
+                disabled={
+                  !isAvailable ||
+                  !hasValidQuantity ||
+                  isAdding ||
+                  (isBuyer && remainingCartableQuantity <= 0)
+                }
                 onClick={() => {
                   if (isBuyer) {
                     setIsAdding(true);
