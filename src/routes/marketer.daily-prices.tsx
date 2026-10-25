@@ -7,6 +7,7 @@ import { PaginationControls, usePagination } from "@/components/data/pagination-
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
@@ -148,13 +149,11 @@ function MarketerDailyPricesPage() {
                 >
                   <div className="space-y-2">
                     <Label htmlFor="date">Price date</Label>
-                    <Input
+                    <DatePicker
                       id="date"
-                      type="date"
                       value={formDate}
-                      onChange={(event) => setFormDate(event.target.value)}
+                      onValueChange={setFormDate}
                       disabled={Boolean(editingEntry)}
-                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -223,11 +222,10 @@ function MarketerDailyPricesPage() {
                   </Button>
                 </div>
                 <div className="grid gap-3 border-b border-border px-6 py-4 sm:grid-cols-2">
-                  <Input
-                    aria-label="Select price history date"
-                    type="date"
+                  <DatePicker
+                    ariaLabel="Select price history date"
                     value={selectedDate}
-                    onChange={(event) => setSelectedDate(event.target.value)}
+                    onValueChange={setSelectedDate}
                   />
                   <Input
                     aria-label="Search price history"

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
@@ -94,11 +95,10 @@ function AccountingTransactionsPage() {
                 { value: "Unpaid", label: "Unpaid" },
               ]}
             />
-            <Input
-              aria-label="Filter transactions by date"
-              type="date"
+            <DatePicker
+              ariaLabel="Filter transactions by date"
               value={orderDate}
-              onChange={(event) => setOrderDate(event.target.value)}
+              onValueChange={setOrderDate}
             />
             {hasFilters && (
               <Button

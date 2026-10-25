@@ -7,6 +7,7 @@ import { OrderDetails } from "@/features/marketplace/components/order-details";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
@@ -201,11 +202,10 @@ function BuyerOrdersPage() {
                     { value: "Unpaid", label: "Unpaid" },
                   ]}
                 />
-                <Input
-                  aria-label="Filter my orders by date"
-                  type="date"
+                <DatePicker
+                  ariaLabel="Filter my orders by date"
                   value={orderDate}
-                  onChange={(event) => setOrderDate(event.target.value)}
+                  onValueChange={setOrderDate}
                 />
                 {hasFilters && (
                   <Button

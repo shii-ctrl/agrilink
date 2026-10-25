@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BarChart3, CalendarDays, TrendingUp } from "lucide-react";
+import { BarChart3, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -16,6 +16,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import type { Classification } from "@/features/marketplace/products";
@@ -133,16 +134,12 @@ function DailyPricesPage() {
               classifications.
             </p>
           </div>
-          <label className="flex items-center gap-2 rounded-full bg-accent px-3 py-2 text-sm font-medium text-accent-foreground">
-            <CalendarDays className="size-4" />
-            <Input
-              aria-label="Select price date"
-              type="date"
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              className="h-7 w-36 border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
-            />
-          </label>
+          <DatePicker
+            ariaLabel="Select price date"
+            value={date}
+            onValueChange={setDate}
+            className="h-8 w-auto rounded-full border-0 bg-accent px-3 py-1 text-sm text-accent-foreground hover:bg-accent"
+          />
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
           Showing published price information for{" "}

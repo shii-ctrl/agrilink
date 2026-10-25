@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 
@@ -137,11 +138,10 @@ export function ReceivingRecordsTable({
         />
         <label className="space-y-1 text-xs font-medium text-muted-foreground">
           Received on
-          <Input
-            aria-label="Filter by delivery date"
-            type="date"
+          <DatePicker
+            ariaLabel="Filter by delivery date"
             value={selectedDate}
-            onChange={(event) => setSelectedDate(event.target.value)}
+            onValueChange={setSelectedDate}
           />
         </label>
         {showFarmer ? (

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 
@@ -109,20 +110,18 @@ export function ProductionRecordsTable({
         />
         <label className="space-y-1 text-xs font-medium text-muted-foreground">
           Planted on
-          <Input
-            type="date"
+          <DatePicker
             value={plantingDate}
-            aria-label="Filter by planting date"
-            onChange={(event) => setPlantingDate(event.target.value)}
+            ariaLabel="Filter by planting date"
+            onValueChange={setPlantingDate}
           />
         </label>
         <label className="space-y-1 text-xs font-medium text-muted-foreground">
           Expected harvest
-          <Input
-            type="date"
+          <DatePicker
             value={harvestDate}
-            aria-label="Filter by expected harvest date"
-            onChange={(event) => setHarvestDate(event.target.value)}
+            ariaLabel="Filter by expected harvest date"
+            onValueChange={setHarvestDate}
           />
         </label>
         <AppSelect

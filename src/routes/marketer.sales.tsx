@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
@@ -132,11 +133,10 @@ function MarketerSalesPage() {
                     { value: "Unpaid", label: "Unpaid" },
                   ]}
                 />
-                <Input
-                  aria-label="Filter sales by date"
-                  type="date"
+                <DatePicker
+                  ariaLabel="Filter sales by date"
                   value={saleDate}
-                  onChange={(event) => setSaleDate(event.target.value)}
+                  onValueChange={setSaleDate}
                 />
                 {(query || paymentStatus || saleDate) && (
                   <Button

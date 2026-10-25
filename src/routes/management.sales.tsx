@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ReceiptText, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
@@ -78,11 +79,10 @@ function ManagementSalesPage() {
                   className="h-11 rounded-full pl-11"
                 />
               </div>
-              <Input
-                aria-label="Filter sales by date"
-                type="date"
+              <DatePicker
+                ariaLabel="Filter sales by date"
                 value={saleDate}
-                onChange={(event) => setSaleDate(event.target.value)}
+                onValueChange={setSaleDate}
                 className="mt-3 max-w-xs"
               />
               <p className="mt-3 text-xs text-muted-foreground">Live sales data from AgriLink.</p>

@@ -7,6 +7,7 @@ import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/mark
 import { OrderDetails } from "@/features/marketplace/components/order-details";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
@@ -223,11 +224,10 @@ function MarketerOrdersPage() {
                     className="pl-9"
                   />
                 </label>
-                <Input
-                  aria-label="Filter orders by date"
-                  type="date"
+                <DatePicker
+                  ariaLabel="Filter orders by date"
                   value={orderDate}
-                  onChange={(event) => setOrderDate(event.target.value)}
+                  onValueChange={setOrderDate}
                 />
                 <div className="md:col-span-2">
                   <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">

@@ -7,6 +7,7 @@ import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { ProductionRecordsTable } from "@/features/operations/components/production-records-table";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
@@ -154,17 +155,29 @@ function Field({
   type: string;
   optional?: boolean;
 }) {
+  const [dateValue, setDateValue] = useState("");
+
   return (
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>
-      <Input
-        id={name}
-        name={name}
-        type={type}
-        min={type === "number" ? "0" : undefined}
-        step={type === "number" ? "0.01" : undefined}
-        required={!optional}
-      />
+      {type === "date" ? (
+        <DatePicker
+          id={name}
+          name={name}
+          ariaLabel={label}
+          value={dateValue}
+          onValueChange={setDateValue}
+        />
+      ) : (
+        <Input
+          id={name}
+          name={name}
+          type={type}
+          min={type === "number" ? "0" : undefined}
+          step={type === "number" ? "0.01" : undefined}
+          required={!optional}
+        />
+      )}
     </div>
   );
 }
