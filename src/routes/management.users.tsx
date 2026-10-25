@@ -84,6 +84,8 @@ function ManagedSelect({
 function ManagementUsersPage() {
   const [userRoleFilter, setUserRoleFilter] = useState<UserRoleFilter>("All");
   const [userSearch, setUserSearch] = useState("");
+  const [guidanceFarmerId, setGuidanceFarmerId] = useState("");
+  const [guidanceConsultantId, setGuidanceConsultantId] = useState("");
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const loadManagementData = useCallback(async () => {
     const [users, guidanceAssignments, auditLogs] = await Promise.all([
@@ -112,6 +114,9 @@ function ManagementUsersPage() {
   // Keep the filtered account list as the source before splitting it into manageable pages.
   const usersPage = usePagination(visibleUsers.map((user) => user));
   const activityPage = usePagination(auditLogs);
+  const selectedGuidanceFarmer = guidanceAssignments?.farmers.find(
+    (farmer) => farmer.id === guidanceFarmerId,
+  );
   return (
     <ManagementLayout>
       {confirmationDialog}
@@ -351,8 +356,8 @@ function ManagementUsersPage() {
                 <section className="max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
                   <h2 className="text-lg font-semibold">Farmer guidance assignments</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Assign one Farm Consultant to each Farmer. Only that consultant can view and
-                    reply to the Farmer’s crop-guidance conversation.
+                    Search for a Farmer first, then choose the Farm Consultant who will handle
+                    that Farmer’s crop-guidance conversation.
                   </p>
                   {!guidanceAssignments?.consultants.length && (
                     <p className="mt-5 rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
@@ -360,56 +365,105 @@ function ManagementUsersPage() {
                       assignments.
                     </p>
                   )}
-                  <div className="mt-6 space-y-3">
-                    {guidanceAssignments?.farmers.map((farmer) => (
-                      <form
-                        key={farmer.id}
-                        className="flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center"
-                        onSubmit={async (event) => {
-                          event.preventDefault();
-                          const consultantId = String(
-                            new FormData(event.currentTarget).get("consultantId") ?? "",
-                          );
-                          try {
-                            await setGuidanceAssignment({
-                              data: { farmerId: farmer.id, consultantId },
-                            });
-                            await reload();
-                            toast.success(`${farmer.name} has been assigned a Farm Consultant.`);
-                          } catch (error) {
-                            toast.error(
-                              error instanceof Error ? error.message : "Could not save assignment.",
+                  {guidanceAssignments && !guidanceAssignments.farmers.length ? (
+                    <p className="mt-6 rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                      No active Farmer accounts are available to assign.
+                    </p>
+                  ) : (
+                    <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="guidance-farmer">Farmer</Label>
+                        <AppSelect
+                          id="guidance-farmer"
+                          value={guidanceFarmerId}
+                          onValueChange={(farmerId) => {
+                            const farmer = guidanceAssignments?.farmers.find(
+                              (item) => item.id === farmerId,
                             );
+                            setGuidanceFarmerId(farmerId);
+                            setGuidanceConsultantId(farmer?.consultantId ?? "");
+                          }}
+                          searchable
+                          placeholder="Search and select a Farmer"
+                          options={(guidanceAssignments?.farmers ?? []).map((farmer) => ({
+                            value: farmer.id,
+                            label: farmer.name,
+                            description: farmer.consultantId
+                              ? "Consultant already assigned"
+                              : "No consultant assigned yet",
+                          }))}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="guidance-consultant">Farm Consultant</Label>
+                        <AppSelect
+                          id="guidance-consultant"
+                          value={guidanceConsultantId}
+                          onValueChange={setGuidanceConsultantId}
+                          searchable
+                          disabled={
+                            !selectedGuidanceFarmer || !guidanceAssignments?.consultants.length
                           }
-                        }}
-                      >
-                        <p className="min-w-44 font-medium">{farmer.name}</p>
-                        <ManagedSelect
-                          name="consultantId"
-                          defaultValue={farmer.consultantId ?? ""}
-                          disabled={!guidanceAssignments.consultants.length}
-                          placeholder="Select a consultant"
-                          options={guidanceAssignments.consultants.map((consultant) => ({
+                          placeholder={
+                            selectedGuidanceFarmer
+                              ? "Search and select a consultant"
+                              : "Select a Farmer first"
+                          }
+                          options={(guidanceAssignments?.consultants ?? []).map((consultant) => ({
                             value: consultant.id,
                             label: consultant.name,
                           }))}
                         />
+                      </div>
+
+                      {selectedGuidanceFarmer && (
+                        <div className="rounded-2xl bg-muted/50 p-4 text-sm sm:col-span-2">
+                          <p className="font-medium">{selectedGuidanceFarmer.name}</p>
+                          <p className="mt-1 text-muted-foreground">
+                            {selectedGuidanceFarmer.consultantId
+                              ? "Choose another consultant below to reassign this Farmer."
+                              : "This Farmer does not have a consultant yet."}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="sm:col-span-2">
                         <Button
-                          type="submit"
-                          variant="outline"
+                          type="button"
                           className="rounded-full"
-                          disabled={!guidanceAssignments.consultants.length}
+                          disabled={
+                            !selectedGuidanceFarmer ||
+                            !guidanceConsultantId ||
+                            !guidanceAssignments?.consultants.length
+                          }
+                          onClick={async () => {
+                            if (!selectedGuidanceFarmer || !guidanceConsultantId) return;
+                            try {
+                              await setGuidanceAssignment({
+                                data: {
+                                  farmerId: selectedGuidanceFarmer.id,
+                                  consultantId: guidanceConsultantId,
+                                },
+                              });
+                              await reload();
+                              toast.success(
+                                `${selectedGuidanceFarmer.name} has been assigned a Farm Consultant.`,
+                              );
+                            } catch (error) {
+                              toast.error(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Could not save assignment.",
+                              );
+                            }
+                          }}
                         >
-                          Save assignment
+                          Assign consultant
                         </Button>
-                      </form>
-                    ))}
-                    {guidanceAssignments && !guidanceAssignments.farmers.length && (
-                      <p className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-                        No active Farmer accounts are available to assign.
-                      </p>
-                    )}
-                  </div>
+                      </div>
+                    </div>
+                  )}
                 </section>
               </TabsContent>
 
