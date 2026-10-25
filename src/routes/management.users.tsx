@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { History, Power, Search, UserPlus, UsersRound } from "lucide-react";
+import { History, Power, Search, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import {
   createManagementUser,
+  deleteManagedUser,
   getGuidanceAssignments,
   getManagementAuditLogs,
   getManagementUsers,
@@ -205,7 +206,7 @@ function ManagementUsersPage() {
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[820px] text-left text-sm">
+                    <table className="w-full min-w-[960px] text-left text-sm">
                       <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                         <tr>
                           <th className="px-6 py-4 font-medium">Name</th>
@@ -225,62 +226,97 @@ function ManagementUsersPage() {
                               {user.active ? "Active" : "Inactive"}
                             </td>
                             <td className="px-6 py-4">
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant={user.active ? "outline" : "default"}
-                                className="rounded-full"
-                                onClick={async () => {
-                                  const nextActive = !user.active;
-                                  const verb = nextActive ? "reactivate" : "deactivate";
-                                  if (
-                                    !(await requestConfirmation({
-                                      title: `${nextActive ? "Reactivate" : "Deactivate"} account?`,
-                                      description: nextActive
-                                        ? `${user.name} will be able to sign in again.`
-                                        : `${user.name}'s active sessions will be signed out.`,
-                                      confirmLabel: `${nextActive ? "Reactivate" : "Deactivate"} account`,
-                                      destructive: !nextActive,
-                                    }))
-                                  ) {
-                                    return;
-                                  }
-                                  try {
-                                    await setManagedUserActive({
-                                      data: { userId: user.id, active: nextActive },
-                                    });
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={user.active ? "outline" : "default"}
+                                  className="rounded-full"
+                                  onClick={async () => {
+                                    const nextActive = !user.active;
+                                    if (
+                                      !(await requestConfirmation({
+                                        title: `${nextActive ? "Reactivate" : "Deactivate"} account?`,
+                                        description: nextActive
+                                          ? `${user.name} will be able to sign in again.`
+                                          : `${user.name}'s active sessions will be signed out.`,
+                                        confirmLabel: `${nextActive ? "Reactivate" : "Deactivate"} account`,
+                                        destructive: !nextActive,
+                                      }))
+                                    ) {
+                                      return;
+                                    }
                                     try {
-                                      await reload();
-                                    } catch {
-                                      toast.warning(
-                                        "Access saved, but the page could not refresh",
+                                      await setManagedUserActive({
+                                        data: { userId: user.id, active: nextActive },
+                                      });
+                                      try {
+                                        await reload();
+                                      } catch {
+                                        toast.warning(
+                                          "Access saved, but the page could not refresh",
+                                          {
+                                            description:
+                                              "Reload this page to see the latest account status.",
+                                          },
+                                        );
+                                      }
+                                      toast.success(
+                                        nextActive ? "Account reactivated" : "Account deactivated",
                                         {
-                                          description:
-                                            "Reload this page to see the latest account status.",
+                                          description: nextActive
+                                            ? `${user.name} can sign in again.`
+                                            : `${user.name}'s active sessions were signed out.`,
                                         },
                                       );
+                                    } catch (error) {
+                                      toast.error("Account access could not be changed", {
+                                        description:
+                                          error instanceof Error
+                                            ? error.message
+                                            : "Please try again.",
+                                      });
                                     }
-                                    toast.success(
-                                      nextActive ? "Account reactivated" : "Account deactivated",
-                                      {
-                                        description: nextActive
-                                          ? `${user.name} can sign in again.`
-                                          : `${user.name}'s active sessions were signed out.`,
-                                      },
-                                    );
-                                  } catch (error) {
-                                    toast.error("Account access could not be changed", {
-                                      description:
-                                        error instanceof Error
-                                          ? error.message
-                                          : "Please try again.",
-                                    });
-                                  }
-                                }}
-                              >
-                                <Power />
-                                {user.active ? "Deactivate" : "Reactivate"}
-                              </Button>
+                                  }}
+                                >
+                                  <Power />
+                                  {user.active ? "Deactivate" : "Reactivate"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-full border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                  onClick={async () => {
+                                    if (
+                                      !(await requestConfirmation({
+                                        title: `Permanently delete ${user.name}?`,
+                                        description:
+                                          "This removes the account, its private messages, notifications, drafts, and Community posts. Accounts with saved operational records cannot be deleted; deactivate those accounts instead.",
+                                        confirmLabel: "Delete user",
+                                        destructive: true,
+                                        holdToConfirmMs: 3_000,
+                                      }))
+                                    ) {
+                                      return;
+                                    }
+                                    try {
+                                      await deleteManagedUser({ data: { userId: user.id } });
+                                      await reload();
+                                      toast.success("User account permanently deleted.");
+                                    } catch (error) {
+                                      toast.error("User account could not be deleted", {
+                                        description:
+                                          error instanceof Error
+                                            ? error.message
+                                            : "Please deactivate the account instead.",
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <Trash2 /> Delete
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}

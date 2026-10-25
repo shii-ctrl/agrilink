@@ -1,6 +1,6 @@
 import { CircleAlert, ShieldAlert } from "lucide-react";
 import type { ReactNode } from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   AlertDialog,
@@ -20,12 +20,30 @@ type ConfirmationOptions = {
   cancelLabel?: string;
   details?: ReactNode;
   destructive?: boolean;
+  holdToConfirmMs?: number;
 };
 
 /** A consistent, accessible replacement for browser confirmation pop-ups. */
 export function useConfirmAction() {
   const [options, setOptions] = useState<ConfirmationOptions | null>(null);
+  const [secondsUntilConfirm, setSecondsUntilConfirm] = useState(0);
   const resolver = useRef<((accepted: boolean) => void) | null>(null);
+
+  useEffect(() => {
+    const holdToConfirmMs = options?.holdToConfirmMs ?? 0;
+    if (!holdToConfirmMs) {
+      setSecondsUntilConfirm(0);
+      return;
+    }
+
+    const readyAt = Date.now() + holdToConfirmMs;
+    const updateCountdown = () => {
+      setSecondsUntilConfirm(Math.max(0, Math.ceil((readyAt - Date.now()) / 1_000)));
+    };
+    updateCountdown();
+    const timer = window.setInterval(updateCountdown, 100);
+    return () => window.clearInterval(timer);
+  }, [options]);
 
   const finish = useCallback((accepted: boolean) => {
     resolver.current?.(accepted);
@@ -61,6 +79,12 @@ export function useConfirmAction() {
           <AlertDialogTitle>{options?.title}</AlertDialogTitle>
           <AlertDialogDescription>{options?.description}</AlertDialogDescription>
           {options?.details ? <div className="mt-2">{options.details}</div> : null}
+          {secondsUntilConfirm > 0 ? (
+            <p className="mt-2 text-sm font-medium text-muted-foreground">
+              Please review the details. Confirmation unlocks in {secondsUntilConfirm} second
+              {secondsUntilConfirm === 1 ? "" : "s"}.
+            </p>
+          ) : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => finish(false)}>
@@ -72,9 +96,14 @@ export function useConfirmAction() {
                 ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 : undefined
             }
-            onClick={() => finish(true)}
+            disabled={secondsUntilConfirm > 0}
+            onClick={() => {
+              if (secondsUntilConfirm === 0) finish(true);
+            }}
           >
-            {options?.confirmLabel}
+            {secondsUntilConfirm > 0
+              ? `${options?.confirmLabel} (${secondsUntilConfirm}s)`
+              : options?.confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

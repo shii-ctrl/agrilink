@@ -632,6 +632,24 @@ test("Management can filter and search saved user accounts by role", async () =>
   assert.match(page, /visibleUsers\.map/);
 });
 
+test("Management user deletion is protected by records checks and a timed confirmation", async () => {
+  const [page, adminFunctions, dialog] = await Promise.all([
+    readFile("src/routes/management.users.tsx", "utf8"),
+    readFile("src/services/auth/admin-server-functions.ts", "utf8"),
+    readFile("src/components/ui/confirm-action-dialog.tsx", "utf8"),
+  ]);
+
+  assert.match(page, /deleteManagedUser/);
+  assert.match(page, /holdToConfirmMs: 3_000/);
+  assert.match(adminFunctions, /export const deleteManagedUser/);
+  assert.match(adminFunctions, /requireRole\("Management"\)/);
+  assert.match(adminFunctions, /cannot delete your own Management account/);
+  assert.match(adminFunctions, /saved operational history/);
+  assert.match(adminFunctions, /Keep at least one Management account/);
+  assert.match(dialog, /holdToConfirmMs/);
+  assert.match(dialog, /secondsUntilConfirm > 0/);
+});
+
 test("action confirmations use the shared branded dialog instead of browser prompts", async () => {
   const files = [
     "src/routes/buyer.orders.tsx",

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { alias } from "drizzle-orm/mysql-core";
 import { z } from "zod";
@@ -21,6 +21,9 @@ const resetUserPasswordInput = z.object({
 const setUserActiveInput = z.object({
   userId: z.string().uuid(),
   active: z.boolean(),
+});
+const deleteUserInput = z.object({
+  userId: z.string().uuid(),
 });
 const guidanceAssignmentInput = z.object({
   farmerId: z.string().uuid(),
@@ -177,6 +180,182 @@ export const setManagedUserActive = createServerFn({ method: "POST" })
       );
     }
     return { active: data.active };
+  });
+
+export const deleteManagedUser = createServerFn({ method: "POST" })
+  .validator(deleteUserInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Management");
+    if (actor.id === data.userId) {
+      throw new Error("You cannot delete your own Management account.");
+    }
+
+    const { db } = await import("@/db/client.server");
+    const {
+      auditLogs,
+      authSessions,
+      carts,
+      cartItems,
+      communityComments,
+      communityMessages,
+      communityReactions,
+      dailyPrices,
+      directMessages,
+      farmerConsultantAssignments,
+      guidanceMessages,
+      inventory,
+      inventoryMovements,
+      notifications,
+      orderStatusHistory,
+      orders,
+      passwordResetTokens,
+      payments,
+      productionRecords,
+      receivingRecords,
+      roles,
+      savedDrafts,
+      userRoles,
+      users,
+    } = await import("@/db/schema");
+
+    const target = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT id FROM users WHERE id = ${data.userId} FOR UPDATE`);
+      const [user] = await tx
+        .select({ id: users.id, name: users.displayName, role: roles.name })
+        .from(users)
+        .innerJoin(userRoles, eq(userRoles.userId, users.id))
+        .innerJoin(roles, eq(userRoles.roleId, roles.id))
+        .where(eq(users.id, data.userId));
+      if (!user) throw new Error("The selected account no longer exists.");
+
+      if (user.role === "Management") {
+        await tx.execute(sql`SELECT id FROM roles WHERE name = ${"Management"} FOR UPDATE`);
+        const managementAccounts = await tx
+          .select({ id: users.id })
+          .from(users)
+          .innerJoin(userRoles, eq(userRoles.userId, users.id))
+          .innerJoin(roles, eq(userRoles.roleId, roles.id))
+          .where(eq(roles.name, "Management"));
+        if (managementAccounts.length <= 1) {
+          throw new Error("Keep at least one Management account.");
+        }
+      }
+
+      const businessRecords = await Promise.all([
+        tx.select({ id: orders.id }).from(orders).where(eq(orders.buyerId, user.id)).limit(1),
+        tx
+          .select({ id: payments.id })
+          .from(payments)
+          .where(eq(payments.recordedById, user.id))
+          .limit(1),
+        tx
+          .select({ id: dailyPrices.id })
+          .from(dailyPrices)
+          .where(eq(dailyPrices.createdById, user.id))
+          .limit(1),
+        tx
+          .select({ id: inventory.id })
+          .from(inventory)
+          .where(eq(inventory.farmerId, user.id))
+          .limit(1),
+        tx
+          .select({ id: receivingRecords.id })
+          .from(receivingRecords)
+          .where(or(eq(receivingRecords.farmerId, user.id), eq(receivingRecords.recordedById, user.id)))
+          .limit(1),
+        tx
+          .select({ id: productionRecords.id })
+          .from(productionRecords)
+          .where(or(eq(productionRecords.farmerId, user.id), eq(productionRecords.recordedById, user.id)))
+          .limit(1),
+        tx
+          .select({ id: inventoryMovements.id })
+          .from(inventoryMovements)
+          .where(eq(inventoryMovements.recordedById, user.id))
+          .limit(1),
+        tx
+          .select({ id: orderStatusHistory.id })
+          .from(orderStatusHistory)
+          .where(eq(orderStatusHistory.changedById, user.id))
+          .limit(1),
+        tx
+          .select({ id: guidanceMessages.id })
+          .from(guidanceMessages)
+          .where(
+            or(
+              eq(guidanceMessages.farmerId, user.id),
+              eq(guidanceMessages.consultantId, user.id),
+              eq(guidanceMessages.authorId, user.id),
+            ),
+          )
+          .limit(1),
+      ]);
+      if (businessRecords.some((records) => records.length > 0)) {
+        throw new Error(
+          "This account has saved operational history. Deactivate it instead to keep AgriLink records accurate.",
+        );
+      }
+
+      const authoredPosts = await tx
+        .select({ id: communityMessages.id })
+        .from(communityMessages)
+        .where(eq(communityMessages.authorId, user.id));
+      const authoredPostIds = authoredPosts.map((post) => post.id);
+      const userCarts = await tx
+        .select({ id: carts.id })
+        .from(carts)
+        .where(eq(carts.buyerId, user.id));
+
+      await tx.delete(communityReactions).where(eq(communityReactions.userId, user.id));
+      await tx.delete(communityComments).where(eq(communityComments.authorId, user.id));
+      if (authoredPostIds.length) {
+        await tx.delete(communityReactions).where(inArray(communityReactions.messageId, authoredPostIds));
+        await tx.delete(communityComments).where(inArray(communityComments.messageId, authoredPostIds));
+        await tx.delete(communityMessages).where(inArray(communityMessages.id, authoredPostIds));
+      }
+
+      await tx.delete(directMessages).where(
+        or(eq(directMessages.senderId, user.id), eq(directMessages.recipientId, user.id)),
+      );
+      await tx.delete(notifications).where(eq(notifications.userId, user.id));
+      await tx.delete(authSessions).where(eq(authSessions.userId, user.id));
+      await tx.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id));
+      await tx.delete(savedDrafts).where(eq(savedDrafts.userId, user.id));
+      if (userCarts.length) {
+        await tx.delete(cartItems).where(inArray(cartItems.cartId, userCarts.map((cart) => cart.id)));
+        await tx.delete(carts).where(eq(carts.buyerId, user.id));
+      }
+      await tx
+        .delete(farmerConsultantAssignments)
+        .where(
+          or(
+            eq(farmerConsultantAssignments.farmerId, user.id),
+            eq(farmerConsultantAssignments.consultantId, user.id),
+          ),
+        );
+      await tx
+        .update(farmerConsultantAssignments)
+        .set({ assignedById: null })
+        .where(eq(farmerConsultantAssignments.assignedById, user.id));
+      await tx.update(auditLogs).set({ actorId: null }).where(eq(auditLogs.actorId, user.id));
+      await tx.delete(userRoles).where(eq(userRoles.userId, user.id));
+      await tx.delete(users).where(eq(users.id, user.id));
+      return user;
+    });
+
+    await writeAuditLog(actor.id, "user.delete", "user", target.id, { name: target.name, role: target.role });
+    const { notifyRole } = await import("@/services/messaging/notification-server");
+    await notifyRole(
+      "Management",
+      {
+        title: "User account deleted",
+        message: `${target.name}'s ${target.role} account was permanently deleted by Management.`,
+        target: "/management/users",
+      },
+      { excludeUserId: actor.id },
+    );
+    return { id: target.id };
   });
 
 export const getManagementAuditLogs = createServerFn({ method: "GET" }).handler(async () => {
