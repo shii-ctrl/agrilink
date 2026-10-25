@@ -166,9 +166,6 @@ function BuyerCartPage() {
                           {item.quantityKg >= item.bundleMinimumKg ? " — applied" : ""}
                         </p>
                       ) : null}
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {item.availableKg} kg still available to other buyers
-                      </p>
                     </div>
                     <div className="flex items-center rounded-full border border-border p-1">
                       <button
