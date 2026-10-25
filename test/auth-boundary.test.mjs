@@ -681,5 +681,5 @@ test("Management dashboard keeps daily history available without altering saved 
   assert.match(marketplace, /export const getManagementDashboard/);
   assert.match(marketplace, /requireRole\("Management"\)/);
   assert.match(marketplace, /inventoryMovements/);
-  assert.match(marketplace, /End-of-day classified stock after reservations/);
+  assert.match(marketplace, /Classified stock recorded on this day/);
 });

@@ -71,7 +71,7 @@ function ManagementDashboard() {
     [report],
   );
   const dashboardMetrics = [
-    summaryByLabel.get("Available stock"),
+    summaryByLabel.get("Stock added"),
     summaryByLabel.get("Supply received"),
     summaryByLabel.get("Sales completed"),
     summaryByLabel.get("Buyer orders"),
@@ -216,7 +216,7 @@ function ManagementDashboard() {
                   <div>
                     <h2 className="text-lg font-semibold">Stock quality</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Classified stock at the end of the selected day.
+                      Classified stock added on the selected day.
                     </p>
                   </div>
                   <PieChartIcon className="size-5 shrink-0 text-primary" />
@@ -261,9 +261,9 @@ function ManagementDashboard() {
               <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold">Available stock by product</h2>
+                    <h2 className="text-lg font-semibold">Stock added by product</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      End-of-day quantities after reservations. Top 10 products are shown.
+                      Quantities added on the selected day. Top 10 products are shown.
                     </p>
                   </div>
                   <PackageOpen className="size-5 shrink-0 text-primary" />

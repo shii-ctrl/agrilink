@@ -1707,11 +1707,7 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
   };
 });
 
-/**
- * Builds a daily Management view from the saved operational records. Inventory is
- * reconstructed at the end of the selected Manila calendar day from its movement
- * history, so selecting an older date does not replace it with today's stock.
- */
+/** Builds a daily Management view from operational records saved on one Manila calendar day. */
 export const getManagementDashboard = createServerFn({ method: "GET" })
   .validator(managementDashboardDateInput)
   .handler(async ({ data }) => {
@@ -1741,16 +1737,14 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
           id: inventory.id,
           name: products.name,
           classification: classifications.name,
-          quantityKg: inventory.quantityKg,
-          reservedKg: inventory.reservedKg,
         })
         .from(inventory)
         .innerJoin(products, eq(inventory.productId, products.id))
         .innerJoin(classifications, eq(inventory.classificationId, classifications.id)),
       db.select({
         inventoryId: inventoryMovements.inventoryId,
+        movementType: inventoryMovements.movementType,
         availableChangeKg: inventoryMovements.availableChangeKg,
-        reservedChangeKg: inventoryMovements.reservedChangeKg,
         createdAt: inventoryMovements.createdAt,
       }).from(inventoryMovements),
       db.select({ totalKg: receivingRecords.totalKg, receivedAt: receivingRecords.receivedAt }).from(receivingRecords),
@@ -1760,25 +1754,6 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       db.select({ amount: payments.amount, paidAt: payments.paidAt }).from(payments),
     ]);
 
-    const changesAfterSelectedDay = new Map<string, number>();
-    for (const movement of movements) {
-      if (movement.createdAt < dayEnd) continue;
-      const availabilityChange =
-        Number(movement.availableChangeKg) - Number(movement.reservedChangeKg);
-      changesAfterSelectedDay.set(
-        movement.inventoryId,
-        (changesAfterSelectedDay.get(movement.inventoryId) ?? 0) + availabilityChange,
-      );
-    }
-    const stockAtDayEnd = stockRows.map((row) => ({
-      ...row,
-      availableKg: Math.max(
-        0,
-        Number(row.quantityKg) -
-          Number(row.reservedKg) -
-          (changesAfterSelectedDay.get(row.id) ?? 0),
-      ),
-    }));
     const selectedReceiving = received.filter((row) => occursOnSelectedDay(row.receivedAt));
     const selectedOrders = databaseOrders.filter((order) => occursOnSelectedDay(order.createdAt));
     const selectedSales = databaseOrders.filter(
@@ -1786,18 +1761,30 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
     );
     const selectedPayments = databasePayments.filter((payment) => occursOnSelectedDay(payment.paidAt));
     const supplyKg = selectedReceiving.reduce((total, row) => total + Number(row.totalKg), 0);
-    const stockKg = stockAtDayEnd.reduce((total, row) => total + row.availableKg, 0);
+    const stockById = new Map(stockRows.map((row) => [row.id, row]));
+    const selectedStockActivity = movements
+      .filter(
+        (movement) =>
+          occursOnSelectedDay(movement.createdAt) && Number(movement.availableChangeKg) > 0,
+      )
+      .flatMap((movement) => {
+        const stock = stockById.get(movement.inventoryId);
+        return stock
+          ? [{ ...stock, addedKg: Number(movement.availableChangeKg) }]
+          : [];
+      });
+    const stockKg = selectedStockActivity.reduce((total, row) => total + row.addedKg, 0);
     const salesAmount = selectedPayments.reduce((total, payment) => total + Number(payment.amount), 0);
     const qualityOrder = ["Good", "Semi", "Reject"] as const;
     const quality = qualityOrder.map((classification) => ({
       name: classification,
-      value: stockAtDayEnd
+      value: selectedStockActivity
         .filter((row) => row.classification === classification)
-        .reduce((total, row) => total + row.availableKg, 0),
+        .reduce((total, row) => total + row.addedKg, 0),
     }));
-    const stockByProduct = [...stockAtDayEnd
+    const stockByProduct = [...selectedStockActivity
       .reduce((grouped, row) => {
-        grouped.set(row.name, (grouped.get(row.name) ?? 0) + row.availableKg);
+        grouped.set(row.name, (grouped.get(row.name) ?? 0) + row.addedKg);
         return grouped;
       }, new Map<string, number>())]
       .map(([name, value]) => ({ name, value }))
@@ -1824,9 +1811,9 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       date: data.date,
       summaries: [
         {
-          label: "Available stock",
+          label: "Stock added",
           value: `${stockKg} kg`,
-          detail: "End-of-day classified stock after reservations",
+          detail: "Classified stock recorded on this day",
         },
         {
           label: "Supply received",
