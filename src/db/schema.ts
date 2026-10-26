@@ -341,6 +341,22 @@ export const communityComments = mysqlTable(
     index("community_comments_author_idx").on(table.authorId),
   ],
 );
+export const communityCommentReactions = mysqlTable(
+  "community_comment_reactions",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    commentId: varchar("comment_id", { length: 36 }).notNull(),
+    userId: varchar("user_id", { length: 36 }).notNull(),
+    reaction: mysqlEnum("reaction", ["like", "dislike"]).notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("community_comment_reactions_comment_user_unique").on(table.commentId, table.userId),
+    index("community_comment_reactions_comment_idx").on(table.commentId),
+    index("community_comment_reactions_user_idx").on(table.userId),
+  ],
+);
 export const directMessages = mysqlTable(
   "direct_messages",
   {

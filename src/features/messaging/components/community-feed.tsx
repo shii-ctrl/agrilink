@@ -21,7 +21,9 @@ import {
   deleteCommunityMessage,
   postCommunityComment,
   postCommunityMessage,
+  removeCommunityCommentReaction,
   removeCommunityReaction,
+  setCommunityCommentReaction,
   setCommunityReaction,
   updateCommunityMessage,
 } from "@/services/messaging/community-server-functions";
@@ -53,6 +55,7 @@ export function CommunityFeed({
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [busyPost, setBusyPost] = useState(false);
   const [busyReactionId, setBusyReactionId] = useState<string | null>(null);
+  const [busyCommentReactionId, setBusyCommentReactionId] = useState<string | null>(null);
   const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
@@ -497,28 +500,94 @@ export function CommunityFeed({
                             <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                               {comment.message}
                             </p>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="mt-2 size-8 rounded-full p-0"
-                              aria-label={`Reply to ${comment.author}`}
-                              title={`Reply to ${comment.author}`}
-                              onClick={() => {
-                                setCommentDrafts((current) => {
-                                  const mention = `@${comment.author} `;
-                                  const draft = current[message.id]?.trim() ?? "";
-                                  return {
-                                    ...current,
-                                    [message.id]: draft ? `${mention}${draft}` : mention,
-                                  };
-                                });
-                                window.setTimeout(() => commentInputRefs.current[message.id]?.focus());
-                              }}
-                            >
-                              <Reply className="size-4" />
-                              <span className="sr-only">Reply to {comment.author}</span>
-                            </Button>
+                            <div className="mt-2 flex flex-wrap items-center gap-1">
+                              <Button
+                                type="button"
+                                variant={
+                                  comment.reactions.viewerReaction === "like" ? "secondary" : "ghost"
+                                }
+                                size="sm"
+                                className="h-8 rounded-full px-2 text-xs"
+                                disabled={busyCommentReactionId === comment.id}
+                                aria-label={`Like ${comment.author}'s comment`}
+                                aria-pressed={comment.reactions.viewerReaction === "like"}
+                                onClick={async () => {
+                                  setBusyCommentReactionId(comment.id);
+                                  try {
+                                    if (comment.reactions.viewerReaction === "like") {
+                                      await removeCommunityCommentReaction({
+                                        data: { commentId: comment.id },
+                                      });
+                                    } else {
+                                      await setCommunityCommentReaction({
+                                        data: { commentId: comment.id, reaction: "like" },
+                                      });
+                                    }
+                                    await load();
+                                  } catch (error) {
+                                    toast.error(
+                                      error instanceof Error
+                                        ? error.message
+                                        : "Could not update this comment reaction.",
+                                    );
+                                  } finally {
+                                    setBusyCommentReactionId(null);
+                                  }
+                                }}
+                              >
+                                <ThumbsUp className="size-3.5" /> Like {comment.reactions.likes || ""}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={
+                                  comment.reactions.viewerReaction === "dislike" ? "secondary" : "ghost"
+                                }
+                                size="sm"
+                                className="h-8 rounded-full px-2 text-xs"
+                                disabled={busyCommentReactionId === comment.id}
+                                aria-label={`Dislike ${comment.author}'s comment`}
+                                aria-pressed={comment.reactions.viewerReaction === "dislike"}
+                                onClick={async () => {
+                                  setBusyCommentReactionId(comment.id);
+                                  try {
+                                    if (comment.reactions.viewerReaction === "dislike") {
+                                      await removeCommunityCommentReaction({
+                                        data: { commentId: comment.id },
+                                      });
+                                    } else {
+                                      await setCommunityCommentReaction({
+                                        data: { commentId: comment.id, reaction: "dislike" },
+                                      });
+                                    }
+                                    await load();
+                                  } catch (error) {
+                                    toast.error(
+                                      error instanceof Error
+                                        ? error.message
+                                        : "Could not update this comment reaction.",
+                                    );
+                                  } finally {
+                                    setBusyCommentReactionId(null);
+                                  }
+                                }}
+                              >
+                                <ThumbsDown className="size-3.5" /> Dislike {comment.reactions.dislikes || ""}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="size-8 rounded-full p-0"
+                                aria-label={`Reply to ${comment.author}`}
+                                title={`Reply to ${comment.author}`}
+                                onClick={() => {
+                                  window.setTimeout(() => commentInputRefs.current[message.id]?.focus());
+                                }}
+                              >
+                                <Reply className="size-4" />
+                                <span className="sr-only">Reply to {comment.author}</span>
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>

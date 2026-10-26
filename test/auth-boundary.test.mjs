@@ -436,6 +436,8 @@ test("community reactions and comments are saved with role checks", async () => 
   assert.match(community, /export const setCommunityReaction/);
   assert.match(community, /export const removeCommunityReaction/);
   assert.match(community, /export const postCommunityComment/);
+  assert.match(community, /export const setCommunityCommentReaction/);
+  assert.match(community, /export const removeCommunityCommentReaction/);
   assert.match(community, /export const updateCommunityMessage/);
   assert.match(community, /export const deleteCommunityMessage/);
   assert.match(community, /You can only edit your own Community posts/);
@@ -456,8 +458,17 @@ test("Community comments provide a direct reply action", async () => {
   const feed = await readFile("src/features/messaging/components/community-feed.tsx", "utf8");
   assert.match(feed, /<Reply className="size-4" \/>/);
   assert.match(feed, /aria-label=\{`Reply to \$\{comment\.author\}`\}/);
-  assert.match(feed, /@\$\{comment\.author\}/);
+  assert.doesNotMatch(feed, /@\$\{comment\.author\}/);
+  assert.match(feed, /setCommunityCommentReaction/);
+  assert.match(feed, /removeCommunityCommentReaction/);
   assert.match(feed, /Write a comment or reply/);
+});
+
+test("comment reaction migration preserves one reaction per user", async () => {
+  const migration = await readFile("drizzle/0016_community_comment_reactions.sql", "utf8");
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS community_comment_reactions/);
+  assert.match(migration, /UNIQUE KEY community_comment_reactions_comment_user_unique/);
+  assert.match(migration, /fk_community_comment_reaction_comment/);
 });
 
 test("Community search and owner-only post controls are available in the feed", async () => {

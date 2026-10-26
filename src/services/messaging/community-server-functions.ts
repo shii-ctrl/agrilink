@@ -12,6 +12,11 @@ const reactionInput = z.object({
   reaction: z.enum(["like", "dislike"]),
 });
 const reactionRemovalInput = z.object({ messageId: z.string().uuid() });
+const commentReactionInput = z.object({
+  commentId: z.string().uuid(),
+  reaction: z.enum(["like", "dislike"]),
+});
+const commentReactionRemovalInput = z.object({ commentId: z.string().uuid() });
 const communityFeedInput = z.object({
   query: z.string().trim().max(120).default(""),
   offset: z.number().int().min(0).max(100_000).default(0),
@@ -39,6 +44,17 @@ async function assertCommunityMessageExists(messageId: string) {
   return message;
 }
 
+async function assertCommunityCommentExists(commentId: string) {
+  const { db } = await import("@/db/client.server");
+  const { communityComments } = await import("@/db/schema");
+  const [comment] = await db
+    .select({ id: communityComments.id, authorId: communityComments.authorId })
+    .from(communityComments)
+    .where(eq(communityComments.id, commentId));
+  if (!comment) throw new Error("This Community comment is no longer available.");
+  return comment;
+}
+
 function searchPattern(query: string) {
   return query
     ? `%${query.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`
@@ -50,8 +66,15 @@ async function communityMessagesForViewer(
   options: { authorId?: string; query?: string; offset?: number; pageSize?: number } = {},
 ) {
   const { db } = await import("@/db/client.server");
-  const { communityComments, communityMessages, communityReactions, roles, userRoles, users } =
-    await import("@/db/schema");
+  const {
+    communityCommentReactions,
+    communityComments,
+    communityMessages,
+    communityReactions,
+    roles,
+    userRoles,
+    users,
+  } = await import("@/db/schema");
   const pattern = searchPattern(options.query ?? "");
   const queryFilter = pattern
     ? or(like(communityMessages.message, pattern), like(users.displayName, pattern))
@@ -119,6 +142,18 @@ async function communityMessagesForViewer(
     if (!roleByUserId.has(row.userId)) roleByUserId.set(row.userId, row.role);
   }
 
+  const commentIds = commentRows.map((comment) => comment.id);
+  const commentReactionRows = commentIds.length
+    ? await db
+        .select({
+          commentId: communityCommentReactions.commentId,
+          userId: communityCommentReactions.userId,
+          reaction: communityCommentReactions.reaction,
+        })
+        .from(communityCommentReactions)
+        .where(inArray(communityCommentReactions.commentId, commentIds))
+    : [];
+
   const reactionsByMessageId = new Map<
     string,
     { likes: number; dislikes: number; viewerReaction: "like" | "dislike" | null }
@@ -137,8 +172,29 @@ async function communityMessagesForViewer(
 
   const commentsByMessageId = new Map<
     string,
-    Array<{ id: string; message: string; author: string; time: string }>
+    Array<{
+      id: string;
+      message: string;
+      author: string;
+      time: string;
+      reactions: { likes: number; dislikes: number; viewerReaction: "like" | "dislike" | null };
+    }>
   >();
+  const reactionsByCommentId = new Map<
+    string,
+    { likes: number; dislikes: number; viewerReaction: "like" | "dislike" | null }
+  >();
+  for (const row of commentReactionRows) {
+    const reaction = reactionsByCommentId.get(row.commentId) ?? {
+      likes: 0,
+      dislikes: 0,
+      viewerReaction: null,
+    };
+    if (row.reaction === "like") reaction.likes += 1;
+    else reaction.dislikes += 1;
+    if (row.userId === viewer.id) reaction.viewerReaction = row.reaction;
+    reactionsByCommentId.set(row.commentId, reaction);
+  }
   for (const comment of commentRows) {
     const comments = commentsByMessageId.get(comment.messageId) ?? [];
     comments.push({
@@ -146,6 +202,11 @@ async function communityMessagesForViewer(
       message: comment.message,
       author: comment.author,
       time: comment.createdAt.toISOString(),
+      reactions: reactionsByCommentId.get(comment.id) ?? {
+        likes: 0,
+        dislikes: 0,
+        viewerReaction: null,
+      },
     });
     commentsByMessageId.set(comment.messageId, comments);
   }
@@ -237,9 +298,18 @@ export const deleteCommunityMessage = createServerFn({ method: "POST" })
       throw new Error("You can only delete your own Community posts.");
 
     const { db } = await import("@/db/client.server");
-    const { communityComments, communityMessages, communityReactions } =
+    const { communityCommentReactions, communityComments, communityMessages, communityReactions } =
       await import("@/db/schema");
     await db.transaction(async (tx) => {
+      const comments = await tx
+        .select({ id: communityComments.id })
+        .from(communityComments)
+        .where(eq(communityComments.messageId, data.messageId));
+      if (comments.length) {
+        await tx
+          .delete(communityCommentReactions)
+          .where(inArray(communityCommentReactions.commentId, comments.map((comment) => comment.id)));
+      }
       await tx.delete(communityComments).where(eq(communityComments.messageId, data.messageId));
       await tx.delete(communityReactions).where(eq(communityReactions.messageId, data.messageId));
       await tx
@@ -313,6 +383,70 @@ export const removeCommunityReaction = createServerFn({ method: "POST" })
         ),
       );
     await writeAuditLog(user.id, "community.reaction.remove", "community_message", data.messageId);
+    return { removed: true };
+  });
+
+export const setCommunityCommentReaction = createServerFn({ method: "POST" })
+  .validator(commentReactionInput)
+  .handler(async ({ data }) => {
+    const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const user = await requireAnyRole(communityRoles);
+    const comment = await assertCommunityCommentExists(data.commentId);
+    const { db } = await import("@/db/client.server");
+    const { communityCommentReactions } = await import("@/db/schema");
+    const [previousReaction] = await db
+      .select({ reaction: communityCommentReactions.reaction })
+      .from(communityCommentReactions)
+      .where(
+        and(
+          eq(communityCommentReactions.commentId, data.commentId),
+          eq(communityCommentReactions.userId, user.id),
+        ),
+      );
+    await db
+      .insert(communityCommentReactions)
+      .values({
+        id: crypto.randomUUID(),
+        commentId: data.commentId,
+        userId: user.id,
+        reaction: data.reaction,
+      })
+      .onDuplicateKeyUpdate({ set: { reaction: data.reaction, updatedAt: new Date() } });
+    if (comment.authorId !== user.id && previousReaction?.reaction !== data.reaction) {
+      const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");
+      await notifyCommunityUsers(
+        {
+          title: `New ${data.reaction} on your comment`,
+          message: `${user.displayName} ${data.reaction}d your Community comment.`,
+        },
+        { userIds: [comment.authorId] },
+      );
+    }
+    await writeAuditLog(
+      user.id,
+      `community.comment_reaction.${data.reaction}`,
+      "community_comment",
+      data.commentId,
+    );
+    return { reaction: data.reaction };
+  });
+
+export const removeCommunityCommentReaction = createServerFn({ method: "POST" })
+  .validator(commentReactionRemovalInput)
+  .handler(async ({ data }) => {
+    const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const user = await requireAnyRole(communityRoles);
+    const { db } = await import("@/db/client.server");
+    const { communityCommentReactions } = await import("@/db/schema");
+    await db
+      .delete(communityCommentReactions)
+      .where(
+        and(
+          eq(communityCommentReactions.commentId, data.commentId),
+          eq(communityCommentReactions.userId, user.id),
+        ),
+      );
+    await writeAuditLog(user.id, "community.comment_reaction.remove", "community_comment", data.commentId);
     return { removed: true };
   });
 

@@ -197,6 +197,7 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
       authSessions,
       carts,
       cartItems,
+      communityCommentReactions,
       communityComments,
       communityMessages,
       communityReactions,
@@ -308,9 +309,38 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
         .where(eq(carts.buyerId, user.id));
 
       await tx.delete(communityReactions).where(eq(communityReactions.userId, user.id));
+      await tx.delete(communityCommentReactions).where(eq(communityCommentReactions.userId, user.id));
+      const authoredComments = await tx
+        .select({ id: communityComments.id })
+        .from(communityComments)
+        .where(eq(communityComments.authorId, user.id));
+      if (authoredComments.length) {
+        await tx
+          .delete(communityCommentReactions)
+          .where(
+            inArray(
+              communityCommentReactions.commentId,
+              authoredComments.map((comment) => comment.id),
+            ),
+          );
+      }
       await tx.delete(communityComments).where(eq(communityComments.authorId, user.id));
       if (authoredPostIds.length) {
         await tx.delete(communityReactions).where(inArray(communityReactions.messageId, authoredPostIds));
+        const postComments = await tx
+          .select({ id: communityComments.id })
+          .from(communityComments)
+          .where(inArray(communityComments.messageId, authoredPostIds));
+        if (postComments.length) {
+          await tx
+            .delete(communityCommentReactions)
+            .where(
+              inArray(
+                communityCommentReactions.commentId,
+                postComments.map((comment) => comment.id),
+              ),
+            );
+        }
         await tx.delete(communityComments).where(inArray(communityComments.messageId, authoredPostIds));
         await tx.delete(communityMessages).where(inArray(communityMessages.id, authoredPostIds));
       }
