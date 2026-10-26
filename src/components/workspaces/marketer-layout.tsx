@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   Boxes,
@@ -66,6 +66,7 @@ const marketerSections = [
 
 export function MarketerLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const marketer = useWorkspaceUser("Marketer");
   return (
     <RoleGate role="Marketer">
@@ -98,7 +99,11 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
                     <SidebarMenu>
                       {section.items.map((item) => (
                         <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton asChild tooltip={item.title}>
+                          <SidebarMenuButton
+                            asChild
+                            tooltip={item.title}
+                            isActive={pathname === item.to}
+                          >
                             <Link
                               to={item.to}
                               activeProps={{ className: "bg-primary/10 text-primary" }}
@@ -129,7 +134,7 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
             </div>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Profile">
+                <SidebarMenuButton asChild tooltip="Profile" isActive={pathname === "/marketer/profile"}>
                   <Link to="/marketer/profile">
                     <Settings />
                     <span>Profile</span>

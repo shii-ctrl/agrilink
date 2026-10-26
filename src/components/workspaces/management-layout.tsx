@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   Boxes,
@@ -64,6 +64,7 @@ const managementSections = [
 
 export function ManagementLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [managerName, setManagerName] = useState("Management");
 
   useEffect(() => {
@@ -103,7 +104,7 @@ export function ManagementLayout({ children }: { children: ReactNode }) {
                   <SidebarMenu>
                     {section.items.map((item) => (
                       <SidebarMenuItem key={item.label}>
-                        <SidebarMenuButton asChild tooltip={item.label}>
+                        <SidebarMenuButton asChild tooltip={item.label} isActive={pathname === item.to}>
                           <Link to={item.to} activeOptions={{ exact: true }}>
                             <item.icon />
                             <span>{item.label}</span>
@@ -131,7 +132,7 @@ export function ManagementLayout({ children }: { children: ReactNode }) {
             </div>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Profile">
+                <SidebarMenuButton asChild tooltip="Profile" isActive={pathname === "/management/profile"}>
                   <Link to="/management/profile">
                     <Settings />
                     <span>Profile</span>

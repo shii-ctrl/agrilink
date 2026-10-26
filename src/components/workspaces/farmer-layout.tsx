@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ClipboardList,
   LogOut,
@@ -36,6 +36,7 @@ const nav = [
 ] as const;
 export function FarmerLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const farmer = useWorkspaceUser("Farmer");
   return (
     <RoleGate role="Farmer">
@@ -59,7 +60,7 @@ export function FarmerLayout({ children }: { children: ReactNode }) {
                 <SidebarMenu>
                   {nav.map((item) => (
                     <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton asChild tooltip={item.label}>
+                      <SidebarMenuButton asChild tooltip={item.label} isActive={pathname === item.to}>
                         <Link to={item.to} activeOptions={{ exact: true }}>
                           <item.icon />
                           <span>{item.label}</span>
@@ -85,7 +86,7 @@ export function FarmerLayout({ children }: { children: ReactNode }) {
             </div>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Profile">
+                <SidebarMenuButton asChild tooltip="Profile" isActive={pathname === "/farmer/profile"}>
                   <Link to="/farmer/profile">
                     <UserRound />
                     <span>Profile</span>

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { ClipboardList, LogOut, MessageCircle, Sprout, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
@@ -28,6 +28,7 @@ const nav = [
 ] as const;
 export function ConsultantLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const consultant = useWorkspaceUser("Farm Consultant");
   return (
     <RoleGate role="Farm Consultant">
@@ -51,7 +52,7 @@ export function ConsultantLayout({ children }: { children: ReactNode }) {
                 <SidebarMenu>
                   {nav.map((item) => (
                     <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton asChild tooltip={item.label}>
+                      <SidebarMenuButton asChild tooltip={item.label} isActive={pathname === item.to}>
                         <Link to={item.to} activeOptions={{ exact: true }}>
                           <item.icon />
                           <span>{item.label}</span>
@@ -77,7 +78,7 @@ export function ConsultantLayout({ children }: { children: ReactNode }) {
             </div>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Profile">
+                <SidebarMenuButton asChild tooltip="Profile" isActive={pathname === "/consultant/profile"}>
                   <Link to="/consultant/profile">
                     <UserRound />
                     <span>Profile</span>

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { LogOut, MessageCircle, ShoppingBag, ShoppingCart, Store, UserRound } from "lucide-react";
 import { type ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
@@ -29,6 +29,7 @@ const nav = [
 ] as const;
 export function BuyerLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const buyer = useWorkspaceUser("Buyer");
   return (
     <RoleGate role="Buyer">
@@ -52,7 +53,7 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
                 <SidebarMenu>
                   {nav.map((item) => (
                     <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton asChild tooltip={item.label}>
+                      <SidebarMenuButton asChild tooltip={item.label} isActive={pathname === item.to}>
                         <Link to={item.to} activeOptions={{ exact: true }}>
                           <item.icon />
                           <span>{item.label}</span>
@@ -78,7 +79,7 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
             </div>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Profile">
+                <SidebarMenuButton asChild tooltip="Profile" isActive={pathname === "/buyer/profile"}>
                   <Link to="/buyer/profile">
                     <UserRound />
                     <span>Profile</span>

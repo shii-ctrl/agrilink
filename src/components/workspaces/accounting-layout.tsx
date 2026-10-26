@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   CircleDollarSign,
@@ -40,6 +40,7 @@ const navigation = [
 
 export function AccountingLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const accountant = useWorkspaceUser("Accounting");
   return (
     <RoleGate role="Accounting">
@@ -63,7 +64,7 @@ export function AccountingLayout({ children }: { children: ReactNode }) {
                 <SidebarMenu>
                   {navigation.map((item) => (
                     <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton asChild tooltip={item.label}>
+                      <SidebarMenuButton asChild tooltip={item.label} isActive={pathname === item.to}>
                         <Link to={item.to} activeOptions={{ exact: true }}>
                           <item.icon />
                           <span>{item.label}</span>
@@ -89,7 +90,7 @@ export function AccountingLayout({ children }: { children: ReactNode }) {
             </div>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Profile">
+                <SidebarMenuButton asChild tooltip="Profile" isActive={pathname === "/accounting/profile"}>
                   <Link to="/accounting/profile">
                     <Settings />
                     <span>Profile</span>
