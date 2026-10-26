@@ -32,7 +32,6 @@ const communityRoles = [
   "Accounting",
   "Farmer",
   "Farm Consultant",
-  "Buyer",
 ];
 
 async function assertCommunityMessageExists(messageId: string) {

@@ -8,7 +8,6 @@ const communityRoles = [
   "Accounting",
   "Farmer",
   "Farm Consultant",
-  "Buyer",
 ] as const;
 
 const communityTargetByRole: Record<(typeof communityRoles)[number], string> = {
@@ -17,7 +16,6 @@ const communityTargetByRole: Record<(typeof communityRoles)[number], string> = {
   Accounting: "/accounting/community",
   Farmer: "/farmer/community",
   "Farm Consultant": "/consultant/community",
-  Buyer: "/buyer/community",
 };
 
 export async function notifyUser(userId: string, details: NotificationDetails) {

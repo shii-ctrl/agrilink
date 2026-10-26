@@ -9,13 +9,14 @@ function BuyerCommunityPage() {
   return (
     <BuyerLayout>
       <BuyerPageHeader
-        title="Community"
-        description="Share marketplace updates and read saved private messages from AgriLink staff."
+        title="Private messages"
+        description="Read and reply to saved marketplace messages from the AgriLink team."
       />
       <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
         <CommunityWorkspace
           postTitle="Share a community update"
           placeholder="What is on your mind? Share an update with the AgriLink community..."
+          messagesOnly
         />
       </main>
     </BuyerLayout>

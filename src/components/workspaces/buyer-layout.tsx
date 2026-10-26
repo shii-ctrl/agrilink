@@ -25,7 +25,7 @@ const nav = [
   { label: "Browse Products", to: "/marketplace", icon: Store },
   { label: "My Cart", to: "/buyer/cart", icon: ShoppingCart },
   { label: "My Orders", to: "/buyer/orders", icon: ShoppingBag },
-  { label: "Community", to: "/buyer/community", icon: MessageCircle },
+  { label: "Messages", to: "/buyer/community", icon: MessageCircle },
 ] as const;
 export function BuyerLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();

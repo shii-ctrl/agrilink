@@ -7,9 +7,18 @@ import { DirectMessagesPanel } from "@/features/messaging/components/direct-mess
 type CommunityWorkspaceProps = {
   postTitle: string;
   placeholder: string;
+  messagesOnly?: boolean;
 };
 
-export function CommunityWorkspace({ postTitle, placeholder }: CommunityWorkspaceProps) {
+export function CommunityWorkspace({
+  postTitle,
+  placeholder,
+  messagesOnly = false,
+}: CommunityWorkspaceProps) {
+  if (messagesOnly) {
+    return <DirectMessagesPanel />;
+  }
+
   return (
     <Tabs defaultValue="feed">
       <TabsList className="h-auto rounded-2xl p-1">

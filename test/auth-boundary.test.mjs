@@ -384,7 +384,7 @@ test("role workflows keep catalog, cart, and Farmer stock states consistent", as
   assert.match(notifications, /eq\(users\.active, true\)/);
 });
 
-test("reordered carts, community access, and crop guidance protect role boundaries", async () => {
+test("reordered carts, community-feed access, and crop guidance protect role boundaries", async () => {
   const [marketplace, community, guidance, admin, migration] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/services/messaging/community-server-functions.ts", "utf8"),
@@ -398,7 +398,7 @@ test("reordered carts, community access, and crop guidance protect role boundari
   assert.match(marketplace, /One or more products from this order are no longer available/);
   assert.match(community, /const communityRoles = \[/);
   assert.match(community, /"Accounting"/);
-  assert.match(community, /"Buyer"/);
+  assert.doesNotMatch(community, /"Buyer"/);
   assert.match(guidance, /farmerConsultantAssignments/);
   assert.match(guidance, /not assigned to your guidance workspace/);
   assert.match(admin, /export const setGuidanceAssignment/);
@@ -416,6 +416,7 @@ test("private messages enforce the Community role recipient rules", async () => 
   assert.match(directMessages, /Management.*Marketer.*Accounting.*Farm Consultant/s);
   assert.match(directMessages, /Marketer.*Farmer.*Buyer/s);
   assert.match(directMessages, /viewer\.roles\.includes\("Farmer"\)[\s\S]*?addRoleRecipients\(\["Farmer"\]\)/);
+  assert.match(directMessages, /viewer\.roles\.includes\("Buyer"\) && existingIds\.has\(row\.id\)/);
   assert.match(directMessages, /farmerConsultantAssignments/);
   assert.match(directMessages, /export const getDirectConversation/);
   assert.match(directMessages, /export const sendDirectMessage/);

@@ -114,7 +114,10 @@ async function contactsForViewer(viewer: MessagingUser): Promise<Contact[]> {
       name: row.name,
       role: "AgriLink member",
       roles: [],
-      canSend: allowedIds.has(row.id),
+      // Buyers cannot begin a new thread, but they may reply after a permitted
+      // marketplace user has contacted them. This keeps Buyer messaging private
+      // without allowing them to message unrelated accounts.
+      canSend: allowedIds.has(row.id) || (viewer.roles.includes("Buyer") && existingIds.has(row.id)),
     };
     current.roles.push(row.role);
     current.role = displayRole(current.roles);
