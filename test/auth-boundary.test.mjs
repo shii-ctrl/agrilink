@@ -470,6 +470,9 @@ test("Community comments support foldable nested replies", async () => {
   assert.match(feed, /parentCommentId: replyTarget\?\.id/);
   assert.match(service, /parentCommentId: z\.string\(\)\.uuid\(\)\.optional\(\)/);
   assert.match(service, /Replies must belong to a top-level comment/);
+  assert.match(service, /export const deleteCommunityComment/);
+  assert.match(service, /You can only delete your own Community comments and replies/);
+  assert.match(feed, /Delete your comment/);
   assert.match(migration, /parent_comment_id/);
   assert.match(migration, /fk_community_comment_parent/);
 });

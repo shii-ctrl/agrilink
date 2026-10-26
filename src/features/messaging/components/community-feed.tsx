@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import {
   getCommunityMessages,
   getMyCommunityMessages,
+  deleteCommunityComment,
   deleteCommunityMessage,
   postCommunityComment,
   postCommunityMessage,
@@ -49,6 +50,7 @@ type CommunityCommentCardProps = {
   replyCount?: number;
   repliesOpen?: boolean;
   onReaction: (comment: CommunityComment, reaction: "like" | "dislike") => void;
+  onDelete?: (() => void) | undefined;
   onReply?: (() => void) | undefined;
   onToggleReplies?: (() => void) | undefined;
   children?: ReactNode;
@@ -60,6 +62,7 @@ function CommunityCommentCard({
   replyCount = 0,
   repliesOpen = false,
   onReaction,
+  onDelete,
   onReply,
   onToggleReplies,
   children,
@@ -128,6 +131,21 @@ function CommunityCommentCard({
             {repliesOpen ? "Hide" : "Show"} {replyCount} {replyCount === 1 ? "reply" : "replies"}
           </Button>
         )}
+        {onDelete && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="size-8 rounded-full p-0 text-destructive hover:text-destructive"
+            disabled={busy}
+            aria-label="Delete your comment"
+            title="Delete your comment"
+            onClick={onDelete}
+          >
+            <Trash2 className="size-4" />
+            <span className="sr-only">Delete your comment</span>
+          </Button>
+        )}
       </div>
       {children}
     </div>
@@ -150,6 +168,7 @@ export function CommunityFeed({
   const [busyPost, setBusyPost] = useState(false);
   const [busyReactionId, setBusyReactionId] = useState<string | null>(null);
   const [busyCommentReactionId, setBusyCommentReactionId] = useState<string | null>(null);
+  const [busyCommentDeleteId, setBusyCommentDeleteId] = useState<string | null>(null);
   const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
@@ -269,6 +288,29 @@ export function CommunityFeed({
       );
     } finally {
       setBusyCommentReactionId(null);
+    }
+  };
+
+  const deleteComment = async (comment: CommunityComment) => {
+    if (
+      !(await requestConfirmation({
+        title: "Delete your comment?",
+        description:
+          "This permanently removes your comment. Replies from other people will stay visible as comments.",
+        confirmLabel: "Delete comment",
+        destructive: true,
+      }))
+    )
+      return;
+    setBusyCommentDeleteId(comment.id);
+    try {
+      await deleteCommunityComment({ data: { commentId: comment.id } });
+      await load();
+      toast.success("Your comment was deleted.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete your comment.");
+    } finally {
+      setBusyCommentDeleteId(null);
     }
   };
 
@@ -610,10 +652,13 @@ export function CommunityFeed({
                             <CommunityCommentCard
                               key={comment.id}
                               comment={comment}
-                              busy={busyCommentReactionId === comment.id}
+                              busy={
+                                busyCommentReactionId === comment.id || busyCommentDeleteId === comment.id
+                              }
                               replyCount={replies.length}
                               repliesOpen={repliesOpen}
                               onReaction={reactToComment}
+                              onDelete={comment.isOwner ? () => void deleteComment(comment) : undefined}
                               onReply={() => {
                                 setReplyTargets((current) => ({ ...current, [message.id]: comment.id }));
                                 setExpandedReplies((current) => ({ ...current, [comment.id]: true }));
@@ -635,8 +680,14 @@ export function CommunityFeed({
                                     <CommunityCommentCard
                                       key={reply.id}
                                       comment={reply}
-                                      busy={busyCommentReactionId === reply.id}
+                                      busy={
+                                        busyCommentReactionId === reply.id ||
+                                        busyCommentDeleteId === reply.id
+                                      }
                                       onReaction={reactToComment}
+                                      onDelete={
+                                        reply.isOwner ? () => void deleteComment(reply) : undefined
+                                      }
                                     />
                                   ))}
                                 </div>

@@ -18,6 +18,7 @@ const commentReactionInput = z.object({
   reaction: z.enum(["like", "dislike"]),
 });
 const commentReactionRemovalInput = z.object({ commentId: z.string().uuid() });
+const commentRemovalInput = z.object({ commentId: z.string().uuid() });
 const communityFeedInput = z.object({
   query: z.string().trim().max(120).default(""),
   offset: z.number().int().min(0).max(100_000).default(0),
@@ -134,6 +135,7 @@ async function communityMessagesForViewer(
         id: communityComments.id,
         messageId: communityComments.messageId,
         parentCommentId: communityComments.parentCommentId,
+        authorId: communityComments.authorId,
         message: communityComments.message,
         createdAt: communityComments.createdAt,
         author: users.displayName,
@@ -183,6 +185,7 @@ async function communityMessagesForViewer(
       id: string;
       message: string;
       parentCommentId: string | null;
+      isOwner: boolean;
       author: string;
       time: string;
       reactions: { likes: number; dislikes: number; viewerReaction: "like" | "dislike" | null };
@@ -209,6 +212,7 @@ async function communityMessagesForViewer(
       id: comment.id,
       message: comment.message,
       parentCommentId: comment.parentCommentId,
+      isOwner: comment.authorId === viewer.id,
       author: comment.author,
       time: comment.createdAt.toISOString(),
       reactions: reactionsByCommentId.get(comment.id) ?? {
@@ -457,6 +461,31 @@ export const removeCommunityCommentReaction = createServerFn({ method: "POST" })
       );
     await writeAuditLog(user.id, "community.comment_reaction.remove", "community_comment", data.commentId);
     return { removed: true };
+  });
+
+export const deleteCommunityComment = createServerFn({ method: "POST" })
+  .validator(commentRemovalInput)
+  .handler(async ({ data }) => {
+    const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const author = await requireAnyRole(communityRoles);
+    const comment = await assertCommunityCommentExists(data.commentId);
+    if (comment.authorId !== author.id) {
+      throw new Error("You can only delete your own Community comments and replies.");
+    }
+    const { db } = await import("@/db/client.server");
+    const { communityCommentReactions, communityComments } = await import("@/db/schema");
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(communityCommentReactions)
+        .where(eq(communityCommentReactions.commentId, data.commentId));
+      await tx
+        .delete(communityComments)
+        .where(
+          and(eq(communityComments.id, data.commentId), eq(communityComments.authorId, author.id)),
+        );
+    });
+    await writeAuditLog(author.id, "community.comment.delete", "community_comment", data.commentId);
+    return { id: data.commentId };
   });
 
 export const postCommunityComment = createServerFn({ method: "POST" })
