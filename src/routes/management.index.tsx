@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   Pie,
@@ -293,34 +291,8 @@ function ManagementDashboard() {
               </article>
             </section>
 
-            <section className="mt-6 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
+            <section className="mt-6 grid gap-6 lg:grid-cols-3">
               <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold">Stock added by product</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {isAllTime
-                        ? "Quantities added across all saved days. Top 10 products are shown."
-                        : "Quantities added on the selected day. Top 10 products are shown."}
-                    </p>
-                  </div>
-                  <PackageOpen className="size-5 shrink-0 text-primary" />
-                </div>
-                <div className="mt-6 h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={report?.dashboard.stockByProduct ?? []} margin={{ left: -12, right: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                      <YAxis unit=" kg" tickLine={false} axisLine={false} />
-                      <Tooltip formatter={(value: number) => [`${value} kg`, "Available stock"]} />
-                      <Bar dataKey="value" name="Available stock" fill="var(--primary)" radius={[7, 7, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </article>
-
-              <div className="grid gap-6">
-                <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="text-lg font-semibold">Stock quality</h2>
@@ -369,29 +341,28 @@ function ManagementDashboard() {
                       ))}
                     </div>
                   </div>
-                </article>
-                <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
-                  <h2 className="text-lg font-semibold">Decision support</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Compare supply, reserved demand, sales, and payment records in Management Reports.
-                    The dashboard keeps every day's data available through the date picker.
-                  </p>
-                </article>
-                <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
-                  <div className="flex items-start gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-                      <PackageOpen className="size-5" />
-                    </span>
-                    <div>
-                      <h2 className="text-lg font-semibold">Controlled operations</h2>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Review users, receiving, products, sales, transactions, and reports from the
-                        sidebar. Changes remain traceable in the database.
-                      </p>
-                    </div>
+              </article>
+              <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
+                <h2 className="text-lg font-semibold">Decision support</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Compare supply, reserved demand, sales, and payment records in Management Reports.
+                  The dashboard keeps every day's data available through the date picker.
+                </p>
+              </article>
+              <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
+                <div className="flex items-start gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                    <PackageOpen className="size-5" />
+                  </span>
+                  <div>
+                    <h2 className="text-lg font-semibold">Controlled operations</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Review users, receiving, products, sales, transactions, and reports from the
+                      sidebar. Changes remain traceable in the database.
+                    </p>
                   </div>
-                </article>
-              </div>
+                </div>
+              </article>
             </section>
           </>
         )}

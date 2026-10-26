@@ -1786,15 +1786,6 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
         .filter((row) => row.classification === classification)
         .reduce((total, row) => total + row.addedKg, 0),
     }));
-    const stockByProduct = [...selectedStockActivity
-      .reduce((grouped, row) => {
-        grouped.set(row.name, (grouped.get(row.name) ?? 0) + row.addedKg);
-        return grouped;
-      }, new Map<string, number>())]
-      .map(([name, value]) => ({ name, value }))
-      .filter((item) => item.value > 0)
-      .sort((first, second) => second.value - first.value)
-      .slice(0, 10);
     const activityByHour = new Map<number, { orders: number; sales: number }>();
     for (let hour = 0; hour < 24; hour += 1) activityByHour.set(hour, { orders: 0, sales: 0 });
     for (const order of selectedOrders) {
@@ -1894,7 +1885,7 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       ],
       paymentTotal: salesAmount,
       paymentCount: selectedPayments.length,
-      dashboard: { activity, inventoryFlow, quality, stockByProduct, recentActivity },
+      dashboard: { activity, inventoryFlow, quality, recentActivity },
     };
   });
 
