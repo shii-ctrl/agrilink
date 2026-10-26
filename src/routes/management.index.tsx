@@ -63,12 +63,14 @@ function activityStyle(kind: string) {
 function ManagementDashboard() {
   const today = manilaDateValue();
   const [selectedDate, setSelectedDate] = useState(today);
-  const [range, setRange] = useState<"day" | "all">("day");
+  const [range, setRange] = useState<"day" | "month" | "all">("day");
+  const isMonthly = range === "month";
   const isAllTime = range === "all";
   const request = useCallback(
     () =>
       getManagementDashboard({
-        data: range === "all" ? { range: "all" } : { range: "day", date: selectedDate },
+        data:
+          range === "all" ? { range: "all" } : range === "month" ? { range: "month" } : { range: "day", date: selectedDate },
       }),
     [range, selectedDate],
   );
@@ -119,11 +121,17 @@ function ManagementDashboard() {
                   <Database className="mt-0.5 size-5 shrink-0" />
                   <div>
                     <h2 className="font-semibold">
-                      {isAllTime ? "All-time operational data" : "Daily operational data"}
+                      {isAllTime
+                        ? "All-time operational data"
+                        : isMonthly
+                          ? "This month's operational data"
+                          : "Daily operational data"}
                     </h2>
                     <p className="mt-1 opacity-85">
                       {isAllTime
                         ? "This view includes every saved operational record. Inventory flow is grouped by calendar month."
+                        : isMonthly
+                          ? "This view groups live operational records by day for the current month."
                         : "This dashboard starts on today and refreshes as records are saved. Choose an earlier date to review its saved history."}
                     </p>
                   </div>
@@ -136,7 +144,7 @@ function ManagementDashboard() {
                       setRange("day");
                     }}
                     max={today}
-                    disabled={isAllTime}
+                    disabled={isMonthly || isAllTime}
                     ariaLabel="Choose dashboard date"
                     className="sm:min-w-44"
                   />
@@ -144,7 +152,7 @@ function ManagementDashboard() {
                     type="button"
                     variant="outline"
                     className="rounded-xl"
-                    disabled={!isAllTime && selectedDate === today}
+                    disabled={range === "day" && selectedDate === today}
                     onClick={() => {
                       setSelectedDate(today);
                       setRange("day");
@@ -154,13 +162,22 @@ function ManagementDashboard() {
                   </Button>
                   <Button
                     type="button"
+                    variant={isMonthly ? "default" : "outline"}
+                    className="rounded-xl"
+                    disabled={isMonthly}
+                    onClick={() => {
+                      setSelectedDate(today);
+                      setRange("month");
+                    }}
+                  >
+                    This month
+                  </Button>
+                  <Button
+                    type="button"
                     variant={isAllTime ? "default" : "outline"}
                     className="rounded-xl"
                     disabled={isAllTime}
-                    onClick={() => {
-                      setSelectedDate(today);
-                      setRange("all");
-                    }}
+                    onClick={() => setRange("all")}
                   >
                     All time
                   </Button>
@@ -173,12 +190,22 @@ function ManagementDashboard() {
                 <div>
                   <h2 className="text-lg font-semibold">Operational overview</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {isAllTime ? "Saved results across all time." : "Saved results for the selected day."}
+                    {isAllTime
+                      ? "Saved results across all time."
+                      : isMonthly
+                        ? "Saved results for the current month."
+                        : "Saved results for the selected day."}
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
                   <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
-                  {report?.range === "all" ? "All time" : report?.date === today ? "Today" : "Historical day"}
+                  {report?.range === "all"
+                    ? "All time"
+                    : report?.range === "month"
+                      ? "This month"
+                      : report?.date === today
+                        ? "Today"
+                        : "Historical day"}
                 </span>
               </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -205,6 +232,8 @@ function ManagementDashboard() {
                     <p className="mt-1 text-sm text-muted-foreground">
                       {isAllTime
                         ? "Monthly movement of received and classified products across all saved operations."
+                        : isMonthly
+                          ? "Daily movement of received and classified products this month."
                         : "Movement of received and classified products through your operations."}
                     </p>
                   </div>
@@ -231,7 +260,9 @@ function ManagementDashboard() {
                         dataKey="label"
                         interval={isAllTime
                           ? Math.max(0, Math.ceil((report?.dashboard.inventoryFlow.length ?? 1) / 6) - 1)
-                          : 3}
+                          : isMonthly
+                            ? 4
+                            : 3}
                         tickLine={false}
                         axisLine={false}
                         height={38}
@@ -322,6 +353,8 @@ function ManagementDashboard() {
                       <p className="mt-1 text-sm text-muted-foreground">
                         {isAllTime
                           ? "Classified stock recorded across all time."
+                          : isMonthly
+                            ? "Classified stock added this month."
                           : "Classified stock added on the selected day."}
                       </p>
                     </div>

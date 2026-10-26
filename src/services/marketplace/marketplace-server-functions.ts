@@ -46,7 +46,7 @@ const dailyPriceStatusInput = z.object({
   published: z.boolean(),
 });
 const managementDashboardInput = z.object({
-  range: z.enum(["day", "all"]),
+  range: z.enum(["day", "month", "all"]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid dashboard date.").optional(),
 });
 const listingPricingFields = {
@@ -1708,7 +1708,7 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
   };
 });
 
-/** Builds a daily or all-time Management view from saved operational records. */
+/** Builds daily, current-month, and all-time Management views from saved operational records. */
 export const getManagementDashboard = createServerFn({ method: "GET" })
   .validator(managementDashboardInput)
   .handler(async ({ data }) => {
@@ -1732,9 +1732,24 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
     // dashboard periods consistent for users and for the Vercel server runtime.
     const dayStart = data.date ? new Date(`${data.date}T00:00:00+08:00`) : null;
     const dayEnd = dayStart ? new Date(dayStart.getTime() + 24 * 60 * 60 * 1000) : null;
+    const currentManilaMonth = Object.fromEntries(
+      new Intl.DateTimeFormat("en", {
+        timeZone: "Asia/Manila",
+        year: "numeric",
+        month: "2-digit",
+      })
+        .formatToParts(new Date())
+        .map((part) => [part.type, part.value]),
+    );
+    const monthStart = new Date(
+      `${currentManilaMonth.year}-${currentManilaMonth.month}-01T00:00:00+08:00`,
+    );
+    const monthEnd = new Date(monthStart);
+    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
     const occursInSelectedPeriod = (date: Date | null) => {
       if (!date) return false;
       if (data.range === "all") return true;
+      if (data.range === "month") return date >= monthStart && date < monthEnd;
       return Boolean(dayStart && dayEnd && date >= dayStart && date < dayEnd);
     };
 
@@ -1782,7 +1797,8 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       });
     const stockKg = selectedStockActivity.reduce((total, row) => total + row.addedKg, 0);
     const salesAmount = selectedPayments.reduce((total, payment) => total + Number(payment.amount), 0);
-    const periodLabel = data.range === "all" ? "across all time" : "on this day";
+    const periodLabel =
+      data.range === "all" ? "across all time" : data.range === "month" ? "this month" : "on this day";
     const qualityOrder = ["Good", "Semi", "Reject"] as const;
     const quality = qualityOrder.map((classification) => ({
       name: classification,
@@ -1839,6 +1855,19 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
         ...value,
       }));
     };
+    const dailyActivity = () => {
+      const daysInMonth = Math.round((monthEnd.getTime() - monthStart.getTime()) / 86_400_000);
+      const byDay = new Map<number, { orders: number; sales: number }>();
+      for (let day = 1; day <= daysInMonth; day += 1) byDay.set(day, { orders: 0, sales: 0 });
+      const dayOfMonth = (date: Date) =>
+        Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", day: "numeric" }).format(date));
+      for (const order of selectedOrders) byDay.get(dayOfMonth(order.createdAt))!.orders += 1;
+      for (const sale of selectedSales) {
+        if (sale.soldAt) byDay.get(dayOfMonth(sale.soldAt))!.sales += 1;
+      }
+      const monthName = new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", month: "short" }).format(monthStart);
+      return [...byDay.entries()].map(([day, value]) => ({ label: `${monthName} ${day}`, ...value }));
+    };
     const monthlyActivity = () => {
       const keys = monthKeysBetween([
         ...selectedOrders.map((row) => row.createdAt),
@@ -1851,7 +1880,8 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       }
       return [...byMonth.entries()].map(([key, value]) => ({ label: monthLabel(key), ...value }));
     };
-    const activity = data.range === "all" ? monthlyActivity() : hourlyActivity();
+    const activity =
+      data.range === "all" ? monthlyActivity() : data.range === "month" ? dailyActivity() : hourlyActivity();
     const hourlyInventoryFlow = () => {
       const byHour = new Map<number, { stock: number; supply: number }>();
       for (let hour = 0; hour < 24; hour += 1) byHour.set(hour, { stock: 0, supply: 0 });
@@ -1868,6 +1898,17 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
         ...value,
       }));
     };
+    const dailyInventoryFlow = () => {
+      const daysInMonth = Math.round((monthEnd.getTime() - monthStart.getTime()) / 86_400_000);
+      const byDay = new Map<number, { stock: number; supply: number }>();
+      for (let day = 1; day <= daysInMonth; day += 1) byDay.set(day, { stock: 0, supply: 0 });
+      const dayOfMonth = (date: Date) =>
+        Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", day: "numeric" }).format(date));
+      for (const row of selectedStockActivity) byDay.get(dayOfMonth(row.createdAt))!.stock += row.addedKg;
+      for (const row of selectedReceiving) byDay.get(dayOfMonth(row.receivedAt))!.supply += Number(row.totalKg);
+      const monthName = new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", month: "short" }).format(monthStart);
+      return [...byDay.entries()].map(([day, value]) => ({ label: `${monthName} ${day}`, ...value }));
+    };
     const monthlyInventoryFlow = () => {
       const keys = monthKeysBetween([
         ...selectedStockActivity.map((row) => row.createdAt),
@@ -1882,7 +1923,12 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       }
       return [...byMonth.entries()].map(([key, value]) => ({ label: monthLabel(key), ...value }));
     };
-    const inventoryFlow = data.range === "all" ? monthlyInventoryFlow() : hourlyInventoryFlow();
+    const inventoryFlow =
+      data.range === "all"
+        ? monthlyInventoryFlow()
+        : data.range === "month"
+          ? dailyInventoryFlow()
+          : hourlyInventoryFlow();
     const recentActivity = [
       ...selectedReceiving.map((row) => ({
         kind: "receiving",
