@@ -454,7 +454,8 @@ test("community reactions and comments are saved with role checks", async () => 
 
 test("Community comments provide a direct reply action", async () => {
   const feed = await readFile("src/features/messaging/components/community-feed.tsx", "utf8");
-  assert.match(feed, /Reply to \{comment\.author\}/);
+  assert.match(feed, /<Reply className="size-4" \/>/);
+  assert.match(feed, /aria-label=\{`Reply to \$\{comment\.author\}`\}/);
   assert.match(feed, /@\$\{comment\.author\}/);
   assert.match(feed, /Write a comment or reply/);
 });

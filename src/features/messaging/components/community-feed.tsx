@@ -4,6 +4,7 @@ import {
   Pencil,
   Radio,
   RefreshCw,
+  Reply,
   Search,
   Send,
   ThumbsDown,
@@ -500,7 +501,9 @@ export function CommunityFeed({
                               type="button"
                               variant="ghost"
                               size="sm"
-                              className="mt-2 h-auto rounded-full px-2 py-1 text-xs"
+                              className="mt-2 size-8 rounded-full p-0"
+                              aria-label={`Reply to ${comment.author}`}
+                              title={`Reply to ${comment.author}`}
                               onClick={() => {
                                 setCommentDrafts((current) => {
                                   const mention = `@${comment.author} `;
@@ -513,7 +516,8 @@ export function CommunityFeed({
                                 window.setTimeout(() => commentInputRefs.current[message.id]?.focus());
                               }}
                             >
-                              Reply to {comment.author}
+                              <Reply className="size-4" />
+                              <span className="sr-only">Reply to {comment.author}</span>
                             </Button>
                           </div>
                         ))}
