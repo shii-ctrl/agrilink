@@ -212,7 +212,10 @@ function ManagementDashboard() {
                 </div>
                 <div className="mt-6 h-72">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={report?.dashboard.inventoryFlow ?? []} margin={{ left: -12, right: 8 }}>
+                    <AreaChart
+                      data={report?.dashboard.inventoryFlow ?? []}
+                      margin={{ top: 8, right: 16, bottom: 10, left: 8 }}
+                    >
                       <defs>
                         <linearGradient id="management-stock-fill" x1="0" x2="0" y1="0" y2="1">
                           <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
@@ -224,8 +227,23 @@ function ManagementDashboard() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" interval={isMonthly ? 4 : 3} tickLine={false} axisLine={false} />
-                      <YAxis unit=" kg" allowDecimals={false} tickLine={false} axisLine={false} />
+                      <XAxis
+                        dataKey="label"
+                        interval={isMonthly ? 4 : 3}
+                        tickLine={false}
+                        axisLine={false}
+                        height={38}
+                        tickMargin={10}
+                        padding={{ left: 12, right: 12 }}
+                      />
+                      <YAxis
+                        unit=" kg"
+                        allowDecimals={false}
+                        tickLine={false}
+                        axisLine={false}
+                        width={58}
+                        tickMargin={10}
+                      />
                       <Tooltip
                         formatter={(value: number, name: string) => [
                           `${value} kg`,
