@@ -68,6 +68,7 @@ export function CommunityFeed({
   const messagesRef = useRef<CommunityPost[]>([]);
   const nextOffsetRef = useRef<number | null>(null);
   const hasMoreRef = useRef(false);
+  const commentInputRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
   useEffect(() => {
     const debounce = window.setTimeout(() => setSearchQuery(search.trim()), 250);
@@ -495,6 +496,25 @@ export function CommunityFeed({
                             <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                               {comment.message}
                             </p>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="mt-2 h-auto rounded-full px-2 py-1 text-xs"
+                              onClick={() => {
+                                setCommentDrafts((current) => {
+                                  const mention = `@${comment.author} `;
+                                  const draft = current[message.id]?.trim() ?? "";
+                                  return {
+                                    ...current,
+                                    [message.id]: draft ? `${mention}${draft}` : mention,
+                                  };
+                                });
+                                window.setTimeout(() => commentInputRefs.current[message.id]?.focus());
+                              }}
+                            >
+                              Reply to {comment.author}
+                            </Button>
                           </div>
                         ))}
                       </div>
@@ -523,6 +543,9 @@ export function CommunityFeed({
                       }}
                     >
                       <Textarea
+                        ref={(element) => {
+                          commentInputRefs.current[message.id] = element;
+                        }}
                         value={commentDraft}
                         onChange={(event) =>
                           setCommentDrafts((current) => ({
@@ -530,7 +553,7 @@ export function CommunityFeed({
                             [message.id]: event.target.value,
                           }))
                         }
-                        placeholder="Write a comment..."
+                        placeholder="Write a comment or reply..."
                         maxLength={2_000}
                         rows={2}
                         required

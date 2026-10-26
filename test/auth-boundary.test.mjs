@@ -452,6 +452,13 @@ test("community reactions and comments are saved with role checks", async () => 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS community_comments/);
 });
 
+test("Community comments provide a direct reply action", async () => {
+  const feed = await readFile("src/features/messaging/components/community-feed.tsx", "utf8");
+  assert.match(feed, /Reply to \{comment\.author\}/);
+  assert.match(feed, /@\$\{comment\.author\}/);
+  assert.match(feed, /Write a comment or reply/);
+});
+
 test("Community search and owner-only post controls are available in the feed", async () => {
   const feed = await readFile("src/features/messaging/components/community-feed.tsx", "utf8");
   assert.match(feed, /Search Community by post or author/);
