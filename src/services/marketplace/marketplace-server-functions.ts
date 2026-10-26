@@ -1774,7 +1774,7 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       .flatMap((movement) => {
         const stock = stockById.get(movement.inventoryId);
         return stock
-          ? [{ ...stock, addedKg: Number(movement.availableChangeKg) }]
+          ? [{ ...stock, addedKg: Number(movement.availableChangeKg), createdAt: movement.createdAt }]
           : [];
       });
     const stockKg = selectedStockActivity.reduce((total, row) => total + row.addedKg, 0);
@@ -1810,6 +1810,62 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       label: `${hour === 0 || hour === 12 ? 12 : hour % 12} ${hour < 12 ? "AM" : "PM"}`,
       ...value,
     }));
+    const inventoryFlowByHour = new Map<number, { stock: number; supply: number }>();
+    for (let hour = 0; hour < 24; hour += 1) {
+      inventoryFlowByHour.set(hour, { stock: 0, supply: 0 });
+    }
+    for (const row of selectedStockActivity) {
+      const hour = (row.createdAt.getUTCHours() + 8) % 24;
+      inventoryFlowByHour.get(hour)!.stock += row.addedKg;
+    }
+    for (const row of selectedReceiving) {
+      const hour = (row.receivedAt.getUTCHours() + 8) % 24;
+      inventoryFlowByHour.get(hour)!.supply += Number(row.totalKg);
+    }
+    const inventoryFlow = [...inventoryFlowByHour.entries()].map(([hour, value]) => ({
+      label: `${hour === 0 || hour === 12 ? 12 : hour % 12} ${hour < 12 ? "AM" : "PM"}`,
+      ...value,
+    }));
+    const recentActivity = [
+      ...selectedReceiving.map((row) => ({
+        kind: "receiving",
+        title: "Farmer delivery recorded",
+        detail: `${Number(row.totalKg)} kg added to receiving`,
+        time: row.receivedAt.toISOString(),
+      })),
+      ...selectedOrders.map((row) => ({
+        kind: "order",
+        title: "Buyer order received",
+        detail: "New marketplace order created",
+        time: row.createdAt.toISOString(),
+      })),
+      ...selectedSales.flatMap((row) =>
+        row.soldAt
+          ? [
+              {
+                kind: "sale",
+                title: "Sale recorded",
+                detail: "PROCY order marked as sold",
+                time: row.soldAt.toISOString(),
+              },
+            ]
+          : [],
+      ),
+      ...selectedPayments.map((row) => ({
+        kind: "payment",
+        title: "Payment recorded",
+        detail: `₱${Number(row.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })} payment entry added`,
+        time: row.paidAt.toISOString(),
+      })),
+      ...selectedStockActivity.map((row) => ({
+        kind: "stock",
+        title: "Marketplace stock updated",
+        detail: `${row.addedKg} kg classified stock added`,
+        time: row.createdAt.toISOString(),
+      })),
+    ]
+      .sort((first, second) => new Date(second.time).getTime() - new Date(first.time).getTime())
+      .slice(0, 5);
 
     return {
       range: data.range,
@@ -1838,7 +1894,7 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       ],
       paymentTotal: salesAmount,
       paymentCount: selectedPayments.length,
-      dashboard: { activity, quality, stockByProduct },
+      dashboard: { activity, inventoryFlow, quality, stockByProduct, recentActivity },
     };
   });
 

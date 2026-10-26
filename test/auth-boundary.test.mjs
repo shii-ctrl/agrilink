@@ -714,9 +714,13 @@ test("Management dashboard keeps daily history available without altering saved 
   assert.match(dashboard, /DatePicker/);
   assert.match(dashboard, /All time/);
   assert.match(dashboard, /Asia\/Manila/);
+  assert.match(dashboard, /Inventory flow/);
+  assert.match(dashboard, /Recent activity/);
   assert.match(marketplace, /export const getManagementDashboard/);
   assert.match(marketplace, /range: z\.enum\(\["day", "all"\]\)/);
   assert.match(marketplace, /requireRole\("Management"\)/);
   assert.match(marketplace, /inventoryMovements/);
+  assert.match(marketplace, /inventoryFlow/);
+  assert.match(marketplace, /recentActivity/);
   assert.match(marketplace, /Classified stock recorded on this day/);
 });

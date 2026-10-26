@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Database, PackageOpen, PieChart as PieChartIcon, TrendingUp } from "lucide-react";
+import { Clock3, Database, PackageOpen, PieChart as PieChartIcon, TrendingUp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Area,
@@ -44,6 +44,22 @@ function manilaDateValue(date = new Date()) {
   }).formatToParts(date);
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${value["year"]}-${value["month"]}-${value["day"]}`;
+}
+
+function relativeTime(value: string) {
+  const elapsedMinutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60_000));
+  if (elapsedMinutes < 1) return "Just now";
+  if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`;
+  const elapsedHours = Math.round(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `${elapsedHours}h ago`;
+  return `${Math.round(elapsedHours / 24)}d ago`;
+}
+
+function activityStyle(kind: string) {
+  if (kind === "sale") return { icon: TrendingUp, color: "bg-sky-500/15 text-sky-600" };
+  if (kind === "payment") return { icon: Database, color: "bg-violet-500/15 text-violet-600" };
+  if (kind === "order") return { icon: Clock3, color: "bg-amber-500/15 text-amber-700" };
+  return { icon: PackageOpen, color: "bg-primary/15 text-primary" };
 }
 
 function ManagementDashboard() {
@@ -184,103 +200,95 @@ function ManagementDashboard() {
               <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold">Sales and order activity</h2>
+                    <h2 className="text-lg font-semibold">Inventory flow</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {isAllTime
-                        ? "Buyer orders and completed sales grouped by hour across all saved days."
-                        : "Buyer orders and completed sales by hour for the selected day."}
+                        ? "Movement of received and classified products across your operations."
+                        : "Movement of received and classified products through your operations."}
                     </p>
                   </div>
-                  <TrendingUp className="size-5 shrink-0 text-primary" />
+                  <PackageOpen className="size-5 shrink-0 text-primary" />
                 </div>
                 <div className="mt-6 h-72">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={report?.dashboard.activity ?? []} margin={{ left: -12, right: 8 }}>
+                    <AreaChart data={report?.dashboard.inventoryFlow ?? []} margin={{ left: -12, right: 8 }}>
                       <defs>
-                        <linearGradient id="management-sales-fill" x1="0" x2="0" y1="0" y2="1">
+                        <linearGradient id="management-stock-fill" x1="0" x2="0" y1="0" y2="1">
                           <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
                           <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="management-supply-fill" x1="0" x2="0" y1="0" y2="1">
+                          <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="label" interval={3} tickLine={false} axisLine={false} />
-                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                      <YAxis unit=" kg" allowDecimals={false} tickLine={false} axisLine={false} />
                       <Tooltip
                         formatter={(value: number, name: string) => [
-                          value,
-                          name === "sales" ? "Sales completed" : "Buyer orders",
+                          `${value} kg`,
+                          name === "stock" ? "Classified stock" : "Supply received",
                         ]}
                       />
                       <Area
                         type="monotone"
-                        dataKey="sales"
-                        name="sales"
+                        dataKey="stock"
+                        name="stock"
                         stroke="var(--primary)"
                         strokeWidth={3}
-                        fill="url(#management-sales-fill)"
+                        fill="url(#management-stock-fill)"
                       />
                       <Area
                         type="monotone"
-                        dataKey="orders"
-                        name="orders"
+                        dataKey="supply"
+                        name="supply"
                         stroke="var(--chart-2)"
                         strokeWidth={2}
-                        strokeDasharray="5 5"
-                        fill="transparent"
+                        strokeDasharray="5 4"
+                        fill="url(#management-supply-fill)"
                       />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-2"><span className="size-2 rounded-full bg-primary" /> Sales completed</span>
-                  <span className="inline-flex items-center gap-2"><span className="size-2 rounded-full bg-[var(--chart-2)]" /> Buyer orders</span>
+                  <span className="inline-flex items-center gap-2"><span className="size-2 rounded-full bg-primary" /> Classified stock</span>
+                  <span className="inline-flex items-center gap-2"><span className="size-2 rounded-full bg-[var(--chart-2)]" /> Supply received</span>
                 </div>
               </article>
 
               <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold">Stock quality</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {isAllTime
-                        ? "Classified stock added across all saved days."
-                        : "Classified stock added on the selected day."}
-                    </p>
+                    <h2 className="text-lg font-semibold">Recent activity</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Latest updates across your operations.</p>
                   </div>
-                  <PieChartIcon className="size-5 shrink-0 text-primary" />
+                  <Clock3 className="size-5 shrink-0 text-primary" />
                 </div>
-                <div className="mt-4 h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Tooltip formatter={(value: number) => [`${value} kg`, "Available"]} />
-                      <Pie
-                        data={report?.dashboard.quality ?? []}
-                        dataKey="value"
-                        nameKey="name"
-                        innerRadius={52}
-                        outerRadius={78}
-                        paddingAngle={3}
-                      >
-                        {(report?.dashboard.quality ?? []).map((item, index) => (
-                          <Cell key={item.name} fill={qualityColors[index] ?? "var(--muted)"} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="space-y-3">
-                  {(report?.dashboard.quality ?? []).map((item, index) => (
-                    <div key={item.name} className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2 text-muted-foreground">
-                        <span
-                          className="size-2.5 rounded-sm"
-                          style={{ backgroundColor: qualityColors[index] ?? "var(--muted)" }}
-                        />
-                        {item.name}
-                      </span>
-                      <span className="font-semibold">{item.value} kg</span>
-                    </div>
-                  ))}
+                <div className="mt-5 divide-y divide-border/70">
+                  {(report?.dashboard.recentActivity ?? []).map((item) => {
+                    const style = activityStyle(item.kind);
+                    const Icon = style.icon;
+                    return (
+                      <div key={`${item.kind}-${item.time}-${item.title}`} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                        <span className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${style.color}`}>
+                          <Icon className="size-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{item.title}</p>
+                          <p className="truncate text-xs text-muted-foreground">{item.detail}</p>
+                        </div>
+                        <time className="shrink-0 text-xs text-muted-foreground" dateTime={item.time}>
+                          {relativeTime(item.time)}
+                        </time>
+                      </div>
+                    );
+                  })}
+                  {(report?.dashboard.recentActivity ?? []).length === 0 && (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      No operational updates for this period yet.
+                    </p>
+                  )}
                 </div>
               </article>
             </section>
@@ -312,6 +320,56 @@ function ManagementDashboard() {
               </article>
 
               <div className="grid gap-6">
+                <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-lg font-semibold">Stock quality</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {isAllTime
+                          ? "Current classified stock across all saved records."
+                          : "Classified stock added on the selected day."}
+                      </p>
+                    </div>
+                    <PieChartIcon className="size-5 shrink-0 text-primary" />
+                  </div>
+                  <div className="mt-3 grid grid-cols-[0.85fr_1.15fr] items-center gap-2">
+                    <div className="h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={report?.dashboard.quality ?? []}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={38}
+                            outerRadius={58}
+                            paddingAngle={3}
+                            stroke="var(--card)"
+                            strokeWidth={2}
+                          >
+                            {(report?.dashboard.quality ?? []).map((item, index) => (
+                              <Cell key={item.name} fill={qualityColors[index] ?? "var(--muted)"} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: number) => [`${value} kg`, "Stock"]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="space-y-2.5 text-sm">
+                      {(report?.dashboard.quality ?? []).map((item, index) => (
+                        <div key={item.name} className="flex items-center justify-between gap-3">
+                          <span className="inline-flex items-center gap-2 text-muted-foreground">
+                            <span
+                              className="size-2.5 rounded-full"
+                              style={{ backgroundColor: qualityColors[index] ?? "var(--muted)" }}
+                            />
+                            {item.name}
+                          </span>
+                          <strong>{item.value} kg</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </article>
                 <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
                   <h2 className="text-lg font-semibold">Decision support</h2>
                   <p className="mt-2 text-sm text-muted-foreground">
