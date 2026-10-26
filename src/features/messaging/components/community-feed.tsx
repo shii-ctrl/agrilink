@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -41,6 +41,98 @@ type CommunityFeedProps = {
 
 const COMMUNITY_PAGE_SIZE = 25;
 type CommunityPost = Awaited<ReturnType<typeof getCommunityMessages>>["messages"][number];
+type CommunityComment = CommunityPost["comments"][number];
+
+type CommunityCommentCardProps = {
+  comment: CommunityComment;
+  busy: boolean;
+  replyCount?: number;
+  repliesOpen?: boolean;
+  onReaction: (comment: CommunityComment, reaction: "like" | "dislike") => void;
+  onReply?: (() => void) | undefined;
+  onToggleReplies?: (() => void) | undefined;
+  children?: ReactNode;
+};
+
+function CommunityCommentCard({
+  comment,
+  busy,
+  replyCount = 0,
+  repliesOpen = false,
+  onReaction,
+  onReply,
+  onToggleReplies,
+  children,
+}: CommunityCommentCardProps) {
+  return (
+    <div className="rounded-2xl bg-muted/60 px-4 py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-semibold">{comment.author}</p>
+        <p className="text-xs text-muted-foreground">
+          {new Date(comment.time).toLocaleString("en-PH", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}
+        </p>
+      </div>
+      <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{comment.message}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-1">
+        <Button
+          type="button"
+          variant={comment.reactions.viewerReaction === "like" ? "secondary" : "ghost"}
+          size="sm"
+          className="h-8 rounded-full px-2 text-xs"
+          disabled={busy}
+          aria-label={`Like ${comment.author}'s comment`}
+          aria-pressed={comment.reactions.viewerReaction === "like"}
+          onClick={() => onReaction(comment, "like")}
+        >
+          <ThumbsUp className="size-3.5" /> Like {comment.reactions.likes || ""}
+        </Button>
+        <Button
+          type="button"
+          variant={comment.reactions.viewerReaction === "dislike" ? "secondary" : "ghost"}
+          size="sm"
+          className="h-8 rounded-full px-2 text-xs"
+          disabled={busy}
+          aria-label={`Dislike ${comment.author}'s comment`}
+          aria-pressed={comment.reactions.viewerReaction === "dislike"}
+          onClick={() => onReaction(comment, "dislike")}
+        >
+          <ThumbsDown className="size-3.5" /> Dislike {comment.reactions.dislikes || ""}
+        </Button>
+        {onReply && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="size-8 rounded-full p-0"
+            aria-label={`Reply to ${comment.author}`}
+            title={`Reply to ${comment.author}`}
+            onClick={onReply}
+          >
+            <Reply className="size-4" />
+            <span className="sr-only">Reply to {comment.author}</span>
+          </Button>
+        )}
+        {onToggleReplies && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 rounded-full px-2 text-xs"
+            aria-expanded={repliesOpen}
+            onClick={onToggleReplies}
+          >
+            <MessageCircle className="size-3.5" />
+            {repliesOpen ? "Hide" : "Show"} {replyCount} {replyCount === 1 ? "reply" : "replies"}
+          </Button>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export function CommunityFeed({
   title,
@@ -52,7 +144,9 @@ export function CommunityFeed({
   const [messages, setMessages] = useState<CommunityPost[]>([]);
   const [postMessage, setPostMessage] = useState("");
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [replyTargets, setReplyTargets] = useState<Record<string, string | null>>({});
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [expandedReplies, setExpandedReplies] = useState<Record<string, boolean>>({});
   const [busyPost, setBusyPost] = useState(false);
   const [busyReactionId, setBusyReactionId] = useState<string | null>(null);
   const [busyCommentReactionId, setBusyCommentReactionId] = useState<string | null>(null);
@@ -160,6 +254,24 @@ export function CommunityFeed({
     };
   }, [load]);
 
+  const reactToComment = async (comment: CommunityComment, reaction: "like" | "dislike") => {
+    setBusyCommentReactionId(comment.id);
+    try {
+      if (comment.reactions.viewerReaction === reaction) {
+        await removeCommunityCommentReaction({ data: { commentId: comment.id } });
+      } else {
+        await setCommunityCommentReaction({ data: { commentId: comment.id, reaction } });
+      }
+      await load();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not update this comment reaction.",
+      );
+    } finally {
+      setBusyCommentReactionId(null);
+    }
+  };
+
   return (
     <>
       {confirmationDialog}
@@ -254,6 +366,9 @@ export function CommunityFeed({
           messages.map((message) => {
             const commentsOpen = expandedComments[message.id] ?? false;
             const commentDraft = commentDrafts[message.id] ?? "";
+            const replyTargetId = replyTargets[message.id] ?? null;
+            const replyTarget = message.comments.find((comment) => comment.id === replyTargetId);
+            const rootComments = message.comments.filter((comment) => !comment.parentCommentId);
             const reactionBusy = busyReactionId === message.id;
             const commentBusy = busyCommentId === message.id;
             const editing = editingPostId === message.id;
@@ -486,110 +601,67 @@ export function CommunityFeed({
                   <div className="mt-4 space-y-4">
                     {message.comments.length > 0 && (
                       <div className="space-y-3">
-                        {message.comments.map((comment) => (
-                          <div key={comment.id} className="rounded-2xl bg-muted/60 px-4 py-3">
-                            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                              <p className="text-sm font-semibold">{comment.author}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(comment.time).toLocaleString("en-PH", {
-                                  dateStyle: "medium",
-                                  timeStyle: "short",
-                                })}
-                              </p>
-                            </div>
-                            <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-                              {comment.message}
-                            </p>
-                            <div className="mt-2 flex flex-wrap items-center gap-1">
-                              <Button
-                                type="button"
-                                variant={
-                                  comment.reactions.viewerReaction === "like" ? "secondary" : "ghost"
-                                }
-                                size="sm"
-                                className="h-8 rounded-full px-2 text-xs"
-                                disabled={busyCommentReactionId === comment.id}
-                                aria-label={`Like ${comment.author}'s comment`}
-                                aria-pressed={comment.reactions.viewerReaction === "like"}
-                                onClick={async () => {
-                                  setBusyCommentReactionId(comment.id);
-                                  try {
-                                    if (comment.reactions.viewerReaction === "like") {
-                                      await removeCommunityCommentReaction({
-                                        data: { commentId: comment.id },
-                                      });
-                                    } else {
-                                      await setCommunityCommentReaction({
-                                        data: { commentId: comment.id, reaction: "like" },
-                                      });
-                                    }
-                                    await load();
-                                  } catch (error) {
-                                    toast.error(
-                                      error instanceof Error
-                                        ? error.message
-                                        : "Could not update this comment reaction.",
-                                    );
-                                  } finally {
-                                    setBusyCommentReactionId(null);
-                                  }
-                                }}
-                              >
-                                <ThumbsUp className="size-3.5" /> Like {comment.reactions.likes || ""}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant={
-                                  comment.reactions.viewerReaction === "dislike" ? "secondary" : "ghost"
-                                }
-                                size="sm"
-                                className="h-8 rounded-full px-2 text-xs"
-                                disabled={busyCommentReactionId === comment.id}
-                                aria-label={`Dislike ${comment.author}'s comment`}
-                                aria-pressed={comment.reactions.viewerReaction === "dislike"}
-                                onClick={async () => {
-                                  setBusyCommentReactionId(comment.id);
-                                  try {
-                                    if (comment.reactions.viewerReaction === "dislike") {
-                                      await removeCommunityCommentReaction({
-                                        data: { commentId: comment.id },
-                                      });
-                                    } else {
-                                      await setCommunityCommentReaction({
-                                        data: { commentId: comment.id, reaction: "dislike" },
-                                      });
-                                    }
-                                    await load();
-                                  } catch (error) {
-                                    toast.error(
-                                      error instanceof Error
-                                        ? error.message
-                                        : "Could not update this comment reaction.",
-                                    );
-                                  } finally {
-                                    setBusyCommentReactionId(null);
-                                  }
-                                }}
-                              >
-                                <ThumbsDown className="size-3.5" /> Dislike {comment.reactions.dislikes || ""}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="size-8 rounded-full p-0"
-                                aria-label={`Reply to ${comment.author}`}
-                                title={`Reply to ${comment.author}`}
-                                onClick={() => {
-                                  window.setTimeout(() => commentInputRefs.current[message.id]?.focus());
-                                }}
-                              >
-                                <Reply className="size-4" />
-                                <span className="sr-only">Reply to {comment.author}</span>
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                        {rootComments.map((comment) => {
+                          const replies = message.comments.filter(
+                            (reply) => reply.parentCommentId === comment.id,
+                          );
+                          const repliesOpen = expandedReplies[comment.id] ?? false;
+                          return (
+                            <CommunityCommentCard
+                              key={comment.id}
+                              comment={comment}
+                              busy={busyCommentReactionId === comment.id}
+                              replyCount={replies.length}
+                              repliesOpen={repliesOpen}
+                              onReaction={reactToComment}
+                              onReply={() => {
+                                setReplyTargets((current) => ({ ...current, [message.id]: comment.id }));
+                                setExpandedReplies((current) => ({ ...current, [comment.id]: true }));
+                                window.setTimeout(() => commentInputRefs.current[message.id]?.focus());
+                              }}
+                              onToggleReplies={
+                                replies.length > 0
+                                  ? () =>
+                                      setExpandedReplies((current) => ({
+                                        ...current,
+                                        [comment.id]: !repliesOpen,
+                                      }))
+                                  : undefined
+                              }
+                            >
+                              {repliesOpen && replies.length > 0 && (
+                                <div className="mt-3 ml-4 space-y-3 border-l-2 border-primary/30 pl-3 sm:ml-6">
+                                  {replies.map((reply) => (
+                                    <CommunityCommentCard
+                                      key={reply.id}
+                                      comment={reply}
+                                      busy={busyCommentReactionId === reply.id}
+                                      onReaction={reactToComment}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </CommunityCommentCard>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {replyTarget && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-primary/10 px-3 py-2 text-sm">
+                        <p>
+                          Replying to <span className="font-semibold">{replyTarget.author}</span>
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 rounded-full px-2"
+                          onClick={() =>
+                            setReplyTargets((current) => ({ ...current, [message.id]: null }))
+                          }
+                        >
+                          <X className="size-4" /> Cancel reply
+                        </Button>
                       </div>
                     )}
                     <form
@@ -601,11 +673,22 @@ export function CommunityFeed({
                         setBusyCommentId(message.id);
                         try {
                           await postCommunityComment({
-                            data: { messageId: message.id, message: comment },
+                            data: {
+                              messageId: message.id,
+                              parentCommentId: replyTarget?.id,
+                              message: comment,
+                            },
                           });
                           setCommentDrafts((current) => ({ ...current, [message.id]: "" }));
+                          setReplyTargets((current) => ({ ...current, [message.id]: null }));
+                          if (replyTarget) {
+                            setExpandedReplies((current) => ({
+                              ...current,
+                              [replyTarget.id]: true,
+                            }));
+                          }
                           await load();
-                          toast.success("Comment added.");
+                          toast.success(replyTarget ? "Reply added." : "Comment added.");
                         } catch (error) {
                           toast.error(
                             error instanceof Error ? error.message : "Could not add your comment.",
@@ -626,7 +709,9 @@ export function CommunityFeed({
                             [message.id]: event.target.value,
                           }))
                         }
-                        placeholder="Write a comment or reply..."
+                        placeholder={
+                          replyTarget ? `Reply to ${replyTarget.author}...` : "Write a comment..."
+                        }
                         maxLength={2_000}
                         rows={2}
                         required
@@ -641,7 +726,7 @@ export function CommunityFeed({
                         ) : (
                           <Send className="size-4" />
                         )}
-                        Comment
+                        {replyTarget ? "Reply" : "Comment"}
                       </Button>
                     </form>
                   </div>

@@ -331,6 +331,7 @@ export const communityComments = mysqlTable(
   {
     id: varchar("id", { length: 36 }).primaryKey(),
     messageId: varchar("message_id", { length: 36 }).notNull(),
+    parentCommentId: varchar("parent_comment_id", { length: 36 }),
     authorId: varchar("author_id", { length: 36 }).notNull(),
     message: text("message").notNull(),
     createdAt,
@@ -338,6 +339,7 @@ export const communityComments = mysqlTable(
   },
   (table) => [
     index("community_comments_message_created_idx").on(table.messageId, table.createdAt),
+    index("community_comments_parent_created_idx").on(table.parentCommentId, table.createdAt),
     index("community_comments_author_idx").on(table.authorId),
   ],
 );

@@ -454,14 +454,24 @@ test("community reactions and comments are saved with role checks", async () => 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS community_comments/);
 });
 
-test("Community comments provide a direct reply action", async () => {
-  const feed = await readFile("src/features/messaging/components/community-feed.tsx", "utf8");
+test("Community comments support foldable nested replies", async () => {
+  const [feed, service, migration] = await Promise.all([
+    readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
+    readFile("src/services/messaging/community-server-functions.ts", "utf8"),
+    readFile("drizzle/0017_community_comment_replies.sql", "utf8"),
+  ]);
   assert.match(feed, /<Reply className="size-4" \/>/);
   assert.match(feed, /aria-label=\{`Reply to \$\{comment\.author\}`\}/);
   assert.doesNotMatch(feed, /@\$\{comment\.author\}/);
   assert.match(feed, /setCommunityCommentReaction/);
   assert.match(feed, /removeCommunityCommentReaction/);
-  assert.match(feed, /Write a comment or reply/);
+  assert.match(feed, /Show.*reply/);
+  assert.match(feed, /Hide.*reply/);
+  assert.match(feed, /parentCommentId: replyTarget\?\.id/);
+  assert.match(service, /parentCommentId: z\.string\(\)\.uuid\(\)\.optional\(\)/);
+  assert.match(service, /Replies must belong to a top-level comment/);
+  assert.match(migration, /parent_comment_id/);
+  assert.match(migration, /fk_community_comment_parent/);
 });
 
 test("comment reaction migration preserves one reaction per user", async () => {

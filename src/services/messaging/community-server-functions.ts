@@ -5,6 +5,7 @@ import { z } from "zod";
 const messageInput = z.object({ message: z.string().trim().min(1).max(4_000) });
 const commentInput = z.object({
   messageId: z.string().uuid(),
+  parentCommentId: z.string().uuid().optional(),
   message: z.string().trim().min(1).max(2_000),
 });
 const reactionInput = z.object({
@@ -48,7 +49,12 @@ async function assertCommunityCommentExists(commentId: string) {
   const { db } = await import("@/db/client.server");
   const { communityComments } = await import("@/db/schema");
   const [comment] = await db
-    .select({ id: communityComments.id, authorId: communityComments.authorId })
+    .select({
+      id: communityComments.id,
+      authorId: communityComments.authorId,
+      messageId: communityComments.messageId,
+      parentCommentId: communityComments.parentCommentId,
+    })
     .from(communityComments)
     .where(eq(communityComments.id, commentId));
   if (!comment) throw new Error("This Community comment is no longer available.");
@@ -127,6 +133,7 @@ async function communityMessagesForViewer(
       .select({
         id: communityComments.id,
         messageId: communityComments.messageId,
+        parentCommentId: communityComments.parentCommentId,
         message: communityComments.message,
         createdAt: communityComments.createdAt,
         author: users.displayName,
@@ -175,6 +182,7 @@ async function communityMessagesForViewer(
     Array<{
       id: string;
       message: string;
+      parentCommentId: string | null;
       author: string;
       time: string;
       reactions: { likes: number; dislikes: number; viewerReaction: "like" | "dislike" | null };
@@ -200,6 +208,7 @@ async function communityMessagesForViewer(
     comments.push({
       id: comment.id,
       message: comment.message,
+      parentCommentId: comment.parentCommentId,
       author: comment.author,
       time: comment.createdAt.toISOString(),
       reactions: reactionsByCommentId.get(comment.id) ?? {
@@ -456,16 +465,32 @@ export const postCommunityComment = createServerFn({ method: "POST" })
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const author = await requireAnyRole(communityRoles);
     const post = await assertCommunityMessageExists(data.messageId);
+    const parent = data.parentCommentId
+      ? await assertCommunityCommentExists(data.parentCommentId)
+      : null;
+    if (parent && (parent.messageId !== data.messageId || parent.parentCommentId)) {
+      throw new Error("Replies must belong to a top-level comment on this Community post.");
+    }
     const { db } = await import("@/db/client.server");
     const { communityComments } = await import("@/db/schema");
     const id = crypto.randomUUID();
     await db.insert(communityComments).values({
       id,
       messageId: data.messageId,
+      parentCommentId: parent?.id ?? null,
       authorId: author.id,
       message: data.message,
     });
-    if (post.authorId !== author.id) {
+    if (parent && parent.authorId !== author.id) {
+      const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");
+      await notifyCommunityUsers(
+        {
+          title: "New reply to your comment",
+          message: `${author.displayName} replied to your Community comment.`,
+        },
+        { userIds: [parent.authorId] },
+      );
+    } else if (!parent && post.authorId !== author.id) {
       const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");
       await notifyCommunityUsers(
         {
@@ -477,6 +502,7 @@ export const postCommunityComment = createServerFn({ method: "POST" })
     }
     await writeAuditLog(author.id, "community.comment", "community_message", data.messageId, {
       commentId: id,
+      parentCommentId: parent?.id ?? null,
     });
     return { id };
   });
