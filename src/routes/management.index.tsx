@@ -63,12 +63,12 @@ function activityStyle(kind: string) {
 function ManagementDashboard() {
   const today = manilaDateValue();
   const [selectedDate, setSelectedDate] = useState(today);
-  const [range, setRange] = useState<"day" | "all">("day");
-  const isAllTime = range === "all";
+  const [range, setRange] = useState<"day" | "month">("day");
+  const isMonthly = range === "month";
   const request = useCallback(
     () =>
       getManagementDashboard({
-        data: range === "all" ? { range: "all" } : { range: "day", date: selectedDate },
+        data: range === "month" ? { range: "month" } : { range: "day", date: selectedDate },
       }),
     [range, selectedDate],
   );
@@ -119,11 +119,11 @@ function ManagementDashboard() {
                   <Database className="mt-0.5 size-5 shrink-0" />
                   <div>
                     <h2 className="font-semibold">
-                      {isAllTime ? "All-time operational data" : "Daily operational data"}
+                      {isMonthly ? "This month's operational data" : "Daily operational data"}
                     </h2>
                     <p className="mt-1 opacity-85">
-                      {isAllTime
-                        ? "Every saved record is included in this overview."
+                      {isMonthly
+                        ? "This view groups live operational records by day for the current month."
                         : "This dashboard starts on today and refreshes as records are saved. Choose an earlier date to review its saved history."}
                     </p>
                   </div>
@@ -136,7 +136,7 @@ function ManagementDashboard() {
                       setRange("day");
                     }}
                     max={today}
-                    disabled={isAllTime}
+                    disabled={isMonthly}
                     ariaLabel="Choose dashboard date"
                     className="sm:min-w-44"
                   />
@@ -144,7 +144,7 @@ function ManagementDashboard() {
                     type="button"
                     variant="outline"
                     className="rounded-xl"
-                    disabled={!isAllTime && selectedDate === today}
+                    disabled={!isMonthly && selectedDate === today}
                     onClick={() => {
                       setSelectedDate(today);
                       setRange("day");
@@ -154,12 +154,15 @@ function ManagementDashboard() {
                   </Button>
                   <Button
                     type="button"
-                    variant={isAllTime ? "default" : "outline"}
+                    variant={isMonthly ? "default" : "outline"}
                     className="rounded-xl"
-                    disabled={isAllTime}
-                    onClick={() => setRange("all")}
+                    disabled={isMonthly}
+                    onClick={() => {
+                      setSelectedDate(today);
+                      setRange("month");
+                    }}
                   >
-                    All time
+                    This month
                   </Button>
                 </div>
               </div>
@@ -170,12 +173,12 @@ function ManagementDashboard() {
                 <div>
                   <h2 className="text-lg font-semibold">Operational overview</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {isAllTime ? "Saved results across all time." : "Saved results for the selected day."}
+                    {isMonthly ? "Saved results for the current month." : "Saved results for the selected day."}
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
                   <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
-                  {report?.range === "all" ? "All time" : report?.date === today ? "Today" : "Historical day"}
+                  {report?.range === "month" ? "This month" : report?.date === today ? "Today" : "Historical day"}
                 </span>
               </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -200,8 +203,8 @@ function ManagementDashboard() {
                   <div>
                     <h2 className="text-lg font-semibold">Inventory flow</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {isAllTime
-                        ? "Movement of received and classified products across your operations."
+                      {isMonthly
+                        ? "Daily movement of received and classified products this month."
                         : "Movement of received and classified products through your operations."}
                     </p>
                   </div>
@@ -221,7 +224,7 @@ function ManagementDashboard() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" interval={3} tickLine={false} axisLine={false} />
+                      <XAxis dataKey="label" interval={isMonthly ? 4 : 3} tickLine={false} axisLine={false} />
                       <YAxis unit=" kg" allowDecimals={false} tickLine={false} axisLine={false} />
                       <Tooltip
                         formatter={(value: number, name: string) => [
@@ -297,8 +300,8 @@ function ManagementDashboard() {
                     <div>
                       <h2 className="text-lg font-semibold">Stock quality</h2>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {isAllTime
-                          ? "Current classified stock across all saved records."
+                        {isMonthly
+                          ? "Classified stock added this month."
                           : "Classified stock added on the selected day."}
                       </p>
                     </div>

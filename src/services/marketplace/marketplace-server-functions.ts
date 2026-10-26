@@ -46,7 +46,7 @@ const dailyPriceStatusInput = z.object({
   published: z.boolean(),
 });
 const managementDashboardInput = z.object({
-  range: z.enum(["day", "all"]),
+  range: z.enum(["day", "month"]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid dashboard date.").optional(),
 });
 const listingPricingFields = {
@@ -1708,7 +1708,7 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
   };
 });
 
-/** Builds a daily Management view from operational records saved on one Manila calendar day. */
+/** Builds a daily or current-month Management view from saved operational records. */
 export const getManagementDashboard = createServerFn({ method: "GET" })
   .validator(managementDashboardInput)
   .handler(async ({ data }) => {
@@ -1728,12 +1728,27 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
     if (data.range === "day" && !data.date) {
       throw new Error("Choose a dashboard date.");
     }
-    // Manila has no daylight-saving changes, so an explicit +08:00 boundary keeps
-    // a dashboard day consistent for users and for the Vercel server runtime.
+    // Manila has no daylight-saving changes, so explicit +08:00 boundaries keep
+    // dashboard periods consistent for users and for the Vercel server runtime.
     const dayStart = data.date ? new Date(`${data.date}T00:00:00+08:00`) : null;
     const dayEnd = dayStart ? new Date(dayStart.getTime() + 24 * 60 * 60 * 1000) : null;
-    const occursOnSelectedDay = (date: Date | null) =>
-      data.range === "all" || Boolean(date && dayStart && dayEnd && date >= dayStart && date < dayEnd);
+    const manilaParts = Object.fromEntries(
+      new Intl.DateTimeFormat("en", {
+        timeZone: "Asia/Manila",
+        year: "numeric",
+        month: "2-digit",
+      })
+        .formatToParts(new Date())
+        .map((part) => [part.type, part.value]),
+    );
+    const monthStart = new Date(`${manilaParts.year}-${manilaParts.month}-01T00:00:00+08:00`);
+    const monthEnd = new Date(monthStart);
+    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+    const occursInSelectedPeriod = (date: Date | null) => {
+      if (!date) return false;
+      if (data.range === "month") return date >= monthStart && date < monthEnd;
+      return Boolean(dayStart && dayEnd && date >= dayStart && date < dayEnd);
+    };
 
     const [stockRows, movements, received, databaseOrders, databasePayments] = await Promise.all([
       db
@@ -1758,18 +1773,18 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       db.select({ amount: payments.amount, paidAt: payments.paidAt }).from(payments),
     ]);
 
-    const selectedReceiving = received.filter((row) => occursOnSelectedDay(row.receivedAt));
-    const selectedOrders = databaseOrders.filter((order) => occursOnSelectedDay(order.createdAt));
+    const selectedReceiving = received.filter((row) => occursInSelectedPeriod(row.receivedAt));
+    const selectedOrders = databaseOrders.filter((order) => occursInSelectedPeriod(order.createdAt));
     const selectedSales = databaseOrders.filter(
-      (order) => order.status === "sold" && occursOnSelectedDay(order.soldAt),
+      (order) => order.status === "sold" && occursInSelectedPeriod(order.soldAt),
     );
-    const selectedPayments = databasePayments.filter((payment) => occursOnSelectedDay(payment.paidAt));
+    const selectedPayments = databasePayments.filter((payment) => occursInSelectedPeriod(payment.paidAt));
     const supplyKg = selectedReceiving.reduce((total, row) => total + Number(row.totalKg), 0);
     const stockById = new Map(stockRows.map((row) => [row.id, row]));
     const selectedStockActivity = movements
       .filter(
         (movement) =>
-          occursOnSelectedDay(movement.createdAt) && Number(movement.availableChangeKg) > 0,
+          occursInSelectedPeriod(movement.createdAt) && Number(movement.availableChangeKg) > 0,
       )
       .flatMap((movement) => {
         const stock = stockById.get(movement.inventoryId);
@@ -1779,6 +1794,7 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       });
     const stockKg = selectedStockActivity.reduce((total, row) => total + row.addedKg, 0);
     const salesAmount = selectedPayments.reduce((total, payment) => total + Number(payment.amount), 0);
+    const periodLabel = data.range === "month" ? "this month" : "on this day";
     const qualityOrder = ["Good", "Semi", "Reject"] as const;
     const quality = qualityOrder.map((classification) => ({
       name: classification,
@@ -1786,35 +1802,56 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
         .filter((row) => row.classification === classification)
         .reduce((total, row) => total + row.addedKg, 0),
     }));
-    const activityByHour = new Map<number, { orders: number; sales: number }>();
-    for (let hour = 0; hour < 24; hour += 1) activityByHour.set(hour, { orders: 0, sales: 0 });
+    const manilaMonthLabel = new Intl.DateTimeFormat("en", {
+      timeZone: "Asia/Manila",
+      month: "short",
+    }).format(monthStart);
+    const bucketCount =
+      data.range === "month" ? Math.round((monthEnd.getTime() - monthStart.getTime()) / 86_400_000) : 24;
+    const firstBucket = data.range === "month" ? 1 : 0;
+    const lastBucket = data.range === "month" ? bucketCount : bucketCount - 1;
+    const bucketFor = (date: Date) =>
+      data.range === "month"
+        ? Number(
+            new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", day: "numeric" }).format(date),
+          )
+        : (date.getUTCHours() + 8) % 24;
+    const bucketLabel = (bucket: number) =>
+      data.range === "month"
+        ? `${manilaMonthLabel} ${bucket}`
+        : `${bucket === 0 || bucket === 12 ? 12 : bucket % 12} ${bucket < 12 ? "AM" : "PM"}`;
+
+    const activityByBucket = new Map<number, { orders: number; sales: number }>();
+    for (let bucket = firstBucket; bucket <= lastBucket; bucket += 1) {
+      activityByBucket.set(bucket, { orders: 0, sales: 0 });
+    }
     for (const order of selectedOrders) {
-      const hour = (order.createdAt.getUTCHours() + 8) % 24;
-      activityByHour.get(hour)!.orders += 1;
+      const bucket = bucketFor(order.createdAt);
+      activityByBucket.get(bucket)!.orders += 1;
     }
     for (const sale of selectedSales) {
       if (!sale.soldAt) continue;
-      const hour = (sale.soldAt.getUTCHours() + 8) % 24;
-      activityByHour.get(hour)!.sales += 1;
+      const bucket = bucketFor(sale.soldAt);
+      activityByBucket.get(bucket)!.sales += 1;
     }
-    const activity = [...activityByHour.entries()].map(([hour, value]) => ({
-      label: `${hour === 0 || hour === 12 ? 12 : hour % 12} ${hour < 12 ? "AM" : "PM"}`,
+    const activity = [...activityByBucket.entries()].map(([bucket, value]) => ({
+      label: bucketLabel(bucket),
       ...value,
     }));
-    const inventoryFlowByHour = new Map<number, { stock: number; supply: number }>();
-    for (let hour = 0; hour < 24; hour += 1) {
-      inventoryFlowByHour.set(hour, { stock: 0, supply: 0 });
+    const inventoryFlowByBucket = new Map<number, { stock: number; supply: number }>();
+    for (let bucket = firstBucket; bucket <= lastBucket; bucket += 1) {
+      inventoryFlowByBucket.set(bucket, { stock: 0, supply: 0 });
     }
     for (const row of selectedStockActivity) {
-      const hour = (row.createdAt.getUTCHours() + 8) % 24;
-      inventoryFlowByHour.get(hour)!.stock += row.addedKg;
+      const bucket = bucketFor(row.createdAt);
+      inventoryFlowByBucket.get(bucket)!.stock += row.addedKg;
     }
     for (const row of selectedReceiving) {
-      const hour = (row.receivedAt.getUTCHours() + 8) % 24;
-      inventoryFlowByHour.get(hour)!.supply += Number(row.totalKg);
+      const bucket = bucketFor(row.receivedAt);
+      inventoryFlowByBucket.get(bucket)!.supply += Number(row.totalKg);
     }
-    const inventoryFlow = [...inventoryFlowByHour.entries()].map(([hour, value]) => ({
-      label: `${hour === 0 || hour === 12 ? 12 : hour % 12} ${hour < 12 ? "AM" : "PM"}`,
+    const inventoryFlow = [...inventoryFlowByBucket.entries()].map(([bucket, value]) => ({
+      label: bucketLabel(bucket),
       ...value,
     }));
     const recentActivity = [
@@ -1865,22 +1902,22 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
         {
           label: "Stock added",
           value: `${stockKg} kg`,
-          detail: "Classified stock recorded on this day",
+          detail: `Classified stock recorded ${periodLabel}`,
         },
         {
           label: "Supply received",
           value: `${supplyKg} kg`,
-          detail: "Farmer deliveries recorded on this day",
+          detail: `Farmer deliveries recorded ${periodLabel}`,
         },
         {
           label: "Sales completed",
           value: `${selectedSales.length} sale${selectedSales.length === 1 ? "" : "s"}`,
-          detail: "Orders fulfilled on this day",
+          detail: `Orders fulfilled ${periodLabel}`,
         },
         {
           label: "Buyer orders",
           value: `${selectedOrders.length} order${selectedOrders.length === 1 ? "" : "s"}`,
-          detail: "Orders submitted on this day",
+          detail: `Orders submitted ${periodLabel}`,
         },
       ],
       paymentTotal: salesAmount,
