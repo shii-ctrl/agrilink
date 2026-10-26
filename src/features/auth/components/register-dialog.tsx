@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
 import { registerBuyer } from "@/services/auth/auth-functions";
+import { setSessionView } from "@/lib/demo/demo-session";
+import { notifyAuthSessionChanged } from "@/lib/auth/session-events";
 
 type RegisterDialogProps = {
   open: boolean;
@@ -25,6 +27,7 @@ type RegisterDialogProps = {
 
 export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogProps) {
   const navigate = useNavigate();
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -60,17 +63,24 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
               }
               setIsCreating(true);
               try {
-                await registerBuyer({
+                const signedIn = await registerBuyer({
                   data: {
                     username: String(formData.get("username") ?? ""),
                     password,
                   },
                 });
+                setSessionView({
+                  username: signedIn.username,
+                  role: "Buyer",
+                  displayName: signedIn.displayName,
+                });
+                notifyAuthSessionChanged();
+                await router.invalidate();
                 onOpenChange(false);
                 toast.success("Buyer account created", {
                   description: "Your AgriLink account is ready to use.",
                 });
-                navigate({ to: "/" });
+                navigate({ to: "/", replace: true });
               } catch (error) {
                 toast.error("Unable to create account", {
                   description: error instanceof Error ? error.message : "Please try again.",

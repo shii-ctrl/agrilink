@@ -9,6 +9,7 @@ import { PasswordResetDialog } from "@/features/auth/components/password-reset-d
 import { RegisterDialog } from "@/features/auth/components/register-dialog";
 import { getCurrentSessionUser, logoutUser } from "@/services/auth/auth-functions";
 import { buyerCartChangedEvent } from "@/features/marketplace/cart-events";
+import { authSessionChangedEvent } from "@/lib/auth/session-events";
 import {
   Sheet,
   SheetClose,
@@ -57,15 +58,20 @@ export function SiteHeader({
   const [passwordResetOpen, setPasswordResetOpen] = useState(false);
   useEffect(() => {
     let mounted = true;
-    void getCurrentSessionUser()
-      .then((user) => {
-        if (mounted) setAccount(user);
-      })
-      .catch(() => {
-        if (mounted) setAccount(null);
-      });
+    const loadAccount = () => {
+      void getCurrentSessionUser()
+        .then((user) => {
+          if (mounted) setAccount(user);
+        })
+        .catch(() => {
+          if (mounted) setAccount(null);
+        });
+    };
+    loadAccount();
+    window.addEventListener(authSessionChangedEvent, loadAccount);
     return () => {
       mounted = false;
+      window.removeEventListener(authSessionChangedEvent, loadAccount);
     };
   }, []);
   const workspace = account

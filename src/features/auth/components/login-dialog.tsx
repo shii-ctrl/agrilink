@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthSwitchLink } from "@/features/auth/components/auth-switch-link";
 import { loginUser } from "@/services/auth/auth-functions";
+import { setSessionView } from "@/lib/demo/demo-session";
+import { notifyAuthSessionChanged } from "@/lib/auth/session-events";
 
 type LoginDialogProps = {
   open: boolean;
@@ -46,6 +48,7 @@ export function LoginDialog({
   onForgotPassword,
 }: LoginDialogProps) {
   const navigate = useNavigate();
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
@@ -80,11 +83,18 @@ export function LoginDialog({
                     password: String(formData.get("password") ?? ""),
                   },
                 });
+                setSessionView({
+                  username: signedIn.username,
+                  role: signedIn.roles[0] ?? "Buyer",
+                  displayName: signedIn.displayName,
+                });
+                notifyAuthSessionChanged();
+                await router.invalidate();
                 onOpenChange(false);
                 toast.success(`Welcome back, ${signedIn.displayName}`, {
                   description: "You are signed in with your AgriLink account.",
                 });
-                navigate({ to: destinationForRoles(signedIn.roles) });
+                navigate({ to: destinationForRoles(signedIn.roles), replace: true });
               } catch (error) {
                 toast.error("Invalid credentials", {
                   description:

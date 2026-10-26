@@ -319,6 +319,8 @@ test("public authentication uses the floating dialog system", async () => {
   assert.match(header, /onLogin \? onLogin\(\) : setLoginOpen\(true\)/);
   assert.match(header, /onRegister \? onRegister\(\) : setRegisterOpen\(true\)/);
   assert.match(loginDialog, /loginUser/);
+  assert.match(loginDialog, /setSessionView/);
+  assert.match(loginDialog, /router\.invalidate\(\)/);
   assert.match(loginDialog, /destinationForRoles/);
   assert.match(loginDialog, /Forgot password\?/);
   assert.match(loginDialog, /Register as Buyer/);

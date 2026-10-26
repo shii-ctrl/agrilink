@@ -23,6 +23,7 @@ import { ProductCard } from "@/features/marketplace/components/product-card";
 import type { Product } from "@/features/marketplace/products";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
+import { authSessionChangedEvent } from "@/lib/auth/session-events";
 import { getMarketplaceListings } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/")({
@@ -104,11 +105,22 @@ function Index() {
   }, [auth]);
   const clearAuthSearch = () => navigate({ to: "/", search: {} });
   useEffect(() => {
-    void getCurrentSessionUser()
-      .then((user) => {
-        setIsBuyer(Boolean(user?.roles.includes("Buyer")));
-      })
-      .catch(() => setIsBuyer(false));
+    let mounted = true;
+    const loadBuyer = () => {
+      void getCurrentSessionUser()
+        .then((user) => {
+          if (mounted) setIsBuyer(Boolean(user?.roles.includes("Buyer")));
+        })
+        .catch(() => {
+          if (mounted) setIsBuyer(false);
+        });
+    };
+    loadBuyer();
+    window.addEventListener(authSessionChangedEvent, loadBuyer);
+    return () => {
+      mounted = false;
+      window.removeEventListener(authSessionChangedEvent, loadBuyer);
+    };
   }, []);
   useEffect(() => {
     void getMarketplaceListings().then((listings) => {
