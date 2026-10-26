@@ -48,6 +48,7 @@ const dailyPriceStatusInput = z.object({
 const managementDashboardInput = z.object({
   range: z.enum(["day", "month", "all"]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid dashboard date.").optional(),
+  year: z.number().int().min(2000).max(9999).optional(),
 });
 const listingPricingFields = {
   retailPricePerKg: z.number().positive().max(100_000),
@@ -1742,13 +1743,17 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
         .map((part) => [part.type, part.value]),
     );
     const monthStart = new Date(
-      `${currentManilaMonth.year}-${currentManilaMonth.month}-01T00:00:00+08:00`,
+      `${currentManilaMonth["year"]}-${currentManilaMonth["month"]}-01T00:00:00+08:00`,
     );
     const monthEnd = new Date(monthStart);
     monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+    const manilaYear = (date: Date) =>
+      Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", year: "numeric" }).format(date));
     const occursInSelectedPeriod = (date: Date | null) => {
       if (!date) return false;
-      if (data.range === "all") return true;
+      if (data.range === "all") {
+        return !data.year || manilaYear(date) === data.year;
+      }
       if (data.range === "month") return date >= monthStart && date < monthEnd;
       return Boolean(dayStart && dayEnd && date >= dayStart && date < dayEnd);
     };
@@ -1775,6 +1780,16 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
         .from(orders),
       db.select({ amount: payments.amount, paidAt: payments.paidAt }).from(payments),
     ]);
+    const availableYears = Array.from(
+      new Set([
+        Number(currentManilaMonth["year"]),
+        ...movements.map((row) => manilaYear(row.createdAt)),
+        ...received.map((row) => manilaYear(row.receivedAt)),
+        ...databaseOrders.map((row) => manilaYear(row.createdAt)),
+        ...databaseOrders.flatMap((row) => (row.soldAt ? [manilaYear(row.soldAt)] : [])),
+        ...databasePayments.map((row) => manilaYear(row.paidAt)),
+      ]),
+    ).sort((first, second) => second - first);
 
     const selectedReceiving = received.filter((row) => occursInSelectedPeriod(row.receivedAt));
     const selectedOrders = databaseOrders.filter((order) => occursInSelectedPeriod(order.createdAt));
@@ -1816,17 +1831,20 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
           .formatToParts(date)
           .map((part) => [part.type, part.value]),
       );
-      return `${parts.year}-${parts.month}`;
+      return `${parts["year"]}-${parts["month"]}`;
     };
     const monthLabel = (key: string) =>
       new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", month: "short", year: "numeric" }).format(
         new Date(`${key}-01T00:00:00+08:00`),
       );
     const monthKeysBetween = (dates: Date[]) => {
+      if (data.range === "all" && data.year) {
+        return Array.from({ length: 12 }, (_, index) => `${data.year}-${String(index + 1).padStart(2, "0")}`);
+      }
       const keys = dates.map(manilaMonthKey).sort();
-      const currentYear = Number(currentManilaMonth.year);
-      const firstYear = keys.length > 0 ? Number(keys[0].slice(0, 4)) : currentYear;
-      const lastYear = keys.length > 0 ? Math.max(Number(keys[keys.length - 1].slice(0, 4)), currentYear) : currentYear;
+      const currentYear = Number(currentManilaMonth["year"]);
+      const firstYear = keys.length > 0 ? Number(keys[0]!.slice(0, 4)) : currentYear;
+      const lastYear = keys.length > 0 ? Math.max(Number(keys[keys.length - 1]!.slice(0, 4)), currentYear) : currentYear;
       const result: string[] = [];
       for (let year = firstYear; year <= lastYear; year += 1) {
         for (let month = 1; month <= 12; month += 1) {
@@ -1970,6 +1988,8 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
     return {
       range: data.range,
       date: data.range === "day" ? data.date : null,
+      selectedYear: data.range === "all" ? data.year ?? Number(currentManilaMonth["year"]) : null,
+      availableYears,
       summaries: [
         {
           label: "Stock added",

@@ -713,6 +713,7 @@ test("Management dashboard keeps daily history available without altering saved 
   assert.match(dashboard, /getManagementDashboard/);
   assert.match(dashboard, /DatePicker/);
   assert.match(dashboard, /All time/);
+  assert.match(dashboard, /Choose dashboard year/);
   assert.match(dashboard, /This month/);
   assert.match(dashboard, /Asia\/Manila/);
   assert.match(dashboard, /Inventory flow/);
@@ -725,6 +726,7 @@ test("Management dashboard keeps daily history available without altering saved 
   assert.match(marketplace, /monthlyInventoryFlow/);
   assert.match(marketplace, /monthKeysBetween/);
   assert.match(marketplace, /month <= 12/);
+  assert.match(marketplace, /availableYears/);
   assert.match(marketplace, /recentActivity/);
   assert.match(marketplace, /Classified stock recorded \$\{periodLabel\}/);
 });

@@ -63,6 +63,7 @@ function activityStyle(kind: string) {
 function ManagementDashboard() {
   const today = manilaDateValue();
   const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedYear, setSelectedYear] = useState(Number(today.slice(0, 4)));
   const [range, setRange] = useState<"day" | "month" | "all">("day");
   const isMonthly = range === "month";
   const isAllTime = range === "all";
@@ -70,9 +71,13 @@ function ManagementDashboard() {
     () =>
       getManagementDashboard({
         data:
-          range === "all" ? { range: "all" } : range === "month" ? { range: "month" } : { range: "day", date: selectedDate },
+          range === "all"
+            ? { range: "all", year: selectedYear }
+            : range === "month"
+              ? { range: "month" }
+              : { range: "day", date: selectedDate },
       }),
-    [range, selectedDate],
+    [range, selectedDate, selectedYear],
   );
 
   useEffect(() => {
@@ -129,7 +134,7 @@ function ManagementDashboard() {
                     </h2>
                     <p className="mt-1 opacity-85">
                       {isAllTime
-                        ? "This view includes every saved operational record. Inventory flow is grouped by calendar month."
+                        ? "Choose a calendar year to review saved history. Inventory flow is grouped by month."
                         : isMonthly
                           ? "This view groups live operational records by day for the current month."
                         : "This dashboard starts on today and refreshes as records are saved. Choose an earlier date to review its saved history."}
@@ -137,17 +142,33 @@ function ManagementDashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <DatePicker
-                    value={selectedDate}
-                    onValueChange={(value) => {
-                      setSelectedDate(value);
-                      setRange("day");
-                    }}
-                    max={today}
-                    disabled={isMonthly || isAllTime}
-                    ariaLabel="Choose dashboard date"
-                    className="sm:min-w-44"
-                  />
+                  {isAllTime ? (
+                    <label className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium">
+                      <span className="text-muted-foreground">Year</span>
+                      <select
+                        value={selectedYear}
+                        onChange={(event) => setSelectedYear(Number(event.target.value))}
+                        aria-label="Choose dashboard year"
+                        className="min-w-16 bg-transparent font-semibold outline-none"
+                      >
+                        {(report?.availableYears ?? [selectedYear]).map((year) => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <DatePicker
+                      value={selectedDate}
+                      onValueChange={(value) => {
+                        setSelectedDate(value);
+                        setRange("day");
+                      }}
+                      max={today}
+                      disabled={isMonthly}
+                      ariaLabel="Choose dashboard date"
+                      className="sm:min-w-44"
+                    />
+                  )}
                   <Button
                     type="button"
                     variant="outline"
