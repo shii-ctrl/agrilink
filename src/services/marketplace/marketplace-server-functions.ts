@@ -1824,16 +1824,13 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       );
     const monthKeysBetween = (dates: Date[]) => {
       const keys = dates.map(manilaMonthKey).sort();
-      if (keys.length === 0) return [];
-      const [firstYear, firstMonth] = keys[0].split("-").map(Number);
-      const [lastYear, lastMonth] = keys[keys.length - 1].split("-").map(Number);
+      const currentYear = Number(currentManilaMonth.year);
+      const firstYear = keys.length > 0 ? Number(keys[0].slice(0, 4)) : currentYear;
+      const lastYear = keys.length > 0 ? Math.max(Number(keys[keys.length - 1].slice(0, 4)), currentYear) : currentYear;
       const result: string[] = [];
-      for (let year = firstYear, month = firstMonth; year < lastYear || (year === lastYear && month <= lastMonth); ) {
-        result.push(`${year}-${String(month).padStart(2, "0")}`);
-        month += 1;
-        if (month === 13) {
-          year += 1;
-          month = 1;
+      for (let year = firstYear; year <= lastYear; year += 1) {
+        for (let month = 1; month <= 12; month += 1) {
+          result.push(`${year}-${String(month).padStart(2, "0")}`);
         }
       }
       return result;

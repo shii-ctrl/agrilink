@@ -259,7 +259,9 @@ function ManagementDashboard() {
                       <XAxis
                         dataKey="label"
                         interval={isAllTime
-                          ? Math.max(0, Math.ceil((report?.dashboard.inventoryFlow.length ?? 1) / 6) - 1)
+                          ? (report?.dashboard.inventoryFlow.length ?? 0) <= 12
+                            ? 0
+                            : Math.max(0, Math.ceil((report?.dashboard.inventoryFlow.length ?? 1) / 6) - 1)
                           : isMonthly
                             ? 4
                             : 3}
