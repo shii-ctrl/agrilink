@@ -45,8 +45,9 @@ const dailyPriceStatusInput = z.object({
   id: z.string().uuid(),
   published: z.boolean(),
 });
-const managementDashboardDateInput = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid dashboard date."),
+const managementDashboardInput = z.object({
+  range: z.enum(["day", "all"]),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid dashboard date.").optional(),
 });
 const listingPricingFields = {
   retailPricePerKg: z.number().positive().max(100_000),
@@ -1709,7 +1710,7 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
 
 /** Builds a daily Management view from operational records saved on one Manila calendar day. */
 export const getManagementDashboard = createServerFn({ method: "GET" })
-  .validator(managementDashboardDateInput)
+  .validator(managementDashboardInput)
   .handler(async ({ data }) => {
     const { requireRole } = await import("@/services/auth/auth-server");
     await requireRole("Management");
@@ -1724,12 +1725,15 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       receivingRecords,
     } = await import("@/db/schema");
 
+    if (data.range === "day" && !data.date) {
+      throw new Error("Choose a dashboard date.");
+    }
     // Manila has no daylight-saving changes, so an explicit +08:00 boundary keeps
     // a dashboard day consistent for users and for the Vercel server runtime.
-    const dayStart = new Date(`${data.date}T00:00:00+08:00`);
-    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const dayStart = data.date ? new Date(`${data.date}T00:00:00+08:00`) : null;
+    const dayEnd = dayStart ? new Date(dayStart.getTime() + 24 * 60 * 60 * 1000) : null;
     const occursOnSelectedDay = (date: Date | null) =>
-      Boolean(date && date >= dayStart && date < dayEnd);
+      data.range === "all" || Boolean(date && dayStart && dayEnd && date >= dayStart && date < dayEnd);
 
     const [stockRows, movements, received, databaseOrders, databasePayments] = await Promise.all([
       db
@@ -1808,7 +1812,8 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
     }));
 
     return {
-      date: data.date,
+      range: data.range,
+      date: data.range === "day" ? data.date : null,
       summaries: [
         {
           label: "Stock added",

@@ -49,9 +49,14 @@ function manilaDateValue(date = new Date()) {
 function ManagementDashboard() {
   const today = manilaDateValue();
   const [selectedDate, setSelectedDate] = useState(today);
+  const [range, setRange] = useState<"day" | "all">("day");
+  const isAllTime = range === "all";
   const request = useCallback(
-    () => getManagementDashboard({ data: { date: selectedDate } }),
-    [selectedDate],
+    () =>
+      getManagementDashboard({
+        data: range === "all" ? { range: "all" } : { range: "day", date: selectedDate },
+      }),
+    [range, selectedDate],
   );
 
   useEffect(() => {
@@ -98,19 +103,26 @@ function ManagementDashboard() {
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                 <div className="flex items-start gap-3">
                   <Database className="mt-0.5 size-5 shrink-0" />
-                <div>
-                  <h2 className="font-semibold">Daily operational data</h2>
-                  <p className="mt-1 opacity-85">
-                    This dashboard starts on today and refreshes as records are saved. Choose an
-                    earlier date to review the saved history for that day.
-                  </p>
-                </div>
+                  <div>
+                    <h2 className="font-semibold">
+                      {isAllTime ? "All-time operational data" : "Daily operational data"}
+                    </h2>
+                    <p className="mt-1 opacity-85">
+                      {isAllTime
+                        ? "Every saved record is included in this overview."
+                        : "This dashboard starts on today and refreshes as records are saved. Choose an earlier date to review its saved history."}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <DatePicker
                     value={selectedDate}
-                    onValueChange={setSelectedDate}
+                    onValueChange={(value) => {
+                      setSelectedDate(value);
+                      setRange("day");
+                    }}
                     max={today}
+                    disabled={isAllTime}
                     ariaLabel="Choose dashboard date"
                     className="sm:min-w-44"
                   />
@@ -118,10 +130,22 @@ function ManagementDashboard() {
                     type="button"
                     variant="outline"
                     className="rounded-xl"
-                    disabled={selectedDate === today}
-                    onClick={() => setSelectedDate(today)}
+                    disabled={!isAllTime && selectedDate === today}
+                    onClick={() => {
+                      setSelectedDate(today);
+                      setRange("day");
+                    }}
                   >
                     Today
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={isAllTime ? "default" : "outline"}
+                    className="rounded-xl"
+                    disabled={isAllTime}
+                    onClick={() => setRange("all")}
+                  >
+                    All time
                   </Button>
                 </div>
               </div>
@@ -132,12 +156,12 @@ function ManagementDashboard() {
                 <div>
                   <h2 className="text-lg font-semibold">Operational overview</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Saved results for the selected day.
+                    {isAllTime ? "Saved results across all time." : "Saved results for the selected day."}
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
                   <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
-                  {report?.date === today ? "Today" : "Historical day"}
+                  {report?.range === "all" ? "All time" : report?.date === today ? "Today" : "Historical day"}
                 </span>
               </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -162,7 +186,9 @@ function ManagementDashboard() {
                   <div>
                     <h2 className="text-lg font-semibold">Sales and order activity</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Buyer orders and completed sales by hour for the selected day.
+                      {isAllTime
+                        ? "Buyer orders and completed sales grouped by hour across all saved days."
+                        : "Buyer orders and completed sales by hour for the selected day."}
                     </p>
                   </div>
                   <TrendingUp className="size-5 shrink-0 text-primary" />
@@ -216,7 +242,9 @@ function ManagementDashboard() {
                   <div>
                     <h2 className="text-lg font-semibold">Stock quality</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Classified stock added on the selected day.
+                      {isAllTime
+                        ? "Classified stock added across all saved days."
+                        : "Classified stock added on the selected day."}
                     </p>
                   </div>
                   <PieChartIcon className="size-5 shrink-0 text-primary" />
@@ -263,7 +291,9 @@ function ManagementDashboard() {
                   <div>
                     <h2 className="text-lg font-semibold">Stock added by product</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Quantities added on the selected day. Top 10 products are shown.
+                      {isAllTime
+                        ? "Quantities added across all saved days. Top 10 products are shown."
+                        : "Quantities added on the selected day. Top 10 products are shown."}
                     </p>
                   </div>
                   <PackageOpen className="size-5 shrink-0 text-primary" />
