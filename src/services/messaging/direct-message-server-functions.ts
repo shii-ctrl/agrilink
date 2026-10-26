@@ -65,6 +65,10 @@ async function directRecipientIds(viewer: MessagingUser) {
     rows.forEach((row) => ids.add(row.id));
   }
   if (viewer.roles.includes("Farmer")) {
+    // Farmers can find and start private conversations with other active Farmers.
+    // Consultant access stays assignment-based below, so this does not broaden
+    // Farmer access to any other internal role.
+    await addRoleRecipients(["Farmer"]);
     const rows = await db
       .select({ id: farmerConsultantAssignments.consultantId })
       .from(farmerConsultantAssignments)

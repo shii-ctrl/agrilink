@@ -415,6 +415,7 @@ test("private messages enforce the Community role recipient rules", async () => 
 
   assert.match(directMessages, /Management.*Marketer.*Accounting.*Farm Consultant/s);
   assert.match(directMessages, /Marketer.*Farmer.*Buyer/s);
+  assert.match(directMessages, /viewer\.roles\.includes\("Farmer"\)[\s\S]*?addRoleRecipients\(\["Farmer"\]\)/);
   assert.match(directMessages, /farmerConsultantAssignments/);
   assert.match(directMessages, /export const getDirectConversation/);
   assert.match(directMessages, /export const sendDirectMessage/);
