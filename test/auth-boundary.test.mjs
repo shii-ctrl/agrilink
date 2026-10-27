@@ -858,14 +858,15 @@ test("delivery availability is controlled by Management and Rider access stays r
   assert.match(riderPage, /getRiderDeliveryStatus/);
 });
 
-test("delivery checkout collects complete recipient and Philippine address details", async () => {
+test("delivery checkout collects a complete recipient and delivery address", async () => {
   const [cart, marketplace] = await Promise.all([
     readFile("src/routes/buyer.cart.tsx", "utf8"),
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
   ]);
 
   assert.match(cart, /type DeliveryDetails/);
-  assert.match(cart, /Country \/ Region/);
+  assert.match(cart, /Delivery information/);
+  assert.match(cart, /Used by your assigned rider to complete the delivery\./);
   assert.match(cart, /Barangay/);
   assert.match(cart, /City \/ Municipality/);
   assert.match(cart, /Preferred delivery date and time/);

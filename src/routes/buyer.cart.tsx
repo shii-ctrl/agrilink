@@ -86,8 +86,8 @@ function deliveryAddress(details: DeliveryDetails) {
     details.city,
     details.postalCode,
     details.region,
-    "Philippines",
   ]
+    .map((part) => part.trim())
     .filter(Boolean)
     .join(", ");
 }
@@ -548,211 +548,238 @@ function BuyerCartPage() {
                       </div>
                     </>
                   ) : (
-                    <fieldset className="space-y-4 rounded-2xl border border-border bg-muted/25 p-4">
-                      <legend className="sr-only">Delivery details</legend>
-                      <div className="flex items-center gap-2">
-                        <PackageCheck className="size-5 text-primary" />
-                        <div>
-                          <h3 className="font-semibold">Delivery details</h3>
-                          <p className="text-xs text-muted-foreground">
-                            Tell us where and when the order should be delivered.
+                    <fieldset className="space-y-5 rounded-2xl border border-border bg-muted/30 p-4 shadow-sm">
+                      <legend className="sr-only">Delivery information</legend>
+                      <div className="flex items-start gap-3">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <PackageCheck className="size-5" />
+                        </span>
+                        <div className="space-y-0.5">
+                          <h3 className="font-semibold">Delivery information</h3>
+                          <p className="text-xs leading-relaxed text-muted-foreground">
+                            Used by your assigned rider to complete the delivery.
                           </p>
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="delivery-country">Country / Region</Label>
-                        <Input id="delivery-country" value="Philippines" readOnly />
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="delivery-first-name">First name</Label>
-                          <Input
-                            id="delivery-first-name"
-                            value={deliveryDetails.firstName}
-                            onChange={(event) =>
-                              setDeliveryDetails((current) => ({
-                                ...current,
-                                firstName: event.target.value,
-                              }))
-                            }
-                            autoComplete="given-name"
-                            required
-                          />
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Recipient
+                          </p>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="delivery-first-name">First name</Label>
+                              <Input
+                                id="delivery-first-name"
+                                value={deliveryDetails.firstName}
+                                onChange={(event) =>
+                                  setDeliveryDetails((current) => ({
+                                    ...current,
+                                    firstName: event.target.value,
+                                  }))
+                                }
+                                autoComplete="given-name"
+                                maxLength={80}
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="delivery-last-name">Last name</Label>
+                              <Input
+                                id="delivery-last-name"
+                                value={deliveryDetails.lastName}
+                                onChange={(event) =>
+                                  setDeliveryDetails((current) => ({
+                                    ...current,
+                                    lastName: event.target.value,
+                                  }))
+                                }
+                                autoComplete="family-name"
+                                maxLength={80}
+                                required
+                              />
+                            </div>
+                          </div>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="delivery-last-name">Last name</Label>
-                          <Input
-                            id="delivery-last-name"
-                            value={deliveryDetails.lastName}
-                            onChange={(event) =>
-                              setDeliveryDetails((current) => ({
-                                ...current,
-                                lastName: event.target.value,
-                              }))
-                            }
-                            autoComplete="family-name"
-                            required
-                          />
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Delivery address
+                          </p>
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="delivery-address">House number and street</Label>
+                              <Input
+                                id="delivery-address"
+                                value={deliveryDetails.address}
+                                onChange={(event) =>
+                                  setDeliveryDetails((current) => ({
+                                    ...current,
+                                    address: event.target.value,
+                                  }))
+                                }
+                                placeholder="House number, street, and subdivision"
+                                autoComplete="street-address"
+                                maxLength={220}
+                                required
+                              />
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="delivery-apartment">
+                                  Apartment, suite, etc. (optional)
+                                </Label>
+                                <Input
+                                  id="delivery-apartment"
+                                  value={deliveryDetails.apartment}
+                                  onChange={(event) =>
+                                    setDeliveryDetails((current) => ({
+                                      ...current,
+                                      apartment: event.target.value,
+                                    }))
+                                  }
+                                  autoComplete="address-line2"
+                                  maxLength={120}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="delivery-barangay">Barangay</Label>
+                                <Input
+                                  id="delivery-barangay"
+                                  value={deliveryDetails.barangay}
+                                  onChange={(event) =>
+                                    setDeliveryDetails((current) => ({
+                                      ...current,
+                                      barangay: event.target.value,
+                                    }))
+                                  }
+                                  maxLength={100}
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor="delivery-city">City / Municipality</Label>
+                                <Input
+                                  id="delivery-city"
+                                  value={deliveryDetails.city}
+                                  onChange={(event) =>
+                                    setDeliveryDetails((current) => ({
+                                      ...current,
+                                      city: event.target.value,
+                                    }))
+                                  }
+                                  autoComplete="address-level2"
+                                  maxLength={120}
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="delivery-postal-code">Postal code</Label>
+                                <Input
+                                  id="delivery-postal-code"
+                                  value={deliveryDetails.postalCode}
+                                  onChange={(event) =>
+                                    setDeliveryDetails((current) => ({
+                                      ...current,
+                                      postalCode: event.target.value,
+                                    }))
+                                  }
+                                  inputMode="numeric"
+                                  autoComplete="postal-code"
+                                  maxLength={16}
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="delivery-region">Region</Label>
+                              <select
+                                id="delivery-region"
+                                value={deliveryDetails.region}
+                                onChange={(event) =>
+                                  setDeliveryDetails((current) => ({
+                                    ...current,
+                                    region: event.target.value,
+                                  }))
+                                }
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                required
+                              >
+                                <option value="" disabled>
+                                  Select a region
+                                </option>
+                                {philippineRegions.map((region) => (
+                                  <option key={region} value={region}>
+                                    {region}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="delivery-address">Address</Label>
-                        <Input
-                          id="delivery-address"
-                          value={deliveryDetails.address}
-                          onChange={(event) =>
-                            setDeliveryDetails((current) => ({
-                              ...current,
-                              address: event.target.value,
-                            }))
-                          }
-                          placeholder="House number, street, and subdivision"
-                          autoComplete="street-address"
-                          required
-                        />
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2">
-                          <Label htmlFor="delivery-apartment">
-                            Apartment, suite, etc. (optional)
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Contact and timing
+                          </p>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="delivery-phone">Phone</Label>
+                              <Input
+                                id="delivery-phone"
+                                value={deliveryDetails.phone}
+                                onChange={(event) =>
+                                  setDeliveryDetails((current) => ({
+                                    ...current,
+                                    phone: event.target.value,
+                                  }))
+                                }
+                                placeholder="0917 000 0000"
+                                inputMode="tel"
+                                autoComplete="tel"
+                                minLength={5}
+                                maxLength={40}
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="delivery-schedule">
+                                Preferred delivery date and time
+                              </Label>
+                              <Input
+                                id="delivery-schedule"
+                                value={deliveryDetails.schedule}
+                                onChange={(event) =>
+                                  setDeliveryDetails((current) => ({
+                                    ...current,
+                                    schedule: event.target.value,
+                                  }))
+                                }
+                                placeholder="Example: Oct 28, 9:00 AM–12:00 PM"
+                                minLength={3}
+                                maxLength={200}
+                                required
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-instructions">
+                            Delivery instructions (optional)
                           </Label>
                           <Input
-                            id="delivery-apartment"
-                            value={deliveryDetails.apartment}
+                            id="delivery-instructions"
+                            value={deliveryDetails.instructions}
                             onChange={(event) =>
                               setDeliveryDetails((current) => ({
                                 ...current,
-                                apartment: event.target.value,
+                                instructions: event.target.value,
                               }))
                             }
-                            autoComplete="address-line2"
+                            placeholder="Landmark, gate instructions, or other helpful notes"
+                            maxLength={500}
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="delivery-barangay">Barangay</Label>
-                          <Input
-                            id="delivery-barangay"
-                            value={deliveryDetails.barangay}
-                            onChange={(event) =>
-                              setDeliveryDetails((current) => ({
-                                ...current,
-                                barangay: event.target.value,
-                              }))
-                            }
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="delivery-postal-code">Postal code</Label>
-                          <Input
-                            id="delivery-postal-code"
-                            value={deliveryDetails.postalCode}
-                            onChange={(event) =>
-                              setDeliveryDetails((current) => ({
-                                ...current,
-                                postalCode: event.target.value,
-                              }))
-                            }
-                            inputMode="numeric"
-                            autoComplete="postal-code"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="delivery-city">City / Municipality</Label>
-                          <Input
-                            id="delivery-city"
-                            value={deliveryDetails.city}
-                            onChange={(event) =>
-                              setDeliveryDetails((current) => ({
-                                ...current,
-                                city: event.target.value,
-                              }))
-                            }
-                            autoComplete="address-level2"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="delivery-region">Region</Label>
-                        <select
-                          id="delivery-region"
-                          value={deliveryDetails.region}
-                          onChange={(event) =>
-                            setDeliveryDetails((current) => ({
-                              ...current,
-                              region: event.target.value,
-                            }))
-                          }
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                          required
-                        >
-                          <option value="" disabled>
-                            Select a region
-                          </option>
-                          {philippineRegions.map((region) => (
-                            <option key={region} value={region}>
-                              {region}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="delivery-phone">Phone</Label>
-                          <Input
-                            id="delivery-phone"
-                            value={deliveryDetails.phone}
-                            onChange={(event) =>
-                              setDeliveryDetails((current) => ({
-                                ...current,
-                                phone: event.target.value,
-                              }))
-                            }
-                            placeholder="0917 000 0000"
-                            inputMode="tel"
-                            autoComplete="tel"
-                            minLength={5}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="delivery-schedule">
-                            Preferred delivery date and time
-                          </Label>
-                          <Input
-                            id="delivery-schedule"
-                            value={deliveryDetails.schedule}
-                            onChange={(event) =>
-                              setDeliveryDetails((current) => ({
-                                ...current,
-                                schedule: event.target.value,
-                              }))
-                            }
-                            placeholder="Example: Oct 28, 9:00 AM–12:00 PM"
-                            minLength={3}
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="delivery-instructions">
-                          Delivery instructions (optional)
-                        </Label>
-                        <Input
-                          id="delivery-instructions"
-                          value={deliveryDetails.instructions}
-                          onChange={(event) =>
-                            setDeliveryDetails((current) => ({
-                              ...current,
-                              instructions: event.target.value,
-                            }))
-                          }
-                          placeholder="Landmark, gate instructions, or other helpful notes"
-                        />
                       </div>
                     </fieldset>
                   )}
