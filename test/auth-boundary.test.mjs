@@ -857,3 +857,20 @@ test("delivery availability is controlled by Management and Rider access stays r
   assert.match(riderLayout, /RoleGate role="Rider"/);
   assert.match(riderPage, /getRiderDeliveryStatus/);
 });
+
+test("delivery checkout collects complete recipient and Philippine address details", async () => {
+  const [cart, marketplace] = await Promise.all([
+    readFile("src/routes/buyer.cart.tsx", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+  ]);
+
+  assert.match(cart, /type DeliveryDetails/);
+  assert.match(cart, /Country \/ Region/);
+  assert.match(cart, /Barangay/);
+  assert.match(cart, /City \/ Municipality/);
+  assert.match(cart, /Preferred delivery date and time/);
+  assert.match(cart, /deliveryNote\(deliveryDetails\)/);
+  assert.match(cart, /Delivery recipient:/);
+  assert.match(cart, /Delivery address/);
+  assert.match(marketplace, /pickupNote: z\.string\(\)\.trim\(\)\.min\(3\)\.max\(2000\)/);
+});

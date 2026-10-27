@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Clock3, Minus, Plus, ShoppingCart } from "lucide-react";
+import { Clock3, MapPin, Minus, PackageCheck, Plus, ShoppingCart, Truck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
@@ -23,13 +23,85 @@ export const Route = createFileRoute("/buyer/cart")({ component: BuyerCartPage }
 
 type CartItem = Awaited<ReturnType<typeof getBuyerCart>>[number] & { image: string };
 type CartData = { items: CartItem[]; deliveryFee: number; deliveryEnabled: boolean };
+type DeliveryDetails = {
+  firstName: string;
+  lastName: string;
+  address: string;
+  apartment: string;
+  barangay: string;
+  postalCode: string;
+  city: string;
+  region: string;
+  phone: string;
+  schedule: string;
+  instructions: string;
+};
 const emptyCartItems: CartItem[] = [];
+const emptyDeliveryDetails: DeliveryDetails = {
+  firstName: "",
+  lastName: "",
+  address: "",
+  apartment: "",
+  barangay: "",
+  postalCode: "",
+  city: "",
+  region: "",
+  phone: "",
+  schedule: "",
+  instructions: "",
+};
+
+const philippineRegions = [
+  "NCR",
+  "CAR",
+  "Ilocos Region",
+  "Cagayan Valley",
+  "Central Luzon",
+  "CALABARZON",
+  "MIMAROPA",
+  "Bicol Region",
+  "Western Visayas",
+  "Central Visayas",
+  "Eastern Visayas",
+  "Zamboanga Peninsula",
+  "Northern Mindanao",
+  "Davao Region",
+  "SOCCSKSARGEN",
+  "Caraga",
+  "BARMM",
+] as const;
 
 function reservationCountdown(expiresAt: string, now: number) {
   const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - now) / 1000));
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function deliveryAddress(details: DeliveryDetails) {
+  return [
+    details.address,
+    details.apartment,
+    details.barangay,
+    details.city,
+    details.postalCode,
+    details.region,
+    "Philippines",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function deliveryNote(details: DeliveryDetails) {
+  return [
+    `Delivery recipient: ${details.firstName.trim()} ${details.lastName.trim()}`,
+    `Address: ${deliveryAddress(details)}`,
+    `Phone: ${details.phone.trim()}`,
+    `Preferred schedule: ${details.schedule.trim()}`,
+    details.instructions.trim() ? `Instructions: ${details.instructions.trim()}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function BuyerCartPage() {
@@ -52,6 +124,7 @@ function BuyerCartPage() {
   const [contact, setContact] = useState("");
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [arrangementNote, setArrangementNote] = useState("");
+  const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails>(emptyDeliveryDetails);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const releasedReservationRef = useRef(false);
@@ -108,7 +181,13 @@ function BuyerCartPage() {
   useEffect(() => {
     void getCurrentSessionUser()
       .then((user) => {
-        if (user?.contact) setContact((currentContact) => currentContact || user.contact || "");
+        if (user?.contact) {
+          setContact((currentContact) => currentContact || user.contact || "");
+          setDeliveryDetails((currentDetails) => ({
+            ...currentDetails,
+            phone: currentDetails.phone || user.contact || "",
+          }));
+        }
       })
       .catch(() => undefined);
   }, []);
@@ -135,7 +214,11 @@ function BuyerCartPage() {
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const fulfillmentLabel = fulfillment === "pickup" ? "Pickup" : "Delivery";
-    const pickupNote = `${fulfillmentLabel}: ${arrangementNote.trim()}`;
+    const orderContact = fulfillment === "delivery" ? deliveryDetails.phone.trim() : contact.trim();
+    const pickupNote =
+      fulfillment === "pickup"
+        ? `Pickup: ${arrangementNote.trim()}`
+        : `Delivery:\n${deliveryNote(deliveryDetails)}`;
     const accepted = await requestConfirmation({
       title: "Confirm your order?",
       description: `You are submitting ${items.length} product group${items.length === 1 ? "" : "s"} (${totalKg} kg) for ${peso(finalTotal)}. PROCY will review the ${fulfillmentLabel.toLocaleLowerCase()} arrangement before confirming it.`,
@@ -162,16 +245,37 @@ function BuyerCartPage() {
           <dl className="mt-4 space-y-2 border-t border-border pt-3 text-xs">
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Contact</dt>
-              <dd className="text-right font-medium">{contact}</dd>
+              <dd className="text-right font-medium">{orderContact}</dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Arrangement</dt>
               <dd className="text-right font-medium">{fulfillmentLabel}</dd>
             </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">Details</dt>
-              <dd className="max-w-48 text-right font-medium">{arrangementNote}</dd>
-            </div>
+            {fulfillment === "pickup" ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Pickup details</dt>
+                <dd className="max-w-48 text-right font-medium">{arrangementNote}</dd>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Recipient</dt>
+                  <dd className="max-w-48 text-right font-medium">
+                    {deliveryDetails.firstName} {deliveryDetails.lastName}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Delivery address</dt>
+                  <dd className="max-w-48 text-right font-medium">
+                    {deliveryAddress(deliveryDetails)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Preferred schedule</dt>
+                  <dd className="max-w-48 text-right font-medium">{deliveryDetails.schedule}</dd>
+                </div>
+              </>
+            )}
             {fulfillment === "delivery" ? (
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Delivery fee</dt>
@@ -192,7 +296,7 @@ function BuyerCartPage() {
     try {
       const databaseOrder = await placeBuyerOrder({
         data: {
-          contact,
+          contact: orderContact,
           pickupNote,
           fulfillment,
           items: items.map((item) => ({
@@ -358,18 +462,6 @@ function BuyerCartPage() {
                 </div>
 
                 <form className="mt-6 space-y-5" onSubmit={submitOrder}>
-                  <div className="space-y-2">
-                    <Label htmlFor="contact">Contact number</Label>
-                    <Input
-                      id="contact"
-                      name="contact"
-                      value={contact}
-                      onChange={(event) => setContact(event.target.value)}
-                      placeholder="0917 000 0000"
-                      minLength={5}
-                      required
-                    />
-                  </div>
                   <fieldset className="space-y-2">
                     <legend className="text-sm font-medium">
                       How would you like to receive it?
@@ -390,7 +482,9 @@ function BuyerCartPage() {
                           onChange={() => setFulfillment("pickup")}
                           className="sr-only"
                         />
-                        <span className="block text-sm font-semibold">Pickup</span>
+                        <span className="flex items-center gap-2 text-sm font-semibold">
+                          <MapPin className="size-4" /> Pickup
+                        </span>
                         <span className="mt-1 block text-xs text-muted-foreground">
                           Free — arrange a time with PROCY
                         </span>
@@ -411,7 +505,9 @@ function BuyerCartPage() {
                             onChange={() => setFulfillment("delivery")}
                             className="sr-only"
                           />
-                          <span className="block text-sm font-semibold">Delivery</span>
+                          <span className="flex items-center gap-2 text-sm font-semibold">
+                            <Truck className="size-4" /> Delivery
+                          </span>
                           <span className="mt-1 block text-xs text-muted-foreground">
                             ₱{deliveryFee.toFixed(2)} flat fee — provide an address and schedule
                           </span>
@@ -424,24 +520,242 @@ function BuyerCartPage() {
                       </p>
                     ) : null}
                   </fieldset>
-                  <div className="space-y-2">
-                    <Label htmlFor="arrangement-note">
-                      {fulfillment === "pickup" ? "Pickup details" : "Delivery details"}
-                    </Label>
-                    <Input
-                      id="arrangement-note"
-                      name="arrangementNote"
-                      value={arrangementNote}
-                      onChange={(event) => setArrangementNote(event.target.value)}
-                      placeholder={
-                        fulfillment === "pickup"
-                          ? "Preferred pickup date and time"
-                          : "Complete address and preferred delivery schedule"
-                      }
-                      minLength={3}
-                      required
-                    />
-                  </div>
+                  {fulfillment === "pickup" ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="contact">Contact number</Label>
+                        <Input
+                          id="contact"
+                          name="contact"
+                          value={contact}
+                          onChange={(event) => setContact(event.target.value)}
+                          placeholder="0917 000 0000"
+                          minLength={5}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="arrangement-note">Pickup details</Label>
+                        <Input
+                          id="arrangement-note"
+                          name="arrangementNote"
+                          value={arrangementNote}
+                          onChange={(event) => setArrangementNote(event.target.value)}
+                          placeholder="Preferred pickup date and time"
+                          minLength={3}
+                          required
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <fieldset className="space-y-4 rounded-2xl border border-border bg-muted/25 p-4">
+                      <legend className="sr-only">Delivery details</legend>
+                      <div className="flex items-center gap-2">
+                        <PackageCheck className="size-5 text-primary" />
+                        <div>
+                          <h3 className="font-semibold">Delivery details</h3>
+                          <p className="text-xs text-muted-foreground">
+                            Tell us where and when the order should be delivered.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="delivery-country">Country / Region</Label>
+                        <Input id="delivery-country" value="Philippines" readOnly />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-first-name">First name</Label>
+                          <Input
+                            id="delivery-first-name"
+                            value={deliveryDetails.firstName}
+                            onChange={(event) =>
+                              setDeliveryDetails((current) => ({
+                                ...current,
+                                firstName: event.target.value,
+                              }))
+                            }
+                            autoComplete="given-name"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-last-name">Last name</Label>
+                          <Input
+                            id="delivery-last-name"
+                            value={deliveryDetails.lastName}
+                            onChange={(event) =>
+                              setDeliveryDetails((current) => ({
+                                ...current,
+                                lastName: event.target.value,
+                              }))
+                            }
+                            autoComplete="family-name"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="delivery-address">Address</Label>
+                        <Input
+                          id="delivery-address"
+                          value={deliveryDetails.address}
+                          onChange={(event) =>
+                            setDeliveryDetails((current) => ({
+                              ...current,
+                              address: event.target.value,
+                            }))
+                          }
+                          placeholder="House number, street, and subdivision"
+                          autoComplete="street-address"
+                          required
+                        />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-apartment">
+                            Apartment, suite, etc. (optional)
+                          </Label>
+                          <Input
+                            id="delivery-apartment"
+                            value={deliveryDetails.apartment}
+                            onChange={(event) =>
+                              setDeliveryDetails((current) => ({
+                                ...current,
+                                apartment: event.target.value,
+                              }))
+                            }
+                            autoComplete="address-line2"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-barangay">Barangay</Label>
+                          <Input
+                            id="delivery-barangay"
+                            value={deliveryDetails.barangay}
+                            onChange={(event) =>
+                              setDeliveryDetails((current) => ({
+                                ...current,
+                                barangay: event.target.value,
+                              }))
+                            }
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-postal-code">Postal code</Label>
+                          <Input
+                            id="delivery-postal-code"
+                            value={deliveryDetails.postalCode}
+                            onChange={(event) =>
+                              setDeliveryDetails((current) => ({
+                                ...current,
+                                postalCode: event.target.value,
+                              }))
+                            }
+                            inputMode="numeric"
+                            autoComplete="postal-code"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-city">City / Municipality</Label>
+                          <Input
+                            id="delivery-city"
+                            value={deliveryDetails.city}
+                            onChange={(event) =>
+                              setDeliveryDetails((current) => ({
+                                ...current,
+                                city: event.target.value,
+                              }))
+                            }
+                            autoComplete="address-level2"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="delivery-region">Region</Label>
+                        <select
+                          id="delivery-region"
+                          value={deliveryDetails.region}
+                          onChange={(event) =>
+                            setDeliveryDetails((current) => ({
+                              ...current,
+                              region: event.target.value,
+                            }))
+                          }
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          required
+                        >
+                          <option value="" disabled>
+                            Select a region
+                          </option>
+                          {philippineRegions.map((region) => (
+                            <option key={region} value={region}>
+                              {region}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-phone">Phone</Label>
+                          <Input
+                            id="delivery-phone"
+                            value={deliveryDetails.phone}
+                            onChange={(event) =>
+                              setDeliveryDetails((current) => ({
+                                ...current,
+                                phone: event.target.value,
+                              }))
+                            }
+                            placeholder="0917 000 0000"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            minLength={5}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-schedule">
+                            Preferred delivery date and time
+                          </Label>
+                          <Input
+                            id="delivery-schedule"
+                            value={deliveryDetails.schedule}
+                            onChange={(event) =>
+                              setDeliveryDetails((current) => ({
+                                ...current,
+                                schedule: event.target.value,
+                              }))
+                            }
+                            placeholder="Example: Oct 28, 9:00 AM–12:00 PM"
+                            minLength={3}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="delivery-instructions">
+                          Delivery instructions (optional)
+                        </Label>
+                        <Input
+                          id="delivery-instructions"
+                          value={deliveryDetails.instructions}
+                          onChange={(event) =>
+                            setDeliveryDetails((current) => ({
+                              ...current,
+                              instructions: event.target.value,
+                            }))
+                          }
+                          placeholder="Landmark, gate instructions, or other helpful notes"
+                        />
+                      </div>
+                    </fieldset>
+                  )}
                   <Button type="submit" className="w-full rounded-full" disabled={placingOrder}>
                     {placingOrder ? "Submitting order…" : "Review and place order"}
                   </Button>
