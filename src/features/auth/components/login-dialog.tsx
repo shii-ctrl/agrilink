@@ -38,6 +38,8 @@ function destinationForRoles(roles: string[]) {
           ? "/farmer"
           : role === "Farm Consultant"
             ? "/consultant"
+            : role === "Rider"
+              ? "/rider"
             : "/";
 }
 

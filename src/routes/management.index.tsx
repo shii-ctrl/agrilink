@@ -19,11 +19,13 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { toast } from "sonner";
 import {
   getManagementDashboard,
   getManagementDeliveryFee,
+  updateManagementDeliveryAvailability,
   updateManagementDeliveryFee,
 } from "@/services/marketplace/marketplace-server-functions";
 
@@ -73,7 +75,9 @@ function ManagementDashboard() {
   const [selectedYear, setSelectedYear] = useState(Number(today.slice(0, 4)));
   const [range, setRange] = useState<"day" | "month" | "all">("day");
   const [deliveryFee, setDeliveryFee] = useState("59");
+  const [deliveryEnabled, setDeliveryEnabled] = useState(true);
   const [savingDeliveryFee, setSavingDeliveryFee] = useState(false);
+  const [savingDeliveryAvailability, setSavingDeliveryAvailability] = useState(false);
   const isMonthly = range === "month";
   const isAllTime = range === "all";
   const request = useCallback(
@@ -102,7 +106,10 @@ function ManagementDashboard() {
 
   useEffect(() => {
     void getManagementDeliveryFee()
-      .then((settings) => setDeliveryFee(String(settings.deliveryFee)))
+      .then((settings) => {
+        setDeliveryFee(String(settings.deliveryFee));
+        setDeliveryEnabled(settings.deliveryEnabled);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -125,6 +132,27 @@ function ManagementDashboard() {
       });
     } finally {
       setSavingDeliveryFee(false);
+    }
+  }
+
+  async function saveDeliveryAvailability(nextEnabled: boolean) {
+    setSavingDeliveryAvailability(true);
+    try {
+      const saved = await updateManagementDeliveryAvailability({
+        data: { deliveryEnabled: nextEnabled },
+      });
+      setDeliveryEnabled(saved.deliveryEnabled);
+      toast.success(saved.deliveryEnabled ? "Delivery turned on" : "Delivery turned off", {
+        description: saved.deliveryEnabled
+          ? "Buyers can choose delivery at checkout."
+          : "Buyers can choose pickup only until delivery is turned back on.",
+      });
+    } catch (error) {
+      toast.error("Could not update delivery availability", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setSavingDeliveryAvailability(false);
     }
   }
   const summaryByLabel = useMemo(
@@ -272,6 +300,32 @@ function ManagementDashboard() {
                   >
                     {savingDeliveryFee ? "Saving…" : "Save delivery fee"}
                   </Button>
+                </div>
+              </div>
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-muted/30 p-4">
+                <div>
+                  <p className="font-medium">Delivery checkout</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Turn this off when no Rider is available. Buyers will see pickup only.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      deliveryEnabled
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {deliveryEnabled ? "Delivery on" : "Delivery off"}
+                  </span>
+                  <Switch
+                    id="delivery-enabled"
+                    checked={deliveryEnabled}
+                    disabled={savingDeliveryAvailability}
+                    onCheckedChange={(checked) => void saveDeliveryAvailability(checked)}
+                    aria-label="Enable delivery checkout"
+                  />
                 </div>
               </div>
               <p id="delivery-fee-help" className="mt-3 text-xs text-muted-foreground">

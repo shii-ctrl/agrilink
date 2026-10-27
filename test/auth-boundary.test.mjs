@@ -782,30 +782,45 @@ test("Management dashboard keeps daily history available without altering saved 
   assert.match(marketplace, /Classified stock recorded \$\{periodLabel\}/);
 });
 
-test("delivery fees are managed securely and applied only to delivery orders", async () => {
-  const [schema, migration, marketplace, cart, management] = await Promise.all([
+test("delivery availability is controlled by Management and Rider access stays role-protected", async () => {
+  const [schema, feeMigration, riderMigration, marketplace, cart, management, riderLayout, riderPage] =
+    await Promise.all([
     readFile("src/db/schema.ts", "utf8"),
     readFile("drizzle/0019_delivery_fee_settings.sql", "utf8"),
+    readFile("drizzle/0020_rider_role_and_delivery_availability.sql", "utf8"),
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/routes/buyer.cart.tsx", "utf8"),
     readFile("src/routes/management.index.tsx", "utf8"),
+    readFile("src/components/workspaces/rider-layout.tsx", "utf8"),
+    readFile("src/routes/rider.index.tsx", "utf8"),
   ]);
 
   assert.match(schema, /deliverySettings/);
   assert.match(schema, /deliveryFee: decimal/);
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS delivery_settings/);
-  assert.match(migration, /INSERT IGNORE INTO delivery_settings/);
-  assert.match(migration, /ADD COLUMN IF NOT EXISTS delivery_fee/);
+  assert.match(schema, /deliveryEnabled: boolean/);
+  assert.match(feeMigration, /CREATE TABLE IF NOT EXISTS delivery_settings/);
+  assert.match(feeMigration, /INSERT IGNORE INTO delivery_settings/);
+  assert.match(feeMigration, /ADD COLUMN IF NOT EXISTS delivery_fee/);
+  assert.match(riderMigration, /INSERT IGNORE INTO roles \(name\) VALUES \('Rider'\)/);
+  assert.match(riderMigration, /ADD COLUMN IF NOT EXISTS delivery_enabled/);
   assert.match(marketplace, /fulfillment: z\.enum\(\["pickup", "delivery"\]\)/);
   assert.match(
     marketplace,
     /data\.fulfillment === "delivery" \? Number\(settings\?\.flatFee \?\? 59\) : 0/,
   );
   assert.match(marketplace, /export const updateManagementDeliveryFee/);
+  assert.match(marketplace, /export const updateManagementDeliveryAvailability/);
+  assert.match(marketplace, /Delivery is temporarily unavailable/);
+  assert.match(marketplace, /export const getRiderDeliveryStatus/);
   assert.match(marketplace, /requireRole\("Management"\)/);
+  assert.match(marketplace, /requireRole\("Rider"\)/);
   assert.match(marketplace, /export const getBuyerDeliveryFee/);
   assert.match(cart, /fulfillment === "delivery" \? deliveryFee : 0/);
-  assert.match(cart, /Pickup", "Free/);
+  assert.match(cart, /Delivery is temporarily unavailable/);
+  assert.match(cart, /Free — arrange a time with PROCY/);
   assert.match(management, /Delivery fee/);
   assert.match(management, /updateManagementDeliveryFee/);
+  assert.match(management, /updateManagementDeliveryAvailability/);
+  assert.match(riderLayout, /RoleGate role="Rider"/);
+  assert.match(riderPage, /getRiderDeliveryStatus/);
 });

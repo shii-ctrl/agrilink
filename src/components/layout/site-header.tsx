@@ -40,6 +40,7 @@ const workspaceForRoles = [
   ["Accounting", "/accounting"],
   ["Farmer", "/farmer"],
   ["Farm Consultant", "/consultant"],
+  ["Rider", "/rider"],
 ] as const;
 
 export function SiteHeader({

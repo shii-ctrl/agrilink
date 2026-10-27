@@ -5,7 +5,14 @@ import { z } from "zod";
 
 import { securePassword } from "@/services/auth/password-policy";
 
-const internalRole = z.enum(["Management", "Marketer", "Accounting", "Farmer", "Farm Consultant"]);
+const internalRole = z.enum([
+  "Management",
+  "Marketer",
+  "Accounting",
+  "Farmer",
+  "Farm Consultant",
+  "Rider",
+]);
 const createUserInput = z.object({
   name: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80),

@@ -219,6 +219,9 @@ export const deliverySettings = mysqlTable("delivery_settings", {
   // trusting a browser-provided amount.
   id: int("id").primaryKey(),
   flatFee: decimal("flat_fee", { precision: 12, scale: 2 }).default("59.00").notNull(),
+  // Management can pause delivery when no Rider is available. Checkout also
+  // verifies this flag on the server, so it cannot be bypassed in the browser.
+  deliveryEnabled: boolean("delivery_enabled").default(true).notNull(),
   updatedById: varchar("updated_by_id", { length: 36 }),
   createdAt,
   updatedAt,

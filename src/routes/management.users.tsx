@@ -37,7 +37,14 @@ export const Route = createFileRoute("/management/users")({
   component: ManagementUsersPage,
 });
 
-const roles = ["Management", "Marketer", "Accounting", "Farmer", "Farm Consultant"] as const;
+const roles = [
+  "Management",
+  "Marketer",
+  "Accounting",
+  "Farmer",
+  "Farm Consultant",
+  "Rider",
+] as const;
 const userRoleFilters = [
   "All",
   "Buyer",
@@ -45,6 +52,7 @@ const userRoleFilters = [
   "Marketer",
   "Accounting",
   "Farm Consultant",
+  "Rider",
   "Management",
 ] as const;
 type UserRoleFilter = (typeof userRoleFilters)[number];
@@ -713,7 +721,7 @@ function ManagementUsersPage() {
               <UsersRound className="mt-0.5 size-5 shrink-0 text-primary" />
               <p>
                 Buyer accounts can self-register in the public website. Management creates
-                Management, Marketer, Accounting Personnel, Farmer Member, and Farm Consultant
+                Management, Marketer, Accounting Personnel, Farmer Member, Farm Consultant, and Rider
                 accounts.
               </p>
             </aside>

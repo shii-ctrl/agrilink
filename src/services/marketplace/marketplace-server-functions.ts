@@ -22,6 +22,9 @@ const checkoutInput = z.object({
 const deliveryFeeInput = z.object({
   deliveryFee: z.number().finite().min(0).max(10_000),
 });
+const deliveryAvailabilityInput = z.object({
+  deliveryEnabled: z.boolean(),
+});
 const cartItemInput = z.object({
   listingId: z.string().uuid(),
   quantityKg: z.number().positive().max(10_000),
@@ -1410,11 +1413,17 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         productsTotal += item.quantityKg * listingUnitPrice(row, item.quantityKg);
       }
       const [settings] = await tx
-        .select({ flatFee: deliverySettings.flatFee })
+        .select({
+          flatFee: deliverySettings.flatFee,
+          deliveryEnabled: deliverySettings.deliveryEnabled,
+        })
         .from(deliverySettings)
         .where(eq(deliverySettings.id, 1));
-      // This value is read on the server. A Buyer can choose delivery, but can
-      // never set or reduce its fee from the browser.
+      // These values are read on the server. A Buyer can never enable a paused
+      // delivery option or set/reduce its fee from the browser.
+      if (data.fulfillment === "delivery" && settings?.deliveryEnabled === false) {
+        throw new Error("Delivery is temporarily unavailable. Please choose pickup instead.");
+      }
       const deliveryFee = data.fulfillment === "delivery" ? Number(settings?.flatFee ?? 59) : 0;
       const totalAmount = productsTotal + deliveryFee;
 
@@ -1483,10 +1492,36 @@ export const getBuyerDeliveryFee = createServerFn({ method: "GET" }).handler(asy
   const { db } = await import("@/db/client.server");
   const { deliverySettings } = await import("@/db/schema");
   const [settings] = await db
-    .select({ flatFee: deliverySettings.flatFee })
+    .select({
+      flatFee: deliverySettings.flatFee,
+      deliveryEnabled: deliverySettings.deliveryEnabled,
+    })
     .from(deliverySettings)
     .where(eq(deliverySettings.id, 1));
-  return { deliveryFee: Number(settings?.flatFee ?? 59) };
+  return {
+    deliveryFee: Number(settings?.flatFee ?? 59),
+    deliveryEnabled: settings?.deliveryEnabled ?? true,
+  };
+});
+
+/** The Rider workspace may view delivery availability but cannot change checkout settings. */
+export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/services/auth/auth-server");
+  await requireRole("Rider");
+  const { db } = await import("@/db/client.server");
+  const { deliverySettings } = await import("@/db/schema");
+  const [settings] = await db
+    .select({
+      flatFee: deliverySettings.flatFee,
+      deliveryEnabled: deliverySettings.deliveryEnabled,
+    })
+    .from(deliverySettings)
+    .where(eq(deliverySettings.id, 1))
+    .limit(1);
+  return {
+    deliveryFee: Number(settings?.flatFee ?? 59),
+    deliveryEnabled: settings?.deliveryEnabled ?? true,
+  };
 });
 
 export const getManagementDeliveryFee = createServerFn({ method: "GET" }).handler(async () => {
@@ -1495,10 +1530,16 @@ export const getManagementDeliveryFee = createServerFn({ method: "GET" }).handle
   const { db } = await import("@/db/client.server");
   const { deliverySettings } = await import("@/db/schema");
   const [settings] = await db
-    .select({ flatFee: deliverySettings.flatFee })
+    .select({
+      flatFee: deliverySettings.flatFee,
+      deliveryEnabled: deliverySettings.deliveryEnabled,
+    })
     .from(deliverySettings)
     .where(eq(deliverySettings.id, 1));
-  return { deliveryFee: Number(settings?.flatFee ?? 59) };
+  return {
+    deliveryFee: Number(settings?.flatFee ?? 59),
+    deliveryEnabled: settings?.deliveryEnabled ?? true,
+  };
 });
 
 export const updateManagementDeliveryFee = createServerFn({ method: "POST" })
@@ -1517,6 +1558,34 @@ export const updateManagementDeliveryFee = createServerFn({ method: "POST" })
       });
     await writeAuditLog(manager.id, "delivery_fee.update", "delivery_settings", "1", { fee });
     return { deliveryFee: fee };
+  });
+
+export const updateManagementDeliveryAvailability = createServerFn({ method: "POST" })
+  .validator(deliveryAvailabilityInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const manager = await requireRole("Management");
+    const { db } = await import("@/db/client.server");
+    const { deliverySettings } = await import("@/db/schema");
+    await db
+      .insert(deliverySettings)
+      .values({
+        id: 1,
+        flatFee: "59.00",
+        deliveryEnabled: data.deliveryEnabled,
+        updatedById: manager.id,
+      })
+      .onDuplicateKeyUpdate({
+        set: { deliveryEnabled: data.deliveryEnabled, updatedById: manager.id },
+      });
+    await writeAuditLog(
+      manager.id,
+      data.deliveryEnabled ? "delivery.enable" : "delivery.disable",
+      "delivery_settings",
+      "1",
+      { enabled: data.deliveryEnabled },
+    );
+    return { deliveryEnabled: data.deliveryEnabled };
   });
 
 export const getBuyerOrders = createServerFn({ method: "GET" }).handler(async () => {

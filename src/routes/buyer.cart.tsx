@@ -22,7 +22,7 @@ import {
 export const Route = createFileRoute("/buyer/cart")({ component: BuyerCartPage });
 
 type CartItem = Awaited<ReturnType<typeof getBuyerCart>>[number] & { image: string };
-type CartData = { items: CartItem[]; deliveryFee: number };
+type CartData = { items: CartItem[]; deliveryFee: number; deliveryEnabled: boolean };
 const emptyCartItems: CartItem[] = [];
 
 function reservationCountdown(expiresAt: string, now: number) {
@@ -42,11 +42,13 @@ function BuyerCartPage() {
         image: item.imageUrl || marketplaceImageFor(item.name),
       })),
       deliveryFee: settings.deliveryFee,
+      deliveryEnabled: settings.deliveryEnabled,
     } satisfies CartData;
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(request);
   const items = data?.items ?? emptyCartItems;
   const deliveryFee = data?.deliveryFee ?? 59;
+  const deliveryEnabled = data?.deliveryEnabled ?? true;
   const [contact, setContact] = useState("");
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [arrangementNote, setArrangementNote] = useState("");
@@ -54,6 +56,10 @@ function BuyerCartPage() {
   const [now, setNow] = useState(() => Date.now());
   const releasedReservationRef = useRef(false);
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
+
+  useEffect(() => {
+    if (!deliveryEnabled && fulfillment === "delivery") setFulfillment("pickup");
+  }, [deliveryEnabled, fulfillment]);
   const total = useMemo(
     () => items.reduce((sum, item) => sum + item.pricePerKg * item.quantityKg, 0),
     [items],
@@ -368,21 +374,31 @@ function BuyerCartPage() {
                     <legend className="text-sm font-medium">
                       How would you like to receive it?
                     </legend>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(
-                        [
-                          ["pickup", "Pickup", "Free — arrange a time with PROCY"],
-                          [
-                            "delivery",
-                            "Delivery",
-                            `₱${deliveryFee.toFixed(2)} flat fee — provide an address and schedule`,
-                          ],
-                        ] as const
-                      ).map(([value, label, description]) => (
+                    <div className={deliveryEnabled ? "grid grid-cols-2 gap-2" : "grid gap-2"}>
+                      <label
+                        className={`cursor-pointer rounded-2xl border p-3 transition-colors ${
+                          fulfillment === "pickup"
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:bg-muted/40"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="fulfillment"
+                          value="pickup"
+                          checked={fulfillment === "pickup"}
+                          onChange={() => setFulfillment("pickup")}
+                          className="sr-only"
+                        />
+                        <span className="block text-sm font-semibold">Pickup</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          Free — arrange a time with PROCY
+                        </span>
+                      </label>
+                      {deliveryEnabled ? (
                         <label
-                          key={value}
                           className={`cursor-pointer rounded-2xl border p-3 transition-colors ${
-                            fulfillment === value
+                            fulfillment === "delivery"
                               ? "border-primary bg-primary/10"
                               : "border-border hover:bg-muted/40"
                           }`}
@@ -390,18 +406,23 @@ function BuyerCartPage() {
                           <input
                             type="radio"
                             name="fulfillment"
-                            value={value}
-                            checked={fulfillment === value}
-                            onChange={() => setFulfillment(value)}
+                            value="delivery"
+                            checked={fulfillment === "delivery"}
+                            onChange={() => setFulfillment("delivery")}
                             className="sr-only"
                           />
-                          <span className="block text-sm font-semibold">{label}</span>
+                          <span className="block text-sm font-semibold">Delivery</span>
                           <span className="mt-1 block text-xs text-muted-foreground">
-                            {description}
+                            ₱{deliveryFee.toFixed(2)} flat fee — provide an address and schedule
                           </span>
                         </label>
-                      ))}
+                      ) : null}
                     </div>
+                    {!deliveryEnabled ? (
+                      <p className="text-xs text-muted-foreground">
+                        Delivery is temporarily unavailable. Please choose pickup.
+                      </p>
+                    ) : null}
                   </fieldset>
                   <div className="space-y-2">
                     <Label htmlFor="arrangement-note">

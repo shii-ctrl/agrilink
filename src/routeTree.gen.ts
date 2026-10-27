@@ -65,6 +65,8 @@ import { Route as MarketerReceivingRouteImport } from './routes/marketer.receivi
 import { Route as MarketerSalesRouteImport } from './routes/marketer.sales'
 import { Route as MarketplaceIndexRouteImport } from './routes/marketplace.index'
 import { Route as MarketplaceProductIdRouteImport } from './routes/marketplace.$productId'
+import { Route as RiderIndexRouteImport } from './routes/rider.index'
+import { Route as RiderProfileRouteImport } from './routes/rider.profile'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -348,6 +350,16 @@ const MarketplaceProductIdRoute = MarketplaceProductIdRouteImport.update({
   path: '/marketplace/$productId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RiderIndexRoute = RiderIndexRouteImport.update({
+  id: '/rider/',
+  path: '/rider/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RiderProfileRoute = RiderProfileRouteImport.update({
+  id: '/rider/profile',
+  path: '/rider/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -399,6 +411,7 @@ export interface FileRoutesByFullPath {
   '/marketer/receiving': typeof MarketerReceivingRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
+  '/rider/profile': typeof RiderProfileRoute
   '/accounting/': typeof AccountingIndexRoute
   '/buyer/': typeof BuyerIndexRoute
   '/consultant/': typeof ConsultantIndexRoute
@@ -406,6 +419,7 @@ export interface FileRoutesByFullPath {
   '/management/': typeof ManagementIndexRoute
   '/marketer/': typeof MarketerIndexRoute
   '/marketplace/': typeof MarketplaceIndexRoute
+  '/rider/': typeof RiderIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -457,6 +471,7 @@ export interface FileRoutesByTo {
   '/marketer/receiving': typeof MarketerReceivingRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
+  '/rider/profile': typeof RiderProfileRoute
   '/accounting': typeof AccountingIndexRoute
   '/buyer': typeof BuyerIndexRoute
   '/consultant': typeof ConsultantIndexRoute
@@ -464,6 +479,7 @@ export interface FileRoutesByTo {
   '/management': typeof ManagementIndexRoute
   '/marketer': typeof MarketerIndexRoute
   '/marketplace': typeof MarketplaceIndexRoute
+  '/rider': typeof RiderIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -516,6 +532,7 @@ export interface FileRoutesById {
   '/marketer/receiving': typeof MarketerReceivingRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
+  '/rider/profile': typeof RiderProfileRoute
   '/accounting/': typeof AccountingIndexRoute
   '/buyer/': typeof BuyerIndexRoute
   '/consultant/': typeof ConsultantIndexRoute
@@ -523,6 +540,7 @@ export interface FileRoutesById {
   '/management/': typeof ManagementIndexRoute
   '/marketer/': typeof MarketerIndexRoute
   '/marketplace/': typeof MarketplaceIndexRoute
+  '/rider/': typeof RiderIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -576,6 +594,7 @@ export interface FileRouteTypes {
     | '/marketer/receiving'
     | '/marketer/sales'
     | '/marketplace/$productId'
+    | '/rider/profile'
     | '/accounting/'
     | '/buyer/'
     | '/consultant/'
@@ -583,6 +602,7 @@ export interface FileRouteTypes {
     | '/management/'
     | '/marketer/'
     | '/marketplace/'
+    | '/rider/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -634,6 +654,7 @@ export interface FileRouteTypes {
     | '/marketer/receiving'
     | '/marketer/sales'
     | '/marketplace/$productId'
+    | '/rider/profile'
     | '/accounting'
     | '/buyer'
     | '/consultant'
@@ -641,6 +662,7 @@ export interface FileRouteTypes {
     | '/management'
     | '/marketer'
     | '/marketplace'
+    | '/rider'
   id:
     | '__root__'
     | '/'
@@ -692,6 +714,7 @@ export interface FileRouteTypes {
     | '/marketer/receiving'
     | '/marketer/sales'
     | '/marketplace/$productId'
+    | '/rider/profile'
     | '/accounting/'
     | '/buyer/'
     | '/consultant/'
@@ -699,6 +722,7 @@ export interface FileRouteTypes {
     | '/management/'
     | '/marketer/'
     | '/marketplace/'
+    | '/rider/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -751,6 +775,7 @@ export interface RootRouteChildren {
   MarketerReceivingRoute: typeof MarketerReceivingRoute
   MarketerSalesRoute: typeof MarketerSalesRoute
   MarketplaceProductIdRoute: typeof MarketplaceProductIdRoute
+  RiderProfileRoute: typeof RiderProfileRoute
   AccountingIndexRoute: typeof AccountingIndexRoute
   BuyerIndexRoute: typeof BuyerIndexRoute
   ConsultantIndexRoute: typeof ConsultantIndexRoute
@@ -758,6 +783,7 @@ export interface RootRouteChildren {
   ManagementIndexRoute: typeof ManagementIndexRoute
   MarketerIndexRoute: typeof MarketerIndexRoute
   MarketplaceIndexRoute: typeof MarketplaceIndexRoute
+  RiderIndexRoute: typeof RiderIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1154,6 +1180,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketplaceProductIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rider/': {
+      id: '/rider/'
+      path: '/rider'
+      fullPath: '/rider/'
+      preLoaderRoute: typeof RiderIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rider/profile': {
+      id: '/rider/profile'
+      path: '/rider/profile'
+      fullPath: '/rider/profile'
+      preLoaderRoute: typeof RiderProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1207,6 +1247,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketerReceivingRoute: MarketerReceivingRoute,
   MarketerSalesRoute: MarketerSalesRoute,
   MarketplaceProductIdRoute: MarketplaceProductIdRoute,
+  RiderProfileRoute: RiderProfileRoute,
   AccountingIndexRoute: AccountingIndexRoute,
   BuyerIndexRoute: BuyerIndexRoute,
   ConsultantIndexRoute: ConsultantIndexRoute,
@@ -1214,6 +1255,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManagementIndexRoute: ManagementIndexRoute,
   MarketerIndexRoute: MarketerIndexRoute,
   MarketplaceIndexRoute: MarketplaceIndexRoute,
+  RiderIndexRoute: RiderIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
