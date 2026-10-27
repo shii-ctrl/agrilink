@@ -179,12 +179,14 @@ export const cartItems = mysqlTable(
     cartId: varchar("cart_id", { length: 36 }).notNull(),
     listingId: varchar("listing_id", { length: 36 }).notNull(),
     quantityKg: decimal("quantity_kg", { precision: 12, scale: 2 }).notNull(),
+    reservationExpiresAt: datetime("reservation_expires_at").notNull(),
     createdAt,
     updatedAt,
   },
   (table) => [
     uniqueIndex("cart_items_cart_listing_unique").on(table.cartId, table.listingId),
     index("cart_items_cart_idx").on(table.cartId),
+    index("cart_items_reservation_expiry_idx").on(table.reservationExpiresAt),
   ],
 );
 export const orders = mysqlTable(

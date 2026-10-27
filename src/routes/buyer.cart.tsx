@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Minus, Plus, ShoppingCart } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Clock3, Minus, Plus, ShoppingCart } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
@@ -23,6 +23,13 @@ export const Route = createFileRoute("/buyer/cart")({ component: BuyerCartPage }
 type CartItem = Awaited<ReturnType<typeof getBuyerCart>>[number] & { image: string };
 const emptyCartItems: CartItem[] = [];
 
+function reservationCountdown(expiresAt: string, now: number) {
+  const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - now) / 1000));
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 function BuyerCartPage() {
   const navigate = useNavigate();
   const request = useCallback(async () => {
@@ -38,6 +45,8 @@ function BuyerCartPage() {
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [arrangementNote, setArrangementNote] = useState("");
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const releasedReservationRef = useRef(false);
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const total = useMemo(
     () => items.reduce((sum, item) => sum + item.pricePerKg * item.quantityKg, 0),
@@ -49,6 +58,38 @@ function BuyerCartPage() {
     [items],
   );
   const bundleSavings = Math.max(0, retailSubtotal - total);
+  const earliestReservationExpiry = useMemo(
+    () =>
+      items.reduce<string | null>(
+        (earliest, item) =>
+          !earliest || new Date(item.reservationExpiresAt).getTime() < new Date(earliest).getTime()
+            ? item.reservationExpiresAt
+            : earliest,
+        null,
+      ),
+    [items],
+  );
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!earliestReservationExpiry || new Date(earliestReservationExpiry).getTime() > now) {
+      releasedReservationRef.current = false;
+      return;
+    }
+    if (releasedReservationRef.current) return;
+    releasedReservationRef.current = true;
+    void reload()
+      .then(() => {
+        toast("Your cart reservation expired", {
+          description: "The reserved products have been returned to the marketplace.",
+        });
+      })
+      .catch(() => undefined);
+  }, [earliestReservationExpiry, now, reload]);
 
   useEffect(() => {
     void getCurrentSessionUser()
@@ -187,6 +228,15 @@ function BuyerCartPage() {
           ) : (
             <div className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr]">
               <section className="space-y-4">
+                <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-200">
+                  <Clock3 className="size-4 shrink-0" />
+                  <span>
+                    Reserved for {earliestReservationExpiry
+                      ? reservationCountdown(earliestReservationExpiry, now)
+                      : "0:00"}
+                    . Checkout before time runs out or stock returns to the marketplace.
+                  </span>
+                </div>
                 {items.map((item) => (
                   <article
                     key={item.id}
@@ -204,6 +254,10 @@ function BuyerCartPage() {
                           {item.quantityKg >= item.bundleMinimumKg ? " — applied" : ""}
                         </p>
                       ) : null}
+                      <p className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                        <Clock3 className="size-3" />
+                        Reserved for {reservationCountdown(item.reservationExpiresAt, now)}
+                      </p>
                     </div>
                     <div className="flex items-center rounded-full border border-border p-1">
                       <button
@@ -348,8 +402,8 @@ function BuyerCartPage() {
                   </Button>
                 </form>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  No online payment yet. PROCY will review and confirm this order before arranging
-                  payment.
+                  Reserved stock is held for 10 minutes only. No online payment yet. PROCY will
+                  review and confirm this order before arranging payment.
                 </p>
               </section>
             </div>

@@ -181,6 +181,25 @@ test("marketplace cart controls prevent duplicate additions beyond available sto
   assert.match(source, /All \$\{cartQuantityKg\} kg available is already in your cart/);
 });
 
+test("buyer cart reservations expire after ten minutes and return stock", async () => {
+  const [marketplace, cartPage, schema, migration] = await Promise.all([
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+    readFile("src/routes/buyer.cart.tsx", "utf8"),
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0018_cart_reservation_expiry.sql", "utf8"),
+  ]);
+
+  assert.match(schema, /reservationExpiresAt: datetime\("reservation_expires_at"\)\.notNull\(\)/);
+  assert.match(migration, /reservation_expires_at/);
+  assert.match(marketplace, /CART_RESERVATION_MINUTES = 10/);
+  assert.match(marketplace, /expireBuyerCartReservations/);
+  assert.match(marketplace, /expireAllBuyerCartReservations/);
+  assert.match(marketplace, /Cart reservation expired after 10 minutes/);
+  assert.match(marketplace, /reservationExpiresAt: nextCartReservationExpiry\(\)/);
+  assert.match(cartPage, /Reserved for/);
+  assert.match(cartPage, /Your cart reservation expired/);
+});
+
 test("catalog photos use a safe file picker and bundle prices are enforced at checkout", async () => {
   const [marketplace, productPage, marketerPage, schema, migration] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
