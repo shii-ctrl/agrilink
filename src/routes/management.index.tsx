@@ -280,16 +280,17 @@ function ManagementDashboard() {
                       <XAxis
                         dataKey="label"
                         interval={isAllTime
-                          ? (report?.dashboard.inventoryFlow.length ?? 0) <= 12
-                            ? 0
-                            : Math.max(0, Math.ceil((report?.dashboard.inventoryFlow.length ?? 1) / 6) - 1)
+                          ? "preserveStartEnd"
                           : isMonthly
                             ? 4
                             : 3}
+                        minTickGap={isAllTime ? 16 : 32}
+                        tickFormatter={(label) => isAllTime ? String(label).split(" ")[0] : label}
                         tickLine={false}
                         axisLine={false}
-                        height={38}
+                        height={isAllTime ? 42 : 38}
                         tickMargin={10}
+                        tick={{ fontSize: isAllTime ? 12 : 14 }}
                         padding={{ left: 12, right: 12 }}
                       />
                       <YAxis
