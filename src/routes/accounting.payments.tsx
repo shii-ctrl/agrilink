@@ -268,23 +268,23 @@ function AccountingPaymentsPage() {
                 {recordedPayments.map((order) => (
                   <div
                     key={order.id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
+                    className="grid grid-cols-1 gap-3 px-6 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
                   >
-                    <div>
-                      <p className="font-medium">{order.paymentId ?? "Payment recorded"}</p>
-                      <p className="text-sm text-muted-foreground">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{order.paymentId ?? "Payment recorded"}</p>
+                      <p className="truncate text-sm text-muted-foreground">
                         {order.id} · {order.buyer} · {paymentMethodLabel(order.paymentMethod)}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">{order.total}</p>
+                    <div className="text-left sm:text-right">
+                      <p className="whitespace-nowrap font-medium">{order.total}</p>
                       <p className="text-xs font-medium text-primary">Paid {order.paidAt ?? ""}</p>
                     </div>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="rounded-full"
+                      className="w-fit whitespace-nowrap rounded-full sm:justify-self-end"
                       onClick={() => printReceipt(order)}
                     >
                       <Printer className="size-4" /> Print receipt
