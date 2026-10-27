@@ -241,6 +241,7 @@ async function fetchListings(listingId?: string) {
       retailPricePerKg: listings.retailPricePerKg,
       bundlePricePerKg: listings.bundlePricePerKg,
       bundleMinimumKg: listings.bundleMinimumKg,
+      status: listings.status,
       // A marketplace listing represents a product + quality. Every delivery for the
       // same product/quality contributes to the buyer-facing quantity.
       availableKg: sql<string>`(
