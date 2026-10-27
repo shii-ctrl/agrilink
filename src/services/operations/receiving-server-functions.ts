@@ -261,7 +261,7 @@ export const getFarmerProductStatuses = createServerFn({ method: "GET" }).handle
   const { requireRole } = await import("@/services/auth/auth-server");
   const farmer = await requireRole("Farmer");
   const { db } = await import("@/db/client.server");
-  const { classifications, inventory, listings, products } = await import("@/db/schema");
+  const { classifications, inventory, products } = await import("@/db/schema");
   const rows = await db
     .select({
       id: inventory.id,
@@ -270,12 +270,20 @@ export const getFarmerProductStatuses = createServerFn({ method: "GET" }).handle
       quantityKg: inventory.quantityKg,
       reservedKg: inventory.reservedKg,
       availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
-      listingStatus: listings.status,
+      listingStatus: sql<string | null>`(
+        SELECT current_listing.status
+        FROM marketplace_listings AS current_listing
+        INNER JOIN inventory AS current_inventory
+          ON current_listing.inventory_id = current_inventory.id
+        WHERE current_inventory.product_id = ${inventory.productId}
+          AND current_inventory.classification_id = ${inventory.classificationId}
+        ORDER BY current_listing.updated_at DESC, current_listing.id DESC
+        LIMIT 1
+      )`,
     })
     .from(inventory)
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-    .leftJoin(listings, eq(listings.inventoryId, inventory.id))
     .where(eq(inventory.farmerId, farmer.id));
   return rows.map((row) => {
     const availableKg = Math.max(0, Number(row.availableKg));

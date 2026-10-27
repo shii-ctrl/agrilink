@@ -1,5 +1,5 @@
 // Server functions are client-safe RPC stubs; their handlers stay on the server.
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/mysql-core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -444,14 +444,25 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { inventory, listings } = await import("@/db/schema");
+    const { classifications, inventory, listings } = await import("@/db/schema");
     const created = await db.transaction(async (tx) => {
       const [stock] = await tx
-        .select({ id: inventory.id, productId: inventory.productId, classificationId: inventory.classificationId, quantityKg: inventory.quantityKg })
+        .select({
+          id: inventory.id,
+          productId: inventory.productId,
+          classificationId: inventory.classificationId,
+          classification: classifications.name,
+          quantityKg: inventory.quantityKg,
+          reservedKg: inventory.reservedKg,
+        })
         .from(inventory)
+        .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
         .where(eq(inventory.id, data.inventoryId));
-      if (!stock || Number(stock.quantityKg) <= 0)
+      if (!stock || Number(stock.quantityKg) - Number(stock.reservedKg) <= 0)
         throw new Error("Select classified inventory created from a saved delivery.");
+      if (data.status === "published" && stock.classification === "Reject") {
+        throw new Error("Reject stock is kept internally and cannot be shown to buyers.");
+      }
       const [existing] = await tx
         .select({ id: listings.id })
         .from(listings)
@@ -521,19 +532,24 @@ export const setMarketplaceListingStatus = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { inventory, listings, products } = await import("@/db/schema");
+    const { classifications, inventory, listings, products } = await import("@/db/schema");
     const [listing] = await db
       .select({
         productId: inventory.productId,
         classificationId: inventory.classificationId,
+        classification: classifications.name,
         productName: products.name,
       })
       .from(listings)
       .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
       .innerJoin(products, eq(inventory.productId, products.id))
       .where(eq(listings.id, data.listingId));
     if (!listing) throw new Error("The marketplace listing could not be found.");
     if (data.status === "published") {
+      if (listing.classification === "Reject") {
+        throw new Error("Reject stock is kept internally and cannot be shown to buyers.");
+      }
       const [stock] = await db
         .select({
           availableKg: sql<string>`COALESCE(SUM(${inventory.quantityKg} - ${inventory.reservedKg}), 0)`,
@@ -610,7 +626,23 @@ async function fetchDailyPrices(publicOnly: boolean) {
         ? and(
             eq(dailyPrices.published, true),
             eq(listings.status, "published"),
-            sql`${inventory.quantityKg} - ${inventory.reservedKg} > 0`,
+            sql`(
+              SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
+              FROM inventory AS stock
+              WHERE stock.product_id = ${inventory.productId}
+                AND stock.classification_id = ${inventory.classificationId}
+            ) > 0`,
+            sql`(
+              SELECT current_listing.status
+              FROM marketplace_listings AS current_listing
+              INNER JOIN inventory AS current_inventory
+                ON current_listing.inventory_id = current_inventory.id
+              WHERE current_inventory.product_id = ${inventory.productId}
+                AND current_inventory.classification_id = ${inventory.classificationId}
+              ORDER BY current_listing.updated_at DESC, current_listing.id DESC
+              LIMIT 1
+            ) = 'published'`,
+            sql`${classifications.name} <> 'Reject'`,
           )
         : undefined,
     )
@@ -936,7 +968,7 @@ async function releaseCartReservation(
  */
 async function reserveExistingBuyerCartStock(buyerId: string) {
   const { db } = await import("@/db/client.server");
-  const { cartItems, carts, inventory, inventoryMovements, listings } = await import("@/db/schema");
+  const { cartItems, carts, classifications, inventory, listings } = await import("@/db/schema");
 
   await db.transaction(async (tx) => {
     // The same Buyer page can load the cart button and product details together.
@@ -945,44 +977,84 @@ async function reserveExistingBuyerCartStock(buyerId: string) {
     const unreservedItems = await tx
       .select({
         cartItemId: cartItems.id,
-        inventoryId: inventory.id,
+        listingId: listings.id,
         quantityKg: cartItems.quantityKg,
-        stockKg: inventory.quantityKg,
-        reservedKg: inventory.reservedKg,
       })
       .from(carts)
       .innerJoin(cartItems, eq(cartItems.cartId, carts.id))
       .innerJoin(listings, eq(cartItems.listingId, listings.id))
-      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-      .leftJoin(
-        inventoryMovements,
+      .where(
         and(
-          eq(inventoryMovements.referenceType, "cart"),
-          eq(inventoryMovements.referenceId, cartItems.id),
-          eq(inventoryMovements.movementType, "reservation"),
+          eq(carts.buyerId, buyerId),
+          sql`NOT EXISTS (
+            SELECT 1
+            FROM inventory_movements AS existing_reservation
+            WHERE existing_reservation.reference_type = 'cart'
+              AND existing_reservation.reference_id = ${cartItems.id}
+              AND existing_reservation.movement_type = 'reservation'
+          )`,
         ),
       )
-      .where(and(eq(carts.buyerId, buyerId), isNull(inventoryMovements.id)))
       .for("update");
 
     for (const item of unreservedItems) {
-      const availableKg = Math.max(0, Number(item.stockKg) - Number(item.reservedKg));
+      const [listing] = await tx
+        .select({
+          productId: inventory.productId,
+          classificationId: inventory.classificationId,
+          classification: classifications.name,
+        })
+        .from(listings)
+        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+        .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+        .where(eq(listings.id, item.listingId));
+      if (!listing || listing.classification === "Reject") {
+        await tx.delete(cartItems).where(eq(cartItems.id, item.cartItemId));
+        continue;
+      }
+      const [controllerListing] = await tx
+        .select({ id: listings.id, status: listings.status })
+        .from(listings)
+        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+        .where(
+          and(
+            eq(inventory.productId, listing.productId),
+            eq(inventory.classificationId, listing.classificationId),
+          ),
+        )
+        .orderBy(desc(listings.updatedAt), desc(listings.id))
+        .limit(1);
+      if (!controllerListing || controllerListing.status !== "published") {
+        await tx.delete(cartItems).where(eq(cartItems.id, item.cartItemId));
+        continue;
+      }
+      if (controllerListing.id !== item.listingId) {
+        await tx
+          .update(cartItems)
+          .set({ listingId: controllerListing.id })
+          .where(eq(cartItems.id, item.cartItemId));
+      }
+      const batches = await tx
+        .select({ quantityKg: inventory.quantityKg, reservedKg: inventory.reservedKg })
+        .from(inventory)
+        .where(
+          and(
+            eq(inventory.productId, listing.productId),
+            eq(inventory.classificationId, listing.classificationId),
+            sql`${inventory.quantityKg} - ${inventory.reservedKg} > 0`,
+          ),
+        )
+        .for("update");
+      const availableKg = batches.reduce(
+        (total: number, batch: { quantityKg: string; reservedKg: string }) =>
+          total + Math.max(0, Number(batch.quantityKg) - Number(batch.reservedKg)),
+        0,
+      );
       const reservableKg = Math.min(Number(item.quantityKg), availableKg);
       if (reservableKg <= 0) {
         await tx.delete(cartItems).where(eq(cartItems.id, item.cartItemId));
         continue;
       }
-
-      const [reserved] = await tx
-        .update(inventory)
-        .set({ reservedKg: sql`${inventory.reservedKg} + ${reservableKg}` })
-        .where(
-          and(
-            eq(inventory.id, item.inventoryId),
-            sql`${inventory.quantityKg} - ${inventory.reservedKg} >= ${reservableKg}`,
-          ),
-        );
-      if (reserved.affectedRows !== 1) continue;
 
       if (reservableKg < Number(item.quantityKg)) {
         await tx
@@ -990,15 +1062,12 @@ async function reserveExistingBuyerCartStock(buyerId: string) {
           .set({ quantityKg: reservableKg.toFixed(2) })
           .where(eq(cartItems.id, item.cartItemId));
       }
-      await tx.insert(inventoryMovements).values({
-        id: crypto.randomUUID(),
-        inventoryId: item.inventoryId,
-        movementType: "reservation",
-        reservedChangeKg: reservableKg.toFixed(2),
-        referenceType: "cart",
+      await reserveListingStock(tx, {
+        listingId: controllerListing.id,
+        quantityKg: reservableKg,
         referenceId: item.cartItemId,
         recordedById: buyerId,
-        note: "Reserved in buyer cart.",
+        note: "Reserved in buyer cart from existing cart data.",
       });
     }
   });

@@ -237,7 +237,7 @@ test("daily prices use PROCY market categories as an organizing guide", async ()
   assert.doesNotMatch(categories, /70\/60|250\/230/);
 });
 
-test("public daily prices require an active, in-stock listing", async () => {
+test("public daily prices require an active, combined in-stock listing", async () => {
   const marketplace = await readFile(
     "src/services/marketplace/marketplace-server-functions.ts",
     "utf8",
@@ -245,7 +245,21 @@ test("public daily prices require an active, in-stock listing", async () => {
 
   assert.match(marketplace, /eq\(dailyPrices\.published, true\)/);
   assert.match(marketplace, /eq\(listings\.status, "published"\)/);
-  assert.match(marketplace, /inventory\.quantityKg\} - \$\{inventory\.reservedKg\} > 0/);
+  assert.match(marketplace, /SUM\(stock\.quantity_kg - stock\.reserved_kg\)/);
+  assert.match(marketplace, /current_listing\.status/);
+  assert.match(marketplace, /classifications\.name\} <> 'Reject'/);
+});
+
+test("marketplace publishing protects combined stock, reject quality, and older carts", async () => {
+  const marketplace = await readFile(
+    "src/services/marketplace/marketplace-server-functions.ts",
+    "utf8",
+  );
+
+  assert.match(marketplace, /Reject stock is kept internally and cannot be shown to buyers/);
+  assert.match(marketplace, /Number\(stock\.quantityKg\) - Number\(stock\.reservedKg\) <= 0/);
+  assert.match(marketplace, /reserveListingStock\(tx, \{/);
+  assert.match(marketplace, /controllerListing\.status !== "published"/);
 });
 
 test("role workspaces refresh saved operational data while users are active", async () => {
