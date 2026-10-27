@@ -15,6 +15,7 @@ import type { ReactNode } from "react";
 
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
 import { RoleGate } from "@/components/layout/role-gate";
+import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { NotificationCenter } from "@/features/messaging/components/notification-center";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
@@ -47,9 +48,7 @@ const marketerSections = [
   },
   {
     title: "Marketplace",
-    items: [
-      { title: "Daily Prices & Deals", to: "/marketer/daily-prices", icon: Tag },
-    ],
+    items: [{ title: "Daily Prices & Deals", to: "/marketer/daily-prices", icon: Tag }],
   },
   {
     title: "Operations",
@@ -134,7 +133,11 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
             </div>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Profile" isActive={pathname === "/marketer/profile"}>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Profile"
+                  isActive={pathname === "/marketer/profile"}
+                >
                   <Link to="/marketer/profile">
                     <Settings />
                     <span>Profile</span>
@@ -142,16 +145,17 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Log out"
-                  onClick={async () => {
+                <LogoutConfirmation
+                  onConfirm={async () => {
                     await signOutDemoAccount();
                     navigate({ to: "/" });
                   }}
                 >
-                  <LogOut />
-                  <span>Log out</span>
-                </SidebarMenuButton>
+                  <SidebarMenuButton tooltip="Log out">
+                    <LogOut />
+                    <span>Log out</span>
+                  </SidebarMenuButton>
+                </LogoutConfirmation>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarFooter>

@@ -3,6 +3,7 @@ import { LogOut, MessageCircle, ShoppingBag, ShoppingCart, Store, UserRound } fr
 import { type ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
 import { RoleGate } from "@/components/layout/role-gate";
+import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { NotificationCenter } from "@/features/messaging/components/notification-center";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
@@ -53,7 +54,11 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
                 <SidebarMenu>
                   {nav.map((item) => (
                     <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton asChild tooltip={item.label} isActive={pathname === item.to}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={item.label}
+                        isActive={pathname === item.to}
+                      >
                         <Link to={item.to} activeOptions={{ exact: true }}>
                           <item.icon />
                           <span>{item.label}</span>
@@ -79,7 +84,11 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
             </div>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Profile" isActive={pathname === "/buyer/profile"}>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Profile"
+                  isActive={pathname === "/buyer/profile"}
+                >
                   <Link to="/buyer/profile">
                     <UserRound />
                     <span>Profile</span>
@@ -87,16 +96,17 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Logout"
-                  onClick={async () => {
+                <LogoutConfirmation
+                  onConfirm={async () => {
                     await signOutDemoAccount();
                     navigate({ to: "/" });
                   }}
                 >
-                  <LogOut />
-                  <span>Logout</span>
-                </SidebarMenuButton>
+                  <SidebarMenuButton tooltip="Logout">
+                    <LogOut />
+                    <span>Logout</span>
+                  </SidebarMenuButton>
+                </LogoutConfirmation>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarFooter>

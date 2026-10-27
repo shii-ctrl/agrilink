@@ -3,6 +3,7 @@ import { LogOut, Menu, ShoppingBag, ShoppingCart, UserRound, X } from "lucide-re
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { LoginDialog } from "@/features/auth/components/login-dialog";
 import { PasswordResetDialog } from "@/features/auth/components/password-reset-dialog";
@@ -363,18 +364,19 @@ function BuyerDrawer({ account, onSignOut }: { account: SessionAccount; onSignOu
           </SheetClose>
         </nav>
         <div className="mt-auto border-t pt-4">
-          <SheetClose asChild>
+          <LogoutConfirmation
+            onConfirm={async () => {
+              await logoutUser();
+              onSignOut();
+            }}
+          >
             <Button
               variant="ghost"
               className="w-full justify-start rounded-xl text-destructive hover:text-destructive"
-              onClick={async () => {
-                await logoutUser();
-                onSignOut();
-              }}
             >
               <LogOut className="size-4" /> Log out
             </Button>
-          </SheetClose>
+          </LogoutConfirmation>
         </div>
       </SheetContent>
     </Sheet>

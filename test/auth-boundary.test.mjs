@@ -758,6 +758,28 @@ test("action confirmations use the shared branded dialog instead of browser prom
   assert.match(dialog, /requestConfirmation/);
 });
 
+test("all logout actions ask for confirmation before ending the session", async () => {
+  const files = [
+    "src/components/layout/site-header.tsx",
+    "src/components/workspaces/accounting-layout.tsx",
+    "src/components/workspaces/buyer-layout.tsx",
+    "src/components/workspaces/consultant-layout.tsx",
+    "src/components/workspaces/farmer-layout.tsx",
+    "src/components/workspaces/management-layout.tsx",
+    "src/components/workspaces/marketer-layout.tsx",
+    "src/components/workspaces/rider-layout.tsx",
+  ];
+  const sources = await Promise.all(files.map((file) => readFile(file, "utf8")));
+  const dialog = await readFile("src/components/layout/logout-confirmation.tsx", "utf8");
+
+  for (const source of sources) {
+    assert.match(source, /LogoutConfirmation/);
+  }
+  assert.match(dialog, /Log out of AgriLink\?/);
+  assert.match(dialog, /Stay signed in/);
+  assert.match(dialog, /Logging out…/);
+});
+
 test("Management dashboard keeps daily history available without altering saved records", async () => {
   const [dashboard, marketplace] = await Promise.all([
     readFile("src/routes/management.index.tsx", "utf8"),
@@ -786,8 +808,16 @@ test("Management dashboard keeps daily history available without altering saved 
 });
 
 test("delivery availability is controlled by Management and Rider access stays role-protected", async () => {
-  const [schema, feeMigration, riderMigration, marketplace, cart, management, riderLayout, riderPage] =
-    await Promise.all([
+  const [
+    schema,
+    feeMigration,
+    riderMigration,
+    marketplace,
+    cart,
+    management,
+    riderLayout,
+    riderPage,
+  ] = await Promise.all([
     readFile("src/db/schema.ts", "utf8"),
     readFile("drizzle/0019_delivery_fee_settings.sql", "utf8"),
     readFile("drizzle/0020_rider_role_and_delivery_availability.sql", "utf8"),
