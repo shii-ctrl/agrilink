@@ -427,7 +427,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                                             data: { listingId: listing.id, status: "published" },
                                           });
                                           await load();
-                                          toast.success("Listing published to buyers.");
+                                          toast.success("Product is now shown to buyers.");
                                         } catch (error) {
                                           toast.error("Listing could not be published", {
                                             description:
@@ -438,7 +438,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                                         }
                                       }}
                                     >
-                                      <Eye className="size-3.5" /> Publish
+                                    <Eye className="size-3.5" /> Show
                                     </Button>
                                   ) : null}
                                   {listing.status === "published" ? (
@@ -454,7 +454,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                                           });
                                           await load();
                                           toast.success(
-                                            "Listing returned to draft. Buyers can no longer see it.",
+                                            "Product is now hidden from buyers. Stock and history remain saved.",
                                           );
                                         } catch (error) {
                                           toast.error("Listing could not be unpublished", {
@@ -466,7 +466,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                                         }
                                       }}
                                     >
-                                      <EyeOff className="size-3.5" /> Unpublish
+                                    <EyeOff className="size-3.5" /> Hide
                                     </Button>
                                   ) : null}
                                   {listing.status !== "archived" ? (
@@ -925,10 +925,11 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                           Stock, pricing, and publishing
                         </p>
                         <h2 className="mt-1 text-lg font-semibold">
-                          Create PROCY marketplace listing
+                          Set marketplace price and visibility
                         </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          Use a classified product group to create a buyer-visible listing.
+                          Select a product and quality group. New classified deliveries combine with
+                          its current stock automatically.
                         </p>
                       </div>
                     </div>
@@ -954,13 +955,13 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                           await load();
                           toast.success(
                             newListingStatus === "published"
-                              ? "Marketplace listing published"
-                              : "Listing saved as a draft",
+                              ? "Marketplace price and visibility updated"
+                              : "Marketplace listing hidden",
                             {
                               description:
                                 newListingStatus === "published"
-                                  ? "Published stock is now available to buyers."
-                                  : "Review it below, then publish when you are ready.",
+                                  ? "Buyers now see this product with its current combined stock."
+                                  : "The product is hidden from buyers but its stock history is kept.",
                             },
                           );
                         } catch (error) {
@@ -974,7 +975,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                       }}
                     >
                       <div className="space-y-2 sm:col-span-2">
-                        <Label htmlFor="inventoryId">Choose available classified stock</Label>
+                        <Label htmlFor="inventoryId">Choose product and quality</Label>
                         <input name="inventoryId" type="hidden" value={inventoryId} />
                         <Popover
                           open={stockPickerOpen}
@@ -1002,13 +1003,12 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                                   <span className="truncate text-xs text-muted-foreground">
                                     {selectedInventory.cropType} ·{" "}
                                     {selectedInventory.classification} ·{" "}
-                                    {selectedInventory.quantityKg} kg ·{" "}
-                                    {selectedInventory.farmer ?? "Legacy / mixed stock"}
+                                    {selectedInventory.quantityKg} kg combined stock
                                   </span>
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground">
-                                  Choose available stock
+                                  Choose product-quality stock
                                 </span>
                               )}
                               <ChevronDown className="ml-3 size-4 shrink-0 text-muted-foreground" />
@@ -1024,7 +1024,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                                 <div>
                                   <h3 className="font-semibold">Available stock</h3>
                                   <p className="mt-1 text-sm text-muted-foreground">
-                                    Search, then open only the crop and quality you need.
+                                    Search, then choose the product and quality you want to price.
                                   </p>
                                 </div>
                                 <span className="shrink-0 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -1039,7 +1039,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                                 autoFocus
                                 value={stockSearch}
                                 onChange={(event) => setStockSearch(event.target.value)}
-                                placeholder="Search product, crop type, farmer, or quality"
+                                placeholder="Search product, crop type, or quality"
                                 className="mt-4"
                               />
                             </div>
@@ -1158,9 +1158,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                                                               {item.name}
                                                             </span>
                                                             <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                                                              {item.farmer ??
-                                                                "Legacy / mixed stock"}{" "}
-                                                              · {item.quantityKg} kg available
+                                                              Combined stock · {item.quantityKg} kg available
                                                             </span>
                                                           </span>
                                                           {isSelected ? (
@@ -1189,7 +1187,7 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                         </Popover>
                         {publishableInventory.length === 0 ? (
                           <p className="rounded-xl bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
-                            No unused classified stock is ready yet. Record and classify a farmer
+                            No classified stock is ready yet. Record and classify a farmer
                             delivery first in{" "}
                             <Link
                               to="/marketer/receiving"
@@ -1203,11 +1201,11 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                           <p className="rounded-xl bg-accent/60 px-3 py-2 text-sm text-accent-foreground">
                             <span className="font-semibold">Selected:</span>{" "}
                             {selectedInventory.name} · {selectedInventory.classification} ·{" "}
-                            {selectedInventory.quantityKg} kg available
+                            {selectedInventory.quantityKg} kg combined stock
                           </p>
                         ) : (
                           <p className="text-xs text-muted-foreground">
-                            Only available stock that does not already have a listing appears here.
+                            Choose a product-quality group to set its one current buyer price.
                           </p>
                         )}
                       </div>
@@ -1220,8 +1218,8 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                             setNewListingStatus(value as "draft" | "published")
                           }
                           options={[
-                            { value: "draft", label: "Save as draft — only Marketers can see it" },
-                            { value: "published", label: "Publish now — buyers can see it" },
+                            { value: "draft", label: "Hide from buyers — keep product and stock history" },
+                            { value: "published", label: "Show in marketplace — buyers can see it" },
                           ]}
                         />
                       </div>
@@ -1292,8 +1290,8 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                         )}
                       </div>
                       <p className="self-end text-sm text-muted-foreground">
-                        A bundle is optional. If used, its price must be lower than retail. The
-                        classification is inherited from the selected stock.
+                        A bundle is optional. If used, its price must be lower than retail. Reject
+                        stock stays internal and is never shown to buyers.
                       </p>
                       <div className="flex items-end sm:justify-end">
                         <Button
@@ -1304,8 +1302,8 @@ export function MarketerProductsPage({ view }: { view: ProductWorkspaceView }) {
                           {savingListing
                             ? "Saving…"
                             : newListingStatus === "published"
-                              ? "Publish listing"
-                              : "Save draft"}
+                              ? "Save and show in marketplace"
+                              : "Save as hidden"}
                         </Button>
                       </div>
                     </form>

@@ -228,12 +228,12 @@ function listingUnitPrice(
 async function fetchListings(listingId?: string) {
   const { db } = await import("@/db/client.server");
   const { classifications, inventory, listings, products } = await import("@/db/schema");
-  const where = listingId
-    ? and(eq(listings.status, "published"), eq(listings.id, listingId))
-    : eq(listings.status, "published");
+  const where = listingId ? eq(listings.id, listingId) : undefined;
   const rows = await db
     .select({
       listingId: listings.id,
+      productId: inventory.productId,
+      classificationId: inventory.classificationId,
       name: products.name,
       cropType: products.cropType,
       classification: classifications.name,
@@ -241,7 +241,14 @@ async function fetchListings(listingId?: string) {
       retailPricePerKg: listings.retailPricePerKg,
       bundlePricePerKg: listings.bundlePricePerKg,
       bundleMinimumKg: listings.bundleMinimumKg,
-      availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
+      // A marketplace listing represents a product + quality. Every delivery for the
+      // same product/quality contributes to the buyer-facing quantity.
+      availableKg: sql<string>`(
+        SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
+        FROM inventory AS stock
+        WHERE stock.product_id = ${inventory.productId}
+          AND stock.classification_id = ${inventory.classificationId}
+      )`,
       description: products.description,
       imageUrl: products.imageUrl,
     })
@@ -249,8 +256,18 @@ async function fetchListings(listingId?: string) {
     .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-    .where(where);
-  return rows.map(asProduct);
+    .where(where)
+    .orderBy(desc(listings.updatedAt), desc(listings.id));
+  // Older data can contain a listing for each delivery. Keep the newest control
+  // listing only so buyers see one price and one combined stock total.
+  const grouped = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const key = `${row.productId}:${row.classificationId}`;
+    if (!grouped.has(key)) grouped.set(key, row);
+  }
+  return [...grouped.values()]
+    .filter((row) => row.status === "published" && row.classification !== "Reject")
+    .map(asProduct);
 }
 
 async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
@@ -259,6 +276,8 @@ async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
   const rows = await db
     .select({
       listingId: listings.id,
+      productId: inventory.productId,
+      classificationId: inventory.classificationId,
       name: products.name,
       cropType: products.cropType,
       classification: classifications.name,
@@ -266,7 +285,12 @@ async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
       retailPricePerKg: listings.retailPricePerKg,
       bundlePricePerKg: listings.bundlePricePerKg,
       bundleMinimumKg: listings.bundleMinimumKg,
-      availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
+      availableKg: sql<string>`(
+        SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
+        FROM inventory AS stock
+        WHERE stock.product_id = ${inventory.productId}
+          AND stock.classification_id = ${inventory.classificationId}
+      )`,
       description: products.description,
       imageUrl: products.imageUrl,
       farmer: users.displayName,
@@ -276,8 +300,18 @@ async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
     .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-    .leftJoin(users, eq(inventory.farmerId, users.id));
-  return rows.map((row) => ({ ...asProduct(row), farmer: row.farmer, status: row.status }));
+    .leftJoin(users, eq(inventory.farmerId, users.id))
+    .orderBy(desc(listings.updatedAt), desc(listings.id));
+  const grouped = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const key = `${row.productId}:${row.classificationId}`;
+    if (!grouped.has(key)) grouped.set(key, row);
+  }
+  return [...grouped.values()].map((row) => ({
+    ...asProduct(row),
+    farmer: null,
+    status: row.status,
+  }));
 }
 
 export const getMarketplaceListings = createServerFn({ method: "GET" }).handler(async () =>
@@ -365,22 +399,42 @@ export const getPublishableInventory = createServerFn({ method: "GET" }).handler
   const { requireRole } = await import("@/services/auth/auth-server");
   await requireRole("Marketer");
   const { db } = await import("@/db/client.server");
-  const { classifications, inventory, listings, products, users } = await import("@/db/schema");
-  return db
+  const { classifications, inventory, products } = await import("@/db/schema");
+  const rows = await db
     .select({
       id: inventory.id,
+      productId: inventory.productId,
+      classificationId: inventory.classificationId,
       name: products.name,
       cropType: products.cropType,
       classification: classifications.name,
-      quantityKg: inventory.quantityKg,
-      farmer: users.displayName,
+      quantityKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
     })
     .from(inventory)
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-    .leftJoin(users, eq(inventory.farmerId, users.id))
-    .leftJoin(listings, eq(listings.inventoryId, inventory.id))
-    .where(and(sql`${inventory.quantityKg} > 0`, sql`${listings.id} IS NULL`));
+    .where(sql`${inventory.quantityKg} - ${inventory.reservedKg} > 0`)
+    .orderBy(asc(products.name), asc(classifications.name), asc(inventory.updatedAt), asc(inventory.id));
+
+  // Receiving can create several batches for the same product and quality.
+  // Let the marketer choose one combined product-quality group, not a farmer batch.
+  const grouped = new Map<
+    string,
+    Omit<(typeof rows)[number], "productId" | "classificationId" | "quantityKg"> & {
+      quantityKg: number;
+    }
+  >();
+  for (const row of rows) {
+    const key = `${row.productId}:${row.classificationId}`;
+    const current = grouped.get(key);
+    if (current) {
+      current.quantityKg += Number(row.quantityKg);
+    } else {
+      const { productId: _productId, classificationId: _classificationId, ...item } = row;
+      grouped.set(key, { ...item, quantityKg: Number(row.quantityKg) });
+    }
+  }
+  return [...grouped.values()].map((item) => ({ ...item, farmer: null }));
 });
 
 export const createMarketplaceListing = createServerFn({ method: "POST" })
@@ -392,7 +446,7 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
     const { inventory, listings } = await import("@/db/schema");
     const created = await db.transaction(async (tx) => {
       const [stock] = await tx
-        .select({ id: inventory.id, quantityKg: inventory.quantityKg })
+        .select({ id: inventory.id, productId: inventory.productId, classificationId: inventory.classificationId, quantityKg: inventory.quantityKg })
         .from(inventory)
         .where(eq(inventory.id, data.inventoryId));
       if (!stock || Number(stock.quantityKg) <= 0)
@@ -400,9 +454,22 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
       const [existing] = await tx
         .select({ id: listings.id })
         .from(listings)
-        .where(eq(listings.inventoryId, data.inventoryId));
-      if (existing)
-        throw new Error("This classified inventory group already has a marketplace listing.");
+        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+        .where(and(eq(inventory.productId, stock.productId), eq(inventory.classificationId, stock.classificationId)))
+        .orderBy(desc(listings.updatedAt));
+      if (existing) {
+        await tx
+          .update(listings)
+          .set({
+            pricePerKg: data.retailPricePerKg.toFixed(2),
+            retailPricePerKg: data.retailPricePerKg.toFixed(2),
+            bundlePricePerKg: data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
+            bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
+            status: data.status,
+          })
+          .where(eq(listings.id, existing.id));
+        return { listingId: existing.id, inventoryId: data.inventoryId, updated: true };
+      }
       const listingId = crypto.randomUUID();
       await tx.insert(listings).values({
         id: listingId,
@@ -414,7 +481,7 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
         bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
         status: data.status,
       });
-      return { listingId, inventoryId: data.inventoryId };
+      return { listingId, inventoryId: data.inventoryId, updated: false };
     });
     await writeAuditLog(actor.id, "listing.create", "marketplace_listing", created.listingId, {
       inventoryId: created.inventoryId,
@@ -456,7 +523,8 @@ export const setMarketplaceListingStatus = createServerFn({ method: "POST" })
     const { inventory, listings, products } = await import("@/db/schema");
     const [listing] = await db
       .select({
-        availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
+        productId: inventory.productId,
+        classificationId: inventory.classificationId,
         productName: products.name,
       })
       .from(listings)
@@ -465,7 +533,18 @@ export const setMarketplaceListingStatus = createServerFn({ method: "POST" })
       .where(eq(listings.id, data.listingId));
     if (!listing) throw new Error("The marketplace listing could not be found.");
     if (data.status === "published") {
-      if (Number(listing.availableKg) <= 0) {
+      const [stock] = await db
+        .select({
+          availableKg: sql<string>`COALESCE(SUM(${inventory.quantityKg} - ${inventory.reservedKg}), 0)`,
+        })
+        .from(inventory)
+        .where(
+          and(
+            eq(inventory.productId, listing.productId),
+            eq(inventory.classificationId, listing.classificationId),
+          ),
+        );
+      if (Number(stock?.availableKg ?? 0) <= 0) {
         throw new Error("Only listings with available stock can be published.");
       }
     }
@@ -657,7 +736,12 @@ async function buyerCartRows(buyerId: string) {
       bundlePricePerKg: listings.bundlePricePerKg,
       bundleMinimumKg: listings.bundleMinimumKg,
       quantityKg: cartItems.quantityKg,
-      availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
+      availableKg: sql<string>`(
+        SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
+        FROM inventory AS stock
+        WHERE stock.product_id = ${inventory.productId}
+          AND stock.classification_id = ${inventory.classificationId}
+      )`,
       imageUrl: products.imageUrl,
     })
     .from(carts)
@@ -686,6 +770,162 @@ async function buyerCartRows(buyerId: string) {
       availableKg: Math.max(0, Number(row.availableKg)),
     };
   });
+}
+
+/** Reserve from the oldest available batches in one product-quality group. */
+async function reserveListingStock(
+  tx: any,
+  {
+    listingId,
+    quantityKg,
+    referenceId,
+    recordedById,
+    note,
+  }: {
+    listingId: string;
+    quantityKg: number;
+    referenceId: string;
+    recordedById: string;
+    note: string;
+  },
+) {
+  const { classifications, inventory, inventoryMovements, listings } = await import("@/db/schema");
+  const [listing] = await tx
+    .select({
+      productId: inventory.productId,
+      classificationId: inventory.classificationId,
+      classification: classifications.name,
+      status: listings.status,
+    })
+    .from(listings)
+    .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+    .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+    .where(eq(listings.id, listingId));
+  if (!listing || listing.status !== "published") {
+    throw new Error("This product is no longer available in the marketplace.");
+  }
+  if (listing.classification === "Reject") {
+    throw new Error("Reject stock is kept internally and cannot be ordered by buyers.");
+  }
+
+  const batches = await tx
+    .select({
+      id: inventory.id,
+      quantityKg: inventory.quantityKg,
+      reservedKg: inventory.reservedKg,
+    })
+    .from(inventory)
+    .where(
+      and(
+        eq(inventory.productId, listing.productId),
+        eq(inventory.classificationId, listing.classificationId),
+        sql`${inventory.quantityKg} - ${inventory.reservedKg} > 0`,
+      ),
+    )
+    .orderBy(asc(inventory.updatedAt), asc(inventory.id))
+    .for("update");
+  const availableKg = batches.reduce(
+    (total: number, batch: { quantityKg: string; reservedKg: string }) =>
+      total + Math.max(0, Number(batch.quantityKg) - Number(batch.reservedKg)),
+    0,
+  );
+  if (quantityKg > availableKg) {
+    throw new Error(`Only ${availableKg} kg is currently available.`);
+  }
+
+  let remainingKg = quantityKg;
+  for (const batch of batches) {
+    if (remainingKg <= 0) break;
+    const reserveKg = Math.min(
+      remainingKg,
+      Math.max(0, Number(batch.quantityKg) - Number(batch.reservedKg)),
+    );
+    if (reserveKg <= 0) continue;
+    const [reserved] = await tx
+      .update(inventory)
+      .set({ reservedKg: sql`${inventory.reservedKg} + ${reserveKg}` })
+      .where(
+        and(
+          eq(inventory.id, batch.id),
+          sql`${inventory.quantityKg} - ${inventory.reservedKg} >= ${reserveKg}`,
+        ),
+      );
+    if (reserved.affectedRows !== 1) {
+      throw new Error("Stock changed before your cart could be updated. Please try again.");
+    }
+    await tx.insert(inventoryMovements).values({
+      id: crypto.randomUUID(),
+      inventoryId: batch.id,
+      movementType: "reservation",
+      reservedChangeKg: reserveKg.toFixed(2),
+      referenceType: "cart",
+      referenceId,
+      recordedById,
+      note,
+    });
+    remainingKg -= reserveKg;
+  }
+}
+
+/** Release a portion of the reservations attached to one cart item. */
+async function releaseCartReservation(
+  tx: any,
+  {
+    cartItemId,
+    quantityKg,
+    recordedById,
+    note,
+  }: { cartItemId: string; quantityKg: number; recordedById: string; note: string },
+) {
+  const { inventory, inventoryMovements } = await import("@/db/schema");
+  const movements = await tx
+    .select({
+      inventoryId: inventoryMovements.inventoryId,
+      reservedChangeKg: inventoryMovements.reservedChangeKg,
+    })
+    .from(inventoryMovements)
+    .where(
+      and(
+        eq(inventoryMovements.referenceType, "cart"),
+        eq(inventoryMovements.referenceId, cartItemId),
+      ),
+    )
+    .for("update");
+  const reservedByInventory = new Map<string, number>();
+  for (const movement of movements) {
+    reservedByInventory.set(
+      movement.inventoryId,
+      (reservedByInventory.get(movement.inventoryId) ?? 0) + Number(movement.reservedChangeKg),
+    );
+  }
+
+  let remainingKg = quantityKg;
+  for (const [inventoryId, reservedKg] of reservedByInventory) {
+    if (remainingKg <= 0) break;
+    const releaseKg = Math.min(remainingKg, Math.max(0, reservedKg));
+    if (releaseKg <= 0) continue;
+    const [released] = await tx
+      .update(inventory)
+      .set({ reservedKg: sql`${inventory.reservedKg} - ${releaseKg}` })
+      .where(and(eq(inventory.id, inventoryId), sql`${inventory.reservedKg} >= ${releaseKg}`));
+    if (released.affectedRows !== 1) {
+      throw new Error("Reserved stock is inconsistent, so this cart item could not be updated.");
+    }
+    await tx.insert(inventoryMovements).values({
+      id: crypto.randomUUID(),
+      inventoryId,
+      movementType: "release",
+      reservedChangeKg: `-${releaseKg.toFixed(2)}`,
+      referenceType: "cart",
+      referenceId: cartItemId,
+      recordedById,
+      note,
+    });
+    remainingKg -= releaseKg;
+  }
+  if (remainingKg > 0.0001) {
+    throw new Error("Reserved stock is inconsistent, so this cart item could not be updated.");
+  }
 }
 
 /**
@@ -777,24 +1017,8 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
     const buyer = await requireRole("Buyer");
     await reserveExistingBuyerCartStock(buyer.id);
     const { db } = await import("@/db/client.server");
-    const { cartItems, carts, inventory, inventoryMovements, listings } =
-      await import("@/db/schema");
+    const { cartItems, carts } = await import("@/db/schema");
     await db.transaction(async (tx) => {
-      const [listing] = await tx
-        .select({
-          id: listings.id,
-          inventoryId: inventory.id,
-          quantityKg: inventory.quantityKg,
-          reservedKg: inventory.reservedKg,
-        })
-        .from(listings)
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-        .where(and(eq(listings.id, data.listingId), eq(listings.status, "published")));
-      if (!listing) throw new Error("This listing is no longer available.");
-      const availableKg = Number(listing.quantityKg) - Number(listing.reservedKg);
-      if (data.quantityKg > availableKg) {
-        throw new Error(`Only ${availableKg} kg is currently available.`);
-      }
       const proposedCartId = crypto.randomUUID();
       await tx
         .insert(carts)
@@ -810,9 +1034,6 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
         .from(cartItems)
         .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
       const nextQuantity = Number(existing?.quantityKg ?? 0) + data.quantityKg;
-      if (data.quantityKg > availableKg) {
-        throw new Error(`Only ${availableKg} kg is currently available.`);
-      }
       const cartItemId = existing?.id ?? crypto.randomUUID();
       if (existing) {
         await tx
@@ -827,24 +1048,9 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
           quantityKg: data.quantityKg.toFixed(2),
         });
       }
-      const [reservation] = await tx
-        .update(inventory)
-        .set({ reservedKg: sql`${inventory.reservedKg} + ${data.quantityKg}` })
-        .where(
-          and(
-            eq(inventory.id, listing.inventoryId),
-            sql`${inventory.quantityKg} - ${inventory.reservedKg} >= ${data.quantityKg}`,
-          ),
-        );
-      if (reservation.affectedRows !== 1) {
-        throw new Error("Stock changed before your cart could be updated. Please try again.");
-      }
-      await tx.insert(inventoryMovements).values({
-        id: crypto.randomUUID(),
-        inventoryId: listing.inventoryId,
-        movementType: "reservation",
-        reservedChangeKg: data.quantityKg.toFixed(2),
-        referenceType: "cart",
+      await reserveListingStock(tx, {
+        listingId: data.listingId,
+        quantityKg: data.quantityKg,
         referenceId: cartItemId,
         recordedById: buyer.id,
         note: "Reserved in buyer cart.",
@@ -860,8 +1066,7 @@ export const setBuyerCartItem = createServerFn({ method: "POST" })
     const buyer = await requireRole("Buyer");
     await reserveExistingBuyerCartStock(buyer.id);
     const { db } = await import("@/db/client.server");
-    const { cartItems, carts, inventory, inventoryMovements, listings } =
-      await import("@/db/schema");
+    const { cartItems, carts } = await import("@/db/schema");
     await db.transaction(async (tx) => {
       const [cart] = await tx
         .select({ id: carts.id })
@@ -873,98 +1078,41 @@ export const setBuyerCartItem = createServerFn({ method: "POST" })
         .from(cartItems)
         .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
       if (!existing) throw new Error("That item is no longer in your cart.");
-      const [listing] = await tx
-        .select({
-          inventoryId: inventory.id,
-          quantityKg: inventory.quantityKg,
-          reservedKg: inventory.reservedKg,
-        })
-        .from(listings)
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-        .where(eq(listings.id, data.listingId));
-      if (!listing) throw new Error("That listing is no longer available.");
       const currentQuantityKg = Number(existing.quantityKg);
       if (data.quantityKg === 0) {
-        const [released] = await tx
-          .update(inventory)
-          .set({ reservedKg: sql`${inventory.reservedKg} - ${currentQuantityKg}` })
-          .where(
-            and(
-              eq(inventory.id, listing.inventoryId),
-              sql`${inventory.reservedKg} >= ${currentQuantityKg}`,
-            ),
-          );
-        if (released.affectedRows !== 1) {
-          throw new Error(
-            "Reserved stock is inconsistent, so this cart item could not be removed.",
-          );
-        }
-        await tx
-          .delete(cartItems)
-          .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
-        await tx.insert(inventoryMovements).values({
-          id: crypto.randomUUID(),
-          inventoryId: listing.inventoryId,
-          movementType: "release",
-          reservedChangeKg: `-${currentQuantityKg.toFixed(2)}`,
-          referenceType: "cart",
-          referenceId: existing.id,
+        await releaseCartReservation(tx, {
+          cartItemId: existing.id,
+          quantityKg: currentQuantityKg,
           recordedById: buyer.id,
           note: "Removed from buyer cart.",
         });
+        await tx
+          .delete(cartItems)
+          .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
         return;
       }
       const differenceKg = data.quantityKg - currentQuantityKg;
       if (differenceKg > 0) {
-        const [reserved] = await tx
-          .update(inventory)
-          .set({ reservedKg: sql`${inventory.reservedKg} + ${differenceKg}` })
-          .where(
-            and(
-              eq(inventory.id, listing.inventoryId),
-              sql`${inventory.quantityKg} - ${inventory.reservedKg} >= ${differenceKg}`,
-            ),
-          );
-        if (reserved.affectedRows !== 1) {
-          const availableKg = Math.max(0, Number(listing.quantityKg) - Number(listing.reservedKg));
-          throw new Error(`Only ${availableKg} kg is currently available.`);
-        }
+        await reserveListingStock(tx, {
+          listingId: data.listingId,
+          quantityKg: differenceKg,
+          referenceId: existing.id,
+          recordedById: buyer.id,
+          note: "Increased buyer cart reservation.",
+        });
       } else if (differenceKg < 0) {
-        const [released] = await tx
-          .update(inventory)
-          .set({ reservedKg: sql`${inventory.reservedKg} + ${differenceKg}` })
-          .where(
-            and(
-              eq(inventory.id, listing.inventoryId),
-              sql`${inventory.reservedKg} >= ${Math.abs(differenceKg)}`,
-            ),
-          );
-        if (released.affectedRows !== 1) {
-          throw new Error(
-            "Reserved stock is inconsistent, so this cart item could not be updated.",
-          );
-        }
+        await releaseCartReservation(tx, {
+          cartItemId: existing.id,
+          quantityKg: Math.abs(differenceKg),
+          recordedById: buyer.id,
+          note: "Reduced buyer cart reservation.",
+        });
       }
       const [updated] = await tx
         .update(cartItems)
         .set({ quantityKg: data.quantityKg.toFixed(2) })
         .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
       if (updated.affectedRows !== 1) throw new Error("That item is no longer in your cart.");
-      if (differenceKg !== 0) {
-        await tx.insert(inventoryMovements).values({
-          id: crypto.randomUUID(),
-          inventoryId: listing.inventoryId,
-          movementType: differenceKg > 0 ? "reservation" : "release",
-          reservedChangeKg: differenceKg.toFixed(2),
-          referenceType: "cart",
-          referenceId: existing.id,
-          recordedById: buyer.id,
-          note:
-            differenceKg > 0
-              ? "Increased buyer cart reservation."
-              : "Reduced buyer cart reservation.",
-        });
-      }
     });
     return buyerCartRows(buyer.id);
   });
@@ -986,6 +1134,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
       classifications,
       cartItems,
       carts,
+      inventoryMovements,
     } = await import("@/db/schema");
 
     const createdOrder = await db.transaction(async (tx) => {
@@ -1003,7 +1152,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         .where(eq(carts.buyerId, buyer.id));
       if (!cart) throw new Error("Your cart is empty. Add items before placing an order.");
       const cartLines = await tx
-        .select({ listingId: cartItems.listingId, quantityKg: cartItems.quantityKg })
+        .select({ id: cartItems.id, listingId: cartItems.listingId, quantityKg: cartItems.quantityKg })
         .from(cartItems)
         .where(and(eq(cartItems.cartId, cart.id), inArray(cartItems.listingId, listingIds)));
       if (
@@ -1015,6 +1164,36 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         )
       ) {
         throw new Error("Your cart changed. Refresh it before placing the order.");
+      }
+      const cartItemIds = cartLines.map((line) => line.id);
+      const reservationRows = cartItemIds.length
+        ? await tx
+            .select({
+              cartItemId: inventoryMovements.referenceId,
+              reservedChangeKg: inventoryMovements.reservedChangeKg,
+            })
+            .from(inventoryMovements)
+            .where(
+              and(
+                eq(inventoryMovements.referenceType, "cart"),
+                inArray(inventoryMovements.referenceId, cartItemIds),
+              ),
+            )
+        : [];
+      const reservedByCartItem = new Map<string, number>();
+      for (const reservation of reservationRows) {
+        if (!reservation.cartItemId) continue;
+        reservedByCartItem.set(
+          reservation.cartItemId,
+          (reservedByCartItem.get(reservation.cartItemId) ?? 0) +
+            Number(reservation.reservedChangeKg),
+        );
+      }
+      for (const item of requestedItems) {
+        const cartItem = cartLines.find((line) => line.listingId === item.listingId);
+        if (!cartItem || (reservedByCartItem.get(cartItem.id) ?? 0) + 0.0001 < item.quantityKg) {
+          throw new Error("Your cart reservation changed. Refresh it before placing the order.");
+        }
       }
       const rows = await tx
         .select({
@@ -1045,11 +1224,6 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
       for (const item of requestedItems) {
         const row = rows.find((candidate) => candidate.listingId === item.listingId);
         if (!row) throw new Error("A selected listing could not be found.");
-        if (item.quantityKg > Number(row.reservedKg)) {
-          throw new Error(
-            `${row.name} (${row.classification}) no longer has enough reserved stock. Refresh your cart.`,
-          );
-        }
         totalAmount += item.quantityKg * listingUnitPrice(row, item.quantityKg);
       }
 
@@ -1083,6 +1257,17 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         note: "Buyer submitted the order.",
         changedAt: new Date(),
       });
+
+      // Keep the batch-level reservation trail when the cart becomes an order.
+      await tx
+        .update(inventoryMovements)
+        .set({ referenceType: "order", referenceId: orderId, note: `Reserved for ${orderNumber}.` })
+        .where(
+          and(
+            eq(inventoryMovements.referenceType, "cart"),
+            inArray(inventoryMovements.referenceId, cartItemIds),
+          ),
+        );
 
       await tx
         .delete(cartItems)
@@ -1134,7 +1319,7 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
     const buyer = await requireRole("Buyer");
     await reserveExistingBuyerCartStock(buyer.id);
     const { db } = await import("@/db/client.server");
-    const { cartItems, carts, inventory, inventoryMovements, listings, orderItems, orders } =
+    const { cartItems, carts, listings, orderItems, orders } =
       await import("@/db/schema");
     const [order] = await db
       .select({ id: orders.id, status: orders.status })
@@ -1158,18 +1343,11 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
 
     await db.transaction(async (tx) => {
       const listingIds = [...requestedItems.keys()];
-      const stocks = await tx
-        .select({
-          id: listings.id,
-          inventoryId: inventory.id,
-          quantityKg: inventory.quantityKg,
-          reservedKg: inventory.reservedKg,
-        })
+      const activeListings = await tx
+        .select({ id: listings.id })
         .from(listings)
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
         .where(and(inArray(listings.id, listingIds), eq(listings.status, "published")));
-      const stockByListing = new Map(stocks.map((stock) => [stock.id, stock]));
-      if (stockByListing.size !== listingIds.length) {
+      if (activeListings.length !== listingIds.length) {
         throw new Error("One or more products from this order are no longer available.");
       }
 
@@ -1193,16 +1371,6 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
         .from(cartItems)
         .where(and(eq(cartItems.cartId, cart.id), inArray(cartItems.listingId, listingIds)));
       for (const [listingId, requestedKg] of requestedItems) {
-        const stock = stockByListing.get(listingId)!;
-        const availableKg = Number(stock.quantityKg) - Number(stock.reservedKg);
-        if (requestedKg > availableKg) {
-          throw new Error(
-            `Only ${Math.max(0, availableKg)} kg is currently available for one of these products.`,
-          );
-        }
-      }
-
-      for (const [listingId, requestedKg] of requestedItems) {
         const existingItem = existingItems.find((item) => item.listingId === listingId);
         const existingKg = existingItem ? Number(existingItem.quantityKg) : undefined;
         const cartItemId = existingItem?.id ?? crypto.randomUUID();
@@ -1219,25 +1387,9 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
             .set({ quantityKg: (existingKg + requestedKg).toFixed(2) })
             .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, listingId)));
         }
-        const stock = stockByListing.get(listingId)!;
-        const [reservation] = await tx
-          .update(inventory)
-          .set({ reservedKg: sql`${inventory.reservedKg} + ${requestedKg}` })
-          .where(
-            and(
-              eq(inventory.id, stock.inventoryId),
-              sql`${inventory.quantityKg} - ${inventory.reservedKg} >= ${requestedKg}`,
-            ),
-          );
-        if (reservation.affectedRows !== 1) {
-          throw new Error("Stock changed before this order could be added back to your cart.");
-        }
-        await tx.insert(inventoryMovements).values({
-          id: crypto.randomUUID(),
-          inventoryId: stock.inventoryId,
-          movementType: "reservation",
-          reservedChangeKg: requestedKg.toFixed(2),
-          referenceType: "cart",
+        await reserveListingStock(tx, {
+          listingId,
+          quantityKg: requestedKg,
           referenceId: cartItemId,
           recordedById: buyer.id,
           note: "Reserved after reordering a completed purchase.",
@@ -2130,9 +2282,31 @@ export const markDatabaseOrderSold = createServerFn({ method: "POST" })
       if (transition.affectedRows !== 1) {
         throw new Error("Only an unchanged Confirmed order can be marked Sold.");
       }
-      const lines = await tx
+      const reservationMovements = await tx
         .select({
-          listingId: orderItems.listingId,
+          inventoryId: inventoryMovements.inventoryId,
+          reservedChangeKg: inventoryMovements.reservedChangeKg,
+        })
+        .from(inventoryMovements)
+        .where(
+          and(
+            eq(inventoryMovements.referenceType, "order"),
+            eq(inventoryMovements.referenceId, order.id),
+          ),
+        );
+      const reservedByInventory = new Map<string, number>();
+      for (const movement of reservationMovements) {
+        reservedByInventory.set(
+          movement.inventoryId,
+          (reservedByInventory.get(movement.inventoryId) ?? 0) + Number(movement.reservedChangeKg),
+        );
+      }
+      let lines = [...reservedByInventory.entries()]
+        .filter(([, quantityKg]) => quantityKg > 0)
+        .map(([inventoryId, quantityKg]) => ({ inventoryId, quantityKg: quantityKg.toFixed(2) }));
+      // Orders created before grouped stock reservations used their listing's one batch.
+      if (!lines.length) lines = await tx
+        .select({
           quantityKg: orderItems.quantityKg,
           inventoryId: inventory.id,
         })
@@ -2248,12 +2422,37 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
         );
       }
 
-      const lines = await tx
-        .select({ inventoryId: inventory.id, quantityKg: orderItems.quantityKg })
-        .from(orderItems)
-        .innerJoin(listings, eq(orderItems.listingId, listings.id))
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-        .where(eq(orderItems.orderId, order.id));
+      const reservationMovements = await tx
+        .select({ inventoryId: inventoryMovements.inventoryId, reservedChangeKg: inventoryMovements.reservedChangeKg })
+        .from(inventoryMovements)
+        .where(
+          and(
+            eq(inventoryMovements.referenceType, "order"),
+            eq(inventoryMovements.referenceId, order.id),
+          ),
+        );
+      const reservedByInventory = new Map<string, number>();
+      for (const movement of reservationMovements) {
+        reservedByInventory.set(
+          movement.inventoryId,
+          (reservedByInventory.get(movement.inventoryId) ?? 0) + Number(movement.reservedChangeKg ?? 0),
+        );
+      }
+      let lines = [...reservedByInventory.entries()]
+        .filter(([, quantityKg]) => quantityKg > 0)
+        .map(([inventoryId, quantityKg]) => ({ inventoryId, quantityKg: quantityKg.toFixed(2) }));
+
+      // Orders created before combined stock reservations existed have no
+      // per-batch movement history. Keep their original listing batch as the
+      // safe fallback so historic orders remain cancellable.
+      if (!lines.length) {
+        lines = await tx
+          .select({ inventoryId: inventory.id, quantityKg: orderItems.quantityKg })
+          .from(orderItems)
+          .innerJoin(listings, eq(orderItems.listingId, listings.id))
+          .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+          .where(eq(orderItems.orderId, order.id));
+      }
       for (const line of lines) {
         const [release] = await tx
           .update(inventory)
