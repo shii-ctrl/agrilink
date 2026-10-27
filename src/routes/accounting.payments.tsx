@@ -38,13 +38,16 @@ function AccountingPaymentReceipt({ order }: { order: DemoOrder }) {
       ];
   const totalQuantity = items.reduce((total, item) => total + item.quantityKg, 0);
   const fulfillment = order.pickupNote?.startsWith("Delivery:") ? "Delivery" : "Pickup";
+  const itemTotal = items.reduce((total, item) => total + item.quantityKg * item.pricePerKg, 0);
 
   return (
     <section className="accounting-payment-receipt hidden bg-white p-8 text-black">
       <div className="mx-auto max-w-2xl border border-slate-300 bg-white p-8 text-slate-950">
         <div className="flex items-start justify-between gap-6 border-b border-slate-300 pb-5">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.18em] text-emerald-700">AgriLink</p>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-emerald-700">
+              AgriLink
+            </p>
             <h1 className="mt-2 text-3xl font-bold">Payment receipt</h1>
             <p className="mt-1 text-sm text-slate-600">PROCY marketplace payment record</p>
           </div>
@@ -83,15 +86,32 @@ function AccountingPaymentReceipt({ order }: { order: DemoOrder }) {
             <span>Price</span>
           </div>
           {items.map((item) => (
-            <div key={item.listingId} className="grid grid-cols-[1fr_auto_auto] gap-4 border-t border-slate-200 px-4 py-3 text-sm">
+            <div
+              key={item.listingId}
+              className="grid grid-cols-[1fr_auto_auto] gap-4 border-t border-slate-200 px-4 py-3 text-sm"
+            >
               <span>
                 <span className="block font-semibold">{item.name}</span>
                 <span className="text-slate-600">{item.classification}</span>
               </span>
               <span>{item.quantityKg} kg</span>
-              <span>{item.pricePerKg > 0 ? `₱${item.pricePerKg.toFixed(2)} / kg` : "Included"}</span>
+              <span>
+                {item.pricePerKg > 0 ? `₱${item.pricePerKg.toFixed(2)} / kg` : "Included"}
+              </span>
             </div>
           ))}
+          {order.deliveryFee && order.deliveryFee > 0 ? (
+            <>
+              <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm">
+                <span>Products subtotal</span>
+                <span>₱{itemTotal.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm">
+                <span>Delivery fee</span>
+                <span>₱{order.deliveryFee.toFixed(2)}</span>
+              </div>
+            </>
+          ) : null}
           <div className="flex items-center justify-between border-t-2 border-slate-400 px-4 py-4">
             <span className="font-semibold">Total paid · {totalQuantity} kg</span>
             <span className="text-xl font-bold">{order.total}</span>
@@ -170,113 +190,115 @@ function AccountingPaymentsPage() {
           description="Record payment after a PROCY order is marked Sold. This page records payment information and does not process online payments."
         />
         <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
-        <div className="mb-6 flex gap-3 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
-          <Clock3 className="mt-0.5 size-5 shrink-0" />
-          <p>
-            <span className="font-semibold">Payment queue:</span> only Sold PROCY orders are ready
-            for payment recording. Buyer payment status updates immediately; Farmer stock status
-            updates when sales are fulfilled.
-          </p>
-        </div>
-        <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-          <section className="rounded-3xl border border-border bg-card p-6 shadow-card">
-            <div className="flex gap-3">
-              <CircleDollarSign className="mt-0.5 size-5 text-primary" />
-              <div>
-                <h2 className="text-lg font-semibold">Record a payment</h2>
+          <div className="mb-6 flex gap-3 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
+            <Clock3 className="mt-0.5 size-5 shrink-0" />
+            <p>
+              <span className="font-semibold">Payment queue:</span> only Sold PROCY orders are ready
+              for payment recording. Buyer payment status updates immediately; Farmer stock status
+              updates when sales are fulfilled.
+            </p>
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+            <section className="rounded-3xl border border-border bg-card p-6 shadow-card">
+              <div className="flex gap-3">
+                <CircleDollarSign className="mt-0.5 size-5 text-primary" />
+                <div>
+                  <h2 className="text-lg font-semibold">Record a payment</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Select a completed PROCY sale from the current payment queue.
+                  </p>
+                </div>
+              </div>
+              {awaitingPayment.length === 0 ? (
+                <div className="mt-7 rounded-2xl border border-dashed border-border bg-muted/40 p-5 text-sm text-muted-foreground">
+                  No Sold orders are waiting for payment recording.
+                </div>
+              ) : (
+                <form className="mt-7 space-y-5" onSubmit={recordPayment}>
+                  <div className="space-y-2">
+                    <Label htmlFor="transaction">Sold order</Label>
+                    <AppSelect
+                      id="transaction"
+                      value={selectedOrderId}
+                      onValueChange={setSelectedOrderId}
+                      placeholder="Select a Sold order"
+                      options={awaitingPayment.map((order) => ({
+                        value: order.id,
+                        label: `${order.id} — ${order.buyer}`,
+                        description: order.total,
+                      }))}
+                    />
+                  </div>
+                  {selectedOrder && (
+                    <div className="rounded-2xl bg-muted p-4 text-sm">
+                      <p className="font-medium">{selectedOrder.product}</p>
+                      <p className="mt-1 text-muted-foreground">
+                        {selectedOrder.quantity} · {selectedOrder.classification} ·{" "}
+                        {selectedOrder.total}
+                      </p>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="method">Payment method</Label>
+                    <AppSelect
+                      id="method"
+                      value={method}
+                      onValueChange={setMethod}
+                      placeholder="Select a method"
+                      options={[
+                        { value: "cash_on_delivery", label: "Cash on Delivery (COD)" },
+                        { value: "cash", label: "Cash" },
+                      ]}
+                    />
+                  </div>
+                  <Button type="submit" className="rounded-full">
+                    Record payment as Paid
+                  </Button>
+                </form>
+              )}
+            </section>
+            <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+              <div className="border-b border-border px-6 py-5">
+                <h2 className="text-lg font-semibold">Recorded payments</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Select a completed PROCY sale from the current payment queue.
+                  Payment records linked to completed PROCY orders.
                 </p>
               </div>
-            </div>
-            {awaitingPayment.length === 0 ? (
-              <div className="mt-7 rounded-2xl border border-dashed border-border bg-muted/40 p-5 text-sm text-muted-foreground">
-                No Sold orders are waiting for payment recording.
-              </div>
-            ) : (
-              <form className="mt-7 space-y-5" onSubmit={recordPayment}>
-                <div className="space-y-2">
-                  <Label htmlFor="transaction">Sold order</Label>
-                  <AppSelect
-                    id="transaction"
-                    value={selectedOrderId}
-                    onValueChange={setSelectedOrderId}
-                    placeholder="Select a Sold order"
-                    options={awaitingPayment.map((order) => ({
-                      value: order.id,
-                      label: `${order.id} — ${order.buyer}`,
-                      description: order.total,
-                    }))}
-                  />
-                </div>
-                {selectedOrder && (
-                  <div className="rounded-2xl bg-muted p-4 text-sm">
-                    <p className="font-medium">{selectedOrder.product}</p>
-                    <p className="mt-1 text-muted-foreground">
-                      {selectedOrder.quantity} · {selectedOrder.classification} ·{" "}
-                      {selectedOrder.total}
-                    </p>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="method">Payment method</Label>
-                  <AppSelect
-                    id="method"
-                    value={method}
-                    onValueChange={setMethod}
-                    placeholder="Select a method"
-                    options={[
-                      { value: "cash_on_delivery", label: "Cash on Delivery (COD)" },
-                      { value: "cash", label: "Cash" },
-                    ]}
-                  />
-                </div>
-                <Button type="submit" className="rounded-full">
-                  Record payment as Paid
-                </Button>
-              </form>
-            )}
-          </section>
-          <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-            <div className="border-b border-border px-6 py-5">
-              <h2 className="text-lg font-semibold">Recorded payments</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Payment records linked to completed PROCY orders.
-              </p>
-            </div>
-            <div className="divide-y divide-border">
-              {recordedPayments.map((order) => (
-                <div
-                  key={order.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
-                >
-                  <div>
-                    <p className="font-medium">{order.paymentId ?? "Payment recorded"}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {order.id} · {order.buyer} · {paymentMethodLabel(order.paymentMethod)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{order.total}</p>
-                    <p className="text-xs font-medium text-primary">Paid {order.paidAt ?? ""}</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full"
-                    onClick={() => printReceipt(order)}
+              <div className="divide-y divide-border">
+                {recordedPayments.map((order) => (
+                  <div
+                    key={order.id}
+                    className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
                   >
-                    <Printer className="size-4" /> Print receipt
-                  </Button>
-                </div>
-              ))}
-              {recordedPayments.length === 0 && (
-                <p className="px-6 py-8 text-sm text-muted-foreground">No payments recorded yet.</p>
-              )}
-            </div>
-          </section>
-        </div>
+                    <div>
+                      <p className="font-medium">{order.paymentId ?? "Payment recorded"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {order.id} · {order.buyer} · {paymentMethodLabel(order.paymentMethod)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{order.total}</p>
+                      <p className="text-xs font-medium text-primary">Paid {order.paidAt ?? ""}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => printReceipt(order)}
+                    >
+                      <Printer className="size-4" /> Print receipt
+                    </Button>
+                  </div>
+                ))}
+                {recordedPayments.length === 0 && (
+                  <p className="px-6 py-8 text-sm text-muted-foreground">
+                    No payments recorded yet.
+                  </p>
+                )}
+              </div>
+            </section>
+          </div>
         </main>
       </div>
       {receiptOrder && <AccountingPaymentReceipt order={receiptOrder} />}

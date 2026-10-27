@@ -19,6 +19,7 @@ export type DemoOrder = {
   quantity: string;
   total: string;
   amount?: number;
+  deliveryFee?: number;
   status: DemoOrderStatus;
   paymentStatus: DemoPaymentStatus;
   date: string;
@@ -94,6 +95,7 @@ function normalizeOrder(order: Partial<DemoOrder>): DemoOrder {
     classification: order.classification ?? "Good",
     quantity: order.quantity ?? "0 kg",
     total: order.total ?? "₱0",
+    ...(order.deliveryFee !== undefined ? { deliveryFee: order.deliveryFee } : {}),
     status: order.status ?? "Pending",
     paymentStatus: order.paymentStatus ?? "Unpaid",
     date: order.date ?? "Just now",

@@ -200,6 +200,9 @@ export const orders = mysqlTable(
       .notNull(),
     contact: varchar("contact", { length: 80 }).notNull(),
     pickupNote: text("pickup_note").notNull(),
+    // The delivery fee is fixed at checkout so later Management changes do not
+    // alter the amount a buyer agreed to pay for an existing order.
+    deliveryFee: decimal("delivery_fee", { precision: 12, scale: 2 }).default("0.00").notNull(),
     totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
     confirmedAt: datetime("confirmed_at"),
     soldAt: datetime("sold_at"),
@@ -211,6 +214,15 @@ export const orders = mysqlTable(
     index("orders_buyer_idx").on(table.buyerId),
   ],
 );
+export const deliverySettings = mysqlTable("delivery_settings", {
+  // A singleton row (id 1) keeps the delivery fee in the database instead of
+  // trusting a browser-provided amount.
+  id: int("id").primaryKey(),
+  flatFee: decimal("flat_fee", { precision: 12, scale: 2 }).default("59.00").notNull(),
+  updatedById: varchar("updated_by_id", { length: 36 }),
+  createdAt,
+  updatedAt,
+});
 export const orderStatusHistory = mysqlTable(
   "order_status_history",
   {
@@ -356,7 +368,10 @@ export const communityCommentReactions = mysqlTable(
     updatedAt,
   },
   (table) => [
-    uniqueIndex("community_comment_reactions_comment_user_unique").on(table.commentId, table.userId),
+    uniqueIndex("community_comment_reactions_comment_user_unique").on(
+      table.commentId,
+      table.userId,
+    ),
     index("community_comment_reactions_comment_idx").on(table.commentId),
     index("community_comment_reactions_user_idx").on(table.userId),
   ],

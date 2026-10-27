@@ -13,10 +13,14 @@ const orderNumberInput = z.object({ orderNumber: z.string().trim().min(3).max(40
 const checkoutInput = z.object({
   contact: z.string().trim().min(5).max(80),
   pickupNote: z.string().trim().min(3).max(2000),
+  fulfillment: z.enum(["pickup", "delivery"]),
   items: z
     .array(z.object({ listingId: z.string().uuid(), quantityKg: z.number().positive().max(10000) }))
     .min(1)
     .max(20),
+});
+const deliveryFeeInput = z.object({
+  deliveryFee: z.number().finite().min(0).max(10_000),
 });
 const cartItemInput = z.object({
   listingId: z.string().uuid(),
@@ -53,7 +57,10 @@ const dailyPriceStatusInput = z.object({
 });
 const managementDashboardInput = z.object({
   range: z.enum(["day", "month", "all"]),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid dashboard date.").optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid dashboard date.")
+    .optional(),
   year: z.number().int().min(2000).max(9999).optional(),
 });
 const listingPricingFields = {
@@ -422,7 +429,12 @@ export const getPublishableInventory = createServerFn({ method: "GET" }).handler
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
     .where(sql`${inventory.quantityKg} - ${inventory.reservedKg} > 0`)
-    .orderBy(asc(products.name), asc(classifications.name), asc(inventory.updatedAt), asc(inventory.id));
+    .orderBy(
+      asc(products.name),
+      asc(classifications.name),
+      asc(inventory.updatedAt),
+      asc(inventory.id),
+    );
 
   // Receiving can create several batches for the same product and quality.
   // Let the marketer choose one combined product-quality group, not a farmer batch.
@@ -474,7 +486,12 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
         .select({ id: listings.id })
         .from(listings)
         .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-        .where(and(eq(inventory.productId, stock.productId), eq(inventory.classificationId, stock.classificationId)))
+        .where(
+          and(
+            eq(inventory.productId, stock.productId),
+            eq(inventory.classificationId, stock.classificationId),
+          ),
+        )
         .orderBy(desc(listings.updatedAt));
       if (existing) {
         await tx
@@ -482,7 +499,8 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
           .set({
             pricePerKg: data.retailPricePerKg.toFixed(2),
             retailPricePerKg: data.retailPricePerKg.toFixed(2),
-            bundlePricePerKg: data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
+            bundlePricePerKg:
+              data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
             bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
             status: data.status,
           })
@@ -1286,6 +1304,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
       classifications,
       cartItems,
       carts,
+      deliverySettings,
       inventoryMovements,
     } = await import("@/db/schema");
 
@@ -1304,7 +1323,11 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         .where(eq(carts.buyerId, buyer.id));
       if (!cart) throw new Error("Your cart is empty. Add items before placing an order.");
       const cartLines = await tx
-        .select({ id: cartItems.id, listingId: cartItems.listingId, quantityKg: cartItems.quantityKg })
+        .select({
+          id: cartItems.id,
+          listingId: cartItems.listingId,
+          quantityKg: cartItems.quantityKg,
+        })
         .from(cartItems)
         .where(
           and(
@@ -1321,7 +1344,9 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
             item.quantityKg,
         )
       ) {
-        throw new Error("Your cart reservation expired. Refresh the marketplace and add the item again.");
+        throw new Error(
+          "Your cart reservation expired. Refresh the marketplace and add the item again.",
+        );
       }
       const cartItemIds = cartLines.map((line) => line.id);
       const reservationRows = cartItemIds.length
@@ -1378,12 +1403,20 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
 
       const orderId = crypto.randomUUID();
       const orderNumber = `ORD-${new Date().getFullYear()}-${orderId.slice(0, 8).toUpperCase()}`;
-      let totalAmount = 0;
+      let productsTotal = 0;
       for (const item of requestedItems) {
         const row = rows.find((candidate) => candidate.listingId === item.listingId);
         if (!row) throw new Error("A selected listing could not be found.");
-        totalAmount += item.quantityKg * listingUnitPrice(row, item.quantityKg);
+        productsTotal += item.quantityKg * listingUnitPrice(row, item.quantityKg);
       }
+      const [settings] = await tx
+        .select({ flatFee: deliverySettings.flatFee })
+        .from(deliverySettings)
+        .where(eq(deliverySettings.id, 1));
+      // This value is read on the server. A Buyer can choose delivery, but can
+      // never set or reduce its fee from the browser.
+      const deliveryFee = data.fulfillment === "delivery" ? Number(settings?.flatFee ?? 59) : 0;
+      const totalAmount = productsTotal + deliveryFee;
 
       await tx.insert(orders).values({
         id: orderId,
@@ -1392,6 +1425,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         status: "pending",
         contact: data.contact,
         pickupNote: data.pickupNote,
+        deliveryFee: deliveryFee.toFixed(2),
         totalAmount: totalAmount.toFixed(2),
       });
 
@@ -1443,6 +1477,48 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
     return createdOrder;
   });
 
+export const getBuyerDeliveryFee = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/services/auth/auth-server");
+  await requireRole("Buyer");
+  const { db } = await import("@/db/client.server");
+  const { deliverySettings } = await import("@/db/schema");
+  const [settings] = await db
+    .select({ flatFee: deliverySettings.flatFee })
+    .from(deliverySettings)
+    .where(eq(deliverySettings.id, 1));
+  return { deliveryFee: Number(settings?.flatFee ?? 59) };
+});
+
+export const getManagementDeliveryFee = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/services/auth/auth-server");
+  await requireRole("Management");
+  const { db } = await import("@/db/client.server");
+  const { deliverySettings } = await import("@/db/schema");
+  const [settings] = await db
+    .select({ flatFee: deliverySettings.flatFee })
+    .from(deliverySettings)
+    .where(eq(deliverySettings.id, 1));
+  return { deliveryFee: Number(settings?.flatFee ?? 59) };
+});
+
+export const updateManagementDeliveryFee = createServerFn({ method: "POST" })
+  .validator(deliveryFeeInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const manager = await requireRole("Management");
+    const { db } = await import("@/db/client.server");
+    const { deliverySettings } = await import("@/db/schema");
+    const fee = Math.round(data.deliveryFee * 100) / 100;
+    await db
+      .insert(deliverySettings)
+      .values({ id: 1, flatFee: fee.toFixed(2), updatedById: manager.id })
+      .onDuplicateKeyUpdate({
+        set: { flatFee: fee.toFixed(2), updatedById: manager.id },
+      });
+    await writeAuditLog(manager.id, "delivery_fee.update", "delivery_settings", "1", { fee });
+    return { deliveryFee: fee };
+  });
+
 export const getBuyerOrders = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
   const buyer = await requireRole("Buyer");
@@ -1454,6 +1530,7 @@ export const getBuyerOrders = createServerFn({ method: "GET" }).handler(async ()
       orderNumber: orders.orderNumber,
       status: orders.status,
       totalAmount: orders.totalAmount,
+      deliveryFee: orders.deliveryFee,
       contact: orders.contact,
       pickupNote: orders.pickupNote,
       createdAt: orders.createdAt,
@@ -1466,6 +1543,7 @@ export const getBuyerOrders = createServerFn({ method: "GET" }).handler(async ()
   return rows.map((row) => ({
     ...row,
     totalAmount: Number(row.totalAmount),
+    deliveryFee: Number(row.deliveryFee),
     paymentStatus: row.paymentId ? "Paid" : "Unpaid",
   }));
 });
@@ -1477,8 +1555,7 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
     const buyer = await requireRole("Buyer");
     await prepareBuyerCart(buyer.id);
     const { db } = await import("@/db/client.server");
-    const { cartItems, carts, listings, orderItems, orders } =
-      await import("@/db/schema");
+    const { cartItems, carts, listings, orderItems, orders } = await import("@/db/schema");
     const [order] = await db
       .select({ id: orders.id, status: orders.status })
       .from(orders)
@@ -1593,6 +1670,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
         contact: orders.contact,
         pickupNote: orders.pickupNote,
         totalAmount: orders.totalAmount,
+        deliveryFee: orders.deliveryFee,
         createdAt: orders.createdAt,
         confirmedAt: orders.confirmedAt,
         soldAt: orders.soldAt,
@@ -1644,6 +1722,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       contact: order.contact,
       pickupNote: order.pickupNote,
       totalAmount: Number(order.totalAmount),
+      deliveryFee: Number(order.deliveryFee),
       createdAt: order.createdAt.toISOString(),
       confirmedAt: order.confirmedAt?.toISOString() ?? null,
       soldAt: order.soldAt?.toISOString() ?? null,
@@ -1680,6 +1759,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       orderNumber: orders.orderNumber,
       status: orders.status,
       totalAmount: orders.totalAmount,
+      deliveryFee: orders.deliveryFee,
       contact: orders.contact,
       pickupNote: orders.pickupNote,
       createdAt: orders.createdAt,
@@ -1737,6 +1817,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
         Number(order.totalAmount),
       ),
       amount: Number(order.totalAmount),
+      deliveryFee: Number(order.deliveryFee),
       status:
         `${order.status.charAt(0).toUpperCase()}${order.status.slice(1)}` as DemoOrder["status"],
       paymentStatus: order.paymentId ? "Paid" : "Unpaid",
@@ -1924,18 +2005,21 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
   const quality = qualityOrder.map((classification) => ({
     name: classification,
     value: stock
-      .filter((row) => row.classification.toLocaleLowerCase() === classification.toLocaleLowerCase())
+      .filter(
+        (row) => row.classification.toLocaleLowerCase() === classification.toLocaleLowerCase(),
+      )
       .reduce(
         (total, row) => total + Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
         0,
       ),
   }));
-  const stockByProduct = [...stock
-    .reduce((grouped, row) => {
+  const stockByProduct = [
+    ...stock.reduce((grouped, row) => {
       const available = Math.max(0, Number(row.quantityKg) - Number(row.reservedKg));
       grouped.set(row.name, (grouped.get(row.name) ?? 0) + available);
       return grouped;
-    }, new Map<string, number>())]
+    }, new Map<string, number>()),
+  ]
     .map(([name, value]) => ({ name, value }))
     .filter((item) => item.value > 0)
     .sort((first, second) => second.value - first.value)
@@ -2062,7 +2146,9 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
     const monthEnd = new Date(monthStart);
     monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
     const manilaYear = (date: Date) =>
-      Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", year: "numeric" }).format(date));
+      Number(
+        new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", year: "numeric" }).format(date),
+      );
     const occursInSelectedPeriod = (date: Date | null) => {
       if (!date) return false;
       if (data.range === "all") {
@@ -2082,13 +2168,17 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
         .from(inventory)
         .innerJoin(products, eq(inventory.productId, products.id))
         .innerJoin(classifications, eq(inventory.classificationId, classifications.id)),
-      db.select({
-        inventoryId: inventoryMovements.inventoryId,
-        movementType: inventoryMovements.movementType,
-        availableChangeKg: inventoryMovements.availableChangeKg,
-        createdAt: inventoryMovements.createdAt,
-      }).from(inventoryMovements),
-      db.select({ totalKg: receivingRecords.totalKg, receivedAt: receivingRecords.receivedAt }).from(receivingRecords),
+      db
+        .select({
+          inventoryId: inventoryMovements.inventoryId,
+          movementType: inventoryMovements.movementType,
+          availableChangeKg: inventoryMovements.availableChangeKg,
+          createdAt: inventoryMovements.createdAt,
+        })
+        .from(inventoryMovements),
+      db
+        .select({ totalKg: receivingRecords.totalKg, receivedAt: receivingRecords.receivedAt })
+        .from(receivingRecords),
       db
         .select({ status: orders.status, createdAt: orders.createdAt, soldAt: orders.soldAt })
         .from(orders),
@@ -2106,11 +2196,15 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
     ).sort((first, second) => second - first);
 
     const selectedReceiving = received.filter((row) => occursInSelectedPeriod(row.receivedAt));
-    const selectedOrders = databaseOrders.filter((order) => occursInSelectedPeriod(order.createdAt));
+    const selectedOrders = databaseOrders.filter((order) =>
+      occursInSelectedPeriod(order.createdAt),
+    );
     const selectedSales = databaseOrders.filter(
       (order) => order.status === "sold" && occursInSelectedPeriod(order.soldAt),
     );
-    const selectedPayments = databasePayments.filter((payment) => occursInSelectedPeriod(payment.paidAt));
+    const selectedPayments = databasePayments.filter((payment) =>
+      occursInSelectedPeriod(payment.paidAt),
+    );
     const supplyKg = selectedReceiving.reduce((total, row) => total + Number(row.totalKg), 0);
     const stockById = new Map(stockRows.map((row) => [row.id, row]));
     const selectedStockActivity = movements
@@ -2121,13 +2215,26 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       .flatMap((movement) => {
         const stock = stockById.get(movement.inventoryId);
         return stock
-          ? [{ ...stock, addedKg: Number(movement.availableChangeKg), createdAt: movement.createdAt }]
+          ? [
+              {
+                ...stock,
+                addedKg: Number(movement.availableChangeKg),
+                createdAt: movement.createdAt,
+              },
+            ]
           : [];
       });
     const stockKg = selectedStockActivity.reduce((total, row) => total + row.addedKg, 0);
-    const salesAmount = selectedPayments.reduce((total, payment) => total + Number(payment.amount), 0);
+    const salesAmount = selectedPayments.reduce(
+      (total, payment) => total + Number(payment.amount),
+      0,
+    );
     const periodLabel =
-      data.range === "all" ? "across all time" : data.range === "month" ? "this month" : "on this day";
+      data.range === "all"
+        ? "across all time"
+        : data.range === "month"
+          ? "this month"
+          : "on this day";
     const qualityOrder = ["Good", "Semi", "Reject"] as const;
     const quality = qualityOrder.map((classification) => ({
       name: classification,
@@ -2148,17 +2255,25 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       return `${parts["year"]}-${parts["month"]}`;
     };
     const monthLabel = (key: string) =>
-      new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", month: "short", year: "numeric" }).format(
-        new Date(`${key}-01T00:00:00+08:00`),
-      );
+      new Intl.DateTimeFormat("en", {
+        timeZone: "Asia/Manila",
+        month: "short",
+        year: "numeric",
+      }).format(new Date(`${key}-01T00:00:00+08:00`));
     const monthKeysBetween = (dates: Date[]) => {
       if (data.range === "all" && data.year) {
-        return Array.from({ length: 12 }, (_, index) => `${data.year}-${String(index + 1).padStart(2, "0")}`);
+        return Array.from(
+          { length: 12 },
+          (_, index) => `${data.year}-${String(index + 1).padStart(2, "0")}`,
+        );
       }
       const keys = dates.map(manilaMonthKey).sort();
       const currentYear = Number(currentManilaMonth["year"]);
       const firstYear = keys.length > 0 ? Number(keys[0]!.slice(0, 4)) : currentYear;
-      const lastYear = keys.length > 0 ? Math.max(Number(keys[keys.length - 1]!.slice(0, 4)), currentYear) : currentYear;
+      const lastYear =
+        keys.length > 0
+          ? Math.max(Number(keys[keys.length - 1]!.slice(0, 4)), currentYear)
+          : currentYear;
       const result: string[] = [];
       for (let year = firstYear; year <= lastYear; year += 1) {
         for (let month = 1; month <= 12; month += 1) {
@@ -2189,13 +2304,21 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       const byDay = new Map<number, { orders: number; sales: number }>();
       for (let day = 1; day <= daysInMonth; day += 1) byDay.set(day, { orders: 0, sales: 0 });
       const dayOfMonth = (date: Date) =>
-        Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", day: "numeric" }).format(date));
+        Number(
+          new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", day: "numeric" }).format(date),
+        );
       for (const order of selectedOrders) byDay.get(dayOfMonth(order.createdAt))!.orders += 1;
       for (const sale of selectedSales) {
         if (sale.soldAt) byDay.get(dayOfMonth(sale.soldAt))!.sales += 1;
       }
-      const monthName = new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", month: "short" }).format(monthStart);
-      return [...byDay.entries()].map(([day, value]) => ({ label: `${monthName} ${day}`, ...value }));
+      const monthName = new Intl.DateTimeFormat("en", {
+        timeZone: "Asia/Manila",
+        month: "short",
+      }).format(monthStart);
+      return [...byDay.entries()].map(([day, value]) => ({
+        label: `${monthName} ${day}`,
+        ...value,
+      }));
     };
     const monthlyActivity = () => {
       const keys = monthKeysBetween([
@@ -2210,7 +2333,11 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       return [...byMonth.entries()].map(([key, value]) => ({ label: monthLabel(key), ...value }));
     };
     const activity =
-      data.range === "all" ? monthlyActivity() : data.range === "month" ? dailyActivity() : hourlyActivity();
+      data.range === "all"
+        ? monthlyActivity()
+        : data.range === "month"
+          ? dailyActivity()
+          : hourlyActivity();
     const hourlyInventoryFlow = () => {
       const byHour = new Map<number, { stock: number; supply: number }>();
       for (let hour = 0; hour < 24; hour += 1) byHour.set(hour, { stock: 0, supply: 0 });
@@ -2232,11 +2359,21 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
       const byDay = new Map<number, { stock: number; supply: number }>();
       for (let day = 1; day <= daysInMonth; day += 1) byDay.set(day, { stock: 0, supply: 0 });
       const dayOfMonth = (date: Date) =>
-        Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", day: "numeric" }).format(date));
-      for (const row of selectedStockActivity) byDay.get(dayOfMonth(row.createdAt))!.stock += row.addedKg;
-      for (const row of selectedReceiving) byDay.get(dayOfMonth(row.receivedAt))!.supply += Number(row.totalKg);
-      const monthName = new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", month: "short" }).format(monthStart);
-      return [...byDay.entries()].map(([day, value]) => ({ label: `${monthName} ${day}`, ...value }));
+        Number(
+          new Intl.DateTimeFormat("en", { timeZone: "Asia/Manila", day: "numeric" }).format(date),
+        );
+      for (const row of selectedStockActivity)
+        byDay.get(dayOfMonth(row.createdAt))!.stock += row.addedKg;
+      for (const row of selectedReceiving)
+        byDay.get(dayOfMonth(row.receivedAt))!.supply += Number(row.totalKg);
+      const monthName = new Intl.DateTimeFormat("en", {
+        timeZone: "Asia/Manila",
+        month: "short",
+      }).format(monthStart);
+      return [...byDay.entries()].map(([day, value]) => ({
+        label: `${monthName} ${day}`,
+        ...value,
+      }));
     };
     const monthlyInventoryFlow = () => {
       const keys = monthKeysBetween([
@@ -2302,7 +2439,7 @@ export const getManagementDashboard = createServerFn({ method: "GET" })
     return {
       range: data.range,
       date: data.range === "day" ? data.date : null,
-      selectedYear: data.range === "all" ? data.year ?? Number(currentManilaMonth["year"]) : null,
+      selectedYear: data.range === "all" ? (data.year ?? Number(currentManilaMonth["year"])) : null,
       availableYears,
       summaries: [
         {
@@ -2467,15 +2604,16 @@ export const markDatabaseOrderSold = createServerFn({ method: "POST" })
         .filter(([, quantityKg]) => quantityKg > 0)
         .map(([inventoryId, quantityKg]) => ({ inventoryId, quantityKg: quantityKg.toFixed(2) }));
       // Orders created before grouped stock reservations used their listing's one batch.
-      if (!lines.length) lines = await tx
-        .select({
-          quantityKg: orderItems.quantityKg,
-          inventoryId: inventory.id,
-        })
-        .from(orderItems)
-        .innerJoin(listings, eq(orderItems.listingId, listings.id))
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-        .where(eq(orderItems.orderId, order.id));
+      if (!lines.length)
+        lines = await tx
+          .select({
+            quantityKg: orderItems.quantityKg,
+            inventoryId: inventory.id,
+          })
+          .from(orderItems)
+          .innerJoin(listings, eq(orderItems.listingId, listings.id))
+          .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+          .where(eq(orderItems.orderId, order.id));
       for (const line of lines) {
         const [sale] = await tx
           .update(inventory)
@@ -2585,7 +2723,10 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
       }
 
       const reservationMovements = await tx
-        .select({ inventoryId: inventoryMovements.inventoryId, reservedChangeKg: inventoryMovements.reservedChangeKg })
+        .select({
+          inventoryId: inventoryMovements.inventoryId,
+          reservedChangeKg: inventoryMovements.reservedChangeKg,
+        })
         .from(inventoryMovements)
         .where(
           and(
@@ -2597,7 +2738,8 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
       for (const movement of reservationMovements) {
         reservedByInventory.set(
           movement.inventoryId,
-          (reservedByInventory.get(movement.inventoryId) ?? 0) + Number(movement.reservedChangeKg ?? 0),
+          (reservedByInventory.get(movement.inventoryId) ?? 0) +
+            Number(movement.reservedChangeKg ?? 0),
         );
       }
       let lines = [...reservedByInventory.entries()]

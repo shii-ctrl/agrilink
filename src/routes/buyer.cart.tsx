@@ -15,12 +15,14 @@ import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import {
   getBuyerCart,
+  getBuyerDeliveryFee,
   placeBuyerOrder,
   setBuyerCartItem,
 } from "@/services/marketplace/marketplace-server-functions";
 export const Route = createFileRoute("/buyer/cart")({ component: BuyerCartPage });
 
 type CartItem = Awaited<ReturnType<typeof getBuyerCart>>[number] & { image: string };
+type CartData = { items: CartItem[]; deliveryFee: number };
 const emptyCartItems: CartItem[] = [];
 
 function reservationCountdown(expiresAt: string, now: number) {
@@ -33,14 +35,18 @@ function reservationCountdown(expiresAt: string, now: number) {
 function BuyerCartPage() {
   const navigate = useNavigate();
   const request = useCallback(async () => {
-    const cart = await getBuyerCart();
-    return cart.map((item) => ({
-      ...item,
-      image: item.imageUrl || marketplaceImageFor(item.name),
-    }));
+    const [cart, settings] = await Promise.all([getBuyerCart(), getBuyerDeliveryFee()]);
+    return {
+      items: cart.map((item) => ({
+        ...item,
+        image: item.imageUrl || marketplaceImageFor(item.name),
+      })),
+      deliveryFee: settings.deliveryFee,
+    } satisfies CartData;
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(request);
-  const items = data ?? emptyCartItems;
+  const items = data?.items ?? emptyCartItems;
+  const deliveryFee = data?.deliveryFee ?? 59;
   const [contact, setContact] = useState("");
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [arrangementNote, setArrangementNote] = useState("");
@@ -58,6 +64,8 @@ function BuyerCartPage() {
     [items],
   );
   const bundleSavings = Math.max(0, retailSubtotal - total);
+  const appliedDeliveryFee = fulfillment === "delivery" ? deliveryFee : 0;
+  const finalTotal = total + appliedDeliveryFee;
   const earliestReservationExpiry = useMemo(
     () =>
       items.reduce<string | null>(
@@ -124,7 +132,7 @@ function BuyerCartPage() {
     const pickupNote = `${fulfillmentLabel}: ${arrangementNote.trim()}`;
     const accepted = await requestConfirmation({
       title: "Confirm your order?",
-      description: `You are submitting ${items.length} product group${items.length === 1 ? "" : "s"} (${totalKg} kg) for ${peso(total)}. PROCY will review the ${fulfillmentLabel.toLocaleLowerCase()} arrangement before confirming it.`,
+      description: `You are submitting ${items.length} product group${items.length === 1 ? "" : "s"} (${totalKg} kg) for ${peso(finalTotal)}. PROCY will review the ${fulfillmentLabel.toLocaleLowerCase()} arrangement before confirming it.`,
       confirmLabel: "Confirm order",
       cancelLabel: "Edit order",
       details: (
@@ -158,10 +166,16 @@ function BuyerCartPage() {
               <dt className="text-muted-foreground">Details</dt>
               <dd className="max-w-48 text-right font-medium">{arrangementNote}</dd>
             </div>
+            {fulfillment === "delivery" ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Delivery fee</dt>
+                <dd className="text-right font-medium">{peso(appliedDeliveryFee)}</dd>
+              </div>
+            ) : null}
           </dl>
           <div className="mt-4 flex items-end justify-between border-t border-border pt-3">
             <span className="font-semibold">Final total</span>
-            <span className="font-display text-xl font-semibold">{peso(total)}</span>
+            <span className="font-display text-xl font-semibold">{peso(finalTotal)}</span>
           </div>
         </section>
       ),
@@ -174,6 +188,7 @@ function BuyerCartPage() {
         data: {
           contact,
           pickupNote,
+          fulfillment,
           items: items.map((item) => ({
             listingId: item.id,
             quantityKg: item.quantityKg,
@@ -231,7 +246,8 @@ function BuyerCartPage() {
                 <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-200">
                   <Clock3 className="size-4 shrink-0" />
                   <span>
-                    Reserved for {earliestReservationExpiry
+                    Reserved for{" "}
+                    {earliestReservationExpiry
                       ? reservationCountdown(earliestReservationExpiry, now)
                       : "0:00"}
                     . Checkout before time runs out or stock returns to the marketplace.
@@ -325,9 +341,13 @@ function BuyerCartPage() {
                       <span>−{peso(bundleSavings)}</span>
                     </div>
                   ) : null}
+                  <div className="flex justify-between gap-4 text-muted-foreground">
+                    <span>Delivery fee</span>
+                    <span>{fulfillment === "delivery" ? peso(appliedDeliveryFee) : "₱0.00"}</span>
+                  </div>
                   <div className="flex items-end justify-between gap-4 pt-2">
                     <span className="font-semibold">Order total</span>
-                    <span className="font-display text-3xl font-semibold">{peso(total)}</span>
+                    <span className="font-display text-3xl font-semibold">{peso(finalTotal)}</span>
                   </div>
                 </div>
 
@@ -351,8 +371,12 @@ function BuyerCartPage() {
                     <div className="grid grid-cols-2 gap-2">
                       {(
                         [
-                          ["pickup", "Pickup", "Arrange a time with PROCY"],
-                          ["delivery", "Delivery", "Provide an address and schedule"],
+                          ["pickup", "Pickup", "Free — arrange a time with PROCY"],
+                          [
+                            "delivery",
+                            "Delivery",
+                            `₱${deliveryFee.toFixed(2)} flat fee — provide an address and schedule`,
+                          ],
                         ] as const
                       ).map(([value, label, description]) => (
                         <label

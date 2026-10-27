@@ -17,8 +17,15 @@ import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
-import { getManagementDashboard } from "@/services/marketplace/marketplace-server-functions";
+import { toast } from "sonner";
+import {
+  getManagementDashboard,
+  getManagementDeliveryFee,
+  updateManagementDeliveryFee,
+} from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/management/")({
   head: () => ({
@@ -65,6 +72,8 @@ function ManagementDashboard() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedYear, setSelectedYear] = useState(Number(today.slice(0, 4)));
   const [range, setRange] = useState<"day" | "month" | "all">("day");
+  const [deliveryFee, setDeliveryFee] = useState("59");
+  const [savingDeliveryFee, setSavingDeliveryFee] = useState(false);
   const isMonthly = range === "month";
   const isAllTime = range === "all";
   const request = useCallback(
@@ -83,15 +92,41 @@ function ManagementDashboard() {
   useEffect(() => {
     const keepTodayCurrent = () => {
       const currentToday = manilaDateValue();
-      setSelectedDate((currentDate) =>
-        currentDate === today ? currentToday : currentDate,
-      );
+      setSelectedDate((currentDate) => (currentDate === today ? currentToday : currentDate));
     };
 
     const interval = window.setInterval(keepTodayCurrent, 60_000);
     return () => window.clearInterval(interval);
   }, [today]);
   const { data: report, loading, error, reload } = useWorkspaceData(request);
+
+  useEffect(() => {
+    void getManagementDeliveryFee()
+      .then((settings) => setDeliveryFee(String(settings.deliveryFee)))
+      .catch(() => undefined);
+  }, []);
+
+  async function saveDeliveryFee() {
+    const nextFee = Number(deliveryFee);
+    if (!Number.isFinite(nextFee) || nextFee < 0) {
+      toast.error("Enter a valid delivery fee.");
+      return;
+    }
+    setSavingDeliveryFee(true);
+    try {
+      const saved = await updateManagementDeliveryFee({ data: { deliveryFee: nextFee } });
+      setDeliveryFee(String(saved.deliveryFee));
+      toast.success("Delivery fee updated", {
+        description: `Delivery orders will now add ₱${saved.deliveryFee.toFixed(2)}. Pickup stays free.`,
+      });
+    } catch (error) {
+      toast.error("Could not update delivery fee", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setSavingDeliveryFee(false);
+    }
+  }
   const summaryByLabel = useMemo(
     () => new Map((report?.summaries ?? []).map((item) => [item.label, item])),
     [report],
@@ -137,7 +172,7 @@ function ManagementDashboard() {
                         ? "Choose a calendar year to review saved history. Inventory flow is grouped by month."
                         : isMonthly
                           ? "This view groups live operational records by day for the current month."
-                        : "This dashboard starts on today and refreshes as records are saved. Choose an earlier date to review its saved history."}
+                          : "This dashboard starts on today and refreshes as records are saved. Choose an earlier date to review its saved history."}
                     </p>
                   </div>
                 </div>
@@ -152,7 +187,9 @@ function ManagementDashboard() {
                         className="min-w-16 bg-transparent font-semibold outline-none"
                       >
                         {(report?.availableYears ?? [selectedYear]).map((year) => (
-                          <option key={year} value={year}>{year}</option>
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
                         ))}
                       </select>
                     </label>
@@ -206,6 +243,42 @@ function ManagementDashboard() {
               </div>
             </section>
 
+            <section className="mt-6 rounded-3xl border border-border bg-card p-5 shadow-card">
+              <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+                <div>
+                  <h2 className="text-lg font-semibold">Delivery fee</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    This flat amount is added only to Delivery orders. Pickup always stays ₱0.00.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery-fee">Fee (₱)</Label>
+                    <Input
+                      id="delivery-fee"
+                      value={deliveryFee}
+                      inputMode="decimal"
+                      onChange={(event) =>
+                        setDeliveryFee(event.target.value.replace(/[^0-9.]/g, ""))
+                      }
+                      className="w-40"
+                      aria-describedby="delivery-fee-help"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => void saveDeliveryFee()}
+                    disabled={savingDeliveryFee}
+                  >
+                    {savingDeliveryFee ? "Saving…" : "Save delivery fee"}
+                  </Button>
+                </div>
+              </div>
+              <p id="delivery-fee-help" className="mt-3 text-xs text-muted-foreground">
+                Default fee: ₱59.00. Orders already placed keep the fee they were created with.
+              </p>
+            </section>
+
             <section className="mt-8">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
@@ -255,7 +328,7 @@ function ManagementDashboard() {
                         ? "Monthly movement of received and classified products across all saved operations."
                         : isMonthly
                           ? "Daily movement of received and classified products this month."
-                        : "Movement of received and classified products through your operations."}
+                          : "Movement of received and classified products through your operations."}
                     </p>
                   </div>
                   <PackageOpen className="size-5 shrink-0 text-primary" />
@@ -279,13 +352,9 @@ function ManagementDashboard() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis
                         dataKey="label"
-                        interval={isAllTime
-                          ? "preserveStartEnd"
-                          : isMonthly
-                            ? 4
-                            : 3}
+                        interval={isAllTime ? "preserveStartEnd" : isMonthly ? 4 : 3}
                         minTickGap={isAllTime ? 16 : 32}
-                        tickFormatter={(label) => isAllTime ? String(label).split(" ")[0] : label}
+                        tickFormatter={(label) => (isAllTime ? String(label).split(" ")[0] : label)}
                         tickLine={false}
                         axisLine={false}
                         height={isAllTime ? 42 : 38}
@@ -330,8 +399,12 @@ function ManagementDashboard() {
                   </ResponsiveContainer>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-2"><span className="size-2 rounded-full bg-primary" /> Classified stock</span>
-                  <span className="inline-flex items-center gap-2"><span className="size-2 rounded-full bg-[var(--chart-2)]" /> Supply received</span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-primary" /> Classified stock
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-[var(--chart-2)]" /> Supply received
+                  </span>
                 </div>
               </article>
 
@@ -339,7 +412,9 @@ function ManagementDashboard() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-semibold">Recent activity</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">Latest updates across your operations.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Latest updates across your operations.
+                    </p>
                   </div>
                   <Clock3 className="size-5 shrink-0 text-primary" />
                 </div>
@@ -348,15 +423,23 @@ function ManagementDashboard() {
                     const style = activityStyle(item.kind);
                     const Icon = style.icon;
                     return (
-                      <div key={`${item.kind}-${item.time}-${item.title}`} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                        <span className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${style.color}`}>
+                      <div
+                        key={`${item.kind}-${item.time}-${item.title}`}
+                        className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                      >
+                        <span
+                          className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${style.color}`}
+                        >
                           <Icon className="size-5" />
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold">{item.title}</p>
                           <p className="truncate text-xs text-muted-foreground">{item.detail}</p>
                         </div>
-                        <time className="shrink-0 text-xs text-muted-foreground" dateTime={item.time}>
+                        <time
+                          className="shrink-0 text-xs text-muted-foreground"
+                          dateTime={item.time}
+                        >
                           {relativeTime(item.time)}
                         </time>
                       </div>
@@ -373,56 +456,56 @@ function ManagementDashboard() {
 
             <section className="mt-6 grid gap-6 lg:grid-cols-3">
               <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h2 className="text-lg font-semibold">Stock quality</h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {isAllTime
-                          ? "Classified stock recorded across all time."
-                          : isMonthly
-                            ? "Classified stock added this month."
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold">Stock quality</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {isAllTime
+                        ? "Classified stock recorded across all time."
+                        : isMonthly
+                          ? "Classified stock added this month."
                           : "Classified stock added on the selected day."}
-                      </p>
-                    </div>
-                    <PieChartIcon className="size-5 shrink-0 text-primary" />
+                    </p>
                   </div>
-                  <div className="mt-3 grid grid-cols-[0.85fr_1.15fr] items-center gap-2">
-                    <div className="h-40">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={report?.dashboard.quality ?? []}
-                            dataKey="value"
-                            nameKey="name"
-                            innerRadius={38}
-                            outerRadius={58}
-                            paddingAngle={3}
-                            stroke="var(--card)"
-                            strokeWidth={2}
-                          >
-                            {(report?.dashboard.quality ?? []).map((item, index) => (
-                              <Cell key={item.name} fill={qualityColors[index] ?? "var(--muted)"} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value: number) => [`${value} kg`, "Stock"]} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="space-y-2.5 text-sm">
-                      {(report?.dashboard.quality ?? []).map((item, index) => (
-                        <div key={item.name} className="flex items-center justify-between gap-3">
-                          <span className="inline-flex items-center gap-2 text-muted-foreground">
-                            <span
-                              className="size-2.5 rounded-full"
-                              style={{ backgroundColor: qualityColors[index] ?? "var(--muted)" }}
-                            />
-                            {item.name}
-                          </span>
-                          <strong>{item.value} kg</strong>
-                        </div>
-                      ))}
-                    </div>
+                  <PieChartIcon className="size-5 shrink-0 text-primary" />
+                </div>
+                <div className="mt-3 grid grid-cols-[0.85fr_1.15fr] items-center gap-2">
+                  <div className="h-40">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={report?.dashboard.quality ?? []}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={38}
+                          outerRadius={58}
+                          paddingAngle={3}
+                          stroke="var(--card)"
+                          strokeWidth={2}
+                        >
+                          {(report?.dashboard.quality ?? []).map((item, index) => (
+                            <Cell key={item.name} fill={qualityColors[index] ?? "var(--muted)"} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => [`${value} kg`, "Stock"]} />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
+                  <div className="space-y-2.5 text-sm">
+                    {(report?.dashboard.quality ?? []).map((item, index) => (
+                      <div key={item.name} className="flex items-center justify-between gap-3">
+                        <span className="inline-flex items-center gap-2 text-muted-foreground">
+                          <span
+                            className="size-2.5 rounded-full"
+                            style={{ backgroundColor: qualityColors[index] ?? "var(--muted)" }}
+                          />
+                          {item.name}
+                        </span>
+                        <strong>{item.value} kg</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </article>
               <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
                 <h2 className="text-lg font-semibold">Decision support</h2>

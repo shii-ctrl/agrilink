@@ -462,7 +462,10 @@ test("private messages enforce the Community role recipient rules", async () => 
 
   assert.match(directMessages, /Management.*Marketer.*Accounting.*Farm Consultant/s);
   assert.match(directMessages, /Marketer.*Farmer.*Buyer/s);
-  assert.match(directMessages, /viewer\.roles\.includes\("Farmer"\)[\s\S]*?addRoleRecipients\(\["Farmer"\]\)/);
+  assert.match(
+    directMessages,
+    /viewer\.roles\.includes\("Farmer"\)[\s\S]*?addRoleRecipients\(\["Farmer"\]\)/,
+  );
   assert.match(directMessages, /viewer\.roles\.includes\("Buyer"\) && existingIds\.has\(row\.id\)/);
   assert.match(directMessages, /farmerConsultantAssignments/);
   assert.match(directMessages, /export const getDirectConversation/);
@@ -777,4 +780,32 @@ test("Management dashboard keeps daily history available without altering saved 
   assert.match(marketplace, /availableYears/);
   assert.match(marketplace, /recentActivity/);
   assert.match(marketplace, /Classified stock recorded \$\{periodLabel\}/);
+});
+
+test("delivery fees are managed securely and applied only to delivery orders", async () => {
+  const [schema, migration, marketplace, cart, management] = await Promise.all([
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0019_delivery_fee_settings.sql", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+    readFile("src/routes/buyer.cart.tsx", "utf8"),
+    readFile("src/routes/management.index.tsx", "utf8"),
+  ]);
+
+  assert.match(schema, /deliverySettings/);
+  assert.match(schema, /deliveryFee: decimal/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS delivery_settings/);
+  assert.match(migration, /INSERT IGNORE INTO delivery_settings/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS delivery_fee/);
+  assert.match(marketplace, /fulfillment: z\.enum\(\["pickup", "delivery"\]\)/);
+  assert.match(
+    marketplace,
+    /data\.fulfillment === "delivery" \? Number\(settings\?\.flatFee \?\? 59\) : 0/,
+  );
+  assert.match(marketplace, /export const updateManagementDeliveryFee/);
+  assert.match(marketplace, /requireRole\("Management"\)/);
+  assert.match(marketplace, /export const getBuyerDeliveryFee/);
+  assert.match(cart, /fulfillment === "delivery" \? deliveryFee : 0/);
+  assert.match(cart, /Pickup", "Free/);
+  assert.match(management, /Delivery fee/);
+  assert.match(management, /updateManagementDeliveryFee/);
 });
