@@ -200,6 +200,16 @@ test("buyer cart reservations expire after ten minutes and return stock", async 
   assert.match(cartPage, /Your cart reservation expired/);
 });
 
+test("completed buyer orders provide a printable pickup or delivery receipt", async () => {
+  const buyerOrders = await readFile("src/routes/buyer.orders.tsx", "utf8");
+  assert.match(buyerOrders, /function BuyerOrderReceipt/);
+  assert.match(buyerOrders, /order\.status === "Sold"/);
+  assert.match(buyerOrders, /Print receipt/);
+  assert.match(buyerOrders, /Fulfillment/);
+  assert.match(buyerOrders, /Payment reference/);
+  assert.match(buyerOrders, /window\.print\(\)/);
+});
+
 test("catalog photos use a safe file picker and bundle prices are enforced at checkout", async () => {
   const [marketplace, productPage, marketerPage, schema, migration] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
