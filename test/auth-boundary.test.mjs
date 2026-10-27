@@ -176,6 +176,9 @@ test("profile photos use optional HTTPS links and Management controls are audite
 test("marketplace cart controls prevent duplicate additions beyond available stock", async () => {
   const source = await readFile("src/routes/marketplace.$productId.tsx", "utf8");
   assert.match(source, /const \[isAdding, setIsAdding\] = useState\(false\)/);
+  assert.match(source, /function handleBuyNow\(\)/);
+  assert.match(source, /router\.navigate\(\{ to: "\/buyer\/cart" \}\)/);
+  assert.match(source, /Buy now/);
   assert.match(source, /getBuyerCart\(\)/);
   assert.match(source, /remainingCartableQuantity/);
   assert.match(source, /All \$\{cartQuantityKg\} kg available is already in your cart/);

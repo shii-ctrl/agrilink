@@ -1,5 +1,14 @@
 import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
-import { ArrowLeft, LockKeyhole, Minus, PackageCheck, Plus, ShoppingCart, X } from "lucide-react";
+import {
+  ArrowLeft,
+  LockKeyhole,
+  Minus,
+  PackageCheck,
+  Plus,
+  ShoppingCart,
+  X,
+  Zap,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -64,6 +73,7 @@ function ProductDetail() {
   const [isBuyer, setIsBuyer] = useState(false);
   const [cartQuantityKg, setCartQuantityKg] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
   useAutoRefresh(() => router.invalidate());
   useEffect(() => {
     let mounted = true;
@@ -120,6 +130,33 @@ function ProductDetail() {
 
   function clampQuantity(value: number) {
     return Math.min(maximumSelectableQuantity, Math.max(0.01, Math.round(value * 100) / 100));
+  }
+
+  function handleBuyNow() {
+    if (!isBuyer) {
+      toast.error("Sign in as a Buyer to buy now", {
+        description: "Login or register first, then you can go directly to checkout.",
+      });
+      return;
+    }
+
+    setIsBuyingNow(true);
+    void addBuyerCartItem({ data: { listingId: product.id, quantityKg: qty } })
+      .then((cart) => {
+        setCartQuantityKg(cart.find((item) => item.id === product.id)?.quantityKg ?? 0);
+        notifyBuyerCartChanged();
+        toast.success("Ready to place your order", {
+          description: `${qty} kg of ${product.name} was reserved in your cart.`,
+        });
+        void router.navigate({ to: "/buyer/cart" });
+      })
+      .catch((error) => {
+        toast.error("Could not start checkout", {
+          description:
+            error instanceof Error ? error.message : "Please refresh and try again.",
+        });
+      })
+      .finally(() => setIsBuyingNow(false));
   }
 
   return (
@@ -226,11 +263,13 @@ function ProductDetail() {
 
               <Button
                 size="lg"
+                variant="outline"
                 className="rounded-full"
                 disabled={
                   !isAvailable ||
                   !hasValidQuantity ||
                   isAdding ||
+                  isBuyingNow ||
                   (isBuyer && remainingCartableQuantity <= 0)
                 }
                 onClick={() => {
@@ -319,6 +358,21 @@ function ProductDetail() {
                   : isBuyer && remainingCartableQuantity <= 0
                     ? "Already in cart"
                     : "Add to cart"}
+              </Button>
+              <Button
+                size="lg"
+                className="rounded-full"
+                disabled={
+                  !isAvailable ||
+                  !hasValidQuantity ||
+                  isAdding ||
+                  isBuyingNow ||
+                  (isBuyer && remainingCartableQuantity <= 0)
+                }
+                onClick={handleBuyNow}
+              >
+                <Zap className="size-4" />
+                {isBuyingNow ? "Preparing checkout…" : "Buy now"}
               </Button>
             </div>
 
