@@ -294,6 +294,8 @@ function ManagementDashboard() {
                         padding={{ left: 12, right: 12 }}
                       />
                       <YAxis
+                        domain={[0, 1000]}
+                        ticks={[0, 250, 500, 750, 1000]}
                         unit=" kg"
                         allowDecimals={false}
                         tickLine={false}
