@@ -40,7 +40,6 @@ const workspaceForRoles = [
   ["Marketer", "/marketer"],
   ["Accounting", "/accounting"],
   ["Farmer", "/farmer"],
-  ["Farm Consultant", "/consultant"],
   ["Rider", "/rider"],
 ] as const;
 

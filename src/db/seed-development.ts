@@ -24,7 +24,6 @@ const demoUsernames = [
   "accounting.demo",
   "buyer.demo",
   "farmer.demo",
-  "consultant.demo",
 ];
 
 const passwordHash = await bcrypt.hash(password, 12);
@@ -39,5 +38,4 @@ if (existing.length !== demoUsernames.length) {
 }
 
 await db.update(users).set({ passwordHash }).where(inArray(users.username, demoUsernames));
-await db.update(roles).set({ name: "Farm Consultant" }).where(eq(roles.name, "Consultant"));
 console.log(`Updated ${existing.length} local development account passwords.`);

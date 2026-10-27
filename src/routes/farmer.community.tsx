@@ -15,7 +15,7 @@ function FarmerCommunityPage() {
       <main className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8">
         <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
           Share production updates, react thoughtfully, and use comments for helpful public
-          conversations. Use Crop Guidance for private advice from your consultant.
+          conversations with other AgriLink members.
         </div>
         <CommunityWorkspace
           postTitle="Share a production update"

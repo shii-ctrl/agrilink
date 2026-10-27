@@ -34,7 +34,6 @@ const usernames = [
   "accounting.demo",
   "buyer.demo",
   "farmer.demo",
-  "consultant.demo",
 ];
 const pool = createPool({ uri: databaseUrl, multipleStatements: true });
 try {
@@ -47,8 +46,9 @@ try {
     "utf8",
   );
   const operationalSeedStart = operationalMigration.indexOf("-- Roles and accounts.");
+  const operationalSeedEnd = operationalMigration.indexOf("INSERT IGNORE INTO community_messages");
   const productionSeedStart = productionMigration.indexOf("INSERT IGNORE INTO production_records");
-  if (operationalSeedStart < 0 || productionSeedStart < 0) {
+  if (operationalSeedStart < 0 || operationalSeedEnd < 0 || productionSeedStart < 0) {
     throw new Error("The legacy demo seed data could not be located.");
   }
 
@@ -59,13 +59,29 @@ try {
     throw new Error("Run npm run db:migrate before using the development seed command.");
   }
 
-  await pool.query(operationalMigration.slice(operationalSeedStart));
+  // Keep the reusable catalog, receiving, inventory, and order examples. The
+  // legacy Community and guidance examples below this point reference the
+  // retired Consultant feature and must never be re-created.
+  await pool.query(operationalMigration.slice(operationalSeedStart, operationalSeedEnd));
   await pool.query(productionMigration.slice(productionSeedStart));
+  // The immutable historical seed includes the retired Consultant account in
+  // this retained section, so remove it before the development data is usable.
+  await pool.query(`
+    DELETE user_roles
+    FROM user_roles
+    INNER JOIN roles ON roles.id = user_roles.role_id
+    WHERE roles.name IN ('Farm Consultant', 'Consultant');
+    DELETE users
+    FROM users
+    LEFT JOIN user_roles ON user_roles.user_id = users.id
+    WHERE user_roles.user_id IS NULL
+      AND users.username IN ('consultant.demo', 'consultant');
+    DELETE FROM roles WHERE name IN ('Farm Consultant', 'Consultant');
+  `);
   await pool.query("UPDATE users SET password_hash = ? WHERE username IN (?)", [
     await bcrypt.hash(password, 12),
     usernames,
   ]);
-  await pool.query("UPDATE roles SET name = 'Farm Consultant' WHERE name = 'Consultant'");
   console.log(`Seeded ${usernames.length} development accounts and demonstration records.`);
 } finally {
   await pool.end();

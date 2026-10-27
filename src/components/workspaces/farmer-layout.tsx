@@ -32,7 +32,6 @@ const nav = [
   { label: "Dashboard", to: "/farmer", icon: Sprout },
   { label: "Production Records", to: "/farmer/production", icon: ClipboardList },
   { label: "Receiving History", to: "/farmer/receiving", icon: PackageCheck },
-  { label: "Crop Guidance", to: "/farmer/guidance", icon: MessageCircle },
   { label: "Community", to: "/farmer/community", icon: MessageCircle },
 ] as const;
 export function FarmerLayout({ children }: { children: ReactNode }) {

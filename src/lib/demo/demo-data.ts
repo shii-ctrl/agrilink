@@ -7,7 +7,6 @@ export const demoUsers = [
   { name: "Ramon Cruz", contact: "0917 555 0102", role: "Marketer", status: "Active" },
   { name: "Liza Reyes", contact: "0917 555 0103", role: "Accounting Personnel", status: "Active" },
   { name: "Juan Dela Cruz", contact: "0917 555 0104", role: "Farmer Member", status: "Active" },
-  { name: "Ana Garcia", contact: "0917 555 0105", role: "Farm Consultant", status: "Active" },
   { name: "Carlo Mendoza", contact: "0917 555 0106", role: "Buyer", status: "Active" },
 ];
 
@@ -177,14 +176,6 @@ export const demoDecisionSupport = [
 ];
 
 export const demoCommunityMessages = [
-  {
-    id: "community-1",
-    author: "Ana Garcia",
-    role: "Farm Consultant",
-    time: "Today, 9:10 AM",
-    message:
-      "Please monitor tomato plants regularly and report any production concerns through your assigned crop guidance conversation.",
-  },
   {
     id: "community-2",
     author: "Ramon Cruz",

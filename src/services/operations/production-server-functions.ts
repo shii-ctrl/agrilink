@@ -19,8 +19,7 @@ export const getManagementProductionWorkspace = createServerFn({ method: "GET" }
     const { requireRole } = await import("@/services/auth/auth-server");
     await requireRole("Management");
     const { db } = await import("@/db/client.server");
-    const { farmerConsultantAssignments, products, productionRecords, roles, userRoles, users } =
-      await import("@/db/schema");
+    const { products, productionRecords, roles, userRoles, users } = await import("@/db/schema");
     const [farmers, productRows, records] = await Promise.all([
       db
         .select({ id: users.id, name: users.displayName })
@@ -55,8 +54,7 @@ export const createManagementProductionRecord = createServerFn({ method: "POST" 
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Management");
     const { db } = await import("@/db/client.server");
-    const { farmerConsultantAssignments, products, productionRecords, roles, userRoles, users } =
-      await import("@/db/schema");
+    const { products, productionRecords, roles, userRoles, users } = await import("@/db/schema");
     const [farmer, product] = await Promise.all([
       db
         .select({ id: users.id, name: users.displayName })
@@ -85,30 +83,18 @@ export const createManagementProductionRecord = createServerFn({ method: "POST" 
       recordedById: actor.id,
     });
     await writeAuditLog(actor.id, "production.create", "production_record", id, data);
-    const [assignment] = await db
-      .select({ consultantId: farmerConsultantAssignments.consultantId })
-      .from(farmerConsultantAssignments)
-      .where(eq(farmerConsultantAssignments.farmerId, farmer[0].id));
     const { notifyUser } = await import("@/services/messaging/notification-server");
     await notifyUser(farmer[0].id, {
       title: "Production record updated",
       message: `${product[0].name} was added to your production records.`,
       target: "/farmer/production",
     });
-    if (assignment) {
-      await notifyUser(assignment.consultantId, {
-        title: "Farmer production updated",
-        message: `${farmer[0].name}'s ${product[0].name} production record is ready for review.`,
-        target: "/consultant/production",
-      });
-    }
     return { id };
   });
 
-async function productionRows(filters: { farmerId?: string; consultantId?: string } = {}) {
+async function productionRows(filters: { farmerId?: string } = {}) {
   const { db } = await import("@/db/client.server");
-  const { farmerConsultantAssignments, products, productionRecords, users } =
-    await import("@/db/schema");
+  const { products, productionRecords, users } = await import("@/db/schema");
   const query = db
     .select({
       id: productionRecords.id,
@@ -123,16 +109,6 @@ async function productionRows(filters: { farmerId?: string; consultantId?: strin
     .innerJoin(users, eq(productionRecords.farmerId, users.id))
     .leftJoin(products, eq(productionRecords.productId, products.id));
 
-  if (filters.consultantId) {
-    return query
-      .innerJoin(
-        farmerConsultantAssignments,
-        eq(farmerConsultantAssignments.farmerId, productionRecords.farmerId),
-      )
-      .where(eq(farmerConsultantAssignments.consultantId, filters.consultantId))
-      .orderBy(asc(productionRecords.expectedHarvestDate));
-  }
-
   return query
     .where(filters.farmerId ? eq(productionRecords.farmerId, filters.farmerId) : undefined)
     .orderBy(asc(productionRecords.expectedHarvestDate));
@@ -143,11 +119,3 @@ export const getFarmerProductionRecords = createServerFn({ method: "GET" }).hand
   const farmer = await requireRole("Farmer");
   return productionRows({ farmerId: farmer.id });
 });
-
-export const getConsultantProductionRecords = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { requireRole } = await import("@/services/auth/auth-server");
-    const consultant = await requireRole("Farm Consultant");
-    return productionRows({ consultantId: consultant.id });
-  },
-);

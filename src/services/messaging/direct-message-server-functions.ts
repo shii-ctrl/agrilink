@@ -7,7 +7,6 @@ const messagingRoles = [
   "Marketer",
   "Accounting",
   "Farmer",
-  "Farm Consultant",
   "Buyer",
 ] as const;
 
@@ -27,7 +26,6 @@ const workspaceByRole: Record<MessagingRole, string> = {
   Marketer: "/marketer/community",
   Accounting: "/accounting/community",
   Farmer: "/farmer/community",
-  "Farm Consultant": "/consultant/community",
   Buyer: "/buyer/community",
 };
 
@@ -37,7 +35,7 @@ function displayRole(roles: string[]) {
 
 async function directRecipientIds(viewer: MessagingUser) {
   const { db } = await import("@/db/client.server");
-  const { farmerConsultantAssignments, roles, userRoles, users } = await import("@/db/schema");
+  const { roles, userRoles, users } = await import("@/db/schema");
   const ids = new Set<string>();
 
   const addRoleRecipients = async (roleNames: MessagingRole[]) => {
@@ -51,30 +49,14 @@ async function directRecipientIds(viewer: MessagingUser) {
   };
 
   if (viewer.roles.includes("Management")) {
-    await addRoleRecipients(["Marketer", "Accounting", "Farm Consultant"]);
+    await addRoleRecipients(["Marketer", "Accounting"]);
   }
   if (viewer.roles.includes("Marketer")) {
     await addRoleRecipients(["Farmer", "Buyer"]);
   }
-  if (viewer.roles.includes("Farm Consultant")) {
-    const rows = await db
-      .select({ id: farmerConsultantAssignments.farmerId })
-      .from(farmerConsultantAssignments)
-      .innerJoin(users, eq(farmerConsultantAssignments.farmerId, users.id))
-      .where(and(eq(farmerConsultantAssignments.consultantId, viewer.id), eq(users.active, true)));
-    rows.forEach((row) => ids.add(row.id));
-  }
   if (viewer.roles.includes("Farmer")) {
     // Farmers can find and start private conversations with other active Farmers.
-    // Consultant access stays assignment-based below, so this does not broaden
-    // Farmer access to any other internal role.
     await addRoleRecipients(["Farmer"]);
-    const rows = await db
-      .select({ id: farmerConsultantAssignments.consultantId })
-      .from(farmerConsultantAssignments)
-      .innerJoin(users, eq(farmerConsultantAssignments.consultantId, users.id))
-      .where(and(eq(farmerConsultantAssignments.farmerId, viewer.id), eq(users.active, true)));
-    rows.forEach((row) => ids.add(row.id));
   }
   ids.delete(viewer.id);
   return ids;

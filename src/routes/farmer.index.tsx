@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ClipboardList, MessageCircle, PackageCheck } from "lucide-react";
+import { ClipboardList, PackageCheck } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ function FarmerDashboard() {
     <FarmerLayout>
       <FarmerPageHeader
         title="Farmer Dashboard"
-        description="View your personal production, receiving, and crop-guidance information as a PROCY farmer member."
+        description="View your personal production and receiving information as a PROCY farmer member."
       />
       <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
         <WorkspaceLoadState
@@ -53,12 +53,6 @@ function FarmerDashboard() {
                 title="Receiving History"
                 text={`${availableKg} kg of your classified product stock is currently available.`}
                 to="/farmer/receiving"
-              />
-              <Tile
-                icon={MessageCircle}
-                title="Crop Guidance"
-                text="Read and reply to your Farm Consultant guidance."
-                to="/farmer/guidance"
               />
             </section>
             <section className="mt-6 rounded-3xl border border-primary/20 bg-accent p-6 text-sm text-accent-foreground">
@@ -94,7 +88,7 @@ function Tile({
   icon: typeof ClipboardList;
   title: string;
   text: string;
-  to: "/farmer/production" | "/farmer/receiving" | "/farmer/guidance";
+  to: "/farmer/production" | "/farmer/receiving";
 }) {
   return (
     <article className="rounded-3xl border border-border bg-card p-6 shadow-card">

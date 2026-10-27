@@ -10,7 +10,6 @@ const internalRole = z.enum([
   "Marketer",
   "Accounting",
   "Farmer",
-  "Farm Consultant",
   "Rider",
 ]);
 const createUserInput = z.object({
@@ -31,10 +30,6 @@ const setUserActiveInput = z.object({
 });
 const deleteUserInput = z.object({
   userId: z.string().uuid(),
-});
-const guidanceAssignmentInput = z.object({
-  farmerId: z.string().uuid(),
-  consultantId: z.string().uuid(),
 });
 const bootstrapInput = createUserInput
   .pick({ name: true, contact: true, email: true, password: true })
@@ -210,8 +205,6 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
       communityReactions,
       dailyPrices,
       directMessages,
-      farmerConsultantAssignments,
-      guidanceMessages,
       inventory,
       inventoryMovements,
       notifications,
@@ -287,17 +280,6 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
           .from(orderStatusHistory)
           .where(eq(orderStatusHistory.changedById, user.id))
           .limit(1),
-        tx
-          .select({ id: guidanceMessages.id })
-          .from(guidanceMessages)
-          .where(
-            or(
-              eq(guidanceMessages.farmerId, user.id),
-              eq(guidanceMessages.consultantId, user.id),
-              eq(guidanceMessages.authorId, user.id),
-            ),
-          )
-          .limit(1),
       ]);
       if (businessRecords.some((records) => records.length > 0)) {
         throw new Error(
@@ -363,18 +345,6 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
         await tx.delete(cartItems).where(inArray(cartItems.cartId, userCarts.map((cart) => cart.id)));
         await tx.delete(carts).where(eq(carts.buyerId, user.id));
       }
-      await tx
-        .delete(farmerConsultantAssignments)
-        .where(
-          or(
-            eq(farmerConsultantAssignments.farmerId, user.id),
-            eq(farmerConsultantAssignments.consultantId, user.id),
-          ),
-        );
-      await tx
-        .update(farmerConsultantAssignments)
-        .set({ assignedById: null })
-        .where(eq(farmerConsultantAssignments.assignedById, user.id));
       await tx.update(auditLogs).set({ actorId: null }).where(eq(auditLogs.actorId, user.id));
       await tx.delete(userRoles).where(eq(userRoles.userId, user.id));
       await tx.delete(users).where(eq(users.id, user.id));
@@ -415,68 +385,6 @@ export const getManagementAuditLogs = createServerFn({ method: "GET" }).handler(
     .orderBy(desc(auditLogs.createdAt))
     .limit(100);
 });
-
-export const getGuidanceAssignments = createServerFn({ method: "GET" }).handler(async () => {
-  const { requireRole } = await import("@/services/auth/auth-server");
-  await requireRole("Management");
-  const { db } = await import("@/db/client.server");
-  const { farmerConsultantAssignments, roles, userRoles, users } = await import("@/db/schema");
-  const activeRoleUsers = (roleName: "Farmer" | "Farm Consultant") =>
-    db
-      .select({ id: users.id, name: users.displayName })
-      .from(users)
-      .innerJoin(userRoles, eq(userRoles.userId, users.id))
-      .innerJoin(roles, eq(userRoles.roleId, roles.id))
-      .where(and(eq(users.active, true), eq(roles.name, roleName)))
-      .orderBy(asc(users.displayName));
-  const [farmers, consultants, assignments] = await Promise.all([
-    activeRoleUsers("Farmer"),
-    activeRoleUsers("Farm Consultant"),
-    db.select().from(farmerConsultantAssignments),
-  ]);
-  const consultantByFarmer = new Map(
-    assignments.map((assignment) => [assignment.farmerId, assignment.consultantId]),
-  );
-  return {
-    farmers: farmers.map((farmer) => ({
-      ...farmer,
-      consultantId: consultantByFarmer.get(farmer.id) ?? null,
-    })),
-    consultants,
-  };
-});
-
-export const setGuidanceAssignment = createServerFn({ method: "POST" })
-  .validator(guidanceAssignmentInput)
-  .handler(async ({ data }) => {
-    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const actor = await requireRole("Management");
-    const { db } = await import("@/db/client.server");
-    const { farmerConsultantAssignments, roles, userRoles, users } = await import("@/db/schema");
-    const findActiveRoleUser = (id: string, roleName: "Farmer" | "Farm Consultant") =>
-      db
-        .select({ id: users.id })
-        .from(users)
-        .innerJoin(userRoles, eq(userRoles.userId, users.id))
-        .innerJoin(roles, eq(userRoles.roleId, roles.id))
-        .where(and(eq(users.id, id), eq(users.active, true), eq(roles.name, roleName)));
-    const [[farmer], [consultant]] = await Promise.all([
-      findActiveRoleUser(data.farmerId, "Farmer"),
-      findActiveRoleUser(data.consultantId, "Farm Consultant"),
-    ]);
-    if (!farmer) throw new Error("Choose an active Farmer account.");
-    if (!consultant) throw new Error("Choose an active Farm Consultant account.");
-    await db
-      .insert(farmerConsultantAssignments)
-      .values({ farmerId: farmer.id, consultantId: consultant.id, assignedById: actor.id })
-      .onDuplicateKeyUpdate({
-        set: { consultantId: consultant.id, assignedById: actor.id },
-      });
-    await writeAuditLog(actor.id, "guidance.assignment.set", "farmer", farmer.id, {
-      consultantId: consultant.id,
-    });
-    return { farmerId: farmer.id, consultantId: consultant.id };
-  });
 
 export const createManagementUser = createServerFn({ method: "POST" })
   .validator(createUserInput)

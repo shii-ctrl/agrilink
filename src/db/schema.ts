@@ -399,26 +399,6 @@ export const directMessages = mysqlTable(
     index("direct_messages_recipient_read_idx").on(table.recipientId, table.readAt),
   ],
 );
-export const guidanceMessages = mysqlTable("guidance_messages", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  farmerId: varchar("farmer_id", { length: 36 }).notNull(),
-  consultantId: varchar("consultant_id", { length: 36 }).notNull(),
-  authorId: varchar("author_id", { length: 36 }).notNull(),
-  message: text("message").notNull(),
-  createdAt,
-  updatedAt,
-});
-export const farmerConsultantAssignments = mysqlTable(
-  "farmer_consultant_assignments",
-  {
-    farmerId: varchar("farmer_id", { length: 36 }).primaryKey(),
-    consultantId: varchar("consultant_id", { length: 36 }).notNull(),
-    assignedById: varchar("assigned_by_id", { length: 36 }),
-    createdAt,
-    updatedAt,
-  },
-  (table) => [index("farmer_consultant_consultant_idx").on(table.consultantId)],
-);
 export const notifications = mysqlTable(
   "notifications",
   {

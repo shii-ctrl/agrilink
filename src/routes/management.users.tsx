@@ -15,12 +15,10 @@ import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import {
   createManagementUser,
   deleteManagedUser,
-  getGuidanceAssignments,
   getManagementAuditLogs,
   getManagementUsers,
   resetManagedUserPassword,
   setManagedUserActive,
-  setGuidanceAssignment,
 } from "@/services/auth/admin-server-functions";
 import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
 
@@ -42,7 +40,6 @@ const roles = [
   "Marketer",
   "Accounting",
   "Farmer",
-  "Farm Consultant",
   "Rider",
 ] as const;
 const userRoleFilters = [
@@ -51,7 +48,6 @@ const userRoleFilters = [
   "Farmer",
   "Marketer",
   "Accounting",
-  "Farm Consultant",
   "Rider",
   "Management",
 ] as const;
@@ -93,20 +89,16 @@ function ManagedSelect({
 function ManagementUsersPage() {
   const [userRoleFilter, setUserRoleFilter] = useState<UserRoleFilter>("All");
   const [userSearch, setUserSearch] = useState("");
-  const [guidanceFarmerId, setGuidanceFarmerId] = useState("");
-  const [guidanceConsultantId, setGuidanceConsultantId] = useState("");
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const loadManagementData = useCallback(async () => {
-    const [users, guidanceAssignments, auditLogs] = await Promise.all([
+    const [users, auditLogs] = await Promise.all([
       getManagementUsers(),
-      getGuidanceAssignments(),
       getManagementAuditLogs(),
     ]);
-    return { users, guidanceAssignments, auditLogs };
+    return { users, auditLogs };
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(loadManagementData);
   const users = data?.users ?? EMPTY_USERS;
-  const guidanceAssignments = data?.guidanceAssignments ?? null;
   const auditLogs = data?.auditLogs ?? EMPTY_AUDIT_LOGS;
   const visibleUsers = useMemo(() => {
     const query = userSearch.trim().toLocaleLowerCase();
@@ -123,9 +115,6 @@ function ManagementUsersPage() {
   // Keep the filtered account list as the source before splitting it into manageable pages.
   const usersPage = usePagination(visibleUsers.map((user) => user));
   const activityPage = usePagination(auditLogs);
-  const selectedGuidanceFarmer = guidanceAssignments?.farmers.find(
-    (farmer) => farmer.id === guidanceFarmerId,
-  );
   return (
     <ManagementLayout>
       {confirmationDialog}
@@ -147,7 +136,6 @@ function ManagementUsersPage() {
               <TabsList aria-label="User account sections">
                 <TabsTrigger value="all-users">All Users</TabsTrigger>
                 <TabsTrigger value="add-user">Add User</TabsTrigger>
-                <TabsTrigger value="guidance-assignments">Guidance Assignments</TabsTrigger>
                 <TabsTrigger value="reset-password">Reset Password</TabsTrigger>
                 <TabsTrigger value="activity">Activity Log</TabsTrigger>
               </TabsList>
@@ -396,121 +384,6 @@ function ManagementUsersPage() {
                 </section>
               </TabsContent>
 
-              <TabsContent value="guidance-assignments" className="mt-6">
-                <section className="max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
-                  <h2 className="text-lg font-semibold">Farmer guidance assignments</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Search for a Farmer first, then choose the Farm Consultant who will handle
-                    that Farmer’s crop-guidance conversation.
-                  </p>
-                  {!guidanceAssignments?.consultants.length && (
-                    <p className="mt-5 rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-                      Create an active Farm Consultant account first, then return here to make
-                      assignments.
-                    </p>
-                  )}
-                  {guidanceAssignments && !guidanceAssignments.farmers.length ? (
-                    <p className="mt-6 rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-                      No active Farmer accounts are available to assign.
-                    </p>
-                  ) : (
-                    <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="guidance-farmer">Farmer</Label>
-                        <AppSelect
-                          id="guidance-farmer"
-                          value={guidanceFarmerId}
-                          onValueChange={(farmerId) => {
-                            const farmer = guidanceAssignments?.farmers.find(
-                              (item) => item.id === farmerId,
-                            );
-                            setGuidanceFarmerId(farmerId);
-                            setGuidanceConsultantId(farmer?.consultantId ?? "");
-                          }}
-                          searchable
-                          placeholder="Search and select a Farmer"
-                          options={(guidanceAssignments?.farmers ?? []).map((farmer) => ({
-                            value: farmer.id,
-                            label: farmer.name,
-                            description: farmer.consultantId
-                              ? "Consultant already assigned"
-                              : "No consultant assigned yet",
-                          }))}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="guidance-consultant">Farm Consultant</Label>
-                        <AppSelect
-                          id="guidance-consultant"
-                          value={guidanceConsultantId}
-                          onValueChange={setGuidanceConsultantId}
-                          searchable
-                          disabled={
-                            !selectedGuidanceFarmer || !guidanceAssignments?.consultants.length
-                          }
-                          placeholder={
-                            selectedGuidanceFarmer
-                              ? "Search and select a consultant"
-                              : "Select a Farmer first"
-                          }
-                          options={(guidanceAssignments?.consultants ?? []).map((consultant) => ({
-                            value: consultant.id,
-                            label: consultant.name,
-                          }))}
-                        />
-                      </div>
-
-                      {selectedGuidanceFarmer && (
-                        <div className="rounded-2xl bg-muted/50 p-4 text-sm sm:col-span-2">
-                          <p className="font-medium">{selectedGuidanceFarmer.name}</p>
-                          <p className="mt-1 text-muted-foreground">
-                            {selectedGuidanceFarmer.consultantId
-                              ? "Choose another consultant below to reassign this Farmer."
-                              : "This Farmer does not have a consultant yet."}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="sm:col-span-2">
-                        <Button
-                          type="button"
-                          className="rounded-full"
-                          disabled={
-                            !selectedGuidanceFarmer ||
-                            !guidanceConsultantId ||
-                            !guidanceAssignments?.consultants.length
-                          }
-                          onClick={async () => {
-                            if (!selectedGuidanceFarmer || !guidanceConsultantId) return;
-                            try {
-                              await setGuidanceAssignment({
-                                data: {
-                                  farmerId: selectedGuidanceFarmer.id,
-                                  consultantId: guidanceConsultantId,
-                                },
-                              });
-                              await reload();
-                              toast.success(
-                                `${selectedGuidanceFarmer.name} has been assigned a Farm Consultant.`,
-                              );
-                            } catch (error) {
-                              toast.error(
-                                error instanceof Error
-                                  ? error.message
-                                  : "Could not save assignment.",
-                              );
-                            }
-                          }}
-                        >
-                          Assign consultant
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </section>
-              </TabsContent>
-
               <TabsContent value="add-user" className="mt-6">
                 <section className="max-w-3xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
                   <div className="flex items-start gap-3">
@@ -721,8 +594,7 @@ function ManagementUsersPage() {
               <UsersRound className="mt-0.5 size-5 shrink-0 text-primary" />
               <p>
                 Buyer accounts can self-register in the public website. Management creates
-                Management, Marketer, Accounting Personnel, Farmer Member, Farm Consultant, and Rider
-                accounts.
+                Management, Marketer, Accounting Personnel, Farmer Member, and Rider accounts.
               </p>
             </aside>
           </>

@@ -79,11 +79,8 @@ try {
       "SELECT COUNT(*) AS total FROM information_schema.tables WHERE table_schema = ?",
       [database],
     );
-    const [[roles]] = await db.query(
-      "SELECT COUNT(*) AS total FROM roles WHERE name = 'Farm Consultant'",
-    );
-    const [[legacyRoles]] = await db.query(
-      "SELECT COUNT(*) AS total FROM roles WHERE name = 'Consultant'",
+    const [[retiredRoles]] = await db.query(
+      "SELECT COUNT(*) AS total FROM roles WHERE name IN ('Farm Consultant', 'Consultant')",
     );
     const [[classifications]] = await db.query("SELECT COUNT(*) AS total FROM classifications");
     const [[users]] = await db.query("SELECT COUNT(*) AS total FROM users");
@@ -97,8 +94,7 @@ try {
     );
     if (
       tables.total < 20 ||
-      roles.total !== 1 ||
-      legacyRoles.total !== 0 ||
+      retiredRoles.total !== 0 ||
       classifications.total !== 3 ||
       users.total !== 0 ||
       products.total !== 0 ||
@@ -129,7 +125,7 @@ try {
     const [[payments]] = await seededDb.query("SELECT COUNT(*) AS total FROM payments");
     const [[receiving]] = await seededDb.query("SELECT COUNT(*) AS total FROM receiving_records");
     if (
-      users.total !== 6 ||
+      users.total !== 5 ||
       products.total !== 4 ||
       orders.total !== 2 ||
       payments.total !== 1 ||

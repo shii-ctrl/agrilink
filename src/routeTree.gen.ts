@@ -30,14 +30,8 @@ import { Route as BuyerCartRouteImport } from './routes/buyer.cart'
 import { Route as BuyerCommunityRouteImport } from './routes/buyer.community'
 import { Route as BuyerOrdersRouteImport } from './routes/buyer.orders'
 import { Route as BuyerProfileRouteImport } from './routes/buyer.profile'
-import { Route as ConsultantIndexRouteImport } from './routes/consultant.index'
-import { Route as ConsultantCommunityRouteImport } from './routes/consultant.community'
-import { Route as ConsultantGuidanceRouteImport } from './routes/consultant.guidance'
-import { Route as ConsultantProductionRouteImport } from './routes/consultant.production'
-import { Route as ConsultantProfileRouteImport } from './routes/consultant.profile'
 import { Route as FarmerIndexRouteImport } from './routes/farmer.index'
 import { Route as FarmerCommunityRouteImport } from './routes/farmer.community'
-import { Route as FarmerGuidanceRouteImport } from './routes/farmer.guidance'
 import { Route as FarmerProductionRouteImport } from './routes/farmer.production'
 import { Route as FarmerProfileRouteImport } from './routes/farmer.profile'
 import { Route as FarmerReceivingRouteImport } from './routes/farmer.receiving'
@@ -173,31 +167,6 @@ const BuyerProfileRoute = BuyerProfileRouteImport.update({
   path: '/buyer/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ConsultantIndexRoute = ConsultantIndexRouteImport.update({
-  id: '/consultant/',
-  path: '/consultant/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConsultantCommunityRoute = ConsultantCommunityRouteImport.update({
-  id: '/consultant/community',
-  path: '/consultant/community',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConsultantGuidanceRoute = ConsultantGuidanceRouteImport.update({
-  id: '/consultant/guidance',
-  path: '/consultant/guidance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConsultantProductionRoute = ConsultantProductionRouteImport.update({
-  id: '/consultant/production',
-  path: '/consultant/production',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConsultantProfileRoute = ConsultantProfileRouteImport.update({
-  id: '/consultant/profile',
-  path: '/consultant/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const FarmerIndexRoute = FarmerIndexRouteImport.update({
   id: '/farmer/',
   path: '/farmer/',
@@ -206,11 +175,6 @@ const FarmerIndexRoute = FarmerIndexRouteImport.update({
 const FarmerCommunityRoute = FarmerCommunityRouteImport.update({
   id: '/farmer/community',
   path: '/farmer/community',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FarmerGuidanceRoute = FarmerGuidanceRouteImport.update({
-  id: '/farmer/guidance',
-  path: '/farmer/guidance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerProductionRoute = FarmerProductionRouteImport.update({
@@ -381,12 +345,7 @@ export interface FileRoutesByFullPath {
   '/buyer/community': typeof BuyerCommunityRoute
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
-  '/consultant/community': typeof ConsultantCommunityRoute
-  '/consultant/guidance': typeof ConsultantGuidanceRoute
-  '/consultant/production': typeof ConsultantProductionRoute
-  '/consultant/profile': typeof ConsultantProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
-  '/farmer/guidance': typeof FarmerGuidanceRoute
   '/farmer/production': typeof FarmerProductionRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
@@ -414,7 +373,6 @@ export interface FileRoutesByFullPath {
   '/rider/profile': typeof RiderProfileRoute
   '/accounting/': typeof AccountingIndexRoute
   '/buyer/': typeof BuyerIndexRoute
-  '/consultant/': typeof ConsultantIndexRoute
   '/farmer/': typeof FarmerIndexRoute
   '/management/': typeof ManagementIndexRoute
   '/marketer/': typeof MarketerIndexRoute
@@ -441,12 +399,7 @@ export interface FileRoutesByTo {
   '/buyer/community': typeof BuyerCommunityRoute
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
-  '/consultant/community': typeof ConsultantCommunityRoute
-  '/consultant/guidance': typeof ConsultantGuidanceRoute
-  '/consultant/production': typeof ConsultantProductionRoute
-  '/consultant/profile': typeof ConsultantProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
-  '/farmer/guidance': typeof FarmerGuidanceRoute
   '/farmer/production': typeof FarmerProductionRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
@@ -474,7 +427,6 @@ export interface FileRoutesByTo {
   '/rider/profile': typeof RiderProfileRoute
   '/accounting': typeof AccountingIndexRoute
   '/buyer': typeof BuyerIndexRoute
-  '/consultant': typeof ConsultantIndexRoute
   '/farmer': typeof FarmerIndexRoute
   '/management': typeof ManagementIndexRoute
   '/marketer': typeof MarketerIndexRoute
@@ -502,12 +454,7 @@ export interface FileRoutesById {
   '/buyer/community': typeof BuyerCommunityRoute
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
-  '/consultant/community': typeof ConsultantCommunityRoute
-  '/consultant/guidance': typeof ConsultantGuidanceRoute
-  '/consultant/production': typeof ConsultantProductionRoute
-  '/consultant/profile': typeof ConsultantProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
-  '/farmer/guidance': typeof FarmerGuidanceRoute
   '/farmer/production': typeof FarmerProductionRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
@@ -535,7 +482,6 @@ export interface FileRoutesById {
   '/rider/profile': typeof RiderProfileRoute
   '/accounting/': typeof AccountingIndexRoute
   '/buyer/': typeof BuyerIndexRoute
-  '/consultant/': typeof ConsultantIndexRoute
   '/farmer/': typeof FarmerIndexRoute
   '/management/': typeof ManagementIndexRoute
   '/marketer/': typeof MarketerIndexRoute
@@ -564,12 +510,7 @@ export interface FileRouteTypes {
     | '/buyer/community'
     | '/buyer/orders'
     | '/buyer/profile'
-    | '/consultant/community'
-    | '/consultant/guidance'
-    | '/consultant/production'
-    | '/consultant/profile'
     | '/farmer/community'
-    | '/farmer/guidance'
     | '/farmer/production'
     | '/farmer/profile'
     | '/farmer/receiving'
@@ -597,7 +538,6 @@ export interface FileRouteTypes {
     | '/rider/profile'
     | '/accounting/'
     | '/buyer/'
-    | '/consultant/'
     | '/farmer/'
     | '/management/'
     | '/marketer/'
@@ -624,12 +564,7 @@ export interface FileRouteTypes {
     | '/buyer/community'
     | '/buyer/orders'
     | '/buyer/profile'
-    | '/consultant/community'
-    | '/consultant/guidance'
-    | '/consultant/production'
-    | '/consultant/profile'
     | '/farmer/community'
-    | '/farmer/guidance'
     | '/farmer/production'
     | '/farmer/profile'
     | '/farmer/receiving'
@@ -657,7 +592,6 @@ export interface FileRouteTypes {
     | '/rider/profile'
     | '/accounting'
     | '/buyer'
-    | '/consultant'
     | '/farmer'
     | '/management'
     | '/marketer'
@@ -684,12 +618,7 @@ export interface FileRouteTypes {
     | '/buyer/community'
     | '/buyer/orders'
     | '/buyer/profile'
-    | '/consultant/community'
-    | '/consultant/guidance'
-    | '/consultant/production'
-    | '/consultant/profile'
     | '/farmer/community'
-    | '/farmer/guidance'
     | '/farmer/production'
     | '/farmer/profile'
     | '/farmer/receiving'
@@ -717,7 +646,6 @@ export interface FileRouteTypes {
     | '/rider/profile'
     | '/accounting/'
     | '/buyer/'
-    | '/consultant/'
     | '/farmer/'
     | '/management/'
     | '/marketer/'
@@ -745,12 +673,7 @@ export interface RootRouteChildren {
   BuyerCommunityRoute: typeof BuyerCommunityRoute
   BuyerOrdersRoute: typeof BuyerOrdersRoute
   BuyerProfileRoute: typeof BuyerProfileRoute
-  ConsultantCommunityRoute: typeof ConsultantCommunityRoute
-  ConsultantGuidanceRoute: typeof ConsultantGuidanceRoute
-  ConsultantProductionRoute: typeof ConsultantProductionRoute
-  ConsultantProfileRoute: typeof ConsultantProfileRoute
   FarmerCommunityRoute: typeof FarmerCommunityRoute
-  FarmerGuidanceRoute: typeof FarmerGuidanceRoute
   FarmerProductionRoute: typeof FarmerProductionRoute
   FarmerProfileRoute: typeof FarmerProfileRoute
   FarmerReceivingRoute: typeof FarmerReceivingRoute
@@ -778,7 +701,6 @@ export interface RootRouteChildren {
   RiderProfileRoute: typeof RiderProfileRoute
   AccountingIndexRoute: typeof AccountingIndexRoute
   BuyerIndexRoute: typeof BuyerIndexRoute
-  ConsultantIndexRoute: typeof ConsultantIndexRoute
   FarmerIndexRoute: typeof FarmerIndexRoute
   ManagementIndexRoute: typeof ManagementIndexRoute
   MarketerIndexRoute: typeof MarketerIndexRoute
@@ -935,41 +857,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BuyerProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/consultant/': {
-      id: '/consultant/'
-      path: '/consultant'
-      fullPath: '/consultant/'
-      preLoaderRoute: typeof ConsultantIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/consultant/community': {
-      id: '/consultant/community'
-      path: '/consultant/community'
-      fullPath: '/consultant/community'
-      preLoaderRoute: typeof ConsultantCommunityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/consultant/guidance': {
-      id: '/consultant/guidance'
-      path: '/consultant/guidance'
-      fullPath: '/consultant/guidance'
-      preLoaderRoute: typeof ConsultantGuidanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/consultant/production': {
-      id: '/consultant/production'
-      path: '/consultant/production'
-      fullPath: '/consultant/production'
-      preLoaderRoute: typeof ConsultantProductionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/consultant/profile': {
-      id: '/consultant/profile'
-      path: '/consultant/profile'
-      fullPath: '/consultant/profile'
-      preLoaderRoute: typeof ConsultantProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/farmer/': {
       id: '/farmer/'
       path: '/farmer'
@@ -982,13 +869,6 @@ declare module '@tanstack/react-router' {
       path: '/farmer/community'
       fullPath: '/farmer/community'
       preLoaderRoute: typeof FarmerCommunityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/farmer/guidance': {
-      id: '/farmer/guidance'
-      path: '/farmer/guidance'
-      fullPath: '/farmer/guidance'
-      preLoaderRoute: typeof FarmerGuidanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/farmer/production': {
@@ -1217,12 +1097,7 @@ const rootRouteChildren: RootRouteChildren = {
   BuyerCommunityRoute: BuyerCommunityRoute,
   BuyerOrdersRoute: BuyerOrdersRoute,
   BuyerProfileRoute: BuyerProfileRoute,
-  ConsultantCommunityRoute: ConsultantCommunityRoute,
-  ConsultantGuidanceRoute: ConsultantGuidanceRoute,
-  ConsultantProductionRoute: ConsultantProductionRoute,
-  ConsultantProfileRoute: ConsultantProfileRoute,
   FarmerCommunityRoute: FarmerCommunityRoute,
-  FarmerGuidanceRoute: FarmerGuidanceRoute,
   FarmerProductionRoute: FarmerProductionRoute,
   FarmerProfileRoute: FarmerProfileRoute,
   FarmerReceivingRoute: FarmerReceivingRoute,
@@ -1250,7 +1125,6 @@ const rootRouteChildren: RootRouteChildren = {
   RiderProfileRoute: RiderProfileRoute,
   AccountingIndexRoute: AccountingIndexRoute,
   BuyerIndexRoute: BuyerIndexRoute,
-  ConsultantIndexRoute: ConsultantIndexRoute,
   FarmerIndexRoute: FarmerIndexRoute,
   ManagementIndexRoute: ManagementIndexRoute,
   MarketerIndexRoute: MarketerIndexRoute,

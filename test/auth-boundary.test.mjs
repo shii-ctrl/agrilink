@@ -304,8 +304,6 @@ test("role workspaces refresh saved operational data while users are active", as
     buyerCart,
     buyerOrders,
     farmerReceiving,
-    farmerGuidance,
-    consultantProduction,
     managementProducts,
     accountingPayments,
     marketplace,
@@ -314,8 +312,6 @@ test("role workspaces refresh saved operational data while users are active", as
     readFile("src/routes/buyer.cart.tsx", "utf8"),
     readFile("src/routes/buyer.orders.tsx", "utf8"),
     readFile("src/routes/farmer.receiving.tsx", "utf8"),
-    readFile("src/routes/farmer.guidance.tsx", "utf8"),
-    readFile("src/routes/consultant.production.tsx", "utf8"),
     readFile("src/routes/management.products.tsx", "utf8"),
     readFile("src/routes/accounting.payments.tsx", "utf8"),
     readFile("src/routes/marketplace.index.tsx", "utf8"),
@@ -325,8 +321,6 @@ test("role workspaces refresh saved operational data while users are active", as
   assert.match(hook, /document\.addEventListener\("visibilitychange", refreshWhenVisible\)/);
   for (const source of [
     farmerReceiving,
-    farmerGuidance,
-    consultantProduction,
     managementProducts,
   ]) {
     assert.match(source, /useWorkspaceData/);
@@ -434,13 +428,11 @@ test("role workflows keep catalog, cart, and Farmer stock states consistent", as
   assert.match(notifications, /eq\(users\.active, true\)/);
 });
 
-test("reordered carts, community-feed access, and crop guidance protect role boundaries", async () => {
-  const [marketplace, community, guidance, admin, migration] = await Promise.all([
+test("reordered carts and Community access protect role boundaries", async () => {
+  const [marketplace, community, retirement] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/services/messaging/community-server-functions.ts", "utf8"),
-    readFile("src/services/messaging/guidance-server-functions.ts", "utf8"),
-    readFile("src/services/auth/admin-server-functions.ts", "utf8"),
-    readFile("drizzle/0007_catalog_and_guidance_integrity.sql", "utf8"),
+    readFile("drizzle/0021_remove_farm_consultant.sql", "utf8"),
   ]);
 
   assert.match(marketplace, /export const rebuildBuyerCartFromOrder/);
@@ -449,11 +441,9 @@ test("reordered carts, community-feed access, and crop guidance protect role bou
   assert.match(community, /const communityRoles = \[/);
   assert.match(community, /"Accounting"/);
   assert.doesNotMatch(community, /"Buyer"/);
-  assert.match(guidance, /farmerConsultantAssignments/);
-  assert.match(guidance, /not assigned to your guidance workspace/);
-  assert.match(admin, /export const setGuidanceAssignment/);
-  assert.match(migration, /UNIQUE KEY products_name_unique/);
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS farmer_consultant_assignments/);
+  assert.doesNotMatch(community, /Farm Consultant/);
+  assert.match(retirement, /DROP TABLE IF EXISTS farmer_consultant_assignments/);
+  assert.match(retirement, /DROP TABLE IF EXISTS guidance_messages/);
 });
 
 test("private messages enforce the Community role recipient rules", async () => {
@@ -463,14 +453,14 @@ test("private messages enforce the Community role recipient rules", async () => 
     readFile("src/features/messaging/components/direct-messages-panel.tsx", "utf8"),
   ]);
 
-  assert.match(directMessages, /Management.*Marketer.*Accounting.*Farm Consultant/s);
+  assert.match(directMessages, /Management.*Marketer.*Accounting/s);
   assert.match(directMessages, /Marketer.*Farmer.*Buyer/s);
   assert.match(
     directMessages,
     /viewer\.roles\.includes\("Farmer"\)[\s\S]*?addRoleRecipients\(\["Farmer"\]\)/,
   );
   assert.match(directMessages, /viewer\.roles\.includes\("Buyer"\) && existingIds\.has\(row\.id\)/);
-  assert.match(directMessages, /farmerConsultantAssignments/);
+  assert.doesNotMatch(directMessages, /Farm Consultant|farmerConsultantAssignments/);
   assert.match(directMessages, /export const getDirectConversation/);
   assert.match(directMessages, /export const sendDirectMessage/);
   assert.match(directMessages, /Your role cannot start a private message/);
@@ -550,13 +540,12 @@ test("Community search and owner-only post controls are available in the feed", 
 });
 
 test("Community users can view only their own saved posts from their profile", async () => {
-  const [profile, feed, farmerProfile, marketerProfile, consultantProfile, managementProfile] =
+  const [profile, feed, farmerProfile, marketerProfile, managementProfile] =
     await Promise.all([
       readFile("src/features/auth/components/live-profile.tsx", "utf8"),
       readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
       readFile("src/routes/farmer.profile.tsx", "utf8"),
       readFile("src/routes/marketer.profile.tsx", "utf8"),
-      readFile("src/routes/consultant.profile.tsx", "utf8"),
       readFile("src/routes/management.profile.tsx", "utf8"),
     ]);
 
@@ -564,16 +553,15 @@ test("Community users can view only their own saved posts from their profile", a
   assert.match(feed, /getMyCommunityMessages/);
   assert.match(feed, /scope === "mine"/);
   assert.match(feed, /You have not posted in Community yet/);
-  for (const source of [farmerProfile, marketerProfile, consultantProfile, managementProfile]) {
+  for (const source of [farmerProfile, marketerProfile, managementProfile]) {
     assert.match(source, /showCommunityPosts/);
   }
 });
 
 test("new messages and Community activity create timely recipient notifications", async () => {
-  const [community, guidance, notifications, notificationCenter, communityFeed] = await Promise.all(
+  const [community, notifications, notificationCenter, communityFeed] = await Promise.all(
     [
       readFile("src/services/messaging/community-server-functions.ts", "utf8"),
-      readFile("src/services/messaging/guidance-server-functions.ts", "utf8"),
       readFile("src/services/messaging/notification-server.ts", "utf8"),
       readFile("src/features/messaging/components/notification-center.tsx", "utf8"),
       readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
@@ -583,8 +571,6 @@ test("new messages and Community activity create timely recipient notifications"
   assert.match(community, /notifyCommunityUsers/);
   assert.match(community, /New Community post/);
   assert.match(community, /New comment on your post/);
-  assert.match(guidance, /New farmer guidance message/);
-  assert.match(guidance, /New crop guidance/);
   assert.match(notifications, /export async function notifyCommunityUsers/);
   assert.match(notifications, /communityTargetByRole/);
   assert.match(notifications, /excludeUserId/);
@@ -615,7 +601,7 @@ test("operational changes notify the users who need to respond", async () => {
   assert.match(receiving, /Delivery received and classified/);
   assert.match(receiving, /New farmer delivery received/);
   assert.match(production, /Production record updated/);
-  assert.match(production, /Farmer production updated/);
+  assert.match(production, /Production record updated/);
   assert.match(accounts, /Account activated/);
   assert.match(accounts, /Account deactivated/);
   assert.match(marketplace, /New marketplace listing/);
@@ -662,18 +648,14 @@ test("public marketplace data keeps farmer identities private while Marketer can
   assert.match(marketerListings, /requireRole\("Marketer"\)/);
 });
 
-test("consultants only receive production records for Farmers assigned to them", async () => {
+test("production records remain available for Farmer operations without Consultant filtering", async () => {
   const production = await readFile(
     "src/services/operations/production-server-functions.ts",
     "utf8",
   );
 
-  assert.match(production, /farmerConsultantAssignments/);
-  assert.match(
-    production,
-    /eq\(farmerConsultantAssignments\.consultantId, filters\.consultantId\)/,
-  );
-  assert.match(production, /productionRows\(\{ consultantId: consultant\.id \}\)/);
+  assert.match(production, /export const getFarmerProductionRecords/);
+  assert.doesNotMatch(production, /consultant|guidance/i);
 });
 
 test("workspace identity is loaded from the authenticated server session", async () => {
@@ -715,7 +697,7 @@ test("Management can filter and search saved user accounts by role", async () =>
   assert.match(page, /const userRoleFilters/);
   assert.match(page, /"Buyer"/);
   assert.match(page, /"Farmer"/);
-  assert.match(page, /"Farm Consultant"/);
+  assert.doesNotMatch(page, /"Farm Consultant"/);
   assert.match(page, /const visibleUsers = useMemo/);
   assert.match(page, /Search name, email, contact, or role/);
   assert.match(page, /visibleUsers\.map/);
@@ -763,7 +745,6 @@ test("all logout actions ask for confirmation before ending the session", async 
     "src/components/layout/site-header.tsx",
     "src/components/workspaces/accounting-layout.tsx",
     "src/components/workspaces/buyer-layout.tsx",
-    "src/components/workspaces/consultant-layout.tsx",
     "src/components/workspaces/farmer-layout.tsx",
     "src/components/workspaces/management-layout.tsx",
     "src/components/workspaces/marketer-layout.tsx",
