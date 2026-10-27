@@ -870,6 +870,9 @@ test("delivery checkout collects a complete recipient and delivery address", asy
   assert.match(cart, /Barangay/);
   assert.match(cart, /City \/ Municipality/);
   assert.match(cart, /Preferred delivery date and time/);
+  assert.match(cart, /min-h-10 items-center leading-snug/);
+  assert.doesNotMatch(cart, /delivery-region/);
+  assert.doesNotMatch(cart, /philippineRegions/);
   assert.match(cart, /deliveryNote\(deliveryDetails\)/);
   assert.match(cart, /Delivery recipient:/);
   assert.match(cart, /Delivery address/);

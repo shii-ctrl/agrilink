@@ -31,7 +31,6 @@ type DeliveryDetails = {
   barangay: string;
   postalCode: string;
   city: string;
-  region: string;
   phone: string;
   schedule: string;
   instructions: string;
@@ -45,31 +44,10 @@ const emptyDeliveryDetails: DeliveryDetails = {
   barangay: "",
   postalCode: "",
   city: "",
-  region: "",
   phone: "",
   schedule: "",
   instructions: "",
 };
-
-const philippineRegions = [
-  "NCR",
-  "CAR",
-  "Ilocos Region",
-  "Cagayan Valley",
-  "Central Luzon",
-  "CALABARZON",
-  "MIMAROPA",
-  "Bicol Region",
-  "Western Visayas",
-  "Central Visayas",
-  "Eastern Visayas",
-  "Zamboanga Peninsula",
-  "Northern Mindanao",
-  "Davao Region",
-  "SOCCSKSARGEN",
-  "Caraga",
-  "BARMM",
-] as const;
 
 function reservationCountdown(expiresAt: string, now: number) {
   const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - now) / 1000));
@@ -79,14 +57,7 @@ function reservationCountdown(expiresAt: string, now: number) {
 }
 
 function deliveryAddress(details: DeliveryDetails) {
-  return [
-    details.address,
-    details.apartment,
-    details.barangay,
-    details.city,
-    details.postalCode,
-    details.region,
-  ]
+  return [details.address, details.apartment, details.barangay, details.city, details.postalCode]
     .map((part) => part.trim())
     .filter(Boolean)
     .join(", ");
@@ -625,8 +596,11 @@ function BuyerCartPage() {
                             </div>
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-2">
-                                <Label htmlFor="delivery-apartment">
-                                  Apartment, suite, etc. (optional)
+                                <Label
+                                  className="flex min-h-10 items-center leading-snug"
+                                  htmlFor="delivery-apartment"
+                                >
+                                  Unit / apartment (optional)
                                 </Label>
                                 <Input
                                   id="delivery-apartment"
@@ -642,7 +616,12 @@ function BuyerCartPage() {
                                 />
                               </div>
                               <div className="space-y-2">
-                                <Label htmlFor="delivery-barangay">Barangay</Label>
+                                <Label
+                                  className="flex min-h-10 items-center leading-snug"
+                                  htmlFor="delivery-barangay"
+                                >
+                                  Barangay
+                                </Label>
                                 <Input
                                   id="delivery-barangay"
                                   value={deliveryDetails.barangay}
@@ -659,7 +638,12 @@ function BuyerCartPage() {
                             </div>
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-2">
-                                <Label htmlFor="delivery-city">City / Municipality</Label>
+                                <Label
+                                  className="flex min-h-10 items-center leading-snug"
+                                  htmlFor="delivery-city"
+                                >
+                                  City / Municipality
+                                </Label>
                                 <Input
                                   id="delivery-city"
                                   value={deliveryDetails.city}
@@ -675,7 +659,12 @@ function BuyerCartPage() {
                                 />
                               </div>
                               <div className="space-y-2">
-                                <Label htmlFor="delivery-postal-code">Postal code</Label>
+                                <Label
+                                  className="flex min-h-10 items-center leading-snug"
+                                  htmlFor="delivery-postal-code"
+                                >
+                                  Postal code
+                                </Label>
                                 <Input
                                   id="delivery-postal-code"
                                   value={deliveryDetails.postalCode}
@@ -692,30 +681,6 @@ function BuyerCartPage() {
                                 />
                               </div>
                             </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="delivery-region">Region</Label>
-                              <select
-                                id="delivery-region"
-                                value={deliveryDetails.region}
-                                onChange={(event) =>
-                                  setDeliveryDetails((current) => ({
-                                    ...current,
-                                    region: event.target.value,
-                                  }))
-                                }
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                required
-                              >
-                                <option value="" disabled>
-                                  Select a region
-                                </option>
-                                {philippineRegions.map((region) => (
-                                  <option key={region} value={region}>
-                                    {region}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
                           </div>
                         </div>
                         <div className="space-y-2">
@@ -724,7 +689,12 @@ function BuyerCartPage() {
                           </p>
                           <div className="grid gap-3 sm:grid-cols-2">
                             <div className="space-y-2">
-                              <Label htmlFor="delivery-phone">Phone</Label>
+                              <Label
+                                className="flex min-h-10 items-center leading-snug"
+                                htmlFor="delivery-phone"
+                              >
+                                Phone
+                              </Label>
                               <Input
                                 id="delivery-phone"
                                 value={deliveryDetails.phone}
@@ -743,7 +713,10 @@ function BuyerCartPage() {
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="delivery-schedule">
+                              <Label
+                                className="flex min-h-10 items-center leading-snug"
+                                htmlFor="delivery-schedule"
+                              >
                                 Preferred delivery date and time
                               </Label>
                               <Input
