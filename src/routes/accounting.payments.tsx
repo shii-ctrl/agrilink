@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CircleDollarSign, Clock3 } from "lucide-react";
+import { CircleDollarSign, Clock3, Printer } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -24,10 +24,93 @@ function paymentMethodLabel(method: string | null | undefined) {
   return method ?? "Recorded method";
 }
 
+function AccountingPaymentReceipt({ order }: { order: DemoOrder }) {
+  const items = order.items?.length
+    ? order.items
+    : [
+        {
+          listingId: order.id,
+          name: order.product,
+          classification: order.classification,
+          quantityKg: Number.parseFloat(order.quantity) || 0,
+          pricePerKg: 0,
+        },
+      ];
+  const totalQuantity = items.reduce((total, item) => total + item.quantityKg, 0);
+  const fulfillment = order.pickupNote?.startsWith("Delivery:") ? "Delivery" : "Pickup";
+
+  return (
+    <section className="accounting-payment-receipt hidden bg-white p-8 text-black">
+      <div className="mx-auto max-w-2xl border border-slate-300 bg-white p-8 text-slate-950">
+        <div className="flex items-start justify-between gap-6 border-b border-slate-300 pb-5">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-emerald-700">AgriLink</p>
+            <h1 className="mt-2 text-3xl font-bold">Payment receipt</h1>
+            <p className="mt-1 text-sm text-slate-600">PROCY marketplace payment record</p>
+          </div>
+          <div className="text-right text-sm">
+            <p className="font-semibold">{order.paymentId ?? "Payment recorded"}</p>
+            <p className="mt-1 text-slate-600">Paid {order.paidAt ?? order.date}</p>
+          </div>
+        </div>
+
+        <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="font-medium text-slate-500">Buyer</dt>
+            <dd className="mt-1 font-semibold">{order.buyer}</dd>
+            <dd className="text-slate-700">{order.contact}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-slate-500">Fulfillment</dt>
+            <dd className="mt-1 font-semibold">{fulfillment}</dd>
+            <dd className="whitespace-pre-wrap text-slate-700">{order.pickupNote}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-slate-500">Payment method</dt>
+            <dd className="mt-1 font-semibold">{paymentMethodLabel(order.paymentMethod)}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-slate-500">Order reference</dt>
+            <dd className="mt-1 font-semibold">{order.id}</dd>
+            <dd className="text-slate-700">Completed {order.soldAt ?? order.date}</dd>
+          </div>
+        </dl>
+
+        <div className="mt-6 overflow-hidden border border-slate-300">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-4 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <span>Product</span>
+            <span>Quantity</span>
+            <span>Price</span>
+          </div>
+          {items.map((item) => (
+            <div key={item.listingId} className="grid grid-cols-[1fr_auto_auto] gap-4 border-t border-slate-200 px-4 py-3 text-sm">
+              <span>
+                <span className="block font-semibold">{item.name}</span>
+                <span className="text-slate-600">{item.classification}</span>
+              </span>
+              <span>{item.quantityKg} kg</span>
+              <span>{item.pricePerKg > 0 ? `₱${item.pricePerKg.toFixed(2)} / kg` : "Included"}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between border-t-2 border-slate-400 px-4 py-4">
+            <span className="font-semibold">Total paid · {totalQuantity} kg</span>
+            <span className="text-xl font-bold">{order.total}</span>
+          </div>
+        </div>
+
+        <p className="mt-6 text-center text-xs text-slate-500">
+          Issued by Accounting after receipt of payment. Keep this as the buyer's payment record.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function AccountingPaymentsPage() {
   const [orders, setOrders] = useState<DemoOrder[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState("");
   const [method, setMethod] = useState("");
+  const [receiptOrder, setReceiptOrder] = useState<DemoOrder | null>(null);
 
   useEffect(() => {
     void getDatabaseOrders()
@@ -74,13 +157,19 @@ function AccountingPaymentsPage() {
     }
   }
 
+  function printReceipt(order: DemoOrder) {
+    setReceiptOrder(order);
+    window.requestAnimationFrame(() => window.print());
+  }
+
   return (
     <AccountingLayout>
-      <AccountingPageHeader
-        title="Record Payment"
-        description="Record payment after a PROCY order is marked Sold. This page records payment information and does not process online payments."
-      />
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
+      <div className="accounting-payment-screen print:hidden">
+        <AccountingPageHeader
+          title="Record Payment"
+          description="Record payment after a PROCY order is marked Sold. This page records payment information and does not process online payments."
+        />
+        <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
         <div className="mb-6 flex gap-3 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
           <Clock3 className="mt-0.5 size-5 shrink-0" />
           <p>
@@ -171,6 +260,15 @@ function AccountingPaymentsPage() {
                     <p className="font-medium">{order.total}</p>
                     <p className="text-xs font-medium text-primary">Paid {order.paidAt ?? ""}</p>
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={() => printReceipt(order)}
+                  >
+                    <Printer className="size-4" /> Print receipt
+                  </Button>
                 </div>
               ))}
               {recordedPayments.length === 0 && (
@@ -179,7 +277,19 @@ function AccountingPaymentsPage() {
             </div>
           </section>
         </div>
-      </main>
+        </main>
+      </div>
+      {receiptOrder && <AccountingPaymentReceipt order={receiptOrder} />}
+      <style>{`@media print {
+        .accounting-payment-receipt {
+          display: block !important;
+          position: fixed !important;
+          inset: 0 !important;
+          width: 100vw !important;
+          min-height: 100vh !important;
+          z-index: 9999 !important;
+        }
+      }`}</style>
     </AccountingLayout>
   );
 }

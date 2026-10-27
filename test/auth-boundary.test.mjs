@@ -200,14 +200,18 @@ test("buyer cart reservations expire after ten minutes and return stock", async 
   assert.match(cartPage, /Your cart reservation expired/);
 });
 
-test("completed buyer orders provide a printable pickup or delivery receipt", async () => {
-  const buyerOrders = await readFile("src/routes/buyer.orders.tsx", "utf8");
-  assert.match(buyerOrders, /function BuyerOrderReceipt/);
-  assert.match(buyerOrders, /order\.status === "Sold"/);
-  assert.match(buyerOrders, /Print receipt/);
-  assert.match(buyerOrders, /Fulfillment/);
-  assert.match(buyerOrders, /Payment reference/);
-  assert.match(buyerOrders, /window\.print\(\)/);
+test("Accounting prints buyer payment receipts after payment is recorded", async () => {
+  const [buyerOrders, accountingPayments] = await Promise.all([
+    readFile("src/routes/buyer.orders.tsx", "utf8"),
+    readFile("src/routes/accounting.payments.tsx", "utf8"),
+  ]);
+  assert.doesNotMatch(buyerOrders, /Print receipt/);
+  assert.match(accountingPayments, /function AccountingPaymentReceipt/);
+  assert.match(accountingPayments, /recordedPayments/);
+  assert.match(accountingPayments, /Print receipt/);
+  assert.match(accountingPayments, /Fulfillment/);
+  assert.match(accountingPayments, /Payment method/);
+  assert.match(accountingPayments, /window\.print\(\)/);
 });
 
 test("catalog photos use a safe file picker and bundle prices are enforced at checkout", async () => {
