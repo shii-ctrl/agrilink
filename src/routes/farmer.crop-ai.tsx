@@ -28,6 +28,17 @@ function dateLabel(value: string | null) {
   });
 }
 
+function cropAiErrorMessage(reason: unknown) {
+  const message = reason instanceof Error ? reason.message : "Could not ask Crop AI.";
+  if (message.includes('"cropName"') || message.includes("Enter the crop name")) {
+    return "Enter the crop name first, for example Pechay or Ampalaya.";
+  }
+  if (message.includes('"question"') || message.includes("Ask a crop question")) {
+    return "Write your crop question first.";
+  }
+  return message.startsWith("[") ? "Crop AI could not read that request. Please try again." : message;
+}
+
 function FarmerCropAiPage() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
@@ -119,14 +130,14 @@ function FarmerCropAiPage() {
             <div className="min-w-0">
               <div className="border-b border-border px-5 py-5">
                 <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Bot className="size-5" /></span><div><h2 className="font-semibold">{activeConversation ? activeConversation.cropName : "Start a crop question"}</h2><p className="text-xs text-muted-foreground">Tell Crop AI what you planted and ask what you need to know.</p></div></div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">Crop name<Input value={cropName} onChange={(event) => setCropName(event.target.value)} placeholder="Example: Ampalaya" maxLength={160} /></label><label className="grid gap-1.5 text-sm font-medium">Planting date <span className="font-normal text-muted-foreground">(optional)</span><Input type="date" value={plantingDate} onChange={(event) => setPlantingDate(event.target.value)} /></label></div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">Crop name <span className="text-destructive">*</span><Input value={cropName} onChange={(event) => { setCropName(event.target.value); if (error) setError(null); }} placeholder="Example: Ampalaya" maxLength={160} required minLength={2} /></label><label className="grid gap-1.5 text-sm font-medium">Planting date <span className="font-normal text-muted-foreground">(optional)</span><Input type="date" value={plantingDate} onChange={(event) => setPlantingDate(event.target.value)} /></label></div>
               </div>
               <div className="min-h-[22rem] space-y-4 bg-muted/10 p-5">
                 {loadingConversation ? <div className="flex justify-center pt-12 text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> Loading conversation…</div> : messages.length ? messages.map((message) => <div key={message.id} className={`flex ${message.sender === "farmer" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.sender === "farmer" ? "rounded-br-md bg-primary text-primary-foreground" : "rounded-bl-md bg-background"}`}><p className="whitespace-pre-wrap leading-relaxed">{message.message}</p><p className={`mt-2 text-[11px] ${message.sender === "farmer" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{message.sender === "farmer" ? "You" : "Crop AI"} · {new Date(message.createdAt).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })}</p></div></div>) : <div className="flex min-h-56 flex-col items-center justify-center text-center text-sm text-muted-foreground"><Sprout className="mb-3 size-8 text-primary" />Ask about harvest timing, crop care, or what to observe in your field.</div>}
               </div>
               {error && <p className="border-t border-border bg-destructive/5 px-5 py-3 text-sm text-destructive">{error}</p>}
-              <form className="border-t border-border p-4" onSubmit={async (event) => { event.preventDefault(); if (sending) return; setSending(true); try { const result = await askFarmerCropAi({ data: { conversationId: activeConversation?.id, cropName, plantingDate, question } }); setActiveConversation(result.conversation); setMessages((current) => activeConversation?.id === result.conversation.id ? [...current, ...result.messages] : result.messages); setWorkspace((current) => current ? { ...current, remainingQuestions: result.remainingQuestions, conversations: [result.conversation, ...current.conversations.filter((item) => item.id !== result.conversation.id)] } : current); setQuestion(""); setError(null); } catch (reason) { const message = reason instanceof Error ? reason.message : "Could not ask Crop AI."; setError(message); toast.error(message); } finally { setSending(false); } }}>
-                <div className="flex flex-col gap-2 sm:flex-row"><Textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Example: Kailan po kaya puwedeng anihin ang ampalaya ko?" rows={2} maxLength={1_000} required /><Button type="submit" className="rounded-full sm:self-end" disabled={sending || !workspace?.remainingQuestions}>{sending ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />} Ask Crop AI</Button></div>
+              <form className="border-t border-border p-4" onSubmit={async (event) => { event.preventDefault(); if (sending) return; if (cropName.trim().length < 2) { const message = "Enter the crop name first, for example Pechay or Ampalaya."; setError(message); toast.error(message); return; } if (question.trim().length < 2) { const message = "Write your crop question first."; setError(message); toast.error(message); return; } setSending(true); try { const result = await askFarmerCropAi({ data: { conversationId: activeConversation?.id, cropName, plantingDate, question } }); setActiveConversation(result.conversation); setMessages((current) => activeConversation?.id === result.conversation.id ? [...current, ...result.messages] : result.messages); setWorkspace((current) => current ? { ...current, remainingQuestions: result.remainingQuestions, conversations: [result.conversation, ...current.conversations.filter((item) => item.id !== result.conversation.id)] } : current); setQuestion(""); setError(null); } catch (reason) { const message = cropAiErrorMessage(reason); setError(message); toast.error(message); } finally { setSending(false); } }}>
+                <div className="flex flex-col gap-2 sm:flex-row"><Textarea value={question} onChange={(event) => { setQuestion(event.target.value); if (error) setError(null); }} placeholder="Example: Kailan po kaya puwedeng anihin ang ampalaya ko?" rows={2} maxLength={1_000} required /><Button type="submit" className="rounded-full sm:self-end" disabled={sending || !workspace?.remainingQuestions || cropName.trim().length < 2 || question.trim().length < 2}>{sending ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />} Ask Crop AI</Button></div>
               </form>
             </div>
           </section>
