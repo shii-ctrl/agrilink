@@ -21,6 +21,10 @@ type GeminiPart = { text?: unknown };
 type GeminiResponse = { candidates?: Array<{ content?: { parts?: GeminiPart[] } }> };
 type GeminiErrorResponse = { error?: { code?: unknown; status?: unknown } };
 const geminiRequestTimeoutMs = 20_000;
+// Keep a stable, lightweight model as the default for the free Gemini API.
+// A model selected in Vercel can still be used first, but this fallback lets
+// Crop AI continue when that selected model is temporarily unavailable.
+const defaultGeminiModel = "gemini-2.5-flash-lite";
 
 function toDateTime(value: Date) {
   return value.toISOString();
@@ -142,10 +146,8 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
   if (!apiKey) {
     throw new Error("Crop AI is not configured yet. Please contact Management.");
   }
-  // Gemini 2.5 Flash is restricted for many newly created projects. Use the
-  // current Flash model by default, while still allowing a safe server-only
-  // override when Management needs to change it in Vercel.
-  const model = process.env["GEMINI_MODEL"]?.trim() || "gemini-3.8-flash";
+  const configuredModel = process.env["GEMINI_MODEL"]?.trim();
+  const models = Array.from(new Set([configuredModel || defaultGeminiModel, defaultGeminiModel]));
   const contents = [
     ...history.map((entry) => ({
       role: entry.sender === "assistant" ? "model" : "user",
@@ -153,37 +155,53 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
     })),
     { role: "user", parts: [{ text: question }] },
   ];
-  let response: Response;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), geminiRequestTimeoutMs);
-  try {
-    response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
+  for (const [index, model] of models.entries()) {
+    let response: Response;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), geminiRequestTimeoutMs);
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: cropSystemInstruction(context) }] },
+            contents,
+            generationConfig: { maxOutputTokens: 240 },
+          }),
         },
-        signal: controller.signal,
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: cropSystemInstruction(context) }] },
-          contents,
-          generationConfig: { maxOutputTokens: 240 },
-        }),
-      },
-    );
-  } catch {
-    throw new Error("Crop AI is temporarily unavailable. Please try again in a few minutes.");
-  } finally {
-    clearTimeout(timeout);
-  }
-  if (!response.ok) {
+      );
+    } catch {
+      throw new Error("Crop AI is temporarily unavailable. Please try again in a few minutes.");
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (response.ok) {
+      const payload = (await response.json()) as GeminiResponse;
+      const answer = payload.candidates?.[0]?.content?.parts
+        ?.map((part) => (typeof part.text === "string" ? part.text : ""))
+        .filter(Boolean)
+        .join("\n")
+        .trim();
+      if (!answer) throw new Error("Crop AI could not prepare an answer. Please try again.");
+      return answer.slice(0, 8_000);
+    }
+
     const providerError = (await response.json().catch(() => null)) as GeminiErrorResponse | null;
     const providerCode = typeof providerError?.error?.code === "number" ? providerError.error.code : response.status;
     const providerStatus = typeof providerError?.error?.status === "string" ? providerError.error.status : "UNKNOWN";
     // Never log the API key, question, crop name, or provider error body.
     console.error("Crop AI provider request failed", { model, status: providerCode, providerStatus });
+    if ([404, 500, 503].includes(response.status) && index < models.length - 1) {
+      console.warn("Crop AI retrying fallback model", { failedModel: model });
+      continue;
+    }
     if (response.status === 429) {
       throw new Error("Crop AI is busy right now. Please wait a minute, then try again.");
     }
@@ -198,14 +216,8 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
     }
     throw new Error("Crop AI is temporarily unavailable. Please try again in a few minutes.");
   }
-  const payload = (await response.json()) as GeminiResponse;
-  const answer = payload.candidates?.[0]?.content?.parts
-    ?.map((part) => (typeof part.text === "string" ? part.text : ""))
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-  if (!answer) throw new Error("Crop AI could not prepare an answer. Please try again.");
-  return answer.slice(0, 8_000);
+
+  throw new Error("Crop AI is temporarily unavailable. Please try again in a few minutes.");
 }
 
 export const askFarmerCropAi = createServerFn({ method: "POST" })
@@ -223,33 +235,18 @@ export const askFarmerCropAi = createServerFn({ method: "POST" })
     const { db } = await import("@/db/client.server");
     const { farmerAiConversations, farmerAiMessages } = await import("@/db/schema");
     const context = { cropName: data.cropName, plantingDate: data.plantingDate };
-    const conversation = data.conversationId
+    const existingConversation = data.conversationId
       ? await conversationForFarmer(farmer.id, data.conversationId)
-      : await (async () => {
-          const id = crypto.randomUUID();
-          await db.insert(farmerAiConversations).values({
-            id,
-            farmerId: farmer.id,
-            cropName: context.cropName,
-            plantingDate: normalizedPlantingDate(context.plantingDate),
-          });
-          return conversationForFarmer(farmer.id, id);
-        })();
-    if (
-      conversation.cropName !== context.cropName ||
-      conversation.plantingDate !== normalizedPlantingDate(context.plantingDate)
-    ) {
-      await db
-        .update(farmerAiConversations)
-        .set({ cropName: context.cropName, plantingDate: normalizedPlantingDate(context.plantingDate) })
-        .where(eq(farmerAiConversations.id, conversation.id));
-    }
-    const history = await db
-      .select({ sender: farmerAiMessages.sender, message: farmerAiMessages.message })
-      .from(farmerAiMessages)
-      .where(eq(farmerAiMessages.conversationId, conversation.id))
-      .orderBy(desc(farmerAiMessages.createdAt))
-      .limit(4);
+      : null;
+    const conversationId = existingConversation?.id ?? crypto.randomUUID();
+    const history = existingConversation
+      ? await db
+          .select({ sender: farmerAiMessages.sender, message: farmerAiMessages.message })
+          .from(farmerAiMessages)
+          .where(eq(farmerAiMessages.conversationId, conversationId))
+          .orderBy(desc(farmerAiMessages.createdAt))
+          .limit(4)
+      : [];
     const answer = await askGemini(
       context,
       history.reverse().map((message) => ({
@@ -261,34 +258,42 @@ export const askFarmerCropAi = createServerFn({ method: "POST" })
     const now = new Date();
     const farmerMessage = {
       id: crypto.randomUUID(),
-      conversationId: conversation.id,
+      conversationId,
       sender: "farmer" as const,
       message: data.question,
       createdAt: now,
     };
     const assistantMessage = {
       id: crypto.randomUUID(),
-      conversationId: conversation.id,
+      conversationId,
       sender: "assistant" as const,
       message: answer,
       createdAt: new Date(),
     };
     try {
       await db.transaction(async (tx) => {
+        if (!existingConversation) {
+          await tx.insert(farmerAiConversations).values({
+            id: conversationId,
+            farmerId: farmer.id,
+            cropName: context.cropName,
+            plantingDate: normalizedPlantingDate(context.plantingDate),
+          });
+        }
         await tx.insert(farmerAiMessages).values([farmerMessage, assistantMessage]);
         await tx
           .update(farmerAiConversations)
           .set({ cropName: context.cropName, plantingDate: normalizedPlantingDate(context.plantingDate) })
-          .where(eq(farmerAiConversations.id, conversation.id));
+          .where(eq(farmerAiConversations.id, conversationId));
       });
     } catch {
       // Do not return database queries or saved farmer content to the browser.
-      console.error("Crop AI conversation save failed", { conversationId: conversation.id });
+      console.error("Crop AI conversation save failed", { conversationId });
       throw new Error("Crop AI could not save this conversation. Please try again.");
     }
-    const updatedConversation = await conversationForFarmer(farmer.id, conversation.id);
+    const updatedConversation = await conversationForFarmer(farmer.id, conversationId);
     const { writeAuditLog } = await import("@/services/auth/auth-server");
-    await writeAuditLog(farmer.id, "farmer_crop_ai.ask", "farmer_ai_conversation", conversation.id, {
+    await writeAuditLog(farmer.id, "farmer_crop_ai.ask", "farmer_ai_conversation", conversationId, {
       cropName: context.cropName,
     });
     return {
