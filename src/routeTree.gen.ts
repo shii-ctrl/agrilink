@@ -32,6 +32,7 @@ import { Route as BuyerOrdersRouteImport } from './routes/buyer.orders'
 import { Route as BuyerProfileRouteImport } from './routes/buyer.profile'
 import { Route as FarmerIndexRouteImport } from './routes/farmer.index'
 import { Route as FarmerCommunityRouteImport } from './routes/farmer.community'
+import { Route as FarmerCropAiRouteImport } from './routes/farmer.crop-ai'
 import { Route as FarmerProductionRouteImport } from './routes/farmer.production'
 import { Route as FarmerProfileRouteImport } from './routes/farmer.profile'
 import { Route as FarmerReceivingRouteImport } from './routes/farmer.receiving'
@@ -175,6 +176,11 @@ const FarmerIndexRoute = FarmerIndexRouteImport.update({
 const FarmerCommunityRoute = FarmerCommunityRouteImport.update({
   id: '/farmer/community',
   path: '/farmer/community',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FarmerCropAiRoute = FarmerCropAiRouteImport.update({
+  id: '/farmer/crop-ai',
+  path: '/farmer/crop-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerProductionRoute = FarmerProductionRouteImport.update({
@@ -346,6 +352,7 @@ export interface FileRoutesByFullPath {
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
+  '/farmer/crop-ai': typeof FarmerCropAiRoute
   '/farmer/production': typeof FarmerProductionRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
@@ -400,6 +407,7 @@ export interface FileRoutesByTo {
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
+  '/farmer/crop-ai': typeof FarmerCropAiRoute
   '/farmer/production': typeof FarmerProductionRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
@@ -455,6 +463,7 @@ export interface FileRoutesById {
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
+  '/farmer/crop-ai': typeof FarmerCropAiRoute
   '/farmer/production': typeof FarmerProductionRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
@@ -511,6 +520,7 @@ export interface FileRouteTypes {
     | '/buyer/orders'
     | '/buyer/profile'
     | '/farmer/community'
+    | '/farmer/crop-ai'
     | '/farmer/production'
     | '/farmer/profile'
     | '/farmer/receiving'
@@ -565,6 +575,7 @@ export interface FileRouteTypes {
     | '/buyer/orders'
     | '/buyer/profile'
     | '/farmer/community'
+    | '/farmer/crop-ai'
     | '/farmer/production'
     | '/farmer/profile'
     | '/farmer/receiving'
@@ -619,6 +630,7 @@ export interface FileRouteTypes {
     | '/buyer/orders'
     | '/buyer/profile'
     | '/farmer/community'
+    | '/farmer/crop-ai'
     | '/farmer/production'
     | '/farmer/profile'
     | '/farmer/receiving'
@@ -674,6 +686,7 @@ export interface RootRouteChildren {
   BuyerOrdersRoute: typeof BuyerOrdersRoute
   BuyerProfileRoute: typeof BuyerProfileRoute
   FarmerCommunityRoute: typeof FarmerCommunityRoute
+  FarmerCropAiRoute: typeof FarmerCropAiRoute
   FarmerProductionRoute: typeof FarmerProductionRoute
   FarmerProfileRoute: typeof FarmerProfileRoute
   FarmerReceivingRoute: typeof FarmerReceivingRoute
@@ -869,6 +882,13 @@ declare module '@tanstack/react-router' {
       path: '/farmer/community'
       fullPath: '/farmer/community'
       preLoaderRoute: typeof FarmerCommunityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/farmer/crop-ai': {
+      id: '/farmer/crop-ai'
+      path: '/farmer/crop-ai'
+      fullPath: '/farmer/crop-ai'
+      preLoaderRoute: typeof FarmerCropAiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/farmer/production': {
@@ -1098,6 +1118,7 @@ const rootRouteChildren: RootRouteChildren = {
   BuyerOrdersRoute: BuyerOrdersRoute,
   BuyerProfileRoute: BuyerProfileRoute,
   FarmerCommunityRoute: FarmerCommunityRoute,
+  FarmerCropAiRoute: FarmerCropAiRoute,
   FarmerProductionRoute: FarmerProductionRoute,
   FarmerProfileRoute: FarmerProfileRoute,
   FarmerReceivingRoute: FarmerReceivingRoute,

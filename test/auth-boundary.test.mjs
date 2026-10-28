@@ -471,6 +471,22 @@ test("private messages enforce the Community role recipient rules", async () => 
   assert.match(panel, /Message only the people your role is allowed to contact/);
 });
 
+test("Farmer Crop AI keeps the Gemini key server-only and scopes chats to each Farmer", async () => {
+  const [serverSource, routeSource, migration] = await Promise.all([
+    readFile("src/services/farmer/crop-ai-server-functions.ts", "utf8"),
+    readFile("src/routes/farmer.crop-ai.tsx", "utf8"),
+    readFile("drizzle/0022_farmer_crop_ai.sql", "utf8"),
+  ]);
+
+  assert.match(serverSource, /requireRole\("Farmer"\)/);
+  assert.match(serverSource, /process\.env\["GEMINI_API_KEY"\]/);
+  assert.match(serverSource, /eq\(farmerAiConversations\.farmerId, farmerId\)/);
+  assert.match(serverSource, /consumeRateLimit\("farmer-crop-ai", farmer\.id, questionBurstLimit\)/);
+  assert.doesNotMatch(routeSource, /GEMINI_API_KEY/);
+  assert.match(migration, /FOREIGN KEY \(farmer_id\) REFERENCES users\(id\) ON DELETE CASCADE/);
+  assert.match(migration, /FOREIGN KEY \(conversation_id\) REFERENCES farmer_ai_conversations\(id\) ON DELETE CASCADE/);
+});
+
 test("community reactions and comments are saved with role checks", async () => {
   const [community, migration] = await Promise.all([
     readFile("src/services/messaging/community-server-functions.ts", "utf8"),

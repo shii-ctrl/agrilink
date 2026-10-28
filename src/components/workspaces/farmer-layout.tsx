@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ClipboardList,
+  Bot,
   LogOut,
   MessageCircle,
   PackageCheck,
@@ -32,6 +33,7 @@ const nav = [
   { label: "Dashboard", to: "/farmer", icon: Sprout },
   { label: "Production Records", to: "/farmer/production", icon: ClipboardList },
   { label: "Receiving History", to: "/farmer/receiving", icon: PackageCheck },
+  { label: "Ask Crop AI", to: "/farmer/crop-ai", icon: Bot },
   { label: "Community", to: "/farmer/community", icon: MessageCircle },
 ] as const;
 export function FarmerLayout({ children }: { children: ReactNode }) {

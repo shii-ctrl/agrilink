@@ -399,6 +399,31 @@ export const directMessages = mysqlTable(
     index("direct_messages_recipient_read_idx").on(table.recipientId, table.readAt),
   ],
 );
+export const farmerAiConversations = mysqlTable(
+  "farmer_ai_conversations",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    farmerId: varchar("farmer_id", { length: 36 }).notNull(),
+    cropName: varchar("crop_name", { length: 160 }).notNull(),
+    // Kept as YYYY-MM-DD so the farmer can leave the planting date blank without
+    // timezone conversion changing the selected day.
+    plantingDate: varchar("planting_date", { length: 10 }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [index("farmer_ai_conversations_farmer_updated_idx").on(table.farmerId, table.updatedAt)],
+);
+export const farmerAiMessages = mysqlTable(
+  "farmer_ai_messages",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    conversationId: varchar("conversation_id", { length: 36 }).notNull(),
+    sender: mysqlEnum("sender", ["farmer", "assistant"]).notNull(),
+    message: text("message").notNull(),
+    createdAt,
+  },
+  (table) => [index("farmer_ai_messages_conversation_created_idx").on(table.conversationId, table.createdAt)],
+);
 export const notifications = mysqlTable(
   "notifications",
   {
