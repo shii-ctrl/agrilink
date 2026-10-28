@@ -19,6 +19,13 @@ type Workspace = Awaited<ReturnType<typeof getFarmerCropAiWorkspace>>;
 type Conversation = Workspace["conversations"][number];
 type ChatMessage = Awaited<ReturnType<typeof getFarmerCropAiConversation>>["messages"][number];
 
+const questionSuggestions = [
+  "Ano ang magandang itanim ngayong season?",
+  "Paano ihanda ang lupa bago magtanim?",
+  "Paano alagaan ang aking pananim?",
+  "Kailan puwedeng anihin ang aking ani?",
+];
+
 function dateLabel(value: string | null) {
   if (!value) return "Planting date not added";
   return new Date(`${value}T00:00:00`).toLocaleDateString("en-PH", {
@@ -33,11 +40,12 @@ function cropAiErrorMessage(reason: unknown) {
   if (message.includes("Failed query:") || message.includes("farmer_ai_messages")) {
     return "Crop AI could not save this conversation. Please try again.";
   }
-  if (message.includes('"cropName"') || message.includes("Enter the crop name")) {
-    return "Enter the crop name first, for example Pechay or Ampalaya.";
-  }
-  if (message.includes('"question"') || message.includes("Ask a crop question")) {
-    return "Write your crop question first.";
+  if (
+    message.includes('"question"') ||
+    message.includes("Ask a crop question") ||
+    message.includes("Ask a farm question")
+  ) {
+    return "Write your farm question first.";
   }
   return message.startsWith("[") ? "Crop AI could not read that request. Please try again." : message;
 }
@@ -116,7 +124,7 @@ function FarmerCropAiPage() {
     <FarmerLayout>
       <FarmerPageHeader
         title="Ask Crop AI"
-        description="Get practical crop guidance based on your crop and planting date."
+        description="Get practical guidance for seasonal planting, crop care, harvest timing, and farm planning."
       />
       <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm">
@@ -135,8 +143,8 @@ function FarmerCropAiPage() {
         ) : (
           <section className="grid overflow-hidden rounded-3xl border border-border bg-card shadow-card lg:grid-cols-[16rem_minmax(0,1fr)]">
             <aside className="border-b border-border bg-muted/20 p-4 lg:border-b-0 lg:border-r">
-              <Button className="w-full rounded-full" onClick={startNewChat}><Plus className="size-4" /> New crop question</Button>
-              <p className="mt-5 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saved questions</p>
+              <Button className="w-full rounded-full" onClick={startNewChat}><Plus className="size-4" /> New farm question</Button>
+              <p className="mt-5 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saved farm questions</p>
               <div className="mt-2 space-y-1">
                 {workspace?.conversations.map((conversation) => (
                   <button key={conversation.id} type="button" onClick={() => void openConversation(conversation)} className={`w-full rounded-2xl p-3 text-left transition-colors hover:bg-accent ${conversation.id === activeConversation?.id ? "bg-primary/10" : ""}`}>
@@ -144,20 +152,21 @@ function FarmerCropAiPage() {
                     <span className="mt-1 block truncate text-xs text-muted-foreground">{dateLabel(conversation.plantingDate)}</span>
                   </button>
                 ))}
-                {!workspace?.conversations.length && <p className="px-2 py-6 text-sm text-muted-foreground">Your saved crop questions will appear here.</p>}
+                {!workspace?.conversations.length && <p className="px-2 py-6 text-sm text-muted-foreground">Your saved farm questions will appear here.</p>}
               </div>
             </aside>
             <div className="min-w-0">
               <div className="border-b border-border px-5 py-5">
-                <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Bot className="size-5" /></span><div><h2 className="font-semibold">{activeConversation ? activeConversation.cropName : "Start a crop question"}</h2><p className="text-xs text-muted-foreground">Tell Crop AI what you planted and ask what you need to know.</p></div></div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">Crop name <span className="text-destructive">*</span><Input value={cropName} onChange={(event) => { setCropName(event.target.value); if (error) setError(null); }} placeholder="Example: Ampalaya" maxLength={160} required minLength={2} /></label><label className="grid gap-1.5 text-sm font-medium">Planting date <span className="font-normal text-muted-foreground">(optional)</span><Input type="date" value={plantingDate} onChange={(event) => setPlantingDate(event.target.value)} /></label></div>
+                <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Bot className="size-5" /></span><div><h2 className="font-semibold">{activeConversation ? activeConversation.cropName : "Start a farm question"}</h2><p className="text-xs text-muted-foreground">Ask about planting choices, crop care, harvesting, or farm planning.</p></div></div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">Crop name <span className="font-normal text-muted-foreground">(optional)</span><Input value={cropName} onChange={(event) => { setCropName(event.target.value); if (error) setError(null); }} placeholder="Example: Ampalaya (optional)" maxLength={160} /></label><label className="grid gap-1.5 text-sm font-medium">Planting date <span className="font-normal text-muted-foreground">(optional)</span><Input type="date" value={plantingDate} onChange={(event) => setPlantingDate(event.target.value)} /></label></div>
               </div>
               <div className="min-h-[22rem] space-y-4 bg-muted/10 p-5">
                 {loadingConversation ? <div className="flex justify-center pt-12 text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> Loading conversation…</div> : messages.length || pendingQuestion ? <><>{messages.map((message) => <div key={message.id} className={`flex ${message.sender === "farmer" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.sender === "farmer" ? "rounded-br-md bg-primary text-primary-foreground" : "rounded-bl-md bg-background"}`}><p className="whitespace-pre-wrap leading-relaxed">{message.message}</p><p className={`mt-2 text-[11px] ${message.sender === "farmer" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{message.sender === "farmer" ? "You" : "Crop AI"} · {new Date(message.createdAt).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })}</p></div></div>)}</>{pendingQuestion && <div className="flex justify-end"><div className="max-w-[88%] rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-sm"><p className="whitespace-pre-wrap leading-relaxed">{pendingQuestion}</p><p className="mt-2 text-[11px] text-primary-foreground/70">You · sending…</p></div></div>}{sending && <div className="flex justify-start"><div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-background px-4 py-3 text-sm text-muted-foreground shadow-sm"><LoaderCircle className="size-4 animate-spin text-primary" /> Crop AI is preparing a short answer…</div></div>}</> : <div className="flex min-h-56 flex-col items-center justify-center text-center text-sm text-muted-foreground"><Sprout className="mb-3 size-8 text-primary" />Ask about harvest timing, crop care, or what to observe in your field.</div>}
               </div>
               {error && <p className="border-t border-border bg-destructive/5 px-5 py-3 text-sm text-destructive">{error}</p>}
-              <form className="border-t border-border p-4" onSubmit={async (event) => { event.preventDefault(); if (sending) return; if (cropName.trim().length < 2) { const message = "Enter the crop name first, for example Pechay or Ampalaya."; setError(message); toast.error(message); return; } if (question.trim().length < 2) { const message = "Write your crop question first."; setError(message); toast.error(message); return; } const submittedQuestion = question.trim(); setPendingQuestion(submittedQuestion); setSending(true); try { const result = await askFarmerCropAi({ data: { conversationId: activeConversation?.id, cropName, plantingDate, question: submittedQuestion } }); setActiveConversation(result.conversation); setMessages((current) => activeConversation?.id === result.conversation.id ? [...current, ...result.messages] : result.messages); setWorkspace((current) => current ? { ...current, remainingQuestions: result.remainingQuestions, conversations: [result.conversation, ...current.conversations.filter((item) => item.id !== result.conversation.id)] } : current); setQuestion(""); setPendingQuestion(null); setError(null); } catch (reason) { const message = cropAiErrorMessage(reason); setPendingQuestion(null); setError(message); toast.error(message); } finally { setSending(false); } }}>
-                <div className="flex flex-col gap-2 sm:flex-row"><Textarea value={question} onChange={(event) => { setQuestion(event.target.value); if (error) setError(null); }} placeholder="Example: Kailan po kaya puwedeng anihin ang ampalaya ko?" rows={2} maxLength={1_000} required /><Button type="submit" className="rounded-full sm:self-end" disabled={sending || !workspace?.remainingQuestions || cropName.trim().length < 2 || question.trim().length < 2}>{sending ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />} {sending ? "Crop AI is thinking…" : "Ask Crop AI"}</Button></div>
+              <form className="border-t border-border p-4" onSubmit={async (event) => { event.preventDefault(); if (sending) return; if (question.trim().length < 2) { const message = "Write your farm question first."; setError(message); toast.error(message); return; } const submittedQuestion = question.trim(); setPendingQuestion(submittedQuestion); setSending(true); try { const result = await askFarmerCropAi({ data: { conversationId: activeConversation?.id, cropName, plantingDate, question: submittedQuestion } }); setActiveConversation(result.conversation); setMessages((current) => activeConversation?.id === result.conversation.id ? [...current, ...result.messages] : result.messages); setWorkspace((current) => current ? { ...current, remainingQuestions: result.remainingQuestions, conversations: [result.conversation, ...current.conversations.filter((item) => item.id !== result.conversation.id)] } : current); setQuestion(""); setPendingQuestion(null); setError(null); } catch (reason) { const message = cropAiErrorMessage(reason); setPendingQuestion(null); setError(message); toast.error(message); } finally { setSending(false); } }}>
+                <div className="mb-3"><p className="text-xs font-medium text-muted-foreground">Try asking</p><div className="mt-2 flex flex-wrap gap-2">{questionSuggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => { setQuestion(suggestion); if (error) setError(null); }} className="rounded-full border border-border bg-background px-3 py-1.5 text-left text-xs font-medium transition-colors hover:border-primary hover:text-primary">{suggestion}</button>)}</div></div>
+                <div className="flex flex-col gap-2 sm:flex-row"><Textarea value={question} onChange={(event) => { setQuestion(event.target.value); if (error) setError(null); }} placeholder="Example: Ano ang magandang itanim ngayong season sa Batangas?" rows={2} maxLength={1_000} required /><Button type="submit" className="rounded-full sm:self-end" disabled={sending || !workspace?.remainingQuestions || question.trim().length < 2}>{sending ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />} {sending ? "Crop AI is thinking…" : "Ask Crop AI"}</Button></div>
               </form>
             </div>
           </section>
