@@ -19,6 +19,7 @@ const askInput = cropContextInput.extend({
 type CropContext = z.infer<typeof cropContextInput>;
 type GeminiPart = { text?: unknown };
 type GeminiResponse = { candidates?: Array<{ content?: { parts?: GeminiPart[] } }> };
+type GeminiErrorResponse = { error?: { code?: unknown; status?: unknown } };
 
 function toDateTime(value: Date) {
   return value.toISOString();
@@ -140,6 +141,10 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
   if (!apiKey) {
     throw new Error("Crop AI is not configured yet. Please contact Management.");
   }
+  // Gemini 2.5 Flash is restricted for many newly created projects. Use the
+  // current Flash model by default, while still allowing a safe server-only
+  // override when Management needs to change it in Vercel.
+  const model = process.env["GEMINI_MODEL"]?.trim() || "gemini-3.8-flash";
   const contents = [
     ...history.map((entry) => ({
       role: entry.sender === "assistant" ? "model" : "user",
@@ -150,14 +155,14 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
   let response: Response;
   try {
     response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: cropSystemInstruction(context) }] },
           contents,
-          generationConfig: { temperature: 0.35, maxOutputTokens: 550 },
+          generationConfig: { maxOutputTokens: 550 },
         }),
       },
     );
@@ -165,6 +170,17 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
     throw new Error("Crop AI is temporarily unavailable. Please try again in a few minutes.");
   }
   if (!response.ok) {
+    const providerError = (await response.json().catch(() => null)) as GeminiErrorResponse | null;
+    const providerCode = typeof providerError?.error?.code === "number" ? providerError.error.code : response.status;
+    const providerStatus = typeof providerError?.error?.status === "string" ? providerError.error.status : "UNKNOWN";
+    // Never log the API key, question, crop name, or provider error body.
+    console.error("Crop AI provider request failed", { model, status: providerCode, providerStatus });
+    if (response.status === 429) {
+      throw new Error("Crop AI is busy right now. Please wait a minute, then try again.");
+    }
+    if ([400, 401, 403, 404].includes(response.status)) {
+      throw new Error("Crop AI setup needs attention. Please contact Management.");
+    }
     throw new Error("Crop AI is temporarily unavailable. Please try again in a few minutes.");
   }
   const payload = (await response.json()) as GeminiResponse;
