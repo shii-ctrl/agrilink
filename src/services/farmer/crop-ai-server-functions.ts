@@ -237,15 +237,33 @@ export const askFarmerCropAi = createServerFn({ method: "POST" })
       .limit(10);
     const answer = await askGemini(context, history.reverse(), data.question);
     const now = new Date();
-    const farmerMessage = { id: crypto.randomUUID(), sender: "farmer" as const, message: data.question, createdAt: now };
-    const assistantMessage = { id: crypto.randomUUID(), sender: "assistant" as const, message: answer, createdAt: new Date() };
-    await db.transaction(async (tx) => {
-      await tx.insert(farmerAiMessages).values([farmerMessage, assistantMessage]);
-      await tx
-        .update(farmerAiConversations)
-        .set({ cropName: context.cropName, plantingDate: normalizedPlantingDate(context.plantingDate) })
-        .where(eq(farmerAiConversations.id, conversation.id));
-    });
+    const farmerMessage = {
+      id: crypto.randomUUID(),
+      conversationId: conversation.id,
+      sender: "farmer" as const,
+      message: data.question,
+      createdAt: now,
+    };
+    const assistantMessage = {
+      id: crypto.randomUUID(),
+      conversationId: conversation.id,
+      sender: "assistant" as const,
+      message: answer,
+      createdAt: new Date(),
+    };
+    try {
+      await db.transaction(async (tx) => {
+        await tx.insert(farmerAiMessages).values([farmerMessage, assistantMessage]);
+        await tx
+          .update(farmerAiConversations)
+          .set({ cropName: context.cropName, plantingDate: normalizedPlantingDate(context.plantingDate) })
+          .where(eq(farmerAiConversations.id, conversation.id));
+      });
+    } catch {
+      // Do not return database queries or saved farmer content to the browser.
+      console.error("Crop AI conversation save failed", { conversationId: conversation.id });
+      throw new Error("Crop AI could not save this conversation. Please try again.");
+    }
     const updatedConversation = await conversationForFarmer(farmer.id, conversation.id);
     const { writeAuditLog } = await import("@/services/auth/auth-server");
     await writeAuditLog(farmer.id, "farmer_crop_ai.ask", "farmer_ai_conversation", conversation.id, {

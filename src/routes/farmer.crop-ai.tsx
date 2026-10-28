@@ -30,6 +30,9 @@ function dateLabel(value: string | null) {
 
 function cropAiErrorMessage(reason: unknown) {
   const message = reason instanceof Error ? reason.message : "Could not ask Crop AI.";
+  if (message.includes("Failed query:") || message.includes("farmer_ai_messages")) {
+    return "Crop AI could not save this conversation. Please try again.";
+  }
   if (message.includes('"cropName"') || message.includes("Enter the crop name")) {
     return "Enter the crop name first, for example Pechay or Ampalaya.";
   }
