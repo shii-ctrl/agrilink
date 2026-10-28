@@ -21,10 +21,10 @@ type GeminiPart = { text?: unknown };
 type GeminiResponse = { candidates?: Array<{ content?: { parts?: GeminiPart[] } }> };
 type GeminiErrorResponse = { error?: { code?: unknown; status?: unknown } };
 const geminiRequestTimeoutMs = 20_000;
-// Keep a stable, lightweight model as the default for the free Gemini API.
-// A model selected in Vercel can still be used first, but this fallback lets
-// Crop AI continue when that selected model is temporarily unavailable.
-const defaultGeminiModel = "gemini-2.5-flash-lite";
+// Gemini 2.5 access is restricted for new API projects. Use the current
+// lightweight models so Crop AI works for new Gemini projects too. A manual
+// Vercel model setting is still tried first when one has been configured.
+const defaultGeminiModels = ["gemini-3.5-flash-lite", "gemini-3.8-flash"] as const;
 
 function toDateTime(value: Date) {
   return value.toISOString();
@@ -147,7 +147,12 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
     throw new Error("Crop AI is not configured yet. Please contact Management.");
   }
   const configuredModel = process.env["GEMINI_MODEL"]?.trim();
-  const models = Array.from(new Set([configuredModel || defaultGeminiModel, defaultGeminiModel]));
+  const models = Array.from(
+    new Set([
+      ...(configuredModel ? [configuredModel] : []),
+      ...defaultGeminiModels,
+    ]),
+  );
   const contents = [
     ...history.map((entry) => ({
       role: entry.sender === "assistant" ? "model" : "user",
