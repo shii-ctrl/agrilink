@@ -20,6 +20,7 @@ type CropContext = z.infer<typeof cropContextInput>;
 type GeminiPart = { text?: unknown };
 type GeminiResponse = { candidates?: Array<{ content?: { parts?: GeminiPart[] } }> };
 type GeminiErrorResponse = { error?: { code?: unknown; status?: unknown } };
+const geminiRequestTimeoutMs = 20_000;
 
 function toDateTime(value: Date) {
   return value.toISOString();
@@ -153,21 +154,29 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
     { role: "user", parts: [{ text: question }] },
   ];
   let response: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), geminiRequestTimeoutMs);
   try {
     response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        signal: controller.signal,
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: cropSystemInstruction(context) }] },
           contents,
-          generationConfig: { maxOutputTokens: 320 },
+          generationConfig: { maxOutputTokens: 240 },
         }),
       },
     );
   } catch {
     throw new Error("Crop AI is temporarily unavailable. Please try again in a few minutes.");
+  } finally {
+    clearTimeout(timeout);
   }
   if (!response.ok) {
     const providerError = (await response.json().catch(() => null)) as GeminiErrorResponse | null;
@@ -178,8 +187,14 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
     if (response.status === 429) {
       throw new Error("Crop AI is busy right now. Please wait a minute, then try again.");
     }
-    if ([400, 401, 403, 404].includes(response.status)) {
-      throw new Error("Crop AI setup needs attention. Please contact Management.");
+    if ([401, 403].includes(response.status)) {
+      throw new Error("Crop AI key was rejected. Management should check the Gemini API key in Vercel and redeploy.");
+    }
+    if (response.status === 404) {
+      throw new Error("Crop AI model was not found. Management should check the Gemini model setting in Vercel.");
+    }
+    if (response.status === 400) {
+      throw new Error("Crop AI setup needs attention. Management should check the Gemini configuration in Vercel.");
     }
     throw new Error("Crop AI is temporarily unavailable. Please try again in a few minutes.");
   }

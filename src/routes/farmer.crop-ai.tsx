@@ -29,7 +29,7 @@ function dateLabel(value: string | null) {
 }
 
 function cropAiErrorMessage(reason: unknown) {
-  const message = reason instanceof Error ? reason.message : "Could not ask Crop AI.";
+  const message = cropAiErrorText(reason) ?? "Could not ask Crop AI.";
   if (message.includes("Failed query:") || message.includes("farmer_ai_messages")) {
     return "Crop AI could not save this conversation. Please try again.";
   }
@@ -40,6 +40,21 @@ function cropAiErrorMessage(reason: unknown) {
     return "Write your crop question first.";
   }
   return message.startsWith("[") ? "Crop AI could not read that request. Please try again." : message;
+}
+
+function cropAiErrorText(reason: unknown, depth = 0): string | null {
+  if (typeof reason === "string") return reason;
+  if (reason instanceof Error) return reason.message;
+  if (!reason || typeof reason !== "object" || depth >= 3) return null;
+
+  const details = reason as Record<string, unknown>;
+  if (typeof details["message"] === "string") return details["message"];
+
+  for (const key of ["data", "cause", "error"]) {
+    const nestedMessage = cropAiErrorText(details[key], depth + 1);
+    if (nestedMessage) return nestedMessage;
+  }
+  return null;
 }
 
 function FarmerCropAiPage() {
