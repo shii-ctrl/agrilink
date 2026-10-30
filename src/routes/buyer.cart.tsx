@@ -93,6 +93,7 @@ function BuyerCartPage() {
   const deliveryFee = data?.deliveryFee ?? 59;
   const deliveryEnabled = data?.deliveryEnabled ?? true;
   const [contact, setContact] = useState("");
+  const [pickupName, setPickupName] = useState("");
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [arrangementNote, setArrangementNote] = useState("");
   const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails>(emptyDeliveryDetails);
@@ -188,7 +189,7 @@ function BuyerCartPage() {
     const orderContact = fulfillment === "delivery" ? deliveryDetails.phone.trim() : contact.trim();
     const pickupNote =
       fulfillment === "pickup"
-        ? `Pickup: ${arrangementNote.trim()}`
+          ? `Pickup recipient: ${pickupName.trim()}\nPreferred pickup: ${arrangementNote.trim()}`
         : `Delivery:\n${deliveryNote(deliveryDetails)}`;
     const accepted = await requestConfirmation({
       title: "Confirm your order?",
@@ -223,10 +224,16 @@ function BuyerCartPage() {
               <dd className="text-right font-medium">{fulfillmentLabel}</dd>
             </div>
             {fulfillment === "pickup" ? (
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Pickup details</dt>
-                <dd className="max-w-48 text-right font-medium">{arrangementNote}</dd>
-              </div>
+              <>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Pickup recipient</dt>
+                  <dd className="max-w-48 text-right font-medium">{pickupName}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Pickup details</dt>
+                  <dd className="max-w-48 text-right font-medium">{arrangementNote}</dd>
+                </div>
+              </>
             ) : (
               <>
                 <div className="flex justify-between gap-4">
@@ -493,6 +500,20 @@ function BuyerCartPage() {
                   </fieldset>
                   {fulfillment === "pickup" ? (
                     <>
+                      <div className="space-y-2">
+                        <Label htmlFor="pickup-name">Name for pickup</Label>
+                        <Input
+                          id="pickup-name"
+                          name="pickupName"
+                          value={pickupName}
+                          onChange={(event) => setPickupName(event.target.value)}
+                          placeholder="Full name of the person who will pick up"
+                          autoComplete="name"
+                          minLength={2}
+                          maxLength={160}
+                          required
+                        />
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="contact">Contact number</Label>
                         <Input
