@@ -20,18 +20,27 @@ const registrationInput = z.object({
     ),
   password: securePassword,
 });
-const httpsImageUrl = z
+const profileImage = z
   .string()
   .trim()
-  .url()
-  .max(500)
-  .refine((value) => new URL(value).protocol === "https:", {
-    message: "Use an HTTPS image URL.",
-  });
+  .max(500_000, "Profile photo is too large.")
+  .refine(
+    (value) => {
+      if (value.startsWith("https://")) {
+        try {
+          return new URL(value).protocol === "https:";
+        } catch {
+          return false;
+        }
+      }
+      return /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
+    },
+    { message: "Choose a JPG, PNG, or WebP profile photo." },
+  );
 const profileInput = z.object({
   displayName: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80).nullable(),
-  avatarUrl: httpsImageUrl.nullable(),
+  avatarUrl: profileImage.nullable(),
 });
 const strongPassword = securePassword;
 const changePasswordInput = z.object({

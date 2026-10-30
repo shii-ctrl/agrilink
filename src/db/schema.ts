@@ -39,7 +39,7 @@ export const users = mysqlTable(
     passwordHash: varchar("password_hash", { length: 255 }).notNull(),
     displayName: varchar("display_name", { length: 160 }).notNull(),
     contact: varchar("contact", { length: 80 }),
-    avatarUrl: varchar("avatar_url", { length: 500 }),
+    avatarUrl: mediumtext("avatar_url"),
     active: boolean("active").default(true).notNull(),
     createdAt,
     updatedAt,

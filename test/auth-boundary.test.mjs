@@ -22,7 +22,7 @@ test("Buyer self-registration is username-only and keeps email optional", async 
 
   const registration = authFunctions.slice(
     authFunctions.indexOf("const registrationInput"),
-    authFunctions.indexOf("const httpsImageUrl"),
+    authFunctions.indexOf("const profileImage"),
   );
   assert.match(registration, /username: z/);
   assert.match(authFunctions, /email: null,/);
@@ -154,7 +154,7 @@ test("production responses set browser security headers", async () => {
   assert.match(server, /Cache-Control/, "HTML account pages should not be cached");
 });
 
-test("profile photos use optional HTTPS links and Management controls are audited", async () => {
+test("profile photos accept secure external URLs or cropped local uploads and Management controls are audited", async () => {
   const [authFunctions, adminFunctions, schema, migration] = await Promise.all([
     readFile("src/services/auth/auth-functions.ts", "utf8"),
     readFile("src/services/auth/admin-server-functions.ts", "utf8"),
@@ -162,10 +162,11 @@ test("profile photos use optional HTTPS links and Management controls are audite
     readFile("drizzle/0009_user_profile_photos.sql", "utf8"),
   ]);
 
-  assert.match(authFunctions, /const httpsImageUrl/);
+  assert.match(authFunctions, /const profileImage/);
   assert.match(authFunctions, /protocol === "https:"/);
-  assert.match(authFunctions, /avatarUrl: httpsImageUrl\.nullable\(\)/);
-  assert.match(schema, /avatarUrl: varchar\("avatar_url"/);
+  assert.match(authFunctions, /data:image\\\/jpeg;base64/);
+  assert.match(authFunctions, /avatarUrl: profileImage\.nullable\(\)/);
+  assert.match(schema, /avatarUrl: mediumtext\("avatar_url"\)/);
   assert.match(migration, /ADD COLUMN avatar_url/);
   assert.match(adminFunctions, /export const setManagedUserActive/);
   assert.match(adminFunctions, /Keep at least one active Management account/);
