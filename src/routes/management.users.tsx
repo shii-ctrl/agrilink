@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { History, Power, Search, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { History, ImageOff, Power, Search, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { Button } from "@/components/ui/button";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import { AppSelect } from "@/components/ui/app-select";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import {
   getManagementAuditLogs,
   getManagementUsers,
   resetManagedUserPassword,
+  removeManagedUserAvatar,
   setManagedUserActive,
 } from "@/services/auth/admin-server-functions";
 import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
@@ -35,13 +37,7 @@ export const Route = createFileRoute("/management/users")({
   component: ManagementUsersPage,
 });
 
-const roles = [
-  "Management",
-  "Marketer",
-  "Accounting",
-  "Farmer",
-  "Rider",
-] as const;
+const roles = ["Management", "Marketer", "Accounting", "Farmer", "Rider"] as const;
 const userRoleFilters = [
   "All",
   "Buyer",
@@ -91,10 +87,7 @@ function ManagementUsersPage() {
   const [userSearch, setUserSearch] = useState("");
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const loadManagementData = useCallback(async () => {
-    const [users, auditLogs] = await Promise.all([
-      getManagementUsers(),
-      getManagementAuditLogs(),
-    ]);
+    const [users, auditLogs] = await Promise.all([getManagementUsers(), getManagementAuditLogs()]);
     return { users, auditLogs };
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(loadManagementData);
@@ -215,7 +208,16 @@ function ManagementUsersPage() {
                       <tbody>
                         {usersPage.pageItems.map((user) => (
                           <tr key={user.id} className="border-b border-border last:border-0">
-                            <td className="px-6 py-4 font-medium">{user.name}</td>
+                            <td className="px-6 py-4 font-medium">
+                              <div className="flex items-center gap-3">
+                                <ProfileAvatar
+                                  name={user.name}
+                                  avatarUrl={user.avatarUrl}
+                                  className="size-9"
+                                />
+                                <span>{user.name}</span>
+                              </div>
+                            </td>
                             <td className="px-6 py-4 text-muted-foreground">{user.contact}</td>
                             <td className="px-6 py-4">{user.role}</td>
                             <td className="px-6 py-4 text-primary">
@@ -223,6 +225,45 @@ function ManagementUsersPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-2">
+                                {user.avatarUrl && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-full"
+                                    onClick={async () => {
+                                      if (
+                                        !(await requestConfirmation({
+                                          title: `Remove ${user.name}'s profile photo?`,
+                                          description:
+                                            "Their initials will be shown instead. They can upload a new photo later.",
+                                          confirmLabel: "Remove photo",
+                                          destructive: true,
+                                        }))
+                                      ) {
+                                        return;
+                                      }
+                                      try {
+                                        await removeManagedUserAvatar({
+                                          data: { userId: user.id },
+                                        });
+                                        await reload();
+                                        toast.success(
+                                          "Profile photo removed and activity recorded.",
+                                        );
+                                      } catch (error) {
+                                        toast.error("Profile photo could not be removed", {
+                                          description:
+                                            error instanceof Error
+                                              ? error.message
+                                              : "Please try again.",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <ImageOff /> Remove photo
+                                  </Button>
+                                )}
                                 <Button
                                   type="button"
                                   size="sm"
@@ -618,4 +659,5 @@ type ManagementUser = {
   email: string | null;
   active: boolean;
   role: string;
+  avatarUrl: string | null;
 };

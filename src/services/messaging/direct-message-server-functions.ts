@@ -87,6 +87,7 @@ async function contactsForViewer(viewer: MessagingUser): Promise<Contact[]> {
       id: users.id,
       name: users.displayName,
       avatarUrl: users.avatarUrl,
+      avatarVisibility: users.avatarVisibility,
       role: roles.name,
     })
     .from(users)
@@ -100,7 +101,7 @@ async function contactsForViewer(viewer: MessagingUser): Promise<Contact[]> {
       id: row.id,
       name: row.name,
       role: "AgriLink member",
-      avatarUrl: row.avatarUrl,
+      avatarUrl: row.avatarVisibility === "hidden" ? null : row.avatarUrl,
       roles: [],
       // Buyers cannot begin a new thread, but they may reply after a permitted
       // marketplace user has contacted them. This keeps Buyer messaging private

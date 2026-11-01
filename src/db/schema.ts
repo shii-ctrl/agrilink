@@ -40,6 +40,7 @@ export const users = mysqlTable(
     displayName: varchar("display_name", { length: 160 }).notNull(),
     contact: varchar("contact", { length: 80 }),
     avatarUrl: mediumtext("avatar_url"),
+    avatarVisibility: varchar("avatar_visibility", { length: 32 }).default("everyone").notNull(),
     active: boolean("active").default(true).notNull(),
     createdAt,
     updatedAt,

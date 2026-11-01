@@ -29,7 +29,7 @@ import {
   updateCommunityMessage,
 } from "@/services/messaging/community-server-functions";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,18 +57,6 @@ type CommunityCommentCardProps = {
   children?: ReactNode;
 };
 
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase() || "A"
-  );
-}
-
 function CommunityAvatar({
   name,
   avatarUrl,
@@ -78,18 +66,7 @@ function CommunityAvatar({
   avatarUrl: string | null;
   className?: string;
 }) {
-  return (
-    <Avatar className={`shrink-0 ${className}`}>
-      <AvatarImage
-        src={avatarUrl ?? undefined}
-        alt={`${name} profile photo`}
-        className="object-cover"
-      />
-      <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
-        {initials(name)}
-      </AvatarFallback>
-    </Avatar>
-  );
+  return <ProfileAvatar name={name} avatarUrl={avatarUrl} className={className} />;
 }
 
 function CommunityCommentCard({

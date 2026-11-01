@@ -86,3 +86,8 @@ test("catalog integrity recovery preserves duplicate legacy products before addi
   assert.match(runner, /\[legacy \$\{product\.id\}\]/);
   assert.match(runner, /ORDER BY created_at ASC, id ASC/);
 });
+
+test("Vercel applies checked migrations before building production code", async () => {
+  const config = JSON.parse(await readFile("vercel.json", "utf8"));
+  assert.equal(config.buildCommand, "npm run db:migrate && npm run build");
+});

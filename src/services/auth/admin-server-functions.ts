@@ -25,6 +25,9 @@ const setUserActiveInput = z.object({
 const deleteUserInput = z.object({
   userId: z.string().uuid(),
 });
+const removeUserAvatarInput = z.object({
+  userId: z.string().uuid(),
+});
 const bootstrapInput = createUserInput
   .pick({ name: true, contact: true, email: true, password: true })
   .extend({
@@ -103,12 +106,33 @@ export const getManagementUsers = createServerFn({ method: "GET" }).handler(asyn
       email: users.email,
       active: users.active,
       role: roles.name,
+      avatarUrl: users.avatarUrl,
     })
     .from(users)
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(userRoles.roleId, roles.id))
     .orderBy(asc(users.displayName));
 });
+
+export const removeManagedUserAvatar = createServerFn({ method: "POST" })
+  .validator(removeUserAvatarInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Management");
+    const { db } = await import("@/db/client.server");
+    const { users } = await import("@/db/schema");
+    const [target] = await db
+      .select({ id: users.id, name: users.displayName, avatarUrl: users.avatarUrl })
+      .from(users)
+      .where(eq(users.id, data.userId));
+    if (!target) throw new Error("The selected account no longer exists.");
+    if (!target.avatarUrl) return { removed: false };
+    await db.update(users).set({ avatarUrl: null }).where(eq(users.id, data.userId));
+    await writeAuditLog(actor.id, "user.avatar.remove", "user", data.userId, {
+      name: target.name,
+    });
+    return { removed: true };
+  });
 
 export const setManagedUserActive = createServerFn({ method: "POST" })
   .validator(setUserActiveInput)

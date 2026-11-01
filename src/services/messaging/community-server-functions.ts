@@ -94,6 +94,7 @@ async function communityMessagesForViewer(
       authorId: communityMessages.authorId,
       author: users.displayName,
       authorAvatarUrl: users.avatarUrl,
+      authorAvatarVisibility: users.avatarVisibility,
     })
     .from(communityMessages)
     .innerJoin(users, eq(communityMessages.authorId, users.id))
@@ -134,6 +135,7 @@ async function communityMessagesForViewer(
         createdAt: communityComments.createdAt,
         author: users.displayName,
         authorAvatarUrl: users.avatarUrl,
+        authorAvatarVisibility: users.avatarVisibility,
       })
       .from(communityComments)
       .innerJoin(users, eq(communityComments.authorId, users.id))
@@ -210,7 +212,10 @@ async function communityMessagesForViewer(
       parentCommentId: comment.parentCommentId,
       isOwner: comment.authorId === viewer.id,
       author: comment.author,
-      authorAvatarUrl: comment.authorAvatarUrl,
+      authorAvatarUrl:
+        comment.authorId === viewer.id || comment.authorAvatarVisibility !== "hidden"
+          ? comment.authorAvatarUrl
+          : null,
       time: comment.createdAt.toISOString(),
       reactions: reactionsByCommentId.get(comment.id) ?? {
         likes: 0,
@@ -227,7 +232,10 @@ async function communityMessagesForViewer(
       isOwner: message.authorId === viewer.id,
       message: message.message,
       author: message.author,
-      authorAvatarUrl: message.authorAvatarUrl,
+      authorAvatarUrl:
+        message.authorId === viewer.id || message.authorAvatarVisibility !== "hidden"
+          ? message.authorAvatarUrl
+          : null,
       role: roleByUserId.get(message.authorId) ?? "Community member",
       time: message.createdAt.toISOString(),
       reactions: reactionsByMessageId.get(message.id) ?? {

@@ -155,13 +155,16 @@ test("production responses set browser security headers", async () => {
 });
 
 test("profile photos accept secure external URLs or cropped local uploads and Management controls are audited", async () => {
-  const [authFunctions, adminFunctions, schema, migration, profile] = await Promise.all([
-    readFile("src/services/auth/auth-functions.ts", "utf8"),
-    readFile("src/services/auth/admin-server-functions.ts", "utf8"),
-    readFile("src/db/schema.ts", "utf8"),
-    readFile("drizzle/0009_user_profile_photos.sql", "utf8"),
-    readFile("src/features/auth/components/live-profile.tsx", "utf8"),
-  ]);
+  const [authFunctions, adminFunctions, schema, migration, privacyMigration, profile, avatar] =
+    await Promise.all([
+      readFile("src/services/auth/auth-functions.ts", "utf8"),
+      readFile("src/services/auth/admin-server-functions.ts", "utf8"),
+      readFile("src/db/schema.ts", "utf8"),
+      readFile("drizzle/0009_user_profile_photos.sql", "utf8"),
+      readFile("drizzle/0025_profile_photo_privacy.sql", "utf8"),
+      readFile("src/features/auth/components/live-profile.tsx", "utf8"),
+      readFile("src/components/profile-avatar.tsx", "utf8"),
+    ]);
 
   assert.match(authFunctions, /const profileImage/);
   assert.match(authFunctions, /protocol === "https:"/);
@@ -169,15 +172,25 @@ test("profile photos accept secure external URLs or cropped local uploads and Ma
   assert.match(authFunctions, /avatarUrl: profileImage\.nullable\(\)/);
   assert.match(schema, /avatarUrl: mediumtext\("avatar_url"\)/);
   assert.match(migration, /ADD COLUMN avatar_url/);
+  assert.match(privacyMigration, /ADD COLUMN avatar_visibility/);
+  assert.match(authFunctions, /Profile photo must be 200 KB or smaller/);
+  assert.match(authFunctions, /avatarVisibility/);
   assert.match(profile, /Crop your profile photo/);
   assert.match(profile, /onPointerMove={moveCrop}/);
   assert.match(profile, /Rotate left/);
   assert.match(profile, /Apply crop/);
-  assert.match(profile, /canvas\.toDataURL\("image\/jpeg", 0\.84\)/);
+  assert.match(profile, /maximumSavedAvatarBytes = 200 \* 1024/);
+  assert.match(profile, /canvas\.toDataURL\("image\/jpeg", quality\)/);
+  assert.match(profile, /capture="user"/);
+  assert.match(profile, /Who can see your profile photo/);
+  assert.match(avatar, /onLoadingStatusChange/);
+  assert.match(avatar, /profile photo enlarged/);
   assert.match(adminFunctions, /export const setManagedUserActive/);
   assert.match(adminFunctions, /Keep at least one active Management account/);
   assert.match(adminFunctions, /user\.deactivate/);
   assert.match(adminFunctions, /export const getManagementAuditLogs/);
+  assert.match(adminFunctions, /export const removeManagedUserAvatar/);
+  assert.match(adminFunctions, /user\.avatar\.remove/);
 });
 
 test("marketplace cart controls prevent duplicate additions beyond available stock", async () => {

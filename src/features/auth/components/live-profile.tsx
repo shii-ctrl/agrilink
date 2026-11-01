@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  Camera,
   Crop,
   ImagePlus,
   RefreshCcw,
@@ -42,6 +43,7 @@ import { CommunityFeed } from "@/features/messaging/components/community-feed";
 const acceptedAvatarTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const maximumAvatarSize = 10 * 1024 * 1024;
 const croppedAvatarSize = 320;
+const maximumSavedAvatarBytes = 200 * 1024;
 
 type AvatarDraft = {
   source: string;
@@ -172,7 +174,13 @@ async function cropAvatar(draft: AvatarDraft) {
     geometry.imageHeight,
   );
   context.restore();
-  return canvas.toDataURL("image/jpeg", 0.84);
+  for (const quality of [0.84, 0.76, 0.68, 0.6, 0.52, 0.44]) {
+    const result = canvas.toDataURL("image/jpeg", quality);
+    const base64 = result.split(",")[1] ?? "";
+    const bytes = Math.ceil((base64.length * 3) / 4);
+    if (bytes <= maximumSavedAvatarBytes) return result;
+  }
+  throw new Error("This photo could not be compressed below 200 KB. Try another photo.");
 }
 
 export function LiveProfile({
@@ -187,9 +195,11 @@ export function LiveProfile({
   const [avatarDraft, setAvatarDraft] = useState<AvatarDraft | null>(null);
   const [cropDraft, setCropDraft] = useState<AvatarDraft | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
+  const [avatarVisibility, setAvatarVisibility] = useState("everyone");
   const [cropSize, setCropSize] = useState(croppedAvatarSize);
   const [dragging, setDragging] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const cropAreaRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -202,6 +212,7 @@ export function LiveProfile({
     void getCurrentSessionUser().then((user) => {
       setAccount(user);
       setAvatarUrl(user?.avatarUrl ?? null);
+      setAvatarVisibility(user?.avatarVisibility ?? "everyone");
     });
   }, []);
 
@@ -319,10 +330,13 @@ export function LiveProfile({
           displayName: String(formData.get("displayName") ?? ""),
           contact: String(formData.get("contact") ?? "").trim() || null,
           avatarUrl: nextAvatarUrl,
+          avatarVisibility: String(formData.get("avatarVisibility") ?? "everyone") as
+            "everyone" | "members" | "community_messages" | "hidden",
         },
       });
       setAccount(saved);
       setAvatarUrl(saved.avatarUrl);
+      setAvatarVisibility(saved.avatarVisibility);
       setAvatarDraft(null);
       window.dispatchEvent(
         new CustomEvent("agrilink:profile-updated", {
@@ -421,6 +435,15 @@ export function LiveProfile({
                     <ImagePlus className="mr-2 size-4" />
                     {avatarUrl || avatarDraft ? "Replace photo" : "Choose photo"}
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => cameraInputRef.current?.click()}
+                  >
+                    <Camera className="mr-2 size-4" />
+                    Take photo
+                  </Button>
                   {(avatarUrl || avatarDraft) && (
                     <Button
                       type="button"
@@ -457,6 +480,14 @@ export function LiveProfile({
                     accept="image/jpeg,image/png,image/webp"
                     onChange={chooseAvatar}
                   />
+                  <Input
+                    ref={cameraInputRef}
+                    className="sr-only"
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    onChange={chooseAvatar}
+                  />
                 </div>
                 {avatarDraft && (
                   <p className="text-sm text-primary">
@@ -465,7 +496,27 @@ export function LiveProfile({
                 )}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">JPG, PNG, or WebP up to 10 MB.</p>
+            <p className="text-xs text-muted-foreground">
+              JPG, PNG, or WebP up to 10 MB. Saved photos are compressed to 200 KB or less.
+            </p>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="avatar-visibility">Who can see your profile photo?</Label>
+            <select
+              id="avatar-visibility"
+              name="avatarVisibility"
+              value={avatarVisibility}
+              onChange={(event) => setAvatarVisibility(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:max-w-md"
+            >
+              <option value="everyone">Everyone</option>
+              <option value="members">Signed-in AgriLink members</option>
+              <option value="community_messages">Community and private messages only</option>
+              <option value="hidden">Only me</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Your initials are shown anywhere your photo is hidden.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="profile-email">Email</Label>

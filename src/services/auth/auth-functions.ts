@@ -23,7 +23,7 @@ const registrationInput = z.object({
 const profileImage = z
   .string()
   .trim()
-  .max(500_000, "Profile photo is too large.")
+  .max(280_000, "Profile photo is too large.")
   .refine(
     (value) => {
       if (value.startsWith("https://")) {
@@ -36,11 +36,19 @@ const profileImage = z
       return /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
     },
     { message: "Choose a JPG, PNG, or WebP profile photo." },
+  )
+  .refine(
+    (value) =>
+      !value.startsWith("data:") ||
+      Math.ceil(((value.split(",")[1]?.length ?? 0) * 3) / 4) <= 200 * 1024,
+    { message: "Profile photo must be 200 KB or smaller." },
   );
+const avatarVisibility = z.enum(["everyone", "members", "community_messages", "hidden"]);
 const profileInput = z.object({
   displayName: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80).nullable(),
   avatarUrl: profileImage.nullable(),
+  avatarVisibility,
 });
 const strongPassword = securePassword;
 const changePasswordInput = z.object({
@@ -131,6 +139,7 @@ export const updateCurrentProfile = createServerFn({ method: "POST" })
         displayName: data.displayName,
         contact: data.contact,
         avatarUrl: data.avatarUrl,
+        avatarVisibility: data.avatarVisibility,
       })
       .where(eq(users.id, user.id));
     await writeAuditLog(user.id, "user.profile.update", "user", user.id);
@@ -139,6 +148,7 @@ export const updateCurrentProfile = createServerFn({ method: "POST" })
       displayName: data.displayName,
       contact: data.contact,
       avatarUrl: data.avatarUrl,
+      avatarVisibility: data.avatarVisibility,
     };
   });
 

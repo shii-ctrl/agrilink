@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -16,36 +16,22 @@ type Workspace = Awaited<ReturnType<typeof getDirectMessageWorkspace>>;
 type Contact = Workspace["contacts"][number];
 type ConversationMessage = Awaited<ReturnType<typeof getDirectConversation>>[number];
 
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase() || "A"
-  );
-}
-
 function ContactAvatar({
   contact,
   className = "size-9",
+  viewable = true,
 }: {
   contact: Pick<Contact, "name" | "avatarUrl">;
   className?: string;
+  viewable?: boolean;
 }) {
   return (
-    <Avatar className={`shrink-0 ${className}`}>
-      <AvatarImage
-        src={contact.avatarUrl ?? undefined}
-        alt={`${contact.name} profile photo`}
-        className="object-cover"
-      />
-      <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
-        {initials(contact.name)}
-      </AvatarFallback>
-    </Avatar>
+    <ProfileAvatar
+      name={contact.name}
+      avatarUrl={contact.avatarUrl}
+      className={className}
+      viewable={viewable}
+    />
   );
 }
 
@@ -179,7 +165,7 @@ export function DirectMessagesPanel() {
                     contact.id === selectedContactId ? "bg-primary/10" : ""
                   }`}
                 >
-                  <ContactAvatar contact={contact} />
+                  <ContactAvatar contact={contact} viewable={false} />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold">{contact.name}</span>
                     <span className="block truncate text-xs text-muted-foreground">
