@@ -1,8 +1,34 @@
-import { BadgeCheck, ImagePlus, Trash2, UserRound } from "lucide-react";
-import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from "react";
+import {
+  BadgeCheck,
+  Crop,
+  ImagePlus,
+  RefreshCcw,
+  RotateCcw,
+  RotateCw,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+  type WheelEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,19 +48,31 @@ type AvatarDraft = {
   width: number;
   height: number;
   zoom: number;
-  horizontal: number;
-  vertical: number;
+  offsetX: number;
+  offsetY: number;
+  rotation: number;
 };
 
-function avatarPlacement(draft: AvatarDraft, size: number) {
-  const scale = Math.max(size / draft.width, size / draft.height) * draft.zoom;
-  const width = draft.width * scale;
-  const height = draft.height * scale;
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function avatarGeometry(draft: AvatarDraft, size: number) {
+  const sideways = Math.abs(draft.rotation % 180) === 90;
+  const rotatedWidth = sideways ? draft.height : draft.width;
+  const rotatedHeight = sideways ? draft.width : draft.height;
+  const scale = Math.max(size / rotatedWidth, size / rotatedHeight) * draft.zoom;
+  const boundsWidth = rotatedWidth * scale;
+  const boundsHeight = rotatedHeight * scale;
+  const maximumX = Math.max(0, (boundsWidth - size) / 2);
+  const maximumY = Math.max(0, (boundsHeight - size) / 2);
   return {
-    width,
-    height,
-    left: (size - width) * (draft.horizontal / 100),
-    top: (size - height) * (draft.vertical / 100),
+    imageWidth: draft.width * scale,
+    imageHeight: draft.height * scale,
+    maximumX,
+    maximumY,
+    x: clamp(draft.offsetX, -1, 1) * maximumX,
+    y: clamp(draft.offsetY, -1, 1) * maximumY,
   };
 }
 
@@ -60,19 +98,36 @@ function AvatarPreview({
     );
   }
 
-  const placement = draft ? avatarPlacement(draft, size) : undefined;
+  const geometry = draft ? avatarGeometry(draft, size) : undefined;
   return (
     <span
       className={`relative block shrink-0 overflow-hidden bg-muted ${className ?? ""}`}
       style={{ width: size, height: size }}
     >
-      <img
-        src={draft?.source ?? avatarUrl ?? ""}
-        alt="Profile preview"
-        className={draft ? "absolute max-w-none" : "size-full object-cover"}
-        style={placement}
-        referrerPolicy="no-referrer"
-      />
+      {draft && geometry ? (
+        <span
+          className="absolute left-1/2 top-1/2 block"
+          style={{
+            width: geometry.imageWidth,
+            height: geometry.imageHeight,
+            transform: `translate(-50%, -50%) translate(${geometry.x}px, ${geometry.y}px)`,
+          }}
+        >
+          <img
+            src={draft.source}
+            alt="Profile preview"
+            className="size-full max-w-none"
+            style={{ transform: `rotate(${draft.rotation}deg)` }}
+          />
+        </span>
+      ) : (
+        <img
+          src={avatarUrl ?? ""}
+          alt="Profile preview"
+          className="size-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+      )}
     </span>
   );
 }
@@ -90,7 +145,7 @@ async function readAvatar(file: File): Promise<AvatarDraft> {
     image.onerror = () => reject(new Error("The selected photo could not be opened."));
     image.src = source;
   });
-  return { ...dimensions, source, zoom: 1, horizontal: 50, vertical: 50 };
+  return { ...dimensions, source, zoom: 1, offsetX: 0, offsetY: 0, rotation: 0 };
 }
 
 async function cropAvatar(draft: AvatarDraft) {
@@ -105,8 +160,18 @@ async function cropAvatar(draft: AvatarDraft) {
   canvas.height = croppedAvatarSize;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Your browser could not crop this photo.");
-  const placement = avatarPlacement(draft, croppedAvatarSize);
-  context.drawImage(image, placement.left, placement.top, placement.width, placement.height);
+  const geometry = avatarGeometry(draft, croppedAvatarSize);
+  context.save();
+  context.translate(croppedAvatarSize / 2 + geometry.x, croppedAvatarSize / 2 + geometry.y);
+  context.rotate((draft.rotation * Math.PI) / 180);
+  context.drawImage(
+    image,
+    -geometry.imageWidth / 2,
+    -geometry.imageHeight / 2,
+    geometry.imageWidth,
+    geometry.imageHeight,
+  );
+  context.restore();
   return canvas.toDataURL("image/jpeg", 0.84);
 }
 
@@ -120,13 +185,35 @@ export function LiveProfile({
   const [account, setAccount] = useState<Awaited<ReturnType<typeof getCurrentSessionUser>>>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarDraft, setAvatarDraft] = useState<AvatarDraft | null>(null);
+  const [cropDraft, setCropDraft] = useState<AvatarDraft | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropSize, setCropSize] = useState(croppedAvatarSize);
+  const [dragging, setDragging] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const cropAreaRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
   useEffect(() => {
     void getCurrentSessionUser().then((user) => {
       setAccount(user);
       setAvatarUrl(user?.avatarUrl ?? null);
     });
   }, []);
+
+  useEffect(() => {
+    const cropArea = cropAreaRef.current;
+    if (!cropArea || !cropOpen) return;
+    const measure = () => setCropSize(cropArea.getBoundingClientRect().width || croppedAvatarSize);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(cropArea);
+    return () => observer.disconnect();
+  }, [cropOpen]);
 
   async function chooseAvatar(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -141,7 +228,8 @@ export function LiveProfile({
       return;
     }
     try {
-      setAvatarDraft(await readAvatar(file));
+      setCropDraft(await readAvatar(file));
+      setCropOpen(true);
     } catch (error) {
       toast.error("Photo could not be opened", {
         description: error instanceof Error ? error.message : undefined,
@@ -149,8 +237,75 @@ export function LiveProfile({
     }
   }
 
-  function updateAvatarDraft(change: Partial<AvatarDraft>) {
-    setAvatarDraft((current) => (current ? { ...current, ...change } : current));
+  function updateCropDraft(change: Partial<AvatarDraft>) {
+    setCropDraft((current) => (current ? { ...current, ...change } : current));
+  }
+
+  function beginDrag(event: PointerEvent<HTMLDivElement>) {
+    if (!cropDraft) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: cropDraft.offsetX,
+      offsetY: cropDraft.offsetY,
+    };
+    setDragging(true);
+  }
+
+  function moveCrop(event: PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!cropDraft || !drag || drag.pointerId !== event.pointerId) return;
+    const geometry = avatarGeometry(cropDraft, cropSize);
+    updateCropDraft({
+      offsetX:
+        geometry.maximumX > 0
+          ? clamp(drag.offsetX + (event.clientX - drag.startX) / geometry.maximumX, -1, 1)
+          : 0,
+      offsetY:
+        geometry.maximumY > 0
+          ? clamp(drag.offsetY + (event.clientY - drag.startY) / geometry.maximumY, -1, 1)
+          : 0,
+    });
+  }
+
+  function endDrag(event: PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setDragging(false);
+  }
+
+  function zoomCrop(nextZoom: number) {
+    updateCropDraft({ zoom: clamp(nextZoom, 1, 3) });
+  }
+
+  function handleCropWheel(event: WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    if (cropDraft) zoomCrop(cropDraft.zoom - event.deltaY * 0.0015);
+  }
+
+  function handleCropKeys(event: KeyboardEvent<HTMLDivElement>) {
+    if (!cropDraft) return;
+    const movement = event.shiftKey ? 0.1 : 0.025;
+    const changes: Partial<AvatarDraft> = {};
+    if (event.key === "ArrowLeft") changes.offsetX = clamp(cropDraft.offsetX - movement, -1, 1);
+    if (event.key === "ArrowRight") changes.offsetX = clamp(cropDraft.offsetX + movement, -1, 1);
+    if (event.key === "ArrowUp") changes.offsetY = clamp(cropDraft.offsetY - movement, -1, 1);
+    if (event.key === "ArrowDown") changes.offsetY = clamp(cropDraft.offsetY + movement, -1, 1);
+    if (Object.keys(changes).length) {
+      event.preventDefault();
+      updateCropDraft(changes);
+    }
+  }
+
+  function rotateCrop(amount: number) {
+    if (!cropDraft) return;
+    updateCropDraft({
+      rotation: (cropDraft.rotation + amount + 360) % 360,
+      offsetX: 0,
+      offsetY: 0,
+    });
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -274,10 +429,25 @@ export function LiveProfile({
                       onClick={() => {
                         setAvatarUrl(null);
                         setAvatarDraft(null);
+                        setCropDraft(null);
                       }}
                     >
                       <Trash2 className="mr-2 size-4" />
                       Remove
+                    </Button>
+                  )}
+                  {avatarDraft && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => {
+                        setCropDraft({ ...avatarDraft });
+                        setCropOpen(true);
+                      }}
+                    >
+                      <Crop className="mr-2 size-4" />
+                      Adjust crop
                     </Button>
                   )}
                   <Input
@@ -289,48 +459,9 @@ export function LiveProfile({
                   />
                 </div>
                 {avatarDraft && (
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <label className="space-y-2 text-sm font-medium">
-                      Zoom
-                      <input
-                        type="range"
-                        min="1"
-                        max="3"
-                        step="0.01"
-                        value={avatarDraft.zoom}
-                        onChange={(event) =>
-                          updateAvatarDraft({ zoom: Number(event.target.value) })
-                        }
-                        className="w-full accent-primary"
-                      />
-                    </label>
-                    <label className="space-y-2 text-sm font-medium">
-                      Move left / right
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={avatarDraft.horizontal}
-                        onChange={(event) =>
-                          updateAvatarDraft({ horizontal: Number(event.target.value) })
-                        }
-                        className="w-full accent-primary"
-                      />
-                    </label>
-                    <label className="space-y-2 text-sm font-medium">
-                      Move up / down
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={avatarDraft.vertical}
-                        onChange={(event) =>
-                          updateAvatarDraft({ vertical: Number(event.target.value) })
-                        }
-                        className="w-full accent-primary"
-                      />
-                    </label>
-                  </div>
+                  <p className="text-sm text-primary">
+                    Crop ready. Save changes to update your profile everywhere.
+                  </p>
                 )}
               </div>
             </div>
@@ -406,6 +537,110 @@ export function LiveProfile({
           <CommunityFeed title="My Community posts" scope="mine" showComposer={false} />
         </div>
       )}
+      <Dialog
+        open={cropOpen}
+        onOpenChange={(open) => {
+          setCropOpen(open);
+          if (!open) {
+            dragRef.current = null;
+            setDragging(false);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[95vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Crop your profile photo</DialogTitle>
+            <DialogDescription>
+              Drag the photo to reposition it. Use the slider or mouse wheel to zoom.
+            </DialogDescription>
+          </DialogHeader>
+          {cropDraft && (
+            <div className="space-y-5">
+              <div className="mx-auto w-full max-w-[360px] rounded-3xl bg-foreground/90 p-3 shadow-inner">
+                <div
+                  ref={cropAreaRef}
+                  role="application"
+                  tabIndex={0}
+                  aria-label="Profile photo crop area. Drag or use arrow keys to reposition."
+                  className={`relative aspect-square w-full touch-none select-none overflow-hidden rounded-full bg-muted outline-none ring-2 ring-background focus-visible:ring-primary ${
+                    dragging ? "cursor-grabbing" : "cursor-grab"
+                  }`}
+                  onPointerDown={beginDrag}
+                  onPointerMove={moveCrop}
+                  onPointerUp={endDrag}
+                  onPointerCancel={endDrag}
+                  onWheel={handleCropWheel}
+                  onKeyDown={handleCropKeys}
+                >
+                  <AvatarPreview
+                    avatarUrl={null}
+                    draft={cropDraft}
+                    size={cropSize}
+                    className="absolute inset-0 rounded-full"
+                  />
+                  <span className="pointer-events-none absolute inset-x-0 top-1/3 border-t border-white/35" />
+                  <span className="pointer-events-none absolute inset-x-0 top-2/3 border-t border-white/35" />
+                  <span className="pointer-events-none absolute inset-y-0 left-1/3 border-l border-white/35" />
+                  <span className="pointer-events-none absolute inset-y-0 left-2/3 border-l border-white/35" />
+                  <span className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-white/70" />
+                </div>
+              </div>
+              <label className="block space-y-2 text-sm font-medium">
+                <span className="flex items-center justify-between">
+                  <span>Zoom</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {Math.round(cropDraft.zoom * 100)}%
+                  </span>
+                </span>
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.01"
+                  value={cropDraft.zoom}
+                  onChange={(event) => zoomCrop(Number(event.target.value))}
+                  className="w-full accent-primary"
+                />
+              </label>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button type="button" variant="outline" onClick={() => rotateCrop(-90)}>
+                  <RotateCcw className="mr-2 size-4" />
+                  Rotate left
+                </Button>
+                <Button type="button" variant="outline" onClick={() => rotateCrop(90)}>
+                  <RotateCw className="mr-2 size-4" />
+                  Rotate right
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => updateCropDraft({ zoom: 1, offsetX: 0, offsetY: 0, rotation: 0 })}
+                >
+                  <RefreshCcw className="mr-2 size-4" />
+                  Reset
+                </Button>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCropOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!cropDraft}
+              onClick={() => {
+                if (!cropDraft) return;
+                setAvatarDraft({ ...cropDraft });
+                setCropOpen(false);
+              }}
+            >
+              <Crop className="mr-2 size-4" />
+              Apply crop
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

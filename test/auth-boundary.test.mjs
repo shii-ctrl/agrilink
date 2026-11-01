@@ -155,11 +155,12 @@ test("production responses set browser security headers", async () => {
 });
 
 test("profile photos accept secure external URLs or cropped local uploads and Management controls are audited", async () => {
-  const [authFunctions, adminFunctions, schema, migration] = await Promise.all([
+  const [authFunctions, adminFunctions, schema, migration, profile] = await Promise.all([
     readFile("src/services/auth/auth-functions.ts", "utf8"),
     readFile("src/services/auth/admin-server-functions.ts", "utf8"),
     readFile("src/db/schema.ts", "utf8"),
     readFile("drizzle/0009_user_profile_photos.sql", "utf8"),
+    readFile("src/features/auth/components/live-profile.tsx", "utf8"),
   ]);
 
   assert.match(authFunctions, /const profileImage/);
@@ -168,6 +169,11 @@ test("profile photos accept secure external URLs or cropped local uploads and Ma
   assert.match(authFunctions, /avatarUrl: profileImage\.nullable\(\)/);
   assert.match(schema, /avatarUrl: mediumtext\("avatar_url"\)/);
   assert.match(migration, /ADD COLUMN avatar_url/);
+  assert.match(profile, /Crop your profile photo/);
+  assert.match(profile, /onPointerMove={moveCrop}/);
+  assert.match(profile, /Rotate left/);
+  assert.match(profile, /Apply crop/);
+  assert.match(profile, /canvas\.toDataURL\("image\/jpeg", 0\.84\)/);
   assert.match(adminFunctions, /export const setManagedUserActive/);
   assert.match(adminFunctions, /Keep at least one active Management account/);
   assert.match(adminFunctions, /user\.deactivate/);
