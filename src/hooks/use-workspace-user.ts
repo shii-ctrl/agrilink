@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 
 /**
  * Gets the signed-in account from the server session for a role workspace.
@@ -9,9 +10,15 @@ import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 export function useWorkspaceUser(role: string) {
   const [displayName, setDisplayName] = useState("Signed-in account");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const loadUser = useCallback(async () => {
+    const user = await getCurrentSessionUser();
+    if (user?.roles.includes(role)) {
+      setDisplayName(user.displayName);
+      setAvatarUrl(user.avatarUrl ?? null);
+    }
+  }, [role]);
 
   useEffect(() => {
-    let mounted = true;
     const onProfileUpdated = (event: Event) => {
       const update = (
         event as CustomEvent<{
@@ -28,21 +35,12 @@ export function useWorkspaceUser(role: string) {
     };
 
     window.addEventListener("agrilink:profile-updated", onProfileUpdated);
-    void getCurrentSessionUser()
-      .then((user) => {
-        if (mounted && user?.roles.includes(role)) {
-          setDisplayName(user.displayName);
-          setAvatarUrl(user.avatarUrl ?? null);
-        }
-      })
-      .catch(() => {
-        // RoleGate keeps access protected and presents the sign-in screen if needed.
-      });
+    void loadUser().catch(() => undefined);
     return () => {
-      mounted = false;
       window.removeEventListener("agrilink:profile-updated", onProfileUpdated);
     };
-  }, [role]);
+  }, [loadUser, role]);
+  useAutoRefresh(() => loadUser().catch(() => undefined));
 
   const initials = useMemo(
     () =>

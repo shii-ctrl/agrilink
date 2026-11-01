@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
+import { installMutationRefreshObserver } from "@/lib/data/live-refresh";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -140,6 +142,12 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+
+  useEffect(() => installMutationRefreshObserver(), []);
+  useAutoRefresh(async () => {
+    await Promise.all([router.invalidate(), queryClient.invalidateQueries()]);
+  });
 
   return (
     <QueryClientProvider client={queryClient}>

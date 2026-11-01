@@ -10,7 +10,7 @@ import {
   Sprout,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import AutoScroll from "embla-carousel-auto-scroll";
 import { z } from "zod";
@@ -27,6 +27,7 @@ import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import { authSessionChangedEvent } from "@/lib/auth/session-events";
 import { getMarketplaceListings } from "@/services/marketplace/marketplace-server-functions";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 
 export const Route = createFileRoute("/")({
   validateSearch: z.object({
@@ -161,19 +162,22 @@ function Index() {
       window.removeEventListener(authSessionChangedEvent, loadBuyer);
     };
   }, []);
-  useEffect(() => {
-    void getMarketplaceListings().then((listings) => {
-      setFeatured(
-        listings
-          .filter((listing) => listing.classification === "Good")
-          .slice(0, 8)
-          .map((listing) => ({
-            ...listing,
-            image: listing.image || marketplaceImageFor(listing.name),
-          })),
-      );
-    });
+  const loadFeatured = useCallback(async () => {
+    const listings = await getMarketplaceListings();
+    setFeatured(
+      listings
+        .filter((listing) => listing.classification === "Good")
+        .slice(0, 8)
+        .map((listing) => ({
+          ...listing,
+          image: listing.image || marketplaceImageFor(listing.name),
+        })),
+    );
   }, []);
+  useEffect(() => {
+    void loadFeatured().catch(() => undefined);
+  }, [loadFeatured]);
+  useAutoRefresh(() => loadFeatured().catch(() => undefined));
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader onLogin={() => setLoginOpen(true)} onRegister={() => setRegisterOpen(true)} />

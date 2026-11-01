@@ -392,6 +392,10 @@ test("role workspaces refresh saved operational data while users are active", as
   ]);
 
   assert.match(hook, /window\.addEventListener\("focus", refreshWhenVisible\)/);
+  assert.match(hook, /intervalMs = 5_000/);
+  assert.match(hook, /agrilinkDataChangedEvent/);
+  assert.match(hook, /window\.addEventListener\("storage", refreshFromStorage\)/);
+  assert.match(hook, /refreshing\.current/);
   assert.match(hook, /document\.addEventListener\("visibilitychange", refreshWhenVisible\)/);
   for (const source of [farmerReceiving, managementProducts]) {
     assert.match(source, /useWorkspaceData/);
@@ -400,6 +404,26 @@ test("role workspaces refresh saved operational data while users are active", as
   for (const source of [buyerCart, buyerOrders, accountingPayments, marketplace]) {
     assert.match(source, /use(?:AutoRefresh|WorkspaceData)/);
   }
+});
+
+test("successful system actions trigger immediate and cross-tab soft refreshes", async () => {
+  const [root, liveRefresh, home, workspaceUser] = await Promise.all([
+    readFile("src/routes/__root.tsx", "utf8"),
+    readFile("src/lib/data/live-refresh.ts", "utf8"),
+    readFile("src/routes/index.tsx", "utf8"),
+    readFile("src/hooks/use-workspace-user.ts", "utf8"),
+  ]);
+
+  assert.match(root, /installMutationRefreshObserver/);
+  assert.match(root, /router\.invalidate\(\)/);
+  assert.match(root, /queryClient\.invalidateQueries\(\)/);
+  assert.match(liveRefresh, /method !== "GET"/);
+  assert.match(liveRefresh, /method !== "HEAD"/);
+  assert.match(liveRefresh, /requestUrl\.origin === window\.location\.origin/);
+  assert.match(liveRefresh, /notifyAgrilinkDataChanged\(\)/);
+  assert.match(liveRefresh, /localStorage\.setItem/);
+  assert.match(home, /useAutoRefresh\(\(\) => loadFeatured/);
+  assert.match(workspaceUser, /useAutoRefresh\(\(\) => loadUser/);
 });
 
 test("public authentication uses the floating dialog system", async () => {
