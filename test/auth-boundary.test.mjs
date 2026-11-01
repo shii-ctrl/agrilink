@@ -403,7 +403,7 @@ test("role workspaces refresh saved operational data while users are active", as
 });
 
 test("public authentication uses the floating dialog system", async () => {
-  const [home, header, loginDialog, resetDialog, loginRoute, registerRoute, resetRoute] =
+  const [home, header, loginDialog, resetDialog, loginRoute, registerRoute, resetRoute, dialog] =
     await Promise.all([
       readFile("src/routes/index.tsx", "utf8"),
       readFile("src/components/layout/site-header.tsx", "utf8"),
@@ -412,6 +412,7 @@ test("public authentication uses the floating dialog system", async () => {
       readFile("src/routes/login.tsx", "utf8"),
       readFile("src/routes/register.tsx", "utf8"),
       readFile("src/routes/forgot-password.tsx", "utf8"),
+      readFile("src/components/ui/dialog.tsx", "utf8"),
     ]);
   const root = await readFile("src/routes/__root.tsx", "utf8");
 
@@ -446,6 +447,11 @@ test("public authentication uses the floating dialog system", async () => {
   assert.match(loginDialog, /scrollIntoView\(\{ block: "center", behavior: "smooth" \}\)/);
   assert.match(loginDialog, /100dvh/);
   assert.match(loginDialog, /formFocused/);
+  assert.match(loginDialog, /blurTimer\.current = window\.setTimeout/);
+  assert.match(loginDialog, /}, 250\)/);
+  assert.match(loginDialog, /overflow-hidden overscroll-contain/);
+  assert.match(dialog, /flex size-10/);
+  assert.match(dialog, /rounded-full/);
   assert.match(root, /interactive-widget=resizes-content/);
   assert.match(root, /viewport-fit=cover/);
   assert.match(resetDialog, /requestPasswordResetCode/);

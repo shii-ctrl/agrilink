@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ export function LoginDialog({
   const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [formFocused, setFormFocused] = useState(false);
+  const blurTimer = useRef<number | null>(null);
   const [visibleViewport, setVisibleViewport] = useState<{
     height: number;
     offsetTop: number;
@@ -81,6 +82,7 @@ export function LoginDialog({
     viewport.addEventListener("scroll", syncViewport);
     window.addEventListener("orientationchange", syncViewport);
     return () => {
+      if (blurTimer.current !== null) window.clearTimeout(blurTimer.current);
       viewport.removeEventListener("resize", syncViewport);
       viewport.removeEventListener("scroll", syncViewport);
       window.removeEventListener("orientationchange", syncViewport);
@@ -90,7 +92,7 @@ export function LoginDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[calc(100%_-_0.75rem)] max-h-[calc(100dvh_-_0.75rem)] overscroll-contain rounded-[1.5rem] border-primary/25 p-0 shadow-field sm:max-w-md sm:rounded-[2rem]"
+        className="w-[calc(100%_-_0.75rem)] max-h-[calc(100dvh_-_0.75rem)] overflow-hidden overscroll-contain rounded-[1.5rem] border-primary/25 p-0 shadow-field sm:max-w-md sm:rounded-[2rem]"
         style={
           visibleViewport
             ? {
@@ -130,6 +132,10 @@ export function LoginDialog({
           <form
             className={`${formFocused ? "mt-3 space-y-3" : "mt-7 space-y-5"} sm:mt-7 sm:space-y-5`}
             onFocusCapture={(event) => {
+              if (blurTimer.current !== null) {
+                window.clearTimeout(blurTimer.current);
+                blurTimer.current = null;
+              }
               setFormFocused(true);
               const field = event.target;
               window.setTimeout(() => {
@@ -140,7 +146,10 @@ export function LoginDialog({
             }}
             onBlurCapture={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                setFormFocused(false);
+                blurTimer.current = window.setTimeout(() => {
+                  setFormFocused(false);
+                  blurTimer.current = null;
+                }, 250);
               }
             }}
             onSubmit={async (event) => {
