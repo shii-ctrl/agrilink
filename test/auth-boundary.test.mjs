@@ -196,6 +196,26 @@ test("profile photos accept secure external URLs or cropped local uploads and Ma
   assert.match(adminFunctions, /user\.avatar\.remove/);
 });
 
+test("profile completion is limited to Farmer and Buyer accounts", async () => {
+  const [profile, farmer, buyer, management, marketer, accounting, rider] = await Promise.all([
+    readFile("src/features/auth/components/live-profile.tsx", "utf8"),
+    readFile("src/routes/farmer.profile.tsx", "utf8"),
+    readFile("src/routes/buyer.profile.tsx", "utf8"),
+    readFile("src/routes/management.profile.tsx", "utf8"),
+    readFile("src/routes/marketer.profile.tsx", "utf8"),
+    readFile("src/routes/accounting.profile.tsx", "utf8"),
+    readFile("src/routes/rider.profile.tsx", "utf8"),
+  ]);
+
+  assert.match(profile, /Profile completion/);
+  assert.match(profile, /role="progressbar"/);
+  assert.match(farmer, /showProfileCompletion/);
+  assert.match(buyer, /showProfileCompletion/);
+  for (const otherRoleProfile of [management, marketer, accounting, rider]) {
+    assert.doesNotMatch(otherRoleProfile, /showProfileCompletion/);
+  }
+});
+
 test("marketplace cart controls prevent duplicate additions beyond available stock", async () => {
   const source = await readFile("src/routes/marketplace.$productId.tsx", "utf8");
   assert.match(source, /const \[isAdding, setIsAdding\] = useState\(false\)/);

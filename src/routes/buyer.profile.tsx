@@ -9,7 +9,7 @@ function BuyerProfilePage() {
         title="Profile"
         description="View and update your saved Buyer account information."
       />
-      <LiveProfile role="Buyer" />
+      <LiveProfile role="Buyer" showProfileCompletion />
     </BuyerLayout>
   );
 }

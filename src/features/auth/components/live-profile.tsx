@@ -1,6 +1,8 @@
 import {
   BadgeCheck,
   Camera,
+  CheckCircle2,
+  Circle,
   Crop,
   ImagePlus,
   RefreshCcw,
@@ -186,9 +188,11 @@ async function cropAvatar(draft: AvatarDraft) {
 export function LiveProfile({
   role,
   showCommunityPosts = false,
+  showProfileCompletion = false,
 }: {
   role: string;
   showCommunityPosts?: boolean;
+  showProfileCompletion?: boolean;
 }) {
   const [account, setAccount] = useState<Awaited<ReturnType<typeof getCurrentSessionUser>>>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -380,6 +384,13 @@ export function LiveProfile({
         Loading saved account information…
       </main>
     );
+  const completionItems = [
+    { label: "Add your full name", complete: account.displayName.trim().length >= 2 },
+    { label: "Add your contact number", complete: Boolean(account.contact?.trim()) },
+    { label: "Add a profile photo", complete: Boolean(account.avatarUrl) },
+  ];
+  const completedItems = completionItems.filter((item) => item.complete).length;
+  const completionPercentage = Math.round((completedItems / completionItems.length) * 100);
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8">
       <section className="rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
@@ -395,6 +406,51 @@ export function LiveProfile({
             <p className="mt-1 text-sm text-muted-foreground">{role} account</p>
           </div>
         </div>
+        {showProfileCompletion && (
+          <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h3 className="font-semibold">Profile completion</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Complete your details so other AgriLink users can recognize and contact you.
+                </p>
+              </div>
+              <p className="text-2xl font-bold text-primary">{completionPercentage}%</p>
+            </div>
+            <div
+              className="mt-4 h-2 overflow-hidden rounded-full bg-primary/15"
+              role="progressbar"
+              aria-label="Profile completion"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={completionPercentage}
+            >
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-300"
+                style={{ width: `${completionPercentage}%` }}
+              />
+            </div>
+            <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+              {completionItems.map((item) => (
+                <div
+                  key={item.label}
+                  className={
+                    item.complete
+                      ? "flex items-center gap-2 text-primary"
+                      : "flex items-center gap-2 text-muted-foreground"
+                  }
+                >
+                  {item.complete ? (
+                    <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <Circle className="size-4 shrink-0" aria-hidden="true" />
+                  )}
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <form className="mt-8 grid gap-5 sm:grid-cols-2" onSubmit={submit}>
           <div className="space-y-2">
             <Label htmlFor="profile-name">Full name</Label>

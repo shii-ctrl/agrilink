@@ -9,7 +9,7 @@ function FarmerProfilePage() {
         title="Profile"
         description="View and update your saved Farmer account information."
       />
-      <LiveProfile role="Farmer" showCommunityPosts />
+      <LiveProfile role="Farmer" showCommunityPosts showProfileCompletion />
     </FarmerLayout>
   );
 }
