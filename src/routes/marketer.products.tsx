@@ -1,10 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   Archive,
   Check,
   ClipboardList,
   ImagePlus,
-  PackageX,
   PackagePlus,
   Pencil,
   Store,
@@ -264,7 +263,7 @@ function CreateProductCard({ onSaved }: { onSaved: (id: string) => Promise<void>
         <PackagePlus className="size-5 text-primary" /> Add permanent product
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Good and Semi offers are prepared automatically as drafts.
+        Good, Semi, and Reject offers are prepared automatically as drafts.
       </p>
       <form
         className="mt-5 grid gap-4 sm:grid-cols-2"
@@ -443,9 +442,6 @@ function MarketplaceEditor({
 }) {
   const [drafts, setDrafts] = useState(() => marketplaceDrafts(product.offers));
   const [saving, setSaving] = useState(false);
-  const rejectKg = product.contributions
-    .filter((row) => row.classification === "Reject")
-    .reduce((sum, row) => sum + row.availableKg, 0);
   const updateDraft = (
     offerId: string,
     field: keyof MarketplaceOfferDraft,
@@ -479,7 +475,7 @@ function MarketplaceEditor({
               }),
             },
           });
-          toast.success("Good and Semi marketplace settings saved");
+          toast.success("Good, Semi, and Reject marketplace settings saved");
           await onSaved();
         } catch (error) {
           toast.error("Marketplace settings could not be saved", {
@@ -504,27 +500,8 @@ function MarketplaceEditor({
           onChange={(field, value) => updateDraft(offer.id, field, value)}
         />
       ))}
-      <section className="flex flex-col gap-4 rounded-3xl border border-amber-200 bg-amber-50/70 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900 dark:bg-amber-950/20">
-        <div className="flex items-start gap-3">
-          <PackageX className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-400" />
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-semibold">Reject quality</h3>
-              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
-                Internal only
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {rejectKg} kg available. Reject stock cannot be priced or shown to buyers.
-            </p>
-          </div>
-        </div>
-        <Button asChild type="button" variant="outline" className="rounded-full">
-          <Link to="/marketer/rejects">View Reject Stock</Link>
-        </Button>
-      </section>
       <Button type="submit" className="rounded-full" disabled={saving || !product.active}>
-        {saving ? "Saving Good and Semi…" : "Save all marketplace settings"}
+        {saving ? "Saving all qualities…" : "Save all marketplace settings"}
       </Button>
     </form>
   );

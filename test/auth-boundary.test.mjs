@@ -370,7 +370,7 @@ test("daily prices use PROCY market categories as an organizing guide", async ()
   assert.doesNotMatch(categories, /70\/60|250\/230/);
 });
 
-test("public daily prices require an active, combined in-stock listing", async () => {
+test("public daily prices require an active, combined in-stock listing for every quality", async () => {
   const marketplace = await readFile(
     "src/services/marketplace/marketplace-server-functions.ts",
     "utf8",
@@ -381,16 +381,20 @@ test("public daily prices require an active, combined in-stock listing", async (
   assert.match(marketplace, /SUM\(stock\.quantity_kg - stock\.reserved_kg\)/);
   assert.match(marketplace, /stock\.product_id = \$\{listings\.productId\}/);
   assert.match(marketplace, /stock\.classification_id = \$\{listings\.classificationId\}/);
-  assert.match(marketplace, /classifications\.name\} <> 'Reject'/);
+  assert.doesNotMatch(marketplace, /classifications\.name\} <> 'Reject'/);
 });
 
-test("marketplace publishing protects combined stock, reject quality, and older carts", async () => {
+test("marketplace publishing protects combined stock and supports every quality in older carts", async () => {
   const marketplace = await readFile(
     "src/services/marketplace/marketplace-server-functions.ts",
     "utf8",
   );
 
-  assert.match(marketplace, /Reject stock is kept internally and cannot be shown to buyers/);
+  assert.doesNotMatch(marketplace, /Reject stock is kept internally and cannot be shown to buyers/);
+  assert.doesNotMatch(
+    marketplace,
+    /Reject stock is kept internally and cannot be ordered by buyers/,
+  );
   assert.match(marketplace, /Number\(stock\.quantityKg\) - Number\(stock\.reservedKg\) <= 0/);
   assert.match(marketplace, /reserveListingStock\(tx, \{/);
   assert.match(marketplace, /controllerListing\.status !== "published"/);
@@ -561,14 +565,14 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.match(marketerLayout, /Reject Stock/);
   assert.doesNotMatch(marketerLayout, /Price & Publish|Published Listings/);
   assert.match(marketerPage, /Permanent products/);
-  assert.match(marketerPage, /Good and Semi offers are prepared automatically as drafts/);
+  assert.match(marketerPage, /Good, Semi, and Reject offers are prepared automatically as drafts/);
   assert.match(marketerPage, /Stock & owners/);
   assert.match(marketerPage, /Corrections create a separate audited inventory movement/);
   assert.match(receivingPage, /Live quality distribution/);
   assert.match(receivingPage, /marketplace totals updated/);
   assert.match(stockRecordsPage, /saved deliveries are immutable/);
-  assert.match(rejectStockPage, /Internal stock only/);
-  assert.match(rejectStockPage, /cannot\s+be priced, published, added to cart, or sold/);
+  assert.match(rejectStockPage, /Marketplace-ready quality/);
+  assert.match(rejectStockPage, /let Buyers purchase available Reject\s+stock/);
   assert.match(rejectStockPage, /Farmer owner/);
   assert.match(pricePublishPage, /redirect\(\{ to: "\/marketer\/products" \}\)/);
   assert.match(publishedListingsPage, /redirect\(\{ to: "\/marketer\/products" \}\)/);
@@ -585,7 +589,7 @@ test("role workflows keep catalog, cart, and Farmer stock states consistent", as
   assert.match(marketplace, /cropType: z\.enum\(cropTypes\)/);
   assert.match(marketplace, /A catalog product with that name already exists/);
   assert.match(marketplace, /export const saveMarketplaceProductOffers/);
-  assert.match(marketplace, /Saves every Good\/Semi setting in one transaction/);
+  assert.match(marketplace, /Saves every Good\/Semi\/Reject setting in one transaction/);
   assert.match(marketerCatalog, /saveMarketplaceProductOffers/);
   assert.match(marketerCatalog, /Save all marketplace settings/);
   assert.doesNotMatch(marketerCatalog, /await updateMarketplaceListingPricing/);

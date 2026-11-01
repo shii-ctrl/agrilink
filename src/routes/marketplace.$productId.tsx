@@ -74,7 +74,7 @@ function ProductDetail() {
     : [
         {
           id: product.id,
-          classification: product.classification as "Good" | "Semi",
+          classification: product.classification,
           pricePerKg: product.pricePerKg,
           retailPricePerKg: product.retailPricePerKg,
           bundlePricePerKg: product.bundlePricePerKg,

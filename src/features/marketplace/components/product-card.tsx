@@ -9,7 +9,7 @@ export function ProductCard({ product }: { product: Product }) {
     : [
         {
           id: product.id,
-          classification: product.classification as "Good" | "Semi",
+          classification: product.classification,
           pricePerKg: product.pricePerKg,
           quantityKg: product.quantityKg,
         },

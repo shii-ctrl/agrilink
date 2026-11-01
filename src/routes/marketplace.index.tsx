@@ -32,7 +32,7 @@ export const Route = createFileRoute("/marketplace/")({
   component: MarketplacePage,
 });
 
-const classifications: Classification[] = ["Good", "Semi"];
+const classifications: Classification[] = ["Good", "Semi", "Reject"];
 
 function Chip({
   active,

@@ -9,6 +9,12 @@ import type { DemoOrder } from "@/lib/demo/demo-orders";
 
 type MarketplaceDatabase = (typeof import("@/db/client.server"))["db"];
 type MarketplaceTransaction = Parameters<Parameters<MarketplaceDatabase["transaction"]>[0]>[0];
+const marketplaceQualityOrder: Classification[] = ["Good", "Semi", "Reject"];
+
+function marketplaceQualityRank(classification: string) {
+  const rank = marketplaceQualityOrder.indexOf(classification as Classification);
+  return rank < 0 ? marketplaceQualityOrder.length : rank;
+}
 
 const listingInput = z.object({ listingId: z.string().uuid() });
 const orderNumberInput = z.object({ orderNumber: z.string().trim().min(3).max(40) });
@@ -93,7 +99,7 @@ const marketplaceOfferSettingsInput = z
   .superRefine(validateBundlePricing);
 const saveMarketplaceProductOffersInput = z.object({
   productId: z.string().uuid(),
-  offers: z.array(marketplaceOfferSettingsInput).min(1).max(2),
+  offers: z.array(marketplaceOfferSettingsInput).min(1).max(3),
 });
 const listingStatusInput = z.object({
   listingId: z.string().uuid(),
@@ -325,9 +331,7 @@ async function fetchListings(productId?: string) {
     .innerJoin(classifications, eq(listings.classificationId, classifications.id))
     .where(where)
     .orderBy(desc(listings.updatedAt), desc(listings.id));
-  const visibleRows = rows.filter(
-    (row) => row.status === "published" && row.classification !== "Reject",
-  );
+  const visibleRows = rows.filter((row) => row.status === "published");
   const grouped = new Map<string, MarketplaceProduct>();
   for (const row of visibleRows) {
     const offerProduct = asProduct(row);
@@ -336,8 +340,8 @@ async function fetchListings(productId?: string) {
       grouped.set(row.productId, offerProduct);
       continue;
     }
-    current.offers = [...(current.offers ?? []), ...(offerProduct.offers ?? [])].sort((a, b) =>
-      a.classification.localeCompare(b.classification),
+    current.offers = [...(current.offers ?? []), ...(offerProduct.offers ?? [])].sort(
+      (a, b) => marketplaceQualityRank(a.classification) - marketplaceQualityRank(b.classification),
     );
     current.quantityKg = (current.offers ?? []).reduce(
       (total, offer) => total + offer.quantityKg,
@@ -424,8 +428,9 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
       const qualityRows = await tx
         .select({ id: classifications.id })
         .from(classifications)
-        .where(inArray(classifications.name, ["Good", "Semi"]));
-      if (qualityRows.length !== 2) throw new Error("Good and Semi classifications are required.");
+        .where(inArray(classifications.name, ["Good", "Semi", "Reject"]));
+      if (qualityRows.length !== 3)
+        throw new Error("Good, Semi, and Reject classifications are required.");
       await tx.insert(listings).values(
         qualityRows.map((classification) => ({
           id: crypto.randomUUID(),
@@ -583,7 +588,7 @@ export const getMarketerProductCatalog = createServerFn({ method: "GET" }).handl
       })
       .from(listings)
       .innerJoin(classifications, eq(listings.classificationId, classifications.id))
-      .where(inArray(classifications.name, ["Good", "Semi"])),
+      .where(inArray(classifications.name, ["Good", "Semi", "Reject"])),
     db
       .select({
         id: inventory.id,
@@ -626,7 +631,11 @@ export const getMarketerProductCatalog = createServerFn({ method: "GET" }).handl
         bundlePricePerKg: offer.bundlePricePerKg === null ? null : Number(offer.bundlePricePerKg),
         bundleMinimumKg: offer.bundleMinimumKg === null ? null : Number(offer.bundleMinimumKg),
         availableKg: Math.max(0, Number(offer.availableKg)),
-      })),
+      }))
+      .sort(
+        (a, b) =>
+          marketplaceQualityRank(a.classification) - marketplaceQualityRank(b.classification),
+      ),
     contributions: contributionRows
       .filter((stock) => stock.productId === product.id)
       .map((stock) => ({
@@ -802,9 +811,6 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
         .where(eq(inventory.id, data.inventoryId));
       if (!stock || Number(stock.quantityKg) - Number(stock.reservedKg) <= 0)
         throw new Error("Select classified inventory created from a saved delivery.");
-      if (data.status === "published" && stock.classification === "Reject") {
-        throw new Error("Reject stock is kept internally and cannot be shown to buyers.");
-      }
       const [existing] = await tx
         .select({ id: listings.id })
         .from(listings)
@@ -879,7 +885,7 @@ export const updateMarketplaceListingPricing = createServerFn({ method: "POST" }
     return { id: data.listingId };
   });
 
-/** Saves every Good/Semi setting in one transaction so refreshes cannot observe partial changes. */
+/** Saves every Good/Semi/Reject setting in one transaction so refreshes cannot observe partial changes. */
 export const saveMarketplaceProductOffers = createServerFn({ method: "POST" })
   .validator(saveMarketplaceProductOffersInput)
   .handler(async ({ data }) => {
@@ -917,9 +923,6 @@ export const saveMarketplaceProductOffers = createServerFn({ method: "POST" })
       }
       if (currentOffers.some((offer) => !offer.productActive))
         throw new Error("Restore this product before changing its offer.");
-      if (currentOffers.some((offer) => offer.classification === "Reject")) {
-        throw new Error("Reject stock is kept internally and cannot be shown to buyers.");
-      }
       const results = [];
       for (const offer of data.offers) {
         const current = currentOffers.find((item) => item.id === offer.listingId)!;
@@ -1000,9 +1003,6 @@ export const setMarketplaceListingStatus = createServerFn({ method: "POST" })
       if (!listing.priceConfigured) {
         throw new Error("Save a valid retail price before making this quality visible.");
       }
-      if (listing.classification === "Reject") {
-        throw new Error("Reject stock is kept internally and cannot be shown to buyers.");
-      }
       // Permanent offers may be published while sold out; receiving automatically
       // makes them purchasable without requiring another publish action.
     }
@@ -1073,7 +1073,6 @@ async function fetchDailyPrices(publicOnly: boolean) {
               WHERE stock.product_id = ${listings.productId}
                 AND stock.classification_id = ${listings.classificationId}
             ) > 0`,
-            sql`${classifications.name} <> 'Reject'`,
           )
         : undefined,
     )
@@ -1266,9 +1265,6 @@ async function reserveListingStock(
   if (!listing || listing.status !== "published") {
     throw new Error("This product is no longer available in the marketplace.");
   }
-  if (listing.classification === "Reject") {
-    throw new Error("Reject stock is kept internally and cannot be ordered by buyers.");
-  }
 
   const batches = await tx
     .select({
@@ -1439,7 +1435,7 @@ async function reserveExistingBuyerCartStock(buyerId: string) {
         .from(listings)
         .innerJoin(classifications, eq(listings.classificationId, classifications.id))
         .where(eq(listings.id, item.listingId));
-      if (!listing || listing.classification === "Reject") {
+      if (!listing) {
         await tx.delete(cartItems).where(eq(cartItems.id, item.cartItemId));
         continue;
       }

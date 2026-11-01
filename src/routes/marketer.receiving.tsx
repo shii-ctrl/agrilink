@@ -205,9 +205,9 @@ function MarketerReceivingPage() {
                         <Circle className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                       )}
                       <p>
-                        <span className="font-semibold">After saving:</span> Good and Semi replenish
-                        their existing marketplace offers immediately. Reject stays internal. Prices
-                        and visibility will not change.
+                        <span className="font-semibold">After saving:</span> Good, Semi, and Reject
+                        replenish their existing marketplace offers immediately. Prices and
+                        visibility will not change.
                       </p>
                     </div>
                   </div>

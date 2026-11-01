@@ -15,7 +15,7 @@ export const Route = createFileRoute("/marketer/rejects")({
       { title: "Reject Stock — Marketer | AgriLink" },
       {
         name: "description",
-        content: "Review internal Reject stock and its Farmer ownership.",
+        content: "Review marketplace-ready Reject stock and its Farmer ownership.",
       },
     ],
   }),
@@ -90,8 +90,9 @@ function MarketerRejectStockPage() {
             <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-100">
               <PackageX className="mt-0.5 size-5 shrink-0" />
               <p>
-                <span className="font-semibold">Internal stock only.</span> Reject products cannot
-                be priced, published, added to cart, or sold through the buyer marketplace.
+                <span className="font-semibold">Marketplace-ready quality.</span> Set its price and
+                enable visibility from Product Catalog to let Buyers purchase available Reject
+                stock. Farmer ownership remains private.
               </p>
             </div>
 

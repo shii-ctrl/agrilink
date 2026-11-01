@@ -115,3 +115,13 @@ test("permanent catalog migration preserves carts, orders, stock, and historical
   assert.match(migration, /image_url MEDIUMTEXT/);
   assert.doesNotMatch(migration, /DROP TABLE|TRUNCATE TABLE/);
 });
+
+test("Reject marketplace migration prepares hidden offers without changing stock or history", async () => {
+  const migration = await readFile("drizzle/0028_publishable_reject_offers.sql", "utf8");
+
+  assert.match(migration, /classification\.name = 'Reject'/);
+  assert.match(migration, /FALSE/);
+  assert.match(migration, /'draft'/);
+  assert.match(migration, /existing\.id IS NULL/);
+  assert.doesNotMatch(migration, /UPDATE inventory|DELETE|DROP TABLE|TRUNCATE TABLE/);
+});

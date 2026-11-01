@@ -2,7 +2,7 @@ export type Classification = "Good" | "Semi" | "Reject";
 
 export type ProductOffer = {
   id: string;
-  classification: Exclude<Classification, "Reject">;
+  classification: Classification;
   pricePerKg: number;
   retailPricePerKg?: number;
   bundlePricePerKg?: number | null;
