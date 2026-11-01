@@ -132,6 +132,79 @@ function ProductDetail() {
     return Math.min(maximumSelectableQuantity, Math.max(0.01, Math.round(value * 100) / 100));
   }
 
+  function handleAddToCart() {
+    if (isBuyer) {
+      setIsAdding(true);
+      void addBuyerCartItem({ data: { listingId: product.id, quantityKg: qty } })
+        .then((cart) => {
+          setCartQuantityKg(cart.find((item) => item.id === product.id)?.quantityKg ?? 0);
+          void router.invalidate();
+          notifyBuyerCartChanged();
+          toast.success("Added to your cart", {
+            description: `${qty} kg of ${product.name} is saved to your account.`,
+          });
+        })
+        .catch((error) => {
+          toast.error("Could not add this product", {
+            description: error instanceof Error ? error.message : "Please refresh and try again.",
+          });
+        })
+        .finally(() => setIsAdding(false));
+      return;
+    }
+
+    toast.custom(
+      (id) => (
+        <div className="relative w-[min(92vw,440px)] overflow-hidden rounded-3xl border border-primary/25 bg-card p-5 shadow-field">
+          <div className="absolute inset-x-0 top-0 h-1.5 surface-sprout" />
+          <button
+            onClick={() => toast.dismiss(id)}
+            className="absolute right-3 top-3 rounded-full p-1.5 text-muted-foreground hover:bg-muted"
+            aria-label="Close"
+          >
+            <X className="size-4" />
+          </button>
+          <div className="flex gap-4">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl surface-sprout shadow-card">
+              <LockKeyhole className="size-5" />
+            </span>
+            <div className="pr-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+                Buyer access
+              </p>
+              <h3 className="mt-1 text-lg font-semibold">Ready to build your order?</h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Sign in or create a Buyer account to add{" "}
+                <span className="font-medium text-foreground">{product.name}</span> to your cart.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => (window.location.href = "/login")}
+                >
+                  Login to continue
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => (window.location.href = "/register")}
+                >
+                  Register
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+      {
+        unstyled: true,
+        className: "!min-w-0 !border-0 !bg-transparent !p-0 !shadow-none",
+      },
+    );
+  }
+
   function handleBuyNow() {
     if (!isBuyer) {
       toast.error("Sign in as a Buyer to buy now", {
@@ -159,7 +232,7 @@ function ProductDetail() {
   }
 
   const productContent = (
-    <main className="mx-auto w-full max-w-6xl px-4 pt-8 sm:pt-10">
+    <main className="mx-auto w-full max-w-6xl px-4 pb-40 pt-8 sm:pb-0 sm:pt-10">
       <Link
         to="/marketplace"
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -225,7 +298,7 @@ function ProductDetail() {
             {product.description}
           </p>
 
-          <div className="mt-7 grid grid-cols-2 items-center gap-2 sm:mt-8 sm:flex sm:flex-wrap sm:gap-4">
+          <div className="mt-7 hidden items-center gap-2 sm:mt-8 sm:flex sm:flex-wrap sm:gap-4">
             <div className="col-span-2 flex items-center justify-center gap-1 rounded-full border border-border bg-card p-1 sm:col-span-1 sm:justify-start">
               <button
                 onClick={() => setQuantityInput(String(clampQuantity((qty || 0.01) - 1)))}
@@ -270,81 +343,7 @@ function ProductDetail() {
                 isBuyingNow ||
                 (isBuyer && remainingCartableQuantity <= 0)
               }
-              onClick={() => {
-                if (isBuyer) {
-                  setIsAdding(true);
-                  void addBuyerCartItem({ data: { listingId: product.id, quantityKg: qty } })
-                    .then((cart) => {
-                      setCartQuantityKg(
-                        cart.find((item) => item.id === product.id)?.quantityKg ?? 0,
-                      );
-                      void router.invalidate();
-                      notifyBuyerCartChanged();
-                      toast.success("Added to your cart", {
-                        description: `${qty} kg of ${product.name} is saved to your account.`,
-                      });
-                    })
-                    .catch((error) => {
-                      toast.error("Could not add this product", {
-                        description:
-                          error instanceof Error ? error.message : "Please refresh and try again.",
-                      });
-                    })
-                    .finally(() => setIsAdding(false));
-                  return;
-                }
-                toast.custom(
-                  (id) => (
-                    <div className="relative w-[min(92vw,440px)] overflow-hidden rounded-3xl border border-primary/25 bg-card p-5 shadow-field">
-                      <div className="absolute inset-x-0 top-0 h-1.5 surface-sprout" />
-                      <button
-                        onClick={() => toast.dismiss(id)}
-                        className="absolute right-3 top-3 rounded-full p-1.5 text-muted-foreground hover:bg-muted"
-                        aria-label="Close"
-                      >
-                        <X className="size-4" />
-                      </button>
-                      <div className="flex gap-4">
-                        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl surface-sprout shadow-card">
-                          <LockKeyhole className="size-5" />
-                        </span>
-                        <div className="pr-5">
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-                            Buyer access
-                          </p>
-                          <h3 className="mt-1 text-lg font-semibold">Ready to build your order?</h3>
-                          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                            Sign in or create a Buyer account to add{" "}
-                            <span className="font-medium text-foreground">{product.name}</span> to
-                            your cart.
-                          </p>
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              className="rounded-full"
-                              onClick={() => (window.location.href = "/login")}
-                            >
-                              Login to continue
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-full"
-                              onClick={() => (window.location.href = "/register")}
-                            >
-                              Register
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ),
-                  {
-                    unstyled: true,
-                    className: "!min-w-0 !border-0 !bg-transparent !p-0 !shadow-none",
-                  },
-                );
-              }}
+              onClick={handleAddToCart}
             >
               <ShoppingCart className="size-4" />
               {isAdding
@@ -411,6 +410,86 @@ function ProductDetail() {
           </div>
         </section>
       )}
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.12)] backdrop-blur sm:hidden">
+        <div className="mx-auto max-w-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] text-muted-foreground">Selected subtotal</p>
+              <p className="truncate font-semibold text-primary">
+                {peso(qty * currentPricePerKg)} · {qty} kg
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center rounded-full border border-border bg-card p-1">
+              <button
+                onClick={() => setQuantityInput(String(clampQuantity((qty || 0.01) - 1)))}
+                disabled={!isAvailable || !canDecreaseQuantity}
+                className="flex size-8 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
+                aria-label="Decrease quantity"
+              >
+                <Minus className="size-4" />
+              </button>
+              <Input
+                aria-label="Mobile quantity in kilograms"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                max={maximumSelectableQuantity}
+                step="0.01"
+                value={quantityInput}
+                disabled={!isAvailable}
+                onChange={(event) => setQuantityInput(event.target.value)}
+                onBlur={() => setQuantityInput(String(clampQuantity(Number(quantityInput) || 1)))}
+                className="h-8 w-14 border-0 bg-transparent px-0 text-center text-base font-semibold shadow-none focus-visible:ring-0"
+              />
+              <span className="mr-1 text-xs text-muted-foreground">kg</span>
+              <button
+                onClick={() => setQuantityInput(String(clampQuantity((qty || 0) + 1)))}
+                disabled={!isAvailable || !canIncreaseQuantity}
+                className="flex size-8 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
+                aria-label="Increase quantity"
+              >
+                <Plus className="size-4" />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              className="min-h-11 rounded-full"
+              disabled={
+                !isAvailable ||
+                !hasValidQuantity ||
+                isAdding ||
+                isBuyingNow ||
+                (isBuyer && remainingCartableQuantity <= 0)
+              }
+              onClick={handleAddToCart}
+            >
+              <ShoppingCart className="size-4" />
+              {isAdding
+                ? "Adding…"
+                : isBuyer && remainingCartableQuantity <= 0
+                  ? "In cart"
+                  : "Add to cart"}
+            </Button>
+            <Button
+              className="min-h-11 rounded-full"
+              disabled={
+                !isAvailable ||
+                !hasValidQuantity ||
+                isAdding ||
+                isBuyingNow ||
+                (isBuyer && remainingCartableQuantity <= 0)
+              }
+              onClick={handleBuyNow}
+            >
+              <Zap className="size-4" />
+              {isBuyingNow ? "Preparing…" : "Buy now"}
+            </Button>
+          </div>
+        </div>
+      </div>
     </main>
   );
 

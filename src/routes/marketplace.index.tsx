@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { ProductCard } from "@/features/marketplace/components/product-card";
+import { FloatingBuyerCartSummary } from "@/features/marketplace/components/floating-buyer-cart-summary";
 import { Input } from "@/components/ui/input";
 import type { Classification, Product } from "@/features/marketplace/products";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
@@ -91,7 +92,7 @@ function MarketplacePage() {
   );
 
   const catalog = (
-    <main className="mx-auto w-full max-w-6xl px-4 pt-8 sm:pt-12">
+    <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8 sm:pb-0 sm:pt-12">
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
         · Public marketplace
       </p>
@@ -183,6 +184,7 @@ function MarketplacePage() {
     <div className="min-h-screen">
       <SiteHeader />
       {catalog}
+      <FloatingBuyerCartSummary />
       <SiteFooter />
     </div>
   );

@@ -1,5 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { LogOut, Menu, ShoppingBag, ShoppingCart, UserRound, X } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  ShoppingBag,
+  ShoppingCart,
+  Store,
+  UserRound,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -11,6 +20,7 @@ import { RegisterDialog } from "@/features/auth/components/register-dialog";
 import { getCurrentSessionUser, logoutUser } from "@/services/auth/auth-functions";
 import { buyerCartChangedEvent } from "@/features/marketplace/cart-events";
 import { authSessionChangedEvent } from "@/lib/auth/session-events";
+import { NotificationCenter } from "@/features/messaging/components/notification-center";
 import {
   Sheet,
   SheetClose,
@@ -95,12 +105,14 @@ export function SiteHeader({
   return (
     <>
       <header className={`sticky top-0 z-50 border-b backdrop-blur ${headerTone}`}>
-        <div className="mx-auto flex h-[5.75rem] max-w-[1500px] items-center justify-between gap-4 px-4 sm:px-6 xl:px-8">
+        <div className="mx-auto flex h-16 max-w-[1500px] items-center justify-between gap-2 px-3 sm:h-[5.75rem] sm:gap-4 sm:px-6 xl:px-8">
           <Link to="/" className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-full surface-sprout">
               <ProcyLogo className="size-8" />
             </span>
-            <span className="font-display text-lg font-semibold tracking-tight">AgriLink</span>
+            <span className="hidden font-display text-lg font-semibold tracking-tight min-[390px]:inline">
+              AgriLink
+            </span>
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex">
@@ -157,16 +169,31 @@ export function SiteHeader({
             )}
           </div>
 
-          <button
-            className={`inline-flex size-10 items-center justify-center rounded-full border transition-all lg:hidden ${menuButton}`}
-            onClick={() => setOpen((v) => !v)}
-            aria-label="Toggle menu"
-          >
-            {open ? <X className="size-5" /> : <Menu className="size-5" />}
-          </button>
+          {isBuyer ? (
+            <div className="flex items-center gap-1 lg:hidden">
+              <Link
+                to="/buyer"
+                aria-label="Back to Buyer dashboard"
+                className={`inline-flex size-9 items-center justify-center rounded-full border transition-colors ${menuButton}`}
+              >
+                <LayoutDashboard className="size-4" />
+              </Link>
+              <NotificationCenter role="Buyer" />
+              <BuyerCartButton dark={dark} />
+              <BuyerDrawer account={account!} compact onSignOut={() => setAccount(null)} />
+            </div>
+          ) : (
+            <button
+              className={`inline-flex size-10 items-center justify-center rounded-full border transition-all lg:hidden ${menuButton}`}
+              onClick={() => setOpen((v) => !v)}
+              aria-label="Toggle menu"
+            >
+              {open ? <X className="size-5" /> : <Menu className="size-5" />}
+            </button>
+          )}
         </div>
 
-        {open && (
+        {open && !isBuyer && (
           <div
             className={`mobile-menu-enter border-t px-4 py-4 backdrop-blur-xl lg:hidden ${
               dark ? "border-white/10 bg-forest/95" : "border-border bg-background/95"
@@ -319,13 +346,26 @@ function BuyerCartButton({ dark }: { dark: boolean }) {
   );
 }
 
-function BuyerDrawer({ account, onSignOut }: { account: SessionAccount; onSignOut: () => void }) {
+function BuyerDrawer({
+  account,
+  onSignOut,
+  compact = false,
+}: {
+  account: SessionAccount;
+  onSignOut: () => void;
+  compact?: boolean;
+}) {
   const name = account.displayName ?? account.username;
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button size="sm" className="rounded-full">
-          <UserRound className="size-4" /> {name}
+        <Button
+          size={compact ? "icon" : "sm"}
+          variant={compact ? "outline" : "default"}
+          className="rounded-full"
+          aria-label={compact ? "Open Buyer account menu" : undefined}
+        >
+          <UserRound className="size-4" /> {compact ? null : name}
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="flex w-[min(86vw,22rem)] flex-col p-5">
@@ -337,6 +377,22 @@ function BuyerDrawer({ account, onSignOut }: { account: SessionAccount; onSignOu
           <SheetDescription>Buyer account · signed in</SheetDescription>
         </SheetHeader>
         <nav className="mt-8 space-y-2">
+          <SheetClose asChild>
+            <Link
+              to="/buyer"
+              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium hover:bg-accent"
+            >
+              <LayoutDashboard className="size-4 text-primary" /> Buyer dashboard
+            </Link>
+          </SheetClose>
+          <SheetClose asChild>
+            <Link
+              to="/marketplace"
+              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium hover:bg-accent"
+            >
+              <Store className="size-4 text-primary" /> Marketplace
+            </Link>
+          </SheetClose>
           <SheetClose asChild>
             <Link
               to="/buyer/profile"

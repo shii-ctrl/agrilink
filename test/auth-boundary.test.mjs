@@ -216,11 +216,13 @@ test("profile completion is limited to Farmer and Buyer accounts", async () => {
   }
 });
 
-test("marketplace browsing keeps the public layout for signed-in Buyers", async () => {
-  const [marketplace, productDetail, buyerLayout] = await Promise.all([
+test("marketplace browsing keeps the public layout with Buyer mobile shopping tools", async () => {
+  const [marketplace, productDetail, buyerLayout, siteHeader, floatingCart] = await Promise.all([
     readFile("src/routes/marketplace.index.tsx", "utf8"),
     readFile("src/routes/marketplace.$productId.tsx", "utf8"),
     readFile("src/components/workspaces/buyer-layout.tsx", "utf8"),
+    readFile("src/components/layout/site-header.tsx", "utf8"),
+    readFile("src/features/marketplace/components/floating-buyer-cart-summary.tsx", "utf8"),
   ]);
 
   for (const page of [marketplace, productDetail]) {
@@ -234,7 +236,15 @@ test("marketplace browsing keeps the public layout for signed-in Buyers", async 
   assert.match(buyerLayout, /fixed inset-x-0 bottom-0/);
   assert.match(buyerLayout, /md:hidden/);
   assert.match(marketplace, /overflow-x-auto/);
-  assert.match(productDetail, /grid grid-cols-2 items-center/);
+  assert.match(marketplace, /<FloatingBuyerCartSummary/);
+  assert.match(siteHeader, /Back to Buyer dashboard/);
+  assert.match(siteHeader, /<NotificationCenter role="Buyer"/);
+  assert.match(siteHeader, /compact onSignOut/);
+  assert.match(floatingCart, /Current cart subtotal/);
+  assert.match(floatingCart, /buyerCartChangedEvent/);
+  assert.match(productDetail, /Selected subtotal/);
+  assert.match(productDetail, /fixed inset-x-0 bottom-0/);
+  assert.match(productDetail, /pb-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\]/);
 });
 
 test("marketplace cart controls prevent duplicate additions beyond available stock", async () => {
