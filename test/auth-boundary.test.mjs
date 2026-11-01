@@ -600,6 +600,12 @@ test("role workflows keep catalog, cart, and Farmer stock states consistent", as
   assert.match(marketplace, /Saves every Good\/Semi\/Reject setting in one transaction/);
   assert.match(marketerCatalog, /saveMarketplaceProductOffers/);
   assert.match(marketerCatalog, /Save all marketplace settings/);
+  assert.match(marketerCatalog, /bundleMinimumKgChoices = \[5, 10, 15, 20, 25, 30, 50, 100\]/);
+  assert.match(
+    marketerCatalog,
+    /ariaLabel={`\$\{offer\.classification\} bundle minimum kilograms`}/,
+  );
+  assert.match(marketerCatalog, /bundleMinimumKg: offer\.bundleMinimumKg === null \? "10"/);
   assert.match(marketerCatalog, /Replace quality photo/);
   assert.match(marketerCatalog, /updateMarketplaceOfferImage/);
   assert.doesNotMatch(marketerCatalog, /await updateMarketplaceListingPricing/);

@@ -42,6 +42,21 @@ type Catalog = Awaited<ReturnType<typeof getMarketerProductCatalog>>;
 type CatalogProduct = Catalog[number];
 type EditorTab = "details" | "marketplace" | "stock" | "history";
 
+const bundleMinimumKgChoices = [5, 10, 15, 20, 25, 30, 50, 100];
+
+function bundleMinimumOptions(currentValue: string) {
+  const current = Number(currentValue);
+  const choices =
+    Number.isFinite(current) && current > 0 && !bundleMinimumKgChoices.includes(current)
+      ? [...bundleMinimumKgChoices, current].sort((left, right) => left - right)
+      : bundleMinimumKgChoices;
+
+  return choices.map((kilograms) => ({
+    value: String(kilograms),
+    label: `${kilograms} kg`,
+  }));
+}
+
 function ProductCatalogPage() {
   const [products, setProducts] = useState<Catalog>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -466,11 +481,15 @@ function MarketplaceEditor({
               productId: product.id,
               offers: product.offers.map((offer) => {
                 const draft = drafts[offer.id];
+                const bundlePricePerKg = optionalNumber(draft?.bundlePricePerKg ?? null);
                 return {
                   listingId: offer.id,
                   retailPricePerKg: Number(draft?.retailPricePerKg),
-                  bundlePricePerKg: optionalNumber(draft?.bundlePricePerKg ?? null),
-                  bundleMinimumKg: optionalNumber(draft?.bundleMinimumKg ?? null),
+                  bundlePricePerKg,
+                  bundleMinimumKg:
+                    bundlePricePerKg === null
+                      ? null
+                      : optionalNumber(draft?.bundleMinimumKg ?? "10"),
                   visible: draft?.visible ?? false,
                 };
               }),
@@ -560,12 +579,13 @@ function OfferEditor({
         />
       </Field>
       <Field label="Bundle starts at kg">
-        <Input
-          type="number"
-          min="1"
-          step="0.01"
+        <AppSelect
           value={draft.bundleMinimumKg}
-          onChange={(event) => onChange("bundleMinimumKg", event.target.value)}
+          onValueChange={(value) => onChange("bundleMinimumKg", value)}
+          options={bundleMinimumOptions(draft.bundleMinimumKg)}
+          ariaLabel={`${offer.classification} bundle minimum kilograms`}
+          searchable={false}
+          disabled={!active}
         />
       </Field>
     </section>
@@ -658,7 +678,7 @@ function marketplaceOfferDraft(offer: CatalogProduct["offers"][number]): Marketp
   return {
     retailPricePerKg: offer.priceConfigured ? String(offer.retailPricePerKg) : "",
     bundlePricePerKg: offer.bundlePricePerKg === null ? "" : String(offer.bundlePricePerKg),
-    bundleMinimumKg: offer.bundleMinimumKg === null ? "" : String(offer.bundleMinimumKg),
+    bundleMinimumKg: offer.bundleMinimumKg === null ? "10" : String(offer.bundleMinimumKg),
     visible: offer.status === "published",
   };
 }
