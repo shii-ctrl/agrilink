@@ -576,6 +576,9 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.match(marketerPage, /Good, Semi, and Reject offers are prepared automatically as drafts/);
   assert.match(marketerPage, /Stock & owners/);
   assert.match(marketerPage, /Corrections create a separate audited inventory movement/);
+  assert.match(marketerPage, /deleteCatalogProduct/);
+  assert.match(marketerPage, /Delete crop/);
+  assert.match(marketerPage, /Only unused crops can be deleted/);
   assert.match(receivingPage, /Live quality distribution/);
   assert.match(receivingPage, /marketplace totals updated/);
   assert.match(receivingPage, /name="farmerId"[\s\S]*searchable/);
@@ -596,6 +599,10 @@ test("role workflows keep catalog, cart, and Farmer stock states consistent", as
   assert.match(marketplace, /cropType: z\.enum\(cropTypes\)/);
   assert.match(marketplace, /A catalog product with that name already exists/);
   assert.match(marketplace, /export const saveMarketplaceProductOffers/);
+  assert.match(marketplace, /export const deleteCatalogProduct/);
+  assert.match(marketplace, /This crop already has stock or transaction history/);
+  assert.match(marketplace, /tx\.delete\(listings\)/);
+  assert.match(marketplace, /tx\.delete\(products\)/);
   assert.match(marketplace, /Saves every Good\/Semi\/Reject setting in one transaction/);
   assert.match(marketerCatalog, /saveMarketplaceProductOffers/);
   assert.match(marketerCatalog, /Save all marketplace settings/);

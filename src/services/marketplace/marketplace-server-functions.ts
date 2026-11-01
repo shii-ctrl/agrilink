@@ -188,6 +188,10 @@ const catalogProductStatusInput = z.object({
   active: z.boolean(),
 });
 
+const deleteCatalogProductInput = z.object({
+  productId: z.string().uuid(),
+});
+
 const stockAdjustmentInput = z.object({
   inventoryId: z.string().uuid(),
   adjustmentKg: z
@@ -518,6 +522,84 @@ export const setCatalogProductActive = createServerFn({ method: "POST" })
       data.productId,
     );
     return { id: data.productId, active: data.active };
+  });
+
+export const deleteCatalogProduct = createServerFn({ method: "POST" })
+  .validator(deleteCatalogProductInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    const { db } = await import("@/db/client.server");
+    const { cartItems, dailyPrices, inventory, listings, orderItems, products, receivingRecords } =
+      await import("@/db/schema");
+
+    const deletedProduct = await db.transaction(async (tx) => {
+      const [product] = await tx
+        .select({ id: products.id, name: products.name })
+        .from(products)
+        .where(eq(products.id, data.productId))
+        .limit(1);
+      if (!product) throw new Error("The catalog product could not be found.");
+
+      const offerRows = await tx
+        .select({ id: listings.id })
+        .from(listings)
+        .where(eq(listings.productId, product.id));
+      const listingIds = offerRows.map((offer) => offer.id);
+      const [inventoryRecord] = await tx
+        .select({ id: inventory.id })
+        .from(inventory)
+        .where(eq(inventory.productId, product.id))
+        .limit(1);
+      const [receivingRecord] = await tx
+        .select({ id: receivingRecords.id })
+        .from(receivingRecords)
+        .where(eq(receivingRecords.productId, product.id))
+        .limit(1);
+
+      let linkedMarketplaceRecord:
+        { kind: "cart" | "order" | "daily price"; id: string } | undefined;
+      if (listingIds.length > 0) {
+        const [cartRecord] = await tx
+          .select({ id: cartItems.id })
+          .from(cartItems)
+          .where(inArray(cartItems.listingId, listingIds))
+          .limit(1);
+        const [orderRecord] = await tx
+          .select({ id: orderItems.id })
+          .from(orderItems)
+          .where(inArray(orderItems.listingId, listingIds))
+          .limit(1);
+        const [priceRecord] = await tx
+          .select({ id: dailyPrices.id })
+          .from(dailyPrices)
+          .where(inArray(dailyPrices.listingId, listingIds))
+          .limit(1);
+        linkedMarketplaceRecord = cartRecord
+          ? { kind: "cart", id: cartRecord.id }
+          : orderRecord
+            ? { kind: "order", id: orderRecord.id }
+            : priceRecord
+              ? { kind: "daily price", id: priceRecord.id }
+              : undefined;
+      }
+
+      if (inventoryRecord || receivingRecord || linkedMarketplaceRecord) {
+        throw new Error(
+          "This crop already has stock or transaction history. Archive it instead so existing records remain accurate.",
+        );
+      }
+
+      await tx.delete(listings).where(eq(listings.productId, product.id));
+      const [deleted] = await tx.delete(products).where(eq(products.id, product.id));
+      if (deleted.affectedRows !== 1) throw new Error("The catalog product could not be deleted.");
+      return product;
+    });
+
+    await writeAuditLog(actor.id, "product.catalog_delete", "product", deletedProduct.id, {
+      name: deletedProduct.name,
+    });
+    return { id: deletedProduct.id };
   });
 
 export const updateCatalogProductImage = createServerFn({ method: "POST" })

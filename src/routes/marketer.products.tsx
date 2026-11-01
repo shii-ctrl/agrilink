@@ -7,6 +7,7 @@ import {
   PackagePlus,
   Pencil,
   Store,
+  Trash2,
   UsersRound,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +27,7 @@ import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import {
   adjustCatalogStock,
   createCatalogProduct,
+  deleteCatalogProduct,
   getMarketerProductCatalog,
   saveMarketplaceProductOffers,
   setCatalogProductActive,
@@ -190,35 +192,66 @@ function ProductCatalogPage() {
                         </p>
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      className="rounded-full"
-                      onClick={async () => {
-                        if (
-                          selected.active &&
-                          !(await requestConfirmation({
-                            title: `Archive ${selected.name}?`,
-                            description:
-                              "It will be hidden from receiving and the marketplace, but stock and history remain saved.",
-                            confirmLabel: "Archive product",
-                            destructive: true,
-                          }))
-                        )
-                          return;
-                        await setCatalogProductActive({
-                          data: { productId: selected.id, active: !selected.active },
-                        });
-                        toast.success(selected.active ? "Product archived" : "Product restored");
-                        await load();
-                      }}
-                    >
-                      {selected.active ? (
-                        <Archive className="size-4" />
-                      ) : (
-                        <Check className="size-4" />
-                      )}
-                      {selected.active ? "Archive" : "Restore"}
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={async () => {
+                          if (
+                            selected.active &&
+                            !(await requestConfirmation({
+                              title: `Archive ${selected.name}?`,
+                              description:
+                                "It will be hidden from receiving and the marketplace, but stock and history remain saved.",
+                              confirmLabel: "Archive product",
+                              destructive: true,
+                            }))
+                          )
+                            return;
+                          await setCatalogProductActive({
+                            data: { productId: selected.id, active: !selected.active },
+                          });
+                          toast.success(selected.active ? "Product archived" : "Product restored");
+                          await load();
+                        }}
+                      >
+                        {selected.active ? (
+                          <Archive className="size-4" />
+                        ) : (
+                          <Check className="size-4" />
+                        )}
+                        {selected.active ? "Archive" : "Restore"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={async () => {
+                          if (
+                            !(await requestConfirmation({
+                              title: `Delete ${selected.name} permanently?`,
+                              description:
+                                "Only unused crops can be deleted. Crops with stock, receiving, cart, price, or order history must be archived instead.",
+                              confirmLabel: "Delete crop",
+                              destructive: true,
+                            }))
+                          )
+                            return;
+                          try {
+                            await deleteCatalogProduct({ data: { productId: selected.id } });
+                            toast.success("Crop deleted permanently");
+                            await load();
+                          } catch (error) {
+                            toast.error("Crop could not be deleted", {
+                              description:
+                                error instanceof Error ? error.message : "Please try again.",
+                            });
+                          }
+                        }}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                   <EditorTabs value={tab} onChange={setTab} />
                   <div className="p-5 md:p-6">
