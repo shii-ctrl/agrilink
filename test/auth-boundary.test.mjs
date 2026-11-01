@@ -569,14 +569,21 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
 });
 
 test("role workflows keep catalog, cart, and Farmer stock states consistent", async () => {
-  const [marketplace, receiving, notifications] = await Promise.all([
+  const [marketplace, marketerCatalog, receiving, notifications] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+    readFile("src/routes/marketer.products.tsx", "utf8"),
     readFile("src/services/operations/receiving-server-functions.ts", "utf8"),
     readFile("src/services/messaging/notification-server.ts", "utf8"),
   ]);
 
   assert.match(marketplace, /cropType: z\.enum\(cropTypes\)/);
   assert.match(marketplace, /A catalog product with that name already exists/);
+  assert.match(marketplace, /export const saveMarketplaceOfferSettings/);
+  assert.match(marketplace, /Saves price and visibility in one transaction/);
+  assert.match(marketerCatalog, /saveMarketplaceOfferSettings/);
+  assert.doesNotMatch(marketerCatalog, /await updateMarketplaceListingPricing/);
+  assert.doesNotMatch(marketerCatalog, /await setMarketplaceListingStatus/);
+  assert.match(marketerCatalog, /requestId !== latestLoad\.current/);
   assert.match(marketplace, /inArray\(cartItems\.listingId, listingIds\)/);
   assert.match(receiving, /"Listed — partly reserved"/);
   assert.match(receiving, /"Sold out"/);

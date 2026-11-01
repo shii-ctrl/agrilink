@@ -27,10 +27,9 @@ import {
   adjustCatalogStock,
   createCatalogProduct,
   getMarketerProductCatalog,
+  saveMarketplaceOfferSettings,
   setCatalogProductActive,
-  setMarketplaceListingStatus,
   updateCatalogProduct,
-  updateMarketplaceListingPricing,
 } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/products")({
@@ -50,9 +49,12 @@ function ProductCatalogPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const latestLoad = useRef(0);
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const load = useCallback(async () => {
+    const requestId = ++latestLoad.current;
     const next = await getMarketerProductCatalog();
+    if (requestId !== latestLoad.current) return;
     setProducts(next);
     setSelectedId((current) =>
       current && next.some((item) => item.id === current) ? current : (next[0]?.id ?? ""),
@@ -467,16 +469,14 @@ function OfferEditor({
         const data = new FormData(event.currentTarget);
         setSaving(true);
         try {
-          await updateMarketplaceListingPricing({
+          await saveMarketplaceOfferSettings({
             data: {
               listingId: offer.id,
               retailPricePerKg: Number(data.get("retailPricePerKg")),
               bundlePricePerKg: optionalNumber(data.get("bundlePricePerKg")),
               bundleMinimumKg: optionalNumber(data.get("bundleMinimumKg")),
+              visible,
             },
-          });
-          await setMarketplaceListingStatus({
-            data: { listingId: offer.id, status: visible ? "published" : "draft" },
           });
           toast.success(`${offer.classification} settings saved`);
           await onSaved();

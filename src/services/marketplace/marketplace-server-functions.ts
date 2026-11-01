@@ -84,6 +84,13 @@ const createListingInput = z
 const updateListingPricingInput = z
   .object({ listingId: z.string().uuid(), ...listingPricingFields })
   .superRefine(validateBundlePricing);
+const saveMarketplaceOfferInput = z
+  .object({
+    listingId: z.string().uuid(),
+    ...listingPricingFields,
+    visible: z.boolean(),
+  })
+  .superRefine(validateBundlePricing);
 const listingStatusInput = z.object({
   listingId: z.string().uuid(),
   status: z.enum(["draft", "published", "archived"]),
@@ -866,6 +873,81 @@ export const updateMarketplaceListingPricing = createServerFn({ method: "POST" }
       bundleMinimumKg: data.bundleMinimumKg,
     });
     return { id: data.listingId };
+  });
+
+/** Saves price and visibility in one transaction so refreshes can never observe a half-saved offer. */
+export const saveMarketplaceOfferSettings = createServerFn({ method: "POST" })
+  .validator(saveMarketplaceOfferInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    const { db } = await import("@/db/client.server");
+    const { classifications, listings, products } = await import("@/db/schema");
+    const saved = await db.transaction(async (tx) => {
+      const [listing] = await tx
+        .select({
+          classification: classifications.name,
+          productName: products.name,
+          productActive: products.active,
+          previousStatus: listings.status,
+        })
+        .from(listings)
+        .innerJoin(classifications, eq(listings.classificationId, classifications.id))
+        .innerJoin(products, eq(listings.productId, products.id))
+        .where(eq(listings.id, data.listingId));
+      if (!listing) throw new Error("The marketplace offer could not be found.");
+      if (!listing.productActive)
+        throw new Error("Restore this product before changing its offer.");
+      if (listing.classification === "Reject") {
+        throw new Error("Reject stock is kept internally and cannot be shown to buyers.");
+      }
+      const status = data.visible ? ("published" as const) : ("draft" as const);
+      const [updated] = await tx
+        .update(listings)
+        .set({
+          pricePerKg: data.retailPricePerKg.toFixed(2),
+          retailPricePerKg: data.retailPricePerKg.toFixed(2),
+          priceConfigured: true,
+          bundlePricePerKg:
+            data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
+          bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
+          status,
+        })
+        .where(eq(listings.id, data.listingId));
+      if (updated.affectedRows !== 1) throw new Error("The marketplace offer could not be saved.");
+      return { ...listing, status };
+    });
+
+    await writeAuditLog(
+      actor.id,
+      "listing.settings.update",
+      "marketplace_listing",
+      data.listingId,
+      {
+        retailPricePerKg: data.retailPricePerKg,
+        bundlePricePerKg: data.bundlePricePerKg,
+        bundleMinimumKg: data.bundleMinimumKg,
+        status: saved.status,
+      },
+    );
+    const { notifyCartHoldersForListing, notifyRole } =
+      await import("@/services/messaging/notification-server");
+    if (saved.previousStatus !== saved.status) {
+      if (saved.status === "published") {
+        await notifyRole("Buyer", {
+          title: "Marketplace offer available",
+          message: `${saved.productName} — ${saved.classification} is now visible in the marketplace.`,
+          target: "/marketplace",
+        });
+      } else {
+        await notifyCartHoldersForListing(data.listingId, {
+          title: "Marketplace offer changed",
+          message: `${saved.productName} — ${saved.classification} is no longer available. Review your cart before ordering.`,
+          target: "/buyer/cart",
+        });
+      }
+    }
+    return { id: data.listingId, status: saved.status };
   });
 
 export const setMarketplaceListingStatus = createServerFn({ method: "POST" })
