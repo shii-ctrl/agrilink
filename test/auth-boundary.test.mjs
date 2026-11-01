@@ -468,18 +468,19 @@ test("home featured produce supports horizontal drag and carousel controls", asy
   const home = await readFile("src/routes/index.tsx", "utf8");
 
   assert.match(home, /useEmblaCarousel/);
+  assert.match(home, /embla-carousel-auto-scroll/);
   assert.match(home, /dragFree: true/);
   assert.match(home, /loop: true/);
-  assert.match(home, /window\.setInterval/);
-  assert.match(home, /featuredCarouselApi\.scrollNext\(\)/);
-  assert.match(home, /3_500/);
+  assert.match(home, /speed: 0\.8/);
+  assert.match(home, /startDelay: 0/);
+  assert.match(home, /autoScroll\.play\(0\)/);
+  assert.match(home, /stopOnMouseEnter: true/);
+  assert.match(home, /stopOnInteraction: false/);
   assert.match(home, /prefers-reduced-motion: reduce/);
-  assert.match(home, /setFeaturedCarouselHovered\(true\)/);
-  assert.match(home, /setFeaturedCarouselInteracting\(true\)/);
   assert.match(home, /featuredCarouselApi\?\.scrollPrev\(\)/);
   assert.match(home, /featuredCarouselApi\?\.scrollNext\(\)/);
   assert.match(home, /Featured produce carousel/);
-  assert.match(home, /Products move automatically/);
+  assert.match(home, /Products glide continuously/);
   assert.match(home, /cursor-grab overflow-hidden active:cursor-grabbing/);
   assert.match(home, /\.slice\(0, 8\)/);
 });

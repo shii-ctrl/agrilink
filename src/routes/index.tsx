@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
+import AutoScroll from "embla-carousel-auto-scroll";
 import { z } from "zod";
 import heroImg from "@/assets/hero-farm.jpg";
 import { Button } from "@/components/ui/button";
@@ -101,16 +102,28 @@ function Index() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [passwordResetOpen, setPasswordResetOpen] = useState(false);
-  const [featuredCarouselRef, featuredCarouselApi] = useEmblaCarousel({
-    align: "start",
-    containScroll: "trimSnaps",
-    dragFree: true,
-    loop: true,
-  });
+  const [featuredAutoScroll] = useState(() =>
+    AutoScroll({
+      direction: "forward",
+      speed: 0.8,
+      startDelay: 0,
+      playOnInit: false,
+      stopOnFocusIn: true,
+      stopOnInteraction: false,
+      stopOnMouseEnter: true,
+    }),
+  );
+  const [featuredCarouselRef, featuredCarouselApi] = useEmblaCarousel(
+    {
+      align: "start",
+      containScroll: "trimSnaps",
+      dragFree: true,
+      loop: true,
+    },
+    [featuredAutoScroll],
+  );
   const [canScrollFeaturedPrev, setCanScrollFeaturedPrev] = useState(false);
   const [canScrollFeaturedNext, setCanScrollFeaturedNext] = useState(false);
-  const [featuredCarouselHovered, setFeaturedCarouselHovered] = useState(false);
-  const [featuredCarouselInteracting, setFeaturedCarouselInteracting] = useState(false);
   const updateFeaturedCarouselControls = useCallback(() => {
     if (!featuredCarouselApi) return;
     setCanScrollFeaturedPrev(featuredCarouselApi.canScrollPrev());
@@ -129,21 +142,22 @@ function Index() {
   }, [featuredCarouselApi, updateFeaturedCarouselControls]);
 
   useEffect(() => {
-    if (
-      !featuredCarouselApi ||
-      featured.length < 2 ||
-      featuredCarouselHovered ||
-      featuredCarouselInteracting ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      return;
-    }
-
-    const autoplay = window.setInterval(() => {
-      if (document.visibilityState === "visible") featuredCarouselApi.scrollNext();
-    }, 3_500);
-    return () => window.clearInterval(autoplay);
-  }, [featuredCarouselApi, featured.length, featuredCarouselHovered, featuredCarouselInteracting]);
+    if (!featuredCarouselApi || featured.length < 2) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const autoScroll = featuredCarouselApi.plugins().autoScroll;
+    const syncAutoScroll = () => {
+      if (reducedMotion.matches || document.visibilityState !== "visible") autoScroll.stop();
+      else autoScroll.play(0);
+    };
+    syncAutoScroll();
+    reducedMotion.addEventListener("change", syncAutoScroll);
+    document.addEventListener("visibilitychange", syncAutoScroll);
+    return () => {
+      autoScroll.stop();
+      reducedMotion.removeEventListener("change", syncAutoScroll);
+      document.removeEventListener("visibilitychange", syncAutoScroll);
+    };
+  }, [featuredCarouselApi, featured.length]);
   useEffect(() => {
     setLoginOpen(auth === "login");
     setRegisterOpen(auth === "register");
@@ -374,17 +388,6 @@ function Index() {
               role="region"
               aria-label="Featured produce carousel"
               aria-roledescription="carousel"
-              onMouseEnter={() => setFeaturedCarouselHovered(true)}
-              onMouseLeave={() => setFeaturedCarouselHovered(false)}
-              onPointerDown={() => setFeaturedCarouselInteracting(true)}
-              onPointerUp={() => setFeaturedCarouselInteracting(false)}
-              onPointerCancel={() => setFeaturedCarouselInteracting(false)}
-              onFocusCapture={() => setFeaturedCarouselInteracting(true)}
-              onBlurCapture={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                  setFeaturedCarouselInteracting(false);
-                }
-              }}
             >
               <div className="flex touch-pan-y gap-4 sm:gap-6">
                 {featured.map((p, index) => (
@@ -400,7 +403,7 @@ function Index() {
                 ))}
               </div>
               <p className="mt-3 text-center text-xs text-muted-foreground sm:hidden">
-                Products move automatically · Swipe left or right anytime
+                Products glide continuously · Swipe left or right anytime
               </p>
             </div>
           ) : (
