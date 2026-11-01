@@ -291,6 +291,20 @@ test("Accounting prints buyer payment receipts after payment is recorded", async
   assert.match(accountingPayments, /window\.print\(\)/);
 });
 
+test("order details use a connected responsive progress stepper", async () => {
+  const source = await readFile("src/features/marketplace/components/order-details.tsx", "utf8");
+
+  assert.match(source, /const currentStep =/);
+  assert.match(source, /aria-label="Order status steps"/);
+  assert.match(source, /aria-current=\{current \? "step"/);
+  assert.match(source, /<Check className="size-4"/);
+  assert.match(source, /absolute left-1\/2 top-4 h-0\.5 w-full/);
+  assert.match(source, /overflow-x-auto/);
+  assert.match(source, /min-w-\[42rem\]/);
+  assert.match(source, /Current ·/);
+  assert.doesNotMatch(source, /sm:grid-cols-5/);
+});
+
 test("catalog photos use a safe file picker and bundle prices are enforced at checkout", async () => {
   const [marketplace, productPage, marketerPage, schema, migration] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),

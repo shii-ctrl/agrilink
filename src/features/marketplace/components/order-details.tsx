@@ -1,4 +1,4 @@
-import { ClipboardList, MapPin, Phone } from "lucide-react";
+import { Check, ClipboardList, MapPin, Phone } from "lucide-react";
 
 import { peso } from "@/features/marketplace/products";
 import type { DemoOrder, DemoOrderItem } from "@/lib/demo/demo-orders";
@@ -16,15 +16,6 @@ function orderItems(order: DemoOrder): DemoOrderItem[] {
   ];
 }
 
-function reachedStep(order: DemoOrder, step: string) {
-  const orderSteps = ["Pending", "Confirmed", "Sold"];
-  if (step === "Ready for pickup") return orderSteps.indexOf(order.status) >= 1;
-  if (step === "Paid") return order.paymentStatus === "Paid";
-  return (
-    orderSteps.indexOf(order.status) >= orderSteps.indexOf(step as (typeof orderSteps)[number])
-  );
-}
-
 function stepTime(order: DemoOrder, step: string) {
   if (step === "Pending") return order.date;
   if (step === "Confirmed") return order.confirmedAt;
@@ -35,24 +26,71 @@ function stepTime(order: DemoOrder, step: string) {
 
 export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
   const steps = ["Pending", "Confirmed", "Ready for pickup", "Sold", "Paid"];
+  const currentStep =
+    order.paymentStatus === "Paid"
+      ? 4
+      : order.status === "Sold"
+        ? 3
+        : order.status === "Confirmed"
+          ? 2
+          : 0;
+
   return (
-    <div className="grid gap-2 sm:grid-cols-5" aria-label="Order progress">
-      {steps.map((step) => {
-        const complete = reachedStep(order, step);
-        return (
-          <div
-            key={step}
-            className={`rounded-xl border px-3 py-3 text-center text-xs ${
-              complete
-                ? "border-primary/20 bg-primary text-primary-foreground"
-                : "border-border bg-muted/50 text-muted-foreground"
-            }`}
-          >
-            <p className="font-semibold">{step}</p>
-            <p className="mt-1 opacity-80">{stepTime(order, step) ?? "Waiting"}</p>
-          </div>
-        );
-      })}
+    <div
+      className="overflow-x-auto pb-2 [scrollbar-width:thin]"
+      aria-label="Order progress"
+      role="region"
+    >
+      <ol className="flex min-w-[42rem] px-2 pt-1" aria-label="Order status steps">
+        {steps.map((step, index) => {
+          const completed = index < currentStep;
+          const current = index === currentStep;
+          const reached = index <= currentStep;
+          return (
+            <li
+              key={step}
+              className="relative flex min-w-0 flex-1 flex-col items-center text-center"
+              aria-current={current ? "step" : undefined}
+            >
+              {index < steps.length - 1 ? (
+                <span
+                  aria-hidden="true"
+                  className={`absolute left-1/2 top-4 h-0.5 w-full transition-colors ${
+                    index < currentStep ? "bg-primary" : "bg-border"
+                  }`}
+                />
+              ) : null}
+              <span
+                className={`relative z-10 flex size-8 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors ${
+                  completed
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : current
+                      ? "border-primary bg-background text-primary ring-4 ring-primary/15"
+                      : "border-border bg-background text-muted-foreground"
+                }`}
+                aria-hidden="true"
+              >
+                {completed ? <Check className="size-4" strokeWidth={3} /> : index + 1}
+              </span>
+              <div className="mt-3 px-2">
+                <p
+                  className={`text-xs font-semibold sm:text-sm ${
+                    reached ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {step}
+                </p>
+                <p
+                  className={`mt-1 text-[11px] ${current ? "font-medium text-primary" : "text-muted-foreground"}`}
+                >
+                  {current ? "Current · " : ""}
+                  {stepTime(order, step) ?? "Waiting"}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
