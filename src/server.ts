@@ -40,7 +40,7 @@ function applySecurityHeaders(response: Response) {
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
   headers.set("Referrer-Policy", "no-referrer");
-  headers.set("Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=()");
+  headers.set("Permissions-Policy", "camera=(self), geolocation=(), microphone=(), payment=()");
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   headers.set("Cross-Origin-Resource-Policy", "same-site");
   headers.set("X-Permitted-Cross-Domain-Policies", "none");

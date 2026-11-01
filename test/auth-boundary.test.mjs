@@ -151,6 +151,7 @@ test("production responses set browser security headers", async () => {
   assert.match(server, /X-Frame-Options/);
   assert.match(server, /X-Content-Type-Options/);
   assert.match(server, /Referrer-Policy/);
+  assert.match(server, /camera=\(self\)/);
   assert.match(server, /Cache-Control/, "HTML account pages should not be cached");
 });
 
