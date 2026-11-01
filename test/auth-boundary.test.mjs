@@ -541,6 +541,7 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
     marketerLayout,
     receivingPage,
     stockRecordsPage,
+    rejectStockPage,
     pricePublishPage,
     publishedListingsPage,
   ] = await Promise.all([
@@ -548,6 +549,7 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
     readFile("src/components/workspaces/marketer-layout.tsx", "utf8"),
     readFile("src/routes/marketer.receiving.tsx", "utf8"),
     readFile("src/routes/marketer.classification.tsx", "utf8"),
+    readFile("src/routes/marketer.rejects.tsx", "utf8"),
     readFile("src/routes/marketer.price-publish.tsx", "utf8"),
     readFile("src/routes/marketer.published-listings.tsx", "utf8"),
   ]);
@@ -556,6 +558,7 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.match(marketerLayout, /Product Catalog/);
   assert.match(marketerLayout, /Record Stock/);
   assert.match(marketerLayout, /Stock Records/);
+  assert.match(marketerLayout, /Reject Stock/);
   assert.doesNotMatch(marketerLayout, /Price & Publish|Published Listings/);
   assert.match(marketerPage, /Permanent products/);
   assert.match(marketerPage, /Good and Semi offers are prepared automatically as drafts/);
@@ -564,6 +567,9 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.match(receivingPage, /Live quality distribution/);
   assert.match(receivingPage, /marketplace totals updated/);
   assert.match(stockRecordsPage, /saved deliveries are immutable/);
+  assert.match(rejectStockPage, /Internal stock only/);
+  assert.match(rejectStockPage, /cannot\s+be priced, published, added to cart, or sold/);
+  assert.match(rejectStockPage, /Farmer owner/);
   assert.match(pricePublishPage, /redirect\(\{ to: "\/marketer\/products" \}\)/);
   assert.match(publishedListingsPage, /redirect\(\{ to: "\/marketer\/products" \}\)/);
 });

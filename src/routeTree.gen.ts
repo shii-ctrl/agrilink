@@ -55,6 +55,7 @@ import { Route as MarketerProductsRouteImport } from './routes/marketer.products
 import { Route as MarketerProfileRouteImport } from './routes/marketer.profile'
 import { Route as MarketerPublishedListingsRouteImport } from './routes/marketer.published-listings'
 import { Route as MarketerReceivingRouteImport } from './routes/marketer.receiving'
+import { Route as MarketerRejectsRouteImport } from './routes/marketer.rejects'
 import { Route as MarketerSalesRouteImport } from './routes/marketer.sales'
 import { Route as MarketplaceIndexRouteImport } from './routes/marketplace.index'
 import { Route as MarketplaceProductIdRouteImport } from './routes/marketplace.$productId'
@@ -293,6 +294,11 @@ const MarketerReceivingRoute = MarketerReceivingRouteImport.update({
   path: '/marketer/receiving',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketerRejectsRoute = MarketerRejectsRouteImport.update({
+  id: '/marketer/rejects',
+  path: '/marketer/rejects',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketerSalesRoute = MarketerSalesRouteImport.update({
   id: '/marketer/sales',
   path: '/marketer/sales',
@@ -361,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/marketer/profile': typeof MarketerProfileRoute
   '/marketer/published-listings': typeof MarketerPublishedListingsRoute
   '/marketer/receiving': typeof MarketerReceivingRoute
+  '/marketer/rejects': typeof MarketerRejectsRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
   '/rider/profile': typeof RiderProfileRoute
@@ -414,6 +421,7 @@ export interface FileRoutesByTo {
   '/marketer/profile': typeof MarketerProfileRoute
   '/marketer/published-listings': typeof MarketerPublishedListingsRoute
   '/marketer/receiving': typeof MarketerReceivingRoute
+  '/marketer/rejects': typeof MarketerRejectsRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
   '/rider/profile': typeof RiderProfileRoute
@@ -468,6 +476,7 @@ export interface FileRoutesById {
   '/marketer/profile': typeof MarketerProfileRoute
   '/marketer/published-listings': typeof MarketerPublishedListingsRoute
   '/marketer/receiving': typeof MarketerReceivingRoute
+  '/marketer/rejects': typeof MarketerRejectsRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
   '/rider/profile': typeof RiderProfileRoute
@@ -523,6 +532,7 @@ export interface FileRouteTypes {
     | '/marketer/profile'
     | '/marketer/published-listings'
     | '/marketer/receiving'
+    | '/marketer/rejects'
     | '/marketer/sales'
     | '/marketplace/$productId'
     | '/rider/profile'
@@ -576,6 +586,7 @@ export interface FileRouteTypes {
     | '/marketer/profile'
     | '/marketer/published-listings'
     | '/marketer/receiving'
+    | '/marketer/rejects'
     | '/marketer/sales'
     | '/marketplace/$productId'
     | '/rider/profile'
@@ -629,6 +640,7 @@ export interface FileRouteTypes {
     | '/marketer/profile'
     | '/marketer/published-listings'
     | '/marketer/receiving'
+    | '/marketer/rejects'
     | '/marketer/sales'
     | '/marketplace/$productId'
     | '/rider/profile'
@@ -683,6 +695,7 @@ export interface RootRouteChildren {
   MarketerProfileRoute: typeof MarketerProfileRoute
   MarketerPublishedListingsRoute: typeof MarketerPublishedListingsRoute
   MarketerReceivingRoute: typeof MarketerReceivingRoute
+  MarketerRejectsRoute: typeof MarketerRejectsRoute
   MarketerSalesRoute: typeof MarketerSalesRoute
   MarketplaceProductIdRoute: typeof MarketplaceProductIdRoute
   RiderProfileRoute: typeof RiderProfileRoute
@@ -1019,6 +1032,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketerReceivingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/marketer/rejects': {
+      id: '/marketer/rejects'
+      path: '/marketer/rejects'
+      fullPath: '/marketer/rejects'
+      preLoaderRoute: typeof MarketerRejectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/marketer/sales': {
       id: '/marketer/sales'
       path: '/marketer/sales'
@@ -1099,6 +1119,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketerProfileRoute: MarketerProfileRoute,
   MarketerPublishedListingsRoute: MarketerPublishedListingsRoute,
   MarketerReceivingRoute: MarketerReceivingRoute,
+  MarketerRejectsRoute: MarketerRejectsRoute,
   MarketerSalesRoute: MarketerSalesRoute,
   MarketplaceProductIdRoute: MarketplaceProductIdRoute,
   RiderProfileRoute: RiderProfileRoute,
