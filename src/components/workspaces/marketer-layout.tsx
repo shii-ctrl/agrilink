@@ -6,7 +6,6 @@ import {
   LogOut,
   MessageCircle,
   PackageCheck,
-  PackageX,
   ReceiptText,
   Settings,
   ShoppingBag,
@@ -44,7 +43,6 @@ const marketerSections = [
       { title: "Product Catalog", to: "/marketer/products", icon: ShoppingBag },
       { title: "Record Stock", to: "/marketer/receiving", icon: ReceiptText },
       { title: "Stock Records", to: "/marketer/classification", icon: PackageCheck },
-      { title: "Reject Stock", to: "/marketer/rejects", icon: PackageX },
     ],
   },
   {

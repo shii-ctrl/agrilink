@@ -553,7 +553,7 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
     marketerLayout,
     receivingPage,
     stockRecordsPage,
-    rejectStockPage,
+    rejectStockRedirect,
     pricePublishPage,
     publishedListingsPage,
   ] = await Promise.all([
@@ -570,7 +570,7 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.match(marketerLayout, /Product Catalog/);
   assert.match(marketerLayout, /Record Stock/);
   assert.match(marketerLayout, /Stock Records/);
-  assert.match(marketerLayout, /Reject Stock/);
+  assert.doesNotMatch(marketerLayout, /Reject Stock|\/marketer\/rejects/);
   assert.doesNotMatch(marketerLayout, /Price & Publish|Published Listings/);
   assert.match(marketerPage, /Permanent products/);
   assert.match(marketerPage, /Good, Semi, and Reject offers are prepared automatically as drafts/);
@@ -580,9 +580,7 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.match(receivingPage, /marketplace totals updated/);
   assert.match(receivingPage, /name="farmerId"[\s\S]*searchable/);
   assert.match(stockRecordsPage, /saved deliveries are immutable/);
-  assert.match(rejectStockPage, /Marketplace-ready quality/);
-  assert.match(rejectStockPage, /let Buyers purchase available Reject\s+stock/);
-  assert.match(rejectStockPage, /Farmer owner/);
+  assert.match(rejectStockRedirect, /redirect\(\{ to: "\/marketer\/classification" \}\)/);
   assert.match(pricePublishPage, /redirect\(\{ to: "\/marketer\/products" \}\)/);
   assert.match(publishedListingsPage, /redirect\(\{ to: "\/marketer\/products" \}\)/);
 });
