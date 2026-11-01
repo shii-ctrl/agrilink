@@ -38,9 +38,7 @@ const mobileNav = [
 ] as const;
 
 function buyerNavIsActive(pathname: string, destination: string) {
-  return destination === "/marketplace"
-    ? pathname.startsWith("/marketplace")
-    : pathname === destination;
+  return pathname === destination;
 }
 
 export function BuyerLayout({ children }: { children: ReactNode }) {
@@ -74,7 +72,7 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
                         tooltip={item.label}
                         isActive={buyerNavIsActive(pathname, item.to)}
                       >
-                        <Link to={item.to} activeOptions={{ exact: item.to !== "/marketplace" }}>
+                        <Link to={item.to} activeOptions={{ exact: true }}>
                           <item.icon />
                           <span>{item.label}</span>
                         </Link>
@@ -145,7 +143,7 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
                 <Link
                   key={item.label}
                   to={item.to}
-                  activeOptions={{ exact: item.to !== "/marketplace" }}
+                  activeOptions={{ exact: true }}
                   className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
                     active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                   }`}

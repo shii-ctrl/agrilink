@@ -10,14 +10,9 @@ import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import { procyMarketCategoryGuide } from "@/features/marketplace/procy-market-categories";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getMarketplaceListings } from "@/services/marketplace/marketplace-server-functions";
-import { getCurrentSessionUser } from "@/services/auth/auth-functions";
-import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
 
 export const Route = createFileRoute("/marketplace/")({
-  loader: async () => {
-    const [listings, user] = await Promise.all([getMarketplaceListings(), getCurrentSessionUser()]);
-    return { listings, isBuyer: user?.roles.includes("Buyer") ?? false };
-  },
+  loader: () => getMarketplaceListings(),
   head: () => ({
     meta: [
       { title: "Marketplace — AgriLink Farm Produce by PROCY" },
@@ -63,10 +58,7 @@ function Chip({
 
 function MarketplacePage() {
   const router = useRouter();
-  const { listings, isBuyer } = Route.useLoaderData() as {
-    listings: Product[];
-    isBuyer: boolean;
-  };
+  const listings = Route.useLoaderData() as Product[];
   useAutoRefresh(() => router.invalidate());
   const products = useMemo(
     () =>
@@ -99,29 +91,21 @@ function MarketplacePage() {
   );
 
   const catalog = (
-    <main
-      className={`mx-auto w-full max-w-6xl px-4 ${isBuyer ? "py-5 sm:py-8 md:px-8" : "pt-8 sm:pt-12"}`}
-    >
-      {!isBuyer && (
-        <>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            · Public marketplace
-          </p>
-          <h1 className="mt-3 max-w-2xl text-4xl font-semibold md:text-5xl">
-            Produce supplied by farmer members, sold by PROCY
-          </h1>
-          <p className="mt-4 max-w-xl text-sm text-muted-foreground">
-            Browse freely. Login or register as a buyer to add items to your cart and place orders.
-          </p>
-          <p className="mt-3 inline-flex rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
-            Live Layerbase marketplace listings
-          </p>
-        </>
-      )}
+    <main className="mx-auto w-full max-w-6xl px-4 pt-8 sm:pt-12">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+        · Public marketplace
+      </p>
+      <h1 className="mt-3 max-w-2xl text-4xl font-semibold md:text-5xl">
+        Produce supplied by farmer members, sold by PROCY
+      </h1>
+      <p className="mt-4 max-w-xl text-sm text-muted-foreground">
+        Browse freely. Login or register as a buyer to add items to your cart and place orders.
+      </p>
+      <p className="mt-3 inline-flex rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
+        Live Layerbase marketplace listings
+      </p>
 
-      <div
-        className={`${isBuyer ? "" : "mt-8 sm:mt-10"} rounded-2xl border border-border bg-card p-4 shadow-card sm:rounded-3xl sm:p-5`}
-      >
+      <div className="mt-8 rounded-2xl border border-border bg-card p-4 shadow-card sm:mt-10 sm:rounded-3xl sm:p-5">
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -194,18 +178,6 @@ function MarketplacePage() {
       )}
     </main>
   );
-
-  if (isBuyer) {
-    return (
-      <BuyerLayout>
-        <BuyerPageHeader
-          title="Browse Products"
-          description="Search live PROCY listings and add available produce to your cart."
-        />
-        {catalog}
-      </BuyerLayout>
-    );
-  }
 
   return (
     <div className="min-h-screen">

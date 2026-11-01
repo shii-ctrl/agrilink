@@ -216,7 +216,7 @@ test("profile completion is limited to Farmer and Buyer accounts", async () => {
   }
 });
 
-test("signed-in Buyers keep their workspace navigation across marketplace browsing", async () => {
+test("marketplace browsing keeps the public layout for signed-in Buyers", async () => {
   const [marketplace, productDetail, buyerLayout] = await Promise.all([
     readFile("src/routes/marketplace.index.tsx", "utf8"),
     readFile("src/routes/marketplace.$productId.tsx", "utf8"),
@@ -224,14 +224,12 @@ test("signed-in Buyers keep their workspace navigation across marketplace browsi
   ]);
 
   for (const page of [marketplace, productDetail]) {
-    assert.match(page, /getCurrentSessionUser/);
-    assert.match(page, /roles\.includes\("Buyer"\)/);
-    assert.match(page, /<BuyerLayout>/);
-    assert.match(page, /<BuyerPageHeader/);
+    assert.doesNotMatch(page, /<BuyerLayout>/);
+    assert.doesNotMatch(page, /<BuyerPageHeader/);
     assert.match(page, /<SiteHeader/);
     assert.match(page, /<SiteFooter/);
   }
-  assert.match(buyerLayout, /pathname\.startsWith\("\/marketplace"\)/);
+  assert.doesNotMatch(buyerLayout, /pathname\.startsWith\("\/marketplace"\)/);
   assert.match(buyerLayout, /Buyer mobile navigation/);
   assert.match(buyerLayout, /fixed inset-x-0 bottom-0/);
   assert.match(buyerLayout, /md:hidden/);

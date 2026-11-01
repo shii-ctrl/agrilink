@@ -22,7 +22,6 @@ import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import { notifyBuyerCartChanged } from "@/features/marketplace/cart-events";
-import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
 import {
   addBuyerCartItem,
   getBuyerCart,
@@ -32,10 +31,7 @@ import {
 
 export const Route = createFileRoute("/marketplace/$productId")({
   loader: async ({ params }) => {
-    const [product, user] = await Promise.all([
-      getMarketplaceListing({ data: { listingId: params.productId } }),
-      getCurrentSessionUser(),
-    ]);
+    const product = await getMarketplaceListing({ data: { listingId: params.productId } });
     if (!product) throw notFound();
     const related = (await getMarketplaceListings())
       .filter((listing) => listing.id !== product.id && listing.name === product.name)
@@ -46,7 +42,6 @@ export const Route = createFileRoute("/marketplace/$productId")({
     return {
       product: { ...product, image: product.image || marketplaceImageFor(product.name) },
       related,
-      isBuyer: user?.roles.includes("Buyer") ?? false,
     };
   },
   head: ({ loaderData }) => {
@@ -69,17 +64,13 @@ export const Route = createFileRoute("/marketplace/$productId")({
   component: ProductDetail,
 });
 
-type MarketplaceProductDetailData = { product: Product; related: Product[]; isBuyer: boolean };
+type MarketplaceProductDetailData = { product: Product; related: Product[] };
 
 function ProductDetail() {
   const router = useRouter();
-  const {
-    product,
-    related,
-    isBuyer: buyerMode,
-  } = Route.useLoaderData() as MarketplaceProductDetailData;
+  const { product, related } = Route.useLoaderData() as MarketplaceProductDetailData;
   const [quantityInput, setQuantityInput] = useState("1");
-  const [isBuyer, setIsBuyer] = useState(buyerMode);
+  const [isBuyer, setIsBuyer] = useState(false);
   const [cartQuantityKg, setCartQuantityKg] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
@@ -168,9 +159,7 @@ function ProductDetail() {
   }
 
   const productContent = (
-    <main
-      className={`mx-auto w-full max-w-6xl px-4 ${buyerMode ? "py-5 sm:py-8 md:px-8" : "pt-8 sm:pt-10"}`}
-    >
+    <main className="mx-auto w-full max-w-6xl px-4 pt-8 sm:pt-10">
       <Link
         to="/marketplace"
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -424,18 +413,6 @@ function ProductDetail() {
       )}
     </main>
   );
-
-  if (buyerMode) {
-    return (
-      <BuyerLayout>
-        <BuyerPageHeader
-          title="Product Details"
-          description="Review the listing, choose a quantity, and add it to your Buyer cart."
-        />
-        {productContent}
-      </BuyerLayout>
-    );
-  }
 
   return (
     <div className="min-h-screen">
