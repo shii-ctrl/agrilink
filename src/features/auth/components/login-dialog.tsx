@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -51,27 +51,98 @@ export function LoginDialog({
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [formFocused, setFormFocused] = useState(false);
+  const [visibleViewport, setVisibleViewport] = useState<{
+    height: number;
+    offsetTop: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!open) setFormFocused(false);
+    if (!open || typeof window === "undefined" || !window.visualViewport) {
+      setVisibleViewport(null);
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    const syncViewport = () => {
+      if (!window.matchMedia("(max-width: 639px)").matches) {
+        setVisibleViewport(null);
+        return;
+      }
+      setVisibleViewport({
+        height: Math.max(280, viewport.height),
+        offsetTop: viewport.offsetTop,
+      });
+    };
+
+    syncViewport();
+    viewport.addEventListener("resize", syncViewport);
+    viewport.addEventListener("scroll", syncViewport);
+    window.addEventListener("orientationchange", syncViewport);
+    return () => {
+      viewport.removeEventListener("resize", syncViewport);
+      viewport.removeEventListener("scroll", syncViewport);
+      window.removeEventListener("orientationchange", syncViewport);
+    };
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto rounded-[2rem] border-primary/25 p-0 shadow-field sm:max-w-md">
+      <DialogContent
+        className="w-[calc(100%_-_0.75rem)] max-h-[calc(100dvh_-_0.75rem)] overscroll-contain rounded-[1.5rem] border-primary/25 p-0 shadow-field sm:max-w-md sm:rounded-[2rem]"
+        style={
+          visibleViewport
+            ? {
+                maxHeight: `${Math.max(280, visibleViewport.height - 12)}px`,
+                top: `${visibleViewport.offsetTop + visibleViewport.height / 2}px`,
+              }
+            : undefined
+        }
+      >
         <div className="h-2 bg-primary" />
-        <div className="px-6 pb-7 pt-4 sm:px-9 sm:pb-9">
-          <DialogHeader className="items-center pt-2 text-center sm:text-center">
-            <span className="flex size-14 items-center justify-center rounded-2xl surface-sprout shadow-sm">
+        <div className="min-h-0 overflow-y-auto px-5 pb-6 pt-3 sm:px-9 sm:pb-9 sm:pt-4">
+          <DialogHeader
+            className={`text-center sm:text-center ${
+              formFocused ? "items-start pt-0 text-left" : "items-center pt-2"
+            }`}
+          >
+            <span
+              className={`${formFocused ? "hidden" : "flex"} size-14 items-center justify-center rounded-2xl surface-sprout shadow-sm sm:flex`}
+            >
               <ProcyLogo className="size-12" />
             </span>
-            <p className="pt-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+            <p
+              className={`${formFocused ? "hidden" : "block"} pt-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary sm:block`}
+            >
               AgriLink
             </p>
-            <DialogTitle className="pt-1 text-2xl">Welcome back</DialogTitle>
-            <DialogDescription className="max-w-xs pt-1 text-center">
+            <DialogTitle className={`${formFocused ? "text-xl" : "pt-1 text-2xl"}`}>
+              Welcome back
+            </DialogTitle>
+            <DialogDescription
+              className={`${formFocused ? "hidden" : "block"} max-w-xs pt-1 text-center sm:block`}
+            >
               Sign in to access the AgriLink workspace assigned to your account.
             </DialogDescription>
           </DialogHeader>
 
           <form
-            className="mt-7 space-y-5"
+            className={`${formFocused ? "mt-3 space-y-3" : "mt-7 space-y-5"} sm:mt-7 sm:space-y-5`}
+            onFocusCapture={(event) => {
+              setFormFocused(true);
+              const field = event.target;
+              window.setTimeout(() => {
+                if (field instanceof HTMLElement) {
+                  field.scrollIntoView({ block: "center", behavior: "smooth" });
+                }
+              }, 180);
+            }}
+            onBlurCapture={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setFormFocused(false);
+              }
+            }}
             onSubmit={async (event) => {
               event.preventDefault();
               const formData = new FormData(event.currentTarget);
@@ -170,7 +241,9 @@ export function LoginDialog({
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
+          <p
+            className={`${formFocused ? "hidden" : "block"} mt-6 text-center text-sm text-muted-foreground sm:block`}
+          >
             New buyer?{" "}
             {onRegister ? (
               <button

@@ -33,7 +33,7 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto rounded-[2rem] border-primary/25 p-0 shadow-field sm:max-w-md">
+      <DialogContent className="max-h-[calc(100dvh_-_0.75rem)] overflow-y-auto rounded-[2rem] border-primary/25 p-0 shadow-field sm:max-w-md">
         <div className="h-2 bg-primary" />
         <div className="px-6 pb-7 pt-4 sm:px-9 sm:pb-9">
           <DialogHeader className="items-center pt-2 text-center sm:text-center">

@@ -413,6 +413,7 @@ test("public authentication uses the floating dialog system", async () => {
       readFile("src/routes/register.tsx", "utf8"),
       readFile("src/routes/forgot-password.tsx", "utf8"),
     ]);
+  const root = await readFile("src/routes/__root.tsx", "utf8");
 
   assert.match(home, /<LoginDialog\s+open=\{loginOpen\}/);
   assert.match(home, /<RegisterDialog\s+open=\{registerOpen\}/);
@@ -440,6 +441,13 @@ test("public authentication uses the floating dialog system", async () => {
   assert.match(loginDialog, /Forgot password\?/);
   assert.match(loginDialog, /Register as Buyer/);
   assert.match(loginDialog, /onForgotPassword/);
+  assert.match(loginDialog, /window\.visualViewport/);
+  assert.match(loginDialog, /viewport\.addEventListener\("resize", syncViewport\)/);
+  assert.match(loginDialog, /scrollIntoView\(\{ block: "center", behavior: "smooth" \}\)/);
+  assert.match(loginDialog, /100dvh/);
+  assert.match(loginDialog, /formFocused/);
+  assert.match(root, /interactive-widget=resizes-content/);
+  assert.match(root, /viewport-fit=cover/);
   assert.match(resetDialog, /requestPasswordResetCode/);
   assert.match(resetDialog, /completePasswordReset/);
   assert.match(loginRoute, /auth: "login"/);
