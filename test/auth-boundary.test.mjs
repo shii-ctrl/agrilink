@@ -339,6 +339,8 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(productCard, /translateX\(-\$\{activeImage \* 100\}%\)/);
   assert.match(productCard, /onMouseEnter=\{\(\) => setPreviewing\(true\)\}/);
   assert.match(productCard, /prefers-reduced-motion: reduce/);
+  assert.match(productCard, /ClassificationBadge value=\{activeSlide\.classification\}/);
+  assert.doesNotMatch(productCard, /offers\.map\(\(offer\) => \(\s*<ClassificationBadge/);
   assert.match(schema, /bundlePricePerKg: decimal\("bundle_price_per_kg"/);
   assert.match(migration, /MODIFY COLUMN image_url MEDIUMTEXT/);
 });

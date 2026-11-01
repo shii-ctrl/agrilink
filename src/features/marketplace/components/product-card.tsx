@@ -25,6 +25,7 @@ export function ProductCard({ product }: { product: Product }) {
     classification: offer.classification,
     image: offer.image || product.image,
   }));
+  const activeSlide = slides[activeImage] ?? slides[0];
 
   useEffect(() => {
     if (
@@ -76,9 +77,7 @@ export function ProductCard({ product }: { product: Product }) {
           ))}
         </div>
         <div className="absolute left-3 top-3 flex gap-1.5">
-          {offers.map((offer) => (
-            <ClassificationBadge key={offer.id} value={offer.classification} />
-          ))}
+          {activeSlide ? <ClassificationBadge value={activeSlide.classification} /> : null}
         </div>
         {slides.length > 1 ? (
           <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-background/80 px-2.5 py-1.5 backdrop-blur-sm">

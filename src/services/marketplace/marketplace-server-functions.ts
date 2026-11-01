@@ -270,7 +270,7 @@ function asProduct(row: {
     quantityKg: Math.max(0, Number(row.availableKg)),
     description:
       row.description ??
-      `${row.name} supplied by PROCY farmer members and classified ${row.classification}.`,
+      `${row.name} supplied by PROCY farmer members with selectable quality options.`,
     image: row.productImageUrl ?? "",
     offers: [
       {
