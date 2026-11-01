@@ -29,6 +29,20 @@ const nav = [
   { label: "My Orders", to: "/buyer/orders", icon: ShoppingBag },
   { label: "Messages", to: "/buyer/community", icon: MessageCircle },
 ] as const;
+const mobileNav = [
+  { label: "Shop", to: "/marketplace", icon: Store },
+  { label: "Cart", to: "/buyer/cart", icon: ShoppingCart },
+  { label: "Orders", to: "/buyer/orders", icon: ShoppingBag },
+  { label: "Messages", to: "/buyer/community", icon: MessageCircle },
+  { label: "Profile", to: "/buyer/profile", icon: UserRound },
+] as const;
+
+function buyerNavIsActive(pathname: string, destination: string) {
+  return destination === "/marketplace"
+    ? pathname.startsWith("/marketplace")
+    : pathname === destination;
+}
+
 export function BuyerLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -58,11 +72,7 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
                       <SidebarMenuButton
                         asChild
                         tooltip={item.label}
-                        isActive={
-                          item.to === "/marketplace"
-                            ? pathname.startsWith("/marketplace")
-                            : pathname === item.to
-                        }
+                        isActive={buyerNavIsActive(pathname, item.to)}
                       >
                         <Link to={item.to} activeOptions={{ exact: item.to !== "/marketplace" }}>
                           <item.icon />
@@ -123,21 +133,53 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
-        <div className="min-w-0 flex-1 bg-background">{children}</div>
+        <div className="min-w-0 flex-1 bg-background pb-24 md:pb-0">{children}</div>
+        <nav
+          aria-label="Buyer mobile navigation"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur md:hidden"
+        >
+          <div className="mx-auto grid max-w-lg grid-cols-5">
+            {mobileNav.map((item) => {
+              const active = buyerNavIsActive(pathname, item.to);
+              return (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  activeOptions={{ exact: item.to !== "/marketplace" }}
+                  className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
+                    active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <span
+                    className={`flex size-8 items-center justify-center rounded-full ${active ? "bg-primary/12" : ""}`}
+                  >
+                    <item.icon className="size-5" />
+                  </span>
+                  <span className="max-w-full truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
       </SidebarProvider>
     </RoleGate>
   );
 }
 export function BuyerPageHeader({ title, description }: { title: string; description: string }) {
   return (
-    <header className="flex items-start gap-3 border-b border-border bg-background px-4 py-4 md:px-8">
-      <SidebarTrigger className="mt-1" />
-      <div>
+    <header className="sticky top-0 z-30 flex items-start gap-2 border-b border-border bg-background/95 px-3 py-3 backdrop-blur md:static md:gap-3 md:px-8 md:py-4">
+      <SidebarTrigger className="mt-0.5 size-9 shrink-0 md:mt-1" />
+      <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Buyer</p>
-        <h1 className="mt-1 text-2xl font-semibold md:text-3xl">{title}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
+        <h1 className="mt-0.5 truncate text-xl font-semibold sm:text-2xl md:mt-1 md:text-3xl">
+          {title}
+        </h1>
+        <p className="mt-1 hidden max-w-2xl text-sm text-muted-foreground sm:block">
+          {description}
+        </p>
       </div>
-      <div className="ml-auto">
+      <div className="shrink-0">
         <NotificationCenter role="Buyer" />
       </div>
     </header>

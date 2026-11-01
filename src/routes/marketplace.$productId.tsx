@@ -168,7 +168,9 @@ function ProductDetail() {
   }
 
   const productContent = (
-    <main className={`mx-auto w-full max-w-6xl px-4 ${buyerMode ? "py-8 md:px-8" : "pt-10"}`}>
+    <main
+      className={`mx-auto w-full max-w-6xl px-4 ${buyerMode ? "py-5 sm:py-8 md:px-8" : "pt-8 sm:pt-10"}`}
+    >
       <Link
         to="/marketplace"
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -176,8 +178,8 @@ function ProductDetail() {
         <ArrowLeft className="size-4" /> Back to marketplace
       </Link>
 
-      <div className="mt-6 grid gap-10 lg:grid-cols-2">
-        <div className="overflow-hidden rounded-[2rem] shadow-field">
+      <div className="mt-4 grid gap-6 sm:mt-6 sm:gap-10 lg:grid-cols-2">
+        <div className="overflow-hidden rounded-2xl shadow-field sm:rounded-[2rem]">
           <img
             src={product.image}
             alt={`${product.name} — ${product.classification} classification`}
@@ -189,12 +191,14 @@ function ProductDetail() {
 
         <div>
           <ClassificationBadge value={product.classification} />
-          <h1 className="mt-4 text-4xl font-semibold md:text-5xl">{product.name}</h1>
+          <h1 className="mt-3 text-3xl font-semibold sm:mt-4 sm:text-4xl md:text-5xl">
+            {product.name}
+          </h1>
           <p className="mt-2 text-sm uppercase tracking-wide text-muted-foreground">
             {product.cropType}
           </p>
 
-          <p className="mt-6 font-display text-4xl font-semibold text-primary">
+          <p className="mt-5 font-display text-3xl font-semibold text-primary sm:mt-6 sm:text-4xl">
             {peso(currentPricePerKg)}
             <span className="ml-2 text-base font-normal text-muted-foreground">/ kg</span>
           </p>
@@ -206,7 +210,7 @@ function ProductDetail() {
             </p>
           ) : null}
 
-          <dl className="mt-6 grid grid-cols-2 gap-3">
+          <dl className="mt-5 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3">
             <div className="rounded-2xl border border-border bg-card p-4">
               <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                 Available quantity
@@ -232,8 +236,8 @@ function ProductDetail() {
             {product.description}
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-1 rounded-full border border-border bg-card p-1">
+          <div className="mt-7 grid grid-cols-2 items-center gap-2 sm:mt-8 sm:flex sm:flex-wrap sm:gap-4">
+            <div className="col-span-2 flex items-center justify-center gap-1 rounded-full border border-border bg-card p-1 sm:col-span-1 sm:justify-start">
               <button
                 onClick={() => setQuantityInput(String(clampQuantity((qty || 0.01) - 1)))}
                 disabled={!isAvailable || !canDecreaseQuantity}
@@ -269,7 +273,7 @@ function ProductDetail() {
             <Button
               size="lg"
               variant="outline"
-              className="rounded-full"
+              className="w-full rounded-full sm:w-auto"
               disabled={
                 !isAvailable ||
                 !hasValidQuantity ||
@@ -362,7 +366,7 @@ function ProductDetail() {
             </Button>
             <Button
               size="lg"
-              className="rounded-full"
+              className="w-full rounded-full sm:w-auto"
               disabled={
                 !isAvailable ||
                 !hasValidQuantity ||
@@ -409,9 +413,9 @@ function ProductDetail() {
       </div>
 
       {related.length > 0 && (
-        <section className="mt-24">
+        <section className="mt-12 sm:mt-24">
           <h2 className="text-2xl font-semibold">Other {product.name} classifications</h2>
-          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-5 grid gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
             {related.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

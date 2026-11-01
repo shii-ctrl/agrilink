@@ -232,6 +232,11 @@ test("signed-in Buyers keep their workspace navigation across marketplace browsi
     assert.match(page, /<SiteFooter/);
   }
   assert.match(buyerLayout, /pathname\.startsWith\("\/marketplace"\)/);
+  assert.match(buyerLayout, /Buyer mobile navigation/);
+  assert.match(buyerLayout, /fixed inset-x-0 bottom-0/);
+  assert.match(buyerLayout, /md:hidden/);
+  assert.match(marketplace, /overflow-x-auto/);
+  assert.match(productDetail, /grid grid-cols-2 items-center/);
 });
 
 test("marketplace cart controls prevent duplicate additions beyond available stock", async () => {

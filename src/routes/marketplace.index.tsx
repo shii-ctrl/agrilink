@@ -50,7 +50,7 @@ function Chip({
   return (
     <button
       onClick={onClick}
-      className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+      className={`min-h-10 shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
         active
           ? "border-primary bg-primary text-primary-foreground"
           : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
@@ -99,7 +99,9 @@ function MarketplacePage() {
   );
 
   const catalog = (
-    <main className={`mx-auto w-full max-w-6xl px-4 ${isBuyer ? "py-8 md:px-8" : "pt-12"}`}>
+    <main
+      className={`mx-auto w-full max-w-6xl px-4 ${isBuyer ? "py-5 sm:py-8 md:px-8" : "pt-8 sm:pt-12"}`}
+    >
       {!isBuyer && (
         <>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
@@ -118,24 +120,24 @@ function MarketplacePage() {
       )}
 
       <div
-        className={`${isBuyer ? "" : "mt-10"} rounded-3xl border border-border bg-card p-5 shadow-card`}
+        className={`${isBuyer ? "" : "mt-8 sm:mt-10"} rounded-2xl border border-border bg-card p-4 shadow-card sm:rounded-3xl sm:p-5`}
       >
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products, crop types, classifications..."
-            className="h-12 rounded-full pl-11"
+            placeholder="Search products or crop types"
+            className="h-12 rounded-full pl-11 text-base sm:text-sm"
           />
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-6">
-          <div>
+        <div className="mt-5 grid gap-4 sm:gap-6 lg:grid-cols-[1fr_auto_auto]">
+          <div className="min-w-0">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Crop type
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 sm:flex-wrap sm:overflow-visible sm:pb-0">
               <Chip active={crop === null} onClick={() => setCrop(null)}>
                 All
               </Chip>
@@ -151,7 +153,7 @@ function MarketplacePage() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Classification
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 sm:flex-wrap sm:overflow-visible sm:pb-0">
               <Chip active={grade === null} onClick={() => setGrade(null)}>
                 All
               </Chip>
@@ -179,7 +181,7 @@ function MarketplacePage() {
           <p className="mt-8 text-sm text-muted-foreground">
             {results.length} listing{results.length === 1 ? "" : "s"}
           </p>
-          <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
             {results.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
