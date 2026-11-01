@@ -464,7 +464,7 @@ test("public authentication uses the floating dialog system", async () => {
   assert.doesNotMatch(resetRoute, /auth-panel|auth-visual/);
 });
 
-test("home featured produce supports horizontal drag and carousel controls", async () => {
+test("home featured produce supports continuous horizontal movement", async () => {
   const home = await readFile("src/routes/index.tsx", "utf8");
 
   assert.match(home, /useEmblaCarousel/);
@@ -477,8 +477,9 @@ test("home featured produce supports horizontal drag and carousel controls", asy
   assert.match(home, /stopOnMouseEnter: true/);
   assert.match(home, /stopOnInteraction: false/);
   assert.match(home, /prefers-reduced-motion: reduce/);
-  assert.match(home, /featuredCarouselApi\?\.scrollPrev\(\)/);
-  assert.match(home, /featuredCarouselApi\?\.scrollNext\(\)/);
+  assert.doesNotMatch(home, /Previous featured products/);
+  assert.doesNotMatch(home, /Next featured products/);
+  assert.doesNotMatch(home, /View all products/);
   assert.match(home, /Featured produce carousel/);
   assert.match(home, /Products glide continuously/);
   assert.match(home, /cursor-grab overflow-hidden active:cursor-grabbing/);

@@ -1,8 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
   ClipboardCheck,
   LineChart,
   LockKeyhole,
@@ -12,7 +10,7 @@ import {
   Sprout,
   Users,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import AutoScroll from "embla-carousel-auto-scroll";
 import { z } from "zod";
@@ -122,25 +120,6 @@ function Index() {
     },
     [featuredAutoScroll],
   );
-  const [canScrollFeaturedPrev, setCanScrollFeaturedPrev] = useState(false);
-  const [canScrollFeaturedNext, setCanScrollFeaturedNext] = useState(false);
-  const updateFeaturedCarouselControls = useCallback(() => {
-    if (!featuredCarouselApi) return;
-    setCanScrollFeaturedPrev(featuredCarouselApi.canScrollPrev());
-    setCanScrollFeaturedNext(featuredCarouselApi.canScrollNext());
-  }, [featuredCarouselApi]);
-
-  useEffect(() => {
-    if (!featuredCarouselApi) return;
-    updateFeaturedCarouselControls();
-    featuredCarouselApi.on("select", updateFeaturedCarouselControls);
-    featuredCarouselApi.on("reInit", updateFeaturedCarouselControls);
-    return () => {
-      featuredCarouselApi.off("select", updateFeaturedCarouselControls);
-      featuredCarouselApi.off("reInit", updateFeaturedCarouselControls);
-    };
-  }, [featuredCarouselApi, updateFeaturedCarouselControls]);
-
   useEffect(() => {
     if (!featuredCarouselApi || featured.length < 2) return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -343,7 +322,7 @@ function Index() {
 
         {/* Featured */}
         <section className="mx-auto mt-24 max-w-6xl px-4">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
                 · Fresh on the market
@@ -352,33 +331,6 @@ function Index() {
               <p className="mt-2 text-sm text-muted-foreground">
                 Live listings and availability from the AgriLink database.
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="hidden rounded-full sm:inline-flex"
-                onClick={() => featuredCarouselApi?.scrollPrev()}
-                disabled={!canScrollFeaturedPrev}
-                aria-label="Previous featured products"
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="hidden rounded-full sm:inline-flex"
-                onClick={() => featuredCarouselApi?.scrollNext()}
-                disabled={!canScrollFeaturedNext}
-                aria-label="Next featured products"
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-              <Button asChild variant="outline" className="rounded-full">
-                <Link to="/marketplace">View all products</Link>
-              </Button>
             </div>
           </div>
           {featured.length > 0 ? (
