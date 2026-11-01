@@ -1,13 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import {
-  ClipboardList,
-  Bot,
-  LogOut,
-  MessageCircle,
-  PackageCheck,
-  Sprout,
-  UserRound,
-} from "lucide-react";
+import { Bot, LogOut, MessageCircle, PackageCheck, Sprout, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
 import { RoleGate } from "@/components/layout/role-gate";
@@ -15,6 +7,7 @@ import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { NotificationCenter } from "@/features/messaging/components/notification-center";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sidebar,
   SidebarContent,
@@ -31,7 +24,6 @@ import {
 } from "@/components/ui/sidebar";
 const nav = [
   { label: "Dashboard", to: "/farmer", icon: Sprout },
-  { label: "Production Records", to: "/farmer/production", icon: ClipboardList },
   { label: "Receiving History", to: "/farmer/receiving", icon: PackageCheck },
   { label: "Ask Crop AI", to: "/farmer/crop-ai", icon: Bot },
   { label: "Community", to: "/farmer/community", icon: MessageCircle },
@@ -81,9 +73,16 @@ export function FarmerLayout({ children }: { children: ReactNode }) {
           <SidebarFooter className="p-4">
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">
               <div className="flex items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  {farmer.initials}
-                </span>
+                <Avatar className="size-9">
+                  <AvatarImage
+                    src={farmer.avatarUrl ?? undefined}
+                    alt={`${farmer.displayName} profile photo`}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-primary text-sm font-bold text-primary-foreground">
+                    {farmer.initials}
+                  </AvatarFallback>
+                </Avatar>
                 <div>
                   <p className="text-sm font-semibold">{farmer.displayName}</p>
                   <p className="text-xs text-sidebar-foreground/65">Farmer Member</p>

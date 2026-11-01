@@ -44,7 +44,7 @@ function ManagementReportsPage() {
     <ManagementLayout>
       <ManagementPageHeader
         title="Reports / Analytics"
-        description="Clear organizational summaries for availability, supply, demand, production, receiving, sales, payments, and transactions."
+        description="Clear organizational summaries for availability, supply, demand, receiving, sales, payments, and transactions."
       />
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">

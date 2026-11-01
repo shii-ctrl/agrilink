@@ -53,23 +53,6 @@ export const demoPublicProducts: Product[] = [
   },
 ];
 
-export const demoProductionRecords = [
-  {
-    farmer: "Juan Dela Cruz",
-    crop: "Tomato",
-    plantingDate: "Jun 10, 2026",
-    expectedHarvest: "Aug 20, 2026",
-    harvestedQuantity: "150 kg",
-  },
-  {
-    farmer: "Juan Dela Cruz",
-    crop: "Cabbage",
-    plantingDate: "Jun 18, 2026",
-    expectedHarvest: "Sep 05, 2026",
-    harvestedQuantity: "120 kg",
-  },
-];
-
 export const demoReceivingRecords = [
   {
     id: "REC-2026-001",
@@ -161,12 +144,9 @@ export const demoDashboardSummary = [
   { label: "Pending Orders", value: "0", note: "Awaiting PROCY confirmation" },
   { label: "Sold Products", value: "25 kg", note: "Confirmed marketplace sale" },
   { label: "Paid Transactions", value: "1", note: "Recorded by Accounting" },
-  { label: "Production Records", value: "2", note: "For 1 farmer member" },
 ];
 
 export const demoDecisionSupport = [
-  { label: "Production Summaries", value: "2 records" },
-  { label: "Harvest Summaries", value: "270 kg harvested" },
   { label: "Supply Information", value: "195 kg available" },
   { label: "Buyer-Order Demand Information", value: "25 kg confirmed demand" },
   { label: "Price Information", value: "₱24–₱78 / kg" },
@@ -190,7 +170,7 @@ export const demoCommunityMessages = [
     role: "Management",
     time: "Today, 1:40 PM",
     message:
-      "Thank you for keeping receiving and production information up to date for accurate system monitoring.",
+      "Thank you for keeping receiving information up to date for accurate system monitoring.",
   },
 ];
 import type { Product } from "@/features/marketplace/products";

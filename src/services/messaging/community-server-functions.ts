@@ -26,12 +26,7 @@ const communityFeedInput = z.object({
 });
 const postUpdateInput = messageInput.extend({ messageId: z.string().uuid() });
 const postRemovalInput = z.object({ messageId: z.string().uuid() });
-const communityRoles = [
-  "Management",
-  "Marketer",
-  "Accounting",
-  "Farmer",
-];
+const communityRoles = ["Management", "Marketer", "Accounting", "Farmer"];
 
 async function assertCommunityMessageExists(messageId: string) {
   const { db } = await import("@/db/client.server");
@@ -98,6 +93,7 @@ async function communityMessagesForViewer(
       createdAt: communityMessages.createdAt,
       authorId: communityMessages.authorId,
       author: users.displayName,
+      authorAvatarUrl: users.avatarUrl,
     })
     .from(communityMessages)
     .innerJoin(users, eq(communityMessages.authorId, users.id))
@@ -137,6 +133,7 @@ async function communityMessagesForViewer(
         message: communityComments.message,
         createdAt: communityComments.createdAt,
         author: users.displayName,
+        authorAvatarUrl: users.avatarUrl,
       })
       .from(communityComments)
       .innerJoin(users, eq(communityComments.authorId, users.id))
@@ -185,6 +182,7 @@ async function communityMessagesForViewer(
       parentCommentId: string | null;
       isOwner: boolean;
       author: string;
+      authorAvatarUrl: string | null;
       time: string;
       reactions: { likes: number; dislikes: number; viewerReaction: "like" | "dislike" | null };
     }>
@@ -212,6 +210,7 @@ async function communityMessagesForViewer(
       parentCommentId: comment.parentCommentId,
       isOwner: comment.authorId === viewer.id,
       author: comment.author,
+      authorAvatarUrl: comment.authorAvatarUrl,
       time: comment.createdAt.toISOString(),
       reactions: reactionsByCommentId.get(comment.id) ?? {
         likes: 0,
@@ -228,6 +227,7 @@ async function communityMessagesForViewer(
       isOwner: message.authorId === viewer.id,
       message: message.message,
       author: message.author,
+      authorAvatarUrl: message.authorAvatarUrl,
       role: roleByUserId.get(message.authorId) ?? "Community member",
       time: message.createdAt.toISOString(),
       reactions: reactionsByMessageId.get(message.id) ?? {
@@ -317,9 +317,12 @@ export const deleteCommunityMessage = createServerFn({ method: "POST" })
         .from(communityComments)
         .where(eq(communityComments.messageId, data.messageId));
       if (comments.length) {
-        await tx
-          .delete(communityCommentReactions)
-          .where(inArray(communityCommentReactions.commentId, comments.map((comment) => comment.id)));
+        await tx.delete(communityCommentReactions).where(
+          inArray(
+            communityCommentReactions.commentId,
+            comments.map((comment) => comment.id),
+          ),
+        );
       }
       await tx.delete(communityComments).where(eq(communityComments.messageId, data.messageId));
       await tx.delete(communityReactions).where(eq(communityReactions.messageId, data.messageId));
@@ -457,7 +460,12 @@ export const removeCommunityCommentReaction = createServerFn({ method: "POST" })
           eq(communityCommentReactions.userId, user.id),
         ),
       );
-    await writeAuditLog(user.id, "community.comment_reaction.remove", "community_comment", data.commentId);
+    await writeAuditLog(
+      user.id,
+      "community.comment_reaction.remove",
+      "community_comment",
+      data.commentId,
+    );
     return { removed: true };
   });
 

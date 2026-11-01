@@ -7,7 +7,6 @@ const dataKeys = [
   "agrilink-demo-notifications",
   "agrilink-demo-cart",
   "agrilink-demo-buyer-orders",
-  "agrilink-demo-production-records",
   "agrilink-demo-users",
   "agrilink-demo-receiving-records",
 ] as const;
@@ -55,7 +54,6 @@ export function resetDemoData() {
     "agrilink-demo-notifications": "[]",
     "agrilink-demo-cart": "[]",
     "agrilink-demo-buyer-orders": "[]",
-    "agrilink-demo-production-records": "[]",
     "agrilink-demo-users": "[]",
     "agrilink-demo-receiving-records": "[]",
   });

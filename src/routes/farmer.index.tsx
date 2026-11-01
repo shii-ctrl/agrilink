@@ -1,26 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ClipboardList, PackageCheck } from "lucide-react";
+import { PackageCheck } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
 import { Button } from "@/components/ui/button";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { getFarmerProductStatuses } from "@/services/operations/receiving-server-functions";
-import { getFarmerProductionRecords } from "@/services/operations/production-server-functions";
 export const Route = createFileRoute("/farmer/")({ component: FarmerDashboard });
 const emptyStatuses: Awaited<ReturnType<typeof getFarmerProductStatuses>> = [];
-const emptyProduction: Awaited<ReturnType<typeof getFarmerProductionRecords>> = [];
 function FarmerDashboard() {
   const request = useCallback(async () => {
-    const [statuses, production] = await Promise.all([
-      getFarmerProductStatuses(),
-      getFarmerProductionRecords(),
-    ]);
-    return { statuses, production };
+    const statuses = await getFarmerProductStatuses();
+    return { statuses };
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(request);
   const statuses = data?.statuses ?? emptyStatuses;
-  const production = data?.production ?? emptyProduction;
   const availableKg = useMemo(
     () => statuses.reduce((sum, item) => sum + item.availableKg, 0),
     [statuses],
@@ -30,7 +24,7 @@ function FarmerDashboard() {
     <FarmerLayout>
       <FarmerPageHeader
         title="Farmer Dashboard"
-        description="View your personal production and receiving information as a PROCY farmer member."
+        description="View receiving information and current product availability as a PROCY farmer member."
       />
       <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
         <WorkspaceLoadState
@@ -41,13 +35,7 @@ function FarmerDashboard() {
         />
         {!loading && !error && (
           <>
-            <section className="grid gap-4 md:grid-cols-3">
-              <Tile
-                icon={ClipboardList}
-                title="Production Records"
-                text={`${production.length} saved crop and harvest record${production.length === 1 ? "" : "s"}.`}
-                to="/farmer/production"
-              />
+            <section className="grid max-w-xl gap-4">
               <Tile
                 icon={PackageCheck}
                 title="Receiving History"
@@ -85,10 +73,10 @@ function Tile({
   text,
   to,
 }: {
-  icon: typeof ClipboardList;
+  icon: typeof PackageCheck;
   title: string;
   text: string;
-  to: "/farmer/production" | "/farmer/receiving";
+  to: "/farmer/receiving";
 }) {
   return (
     <article className="rounded-3xl border border-border bg-card p-6 shadow-card">

@@ -29,6 +29,7 @@ import {
   updateCommunityMessage,
 } from "@/services/messaging/community-server-functions";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,6 +57,41 @@ type CommunityCommentCardProps = {
   children?: ReactNode;
 };
 
+function initials(name: string) {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "A"
+  );
+}
+
+function CommunityAvatar({
+  name,
+  avatarUrl,
+  className = "size-10",
+}: {
+  name: string;
+  avatarUrl: string | null;
+  className?: string;
+}) {
+  return (
+    <Avatar className={`shrink-0 ${className}`}>
+      <AvatarImage
+        src={avatarUrl ?? undefined}
+        alt={`${name} profile photo`}
+        className="object-cover"
+      />
+      <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
+        {initials(name)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 function CommunityCommentCard({
   comment,
   busy,
@@ -69,8 +105,15 @@ function CommunityCommentCard({
 }: CommunityCommentCardProps) {
   return (
     <div className="rounded-2xl bg-muted/60 px-4 py-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm font-semibold">{comment.author}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <CommunityAvatar
+            name={comment.author}
+            avatarUrl={comment.authorAvatarUrl}
+            className="size-8"
+          />
+          <p className="truncate text-sm font-semibold">{comment.author}</p>
+        </div>
         <p className="text-xs text-muted-foreground">
           {new Date(comment.time).toLocaleString("en-PH", {
             dateStyle: "medium",
@@ -421,10 +464,13 @@ export function CommunityFeed({
                 key={message.id}
                 className="rounded-3xl border border-border bg-card p-5 shadow-card"
               >
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <div>
-                    <p className="font-semibold">{message.author}</p>
-                    <p className="text-xs text-primary">{message.role}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <CommunityAvatar name={message.author} avatarUrl={message.authorAvatarUrl} />
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{message.author}</p>
+                      <p className="text-xs text-primary">{message.role}</p>
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {new Date(message.time).toLocaleString("en-PH", {
@@ -653,16 +699,27 @@ export function CommunityFeed({
                               key={comment.id}
                               comment={comment}
                               busy={
-                                busyCommentReactionId === comment.id || busyCommentDeleteId === comment.id
+                                busyCommentReactionId === comment.id ||
+                                busyCommentDeleteId === comment.id
                               }
                               replyCount={replies.length}
                               repliesOpen={repliesOpen}
                               onReaction={reactToComment}
-                              onDelete={comment.isOwner ? () => void deleteComment(comment) : undefined}
+                              onDelete={
+                                comment.isOwner ? () => void deleteComment(comment) : undefined
+                              }
                               onReply={() => {
-                                setReplyTargets((current) => ({ ...current, [message.id]: comment.id }));
-                                setExpandedReplies((current) => ({ ...current, [comment.id]: true }));
-                                window.setTimeout(() => commentInputRefs.current[message.id]?.focus());
+                                setReplyTargets((current) => ({
+                                  ...current,
+                                  [message.id]: comment.id,
+                                }));
+                                setExpandedReplies((current) => ({
+                                  ...current,
+                                  [comment.id]: true,
+                                }));
+                                window.setTimeout(() =>
+                                  commentInputRefs.current[message.id]?.focus(),
+                                );
                               }}
                               onToggleReplies={
                                 replies.length > 0

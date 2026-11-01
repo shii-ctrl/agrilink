@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -16,13 +17,36 @@ type Contact = Workspace["contacts"][number];
 type ConversationMessage = Awaited<ReturnType<typeof getDirectConversation>>[number];
 
 function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "A"
+  );
+}
+
+function ContactAvatar({
+  contact,
+  className = "size-9",
+}: {
+  contact: Pick<Contact, "name" | "avatarUrl">;
+  className?: string;
+}) {
+  return (
+    <Avatar className={`shrink-0 ${className}`}>
+      <AvatarImage
+        src={contact.avatarUrl ?? undefined}
+        alt={`${contact.name} profile photo`}
+        className="object-cover"
+      />
+      <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
+        {initials(contact.name)}
+      </AvatarFallback>
+    </Avatar>
+  );
 }
 
 export function DirectMessagesPanel() {
@@ -155,9 +179,7 @@ export function DirectMessagesPanel() {
                     contact.id === selectedContactId ? "bg-primary/10" : ""
                   }`}
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                    {initials(contact.name)}
-                  </span>
+                  <ContactAvatar contact={contact} />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold">{contact.name}</span>
                     <span className="block truncate text-xs text-muted-foreground">
@@ -177,9 +199,7 @@ export function DirectMessagesPanel() {
             {selectedContact ? (
               <>
                 <div className="flex items-center gap-3 border-b border-border px-5 py-4">
-                  <span className="flex size-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                    {initials(selectedContact.name)}
-                  </span>
+                  <ContactAvatar contact={selectedContact} className="size-10" />
                   <div>
                     <p className="font-semibold">{selectedContact.name}</p>
                     <p className="text-xs text-primary">{selectedContact.role}</p>
@@ -194,8 +214,11 @@ export function DirectMessagesPanel() {
                     messages.map((message) => (
                       <div
                         key={message.id}
-                        className={`flex ${message.isMine ? "justify-end" : "justify-start"}`}
+                        className={`flex items-end gap-2 ${message.isMine ? "justify-end" : "justify-start"}`}
                       >
+                        {!message.isMine && (
+                          <ContactAvatar contact={selectedContact} className="size-7" />
+                        )}
                         <div
                           className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
                             message.isMine

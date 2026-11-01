@@ -115,22 +115,6 @@ export const receivingRecords = mysqlTable("receiving_records", {
   receivedAt: datetime("received_at").notNull(),
   createdAt,
 });
-export const productionRecords = mysqlTable(
-  "production_records",
-  {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    farmerId: varchar("farmer_id", { length: 36 }).notNull(),
-    productId: varchar("product_id", { length: 36 }),
-    cropName: varchar("crop_name", { length: 160 }).notNull(),
-    plantingDate: datetime("planting_date").notNull(),
-    expectedHarvestDate: datetime("expected_harvest_date").notNull(),
-    harvestedQuantityKg: decimal("harvested_quantity_kg", { precision: 12, scale: 2 }),
-    recordedById: varchar("recorded_by_id", { length: 36 }).notNull(),
-    createdAt,
-    updatedAt,
-  },
-  (table) => [index("production_records_farmer_idx").on(table.farmerId, table.plantingDate)],
-);
 export const receivingClassifications = mysqlTable(
   "receiving_classifications",
   {
@@ -411,7 +395,9 @@ export const farmerAiConversations = mysqlTable(
     createdAt,
     updatedAt,
   },
-  (table) => [index("farmer_ai_conversations_farmer_updated_idx").on(table.farmerId, table.updatedAt)],
+  (table) => [
+    index("farmer_ai_conversations_farmer_updated_idx").on(table.farmerId, table.updatedAt),
+  ],
 );
 export const farmerAiMessages = mysqlTable(
   "farmer_ai_messages",
@@ -422,7 +408,9 @@ export const farmerAiMessages = mysqlTable(
     message: text("message").notNull(),
     createdAt,
   },
-  (table) => [index("farmer_ai_messages_conversation_created_idx").on(table.conversationId, table.createdAt)],
+  (table) => [
+    index("farmer_ai_messages_conversation_created_idx").on(table.conversationId, table.createdAt),
+  ],
 );
 export const notifications = mysqlTable(
   "notifications",

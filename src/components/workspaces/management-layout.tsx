@@ -2,7 +2,6 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   Boxes,
-  ClipboardList,
   FileBarChart,
   LineChart,
   LogOut,
@@ -33,6 +32,7 @@ import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { NotificationCenter } from "@/features/messaging/components/notification-center";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const managementSections = [
   { label: "Main", items: [{ label: "Dashboard", icon: BarChart3, to: "/management" as const }] },
@@ -44,7 +44,6 @@ const managementSections = [
     label: "Operations",
     items: [
       { label: "Products", icon: Boxes, to: "/management/products" as const },
-      { label: "Production", icon: ClipboardList, to: "/management/production" as const },
       { label: "Receiving", icon: PackageCheck, to: "/management/receiving" as const },
       { label: "Sales", icon: ReceiptText, to: "/management/sales" as const },
       { label: "Transactions", icon: FileBarChart, to: "/management/transactions" as const },
@@ -67,11 +66,38 @@ export function ManagementLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [managerName, setManagerName] = useState("Management");
+  const [managerAvatarUrl, setManagerAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    void getCurrentSessionUser().then((user) => {
-      if (user?.roles.includes("Management")) setManagerName(user.displayName);
-    });
+    let mounted = true;
+    const onProfileUpdated = (event: Event) => {
+      const update = (
+        event as CustomEvent<{
+          role?: string;
+          displayName?: string;
+          avatarUrl?: string | null;
+        }>
+      ).detail;
+      if (!update || update.role !== "Management") return;
+      if (typeof update.displayName === "string") setManagerName(update.displayName);
+      if (typeof update.avatarUrl === "string" || update.avatarUrl === null) {
+        setManagerAvatarUrl(update.avatarUrl);
+      }
+    };
+
+    window.addEventListener("agrilink:profile-updated", onProfileUpdated);
+    void getCurrentSessionUser()
+      .then((user) => {
+        if (!mounted || !user?.roles.includes("Management")) return;
+        setManagerName(user.displayName);
+        setManagerAvatarUrl(user.avatarUrl ?? null);
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("agrilink:profile-updated", onProfileUpdated);
+    };
   }, []);
   const initials = managerName
     .split(/\s+/)
@@ -126,9 +152,16 @@ export function ManagementLayout({ children }: { children: ReactNode }) {
           <SidebarFooter className="p-4">
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">
               <div className="flex items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  {initials || "M"}
-                </span>
+                <Avatar className="size-9">
+                  <AvatarImage
+                    src={managerAvatarUrl ?? undefined}
+                    alt={`${managerName} profile photo`}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-primary text-sm font-bold text-primary-foreground">
+                    {initials || "M"}
+                  </AvatarFallback>
+                </Avatar>
                 <div>
                   <p className="text-sm font-semibold">{managerName}</p>
                   <p className="text-xs text-sidebar-foreground/65">Management</p>

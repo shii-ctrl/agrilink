@@ -19,6 +19,7 @@ import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { NotificationCenter } from "@/features/messaging/components/notification-center";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sidebar,
   SidebarContent,
@@ -122,9 +123,16 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
           <SidebarFooter className="p-3">
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">
               <div className="flex items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  {marketer.initials}
-                </span>
+                <Avatar className="size-9">
+                  <AvatarImage
+                    src={marketer.avatarUrl ?? undefined}
+                    alt={`${marketer.displayName} profile photo`}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-primary text-sm font-bold text-primary-foreground">
+                    {marketer.initials}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{marketer.displayName}</p>
                   <p className="truncate text-xs text-sidebar-foreground/65">Marketer</p>

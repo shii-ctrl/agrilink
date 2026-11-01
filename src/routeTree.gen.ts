@@ -33,13 +33,11 @@ import { Route as BuyerProfileRouteImport } from './routes/buyer.profile'
 import { Route as FarmerIndexRouteImport } from './routes/farmer.index'
 import { Route as FarmerCommunityRouteImport } from './routes/farmer.community'
 import { Route as FarmerCropAiRouteImport } from './routes/farmer.crop-ai'
-import { Route as FarmerProductionRouteImport } from './routes/farmer.production'
 import { Route as FarmerProfileRouteImport } from './routes/farmer.profile'
 import { Route as FarmerReceivingRouteImport } from './routes/farmer.receiving'
 import { Route as ManagementIndexRouteImport } from './routes/management.index'
 import { Route as ManagementCommunityRouteImport } from './routes/management.community'
 import { Route as ManagementDecisionSupportRouteImport } from './routes/management.decision-support'
-import { Route as ManagementProductionRouteImport } from './routes/management.production'
 import { Route as ManagementProductsRouteImport } from './routes/management.products'
 import { Route as ManagementProfileRouteImport } from './routes/management.profile'
 import { Route as ManagementReceivingRouteImport } from './routes/management.receiving'
@@ -183,11 +181,6 @@ const FarmerCropAiRoute = FarmerCropAiRouteImport.update({
   path: '/farmer/crop-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FarmerProductionRoute = FarmerProductionRouteImport.update({
-  id: '/farmer/production',
-  path: '/farmer/production',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const FarmerProfileRoute = FarmerProfileRouteImport.update({
   id: '/farmer/profile',
   path: '/farmer/profile',
@@ -214,11 +207,6 @@ const ManagementDecisionSupportRoute =
     path: '/management/decision-support',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ManagementProductionRoute = ManagementProductionRouteImport.update({
-  id: '/management/production',
-  path: '/management/production',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ManagementProductsRoute = ManagementProductsRouteImport.update({
   id: '/management/products',
   path: '/management/products',
@@ -353,12 +341,10 @@ export interface FileRoutesByFullPath {
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
   '/farmer/crop-ai': typeof FarmerCropAiRoute
-  '/farmer/production': typeof FarmerProductionRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
   '/management/decision-support': typeof ManagementDecisionSupportRoute
-  '/management/production': typeof ManagementProductionRoute
   '/management/products': typeof ManagementProductsRoute
   '/management/profile': typeof ManagementProfileRoute
   '/management/receiving': typeof ManagementReceivingRoute
@@ -408,12 +394,10 @@ export interface FileRoutesByTo {
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
   '/farmer/crop-ai': typeof FarmerCropAiRoute
-  '/farmer/production': typeof FarmerProductionRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
   '/management/decision-support': typeof ManagementDecisionSupportRoute
-  '/management/production': typeof ManagementProductionRoute
   '/management/products': typeof ManagementProductsRoute
   '/management/profile': typeof ManagementProfileRoute
   '/management/receiving': typeof ManagementReceivingRoute
@@ -464,12 +448,10 @@ export interface FileRoutesById {
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
   '/farmer/crop-ai': typeof FarmerCropAiRoute
-  '/farmer/production': typeof FarmerProductionRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
   '/management/decision-support': typeof ManagementDecisionSupportRoute
-  '/management/production': typeof ManagementProductionRoute
   '/management/products': typeof ManagementProductsRoute
   '/management/profile': typeof ManagementProfileRoute
   '/management/receiving': typeof ManagementReceivingRoute
@@ -521,12 +503,10 @@ export interface FileRouteTypes {
     | '/buyer/profile'
     | '/farmer/community'
     | '/farmer/crop-ai'
-    | '/farmer/production'
     | '/farmer/profile'
     | '/farmer/receiving'
     | '/management/community'
     | '/management/decision-support'
-    | '/management/production'
     | '/management/products'
     | '/management/profile'
     | '/management/receiving'
@@ -576,12 +556,10 @@ export interface FileRouteTypes {
     | '/buyer/profile'
     | '/farmer/community'
     | '/farmer/crop-ai'
-    | '/farmer/production'
     | '/farmer/profile'
     | '/farmer/receiving'
     | '/management/community'
     | '/management/decision-support'
-    | '/management/production'
     | '/management/products'
     | '/management/profile'
     | '/management/receiving'
@@ -631,12 +609,10 @@ export interface FileRouteTypes {
     | '/buyer/profile'
     | '/farmer/community'
     | '/farmer/crop-ai'
-    | '/farmer/production'
     | '/farmer/profile'
     | '/farmer/receiving'
     | '/management/community'
     | '/management/decision-support'
-    | '/management/production'
     | '/management/products'
     | '/management/profile'
     | '/management/receiving'
@@ -687,12 +663,10 @@ export interface RootRouteChildren {
   BuyerProfileRoute: typeof BuyerProfileRoute
   FarmerCommunityRoute: typeof FarmerCommunityRoute
   FarmerCropAiRoute: typeof FarmerCropAiRoute
-  FarmerProductionRoute: typeof FarmerProductionRoute
   FarmerProfileRoute: typeof FarmerProfileRoute
   FarmerReceivingRoute: typeof FarmerReceivingRoute
   ManagementCommunityRoute: typeof ManagementCommunityRoute
   ManagementDecisionSupportRoute: typeof ManagementDecisionSupportRoute
-  ManagementProductionRoute: typeof ManagementProductionRoute
   ManagementProductsRoute: typeof ManagementProductsRoute
   ManagementProfileRoute: typeof ManagementProfileRoute
   ManagementReceivingRoute: typeof ManagementReceivingRoute
@@ -891,13 +865,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerCropAiRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/farmer/production': {
-      id: '/farmer/production'
-      path: '/farmer/production'
-      fullPath: '/farmer/production'
-      preLoaderRoute: typeof FarmerProductionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/farmer/profile': {
       id: '/farmer/profile'
       path: '/farmer/profile'
@@ -931,13 +898,6 @@ declare module '@tanstack/react-router' {
       path: '/management/decision-support'
       fullPath: '/management/decision-support'
       preLoaderRoute: typeof ManagementDecisionSupportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/management/production': {
-      id: '/management/production'
-      path: '/management/production'
-      fullPath: '/management/production'
-      preLoaderRoute: typeof ManagementProductionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/management/products': {
@@ -1119,12 +1079,10 @@ const rootRouteChildren: RootRouteChildren = {
   BuyerProfileRoute: BuyerProfileRoute,
   FarmerCommunityRoute: FarmerCommunityRoute,
   FarmerCropAiRoute: FarmerCropAiRoute,
-  FarmerProductionRoute: FarmerProductionRoute,
   FarmerProfileRoute: FarmerProfileRoute,
   FarmerReceivingRoute: FarmerReceivingRoute,
   ManagementCommunityRoute: ManagementCommunityRoute,
   ManagementDecisionSupportRoute: ManagementDecisionSupportRoute,
-  ManagementProductionRoute: ManagementProductionRoute,
   ManagementProductsRoute: ManagementProductsRoute,
   ManagementProfileRoute: ManagementProfileRoute,
   ManagementReceivingRoute: ManagementReceivingRoute,

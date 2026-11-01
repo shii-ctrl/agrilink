@@ -5,13 +5,7 @@ import { z } from "zod";
 
 import { securePassword } from "@/services/auth/password-policy";
 
-const internalRole = z.enum([
-  "Management",
-  "Marketer",
-  "Accounting",
-  "Farmer",
-  "Rider",
-]);
+const internalRole = z.enum(["Management", "Marketer", "Accounting", "Farmer", "Rider"]);
 const createUserInput = z.object({
   name: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80),
@@ -212,7 +206,6 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
       orders,
       passwordResetTokens,
       payments,
-      productionRecords,
       receivingRecords,
       roles,
       savedDrafts,
@@ -263,12 +256,9 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
         tx
           .select({ id: receivingRecords.id })
           .from(receivingRecords)
-          .where(or(eq(receivingRecords.farmerId, user.id), eq(receivingRecords.recordedById, user.id)))
-          .limit(1),
-        tx
-          .select({ id: productionRecords.id })
-          .from(productionRecords)
-          .where(or(eq(productionRecords.farmerId, user.id), eq(productionRecords.recordedById, user.id)))
+          .where(
+            or(eq(receivingRecords.farmerId, user.id), eq(receivingRecords.recordedById, user.id)),
+          )
           .limit(1),
         tx
           .select({ id: inventoryMovements.id })
@@ -298,51 +288,58 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
         .where(eq(carts.buyerId, user.id));
 
       await tx.delete(communityReactions).where(eq(communityReactions.userId, user.id));
-      await tx.delete(communityCommentReactions).where(eq(communityCommentReactions.userId, user.id));
+      await tx
+        .delete(communityCommentReactions)
+        .where(eq(communityCommentReactions.userId, user.id));
       const authoredComments = await tx
         .select({ id: communityComments.id })
         .from(communityComments)
         .where(eq(communityComments.authorId, user.id));
       if (authoredComments.length) {
-        await tx
-          .delete(communityCommentReactions)
-          .where(
-            inArray(
-              communityCommentReactions.commentId,
-              authoredComments.map((comment) => comment.id),
-            ),
-          );
+        await tx.delete(communityCommentReactions).where(
+          inArray(
+            communityCommentReactions.commentId,
+            authoredComments.map((comment) => comment.id),
+          ),
+        );
       }
       await tx.delete(communityComments).where(eq(communityComments.authorId, user.id));
       if (authoredPostIds.length) {
-        await tx.delete(communityReactions).where(inArray(communityReactions.messageId, authoredPostIds));
+        await tx
+          .delete(communityReactions)
+          .where(inArray(communityReactions.messageId, authoredPostIds));
         const postComments = await tx
           .select({ id: communityComments.id })
           .from(communityComments)
           .where(inArray(communityComments.messageId, authoredPostIds));
         if (postComments.length) {
-          await tx
-            .delete(communityCommentReactions)
-            .where(
-              inArray(
-                communityCommentReactions.commentId,
-                postComments.map((comment) => comment.id),
-              ),
-            );
+          await tx.delete(communityCommentReactions).where(
+            inArray(
+              communityCommentReactions.commentId,
+              postComments.map((comment) => comment.id),
+            ),
+          );
         }
-        await tx.delete(communityComments).where(inArray(communityComments.messageId, authoredPostIds));
+        await tx
+          .delete(communityComments)
+          .where(inArray(communityComments.messageId, authoredPostIds));
         await tx.delete(communityMessages).where(inArray(communityMessages.id, authoredPostIds));
       }
 
-      await tx.delete(directMessages).where(
-        or(eq(directMessages.senderId, user.id), eq(directMessages.recipientId, user.id)),
-      );
+      await tx
+        .delete(directMessages)
+        .where(or(eq(directMessages.senderId, user.id), eq(directMessages.recipientId, user.id)));
       await tx.delete(notifications).where(eq(notifications.userId, user.id));
       await tx.delete(authSessions).where(eq(authSessions.userId, user.id));
       await tx.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id));
       await tx.delete(savedDrafts).where(eq(savedDrafts.userId, user.id));
       if (userCarts.length) {
-        await tx.delete(cartItems).where(inArray(cartItems.cartId, userCarts.map((cart) => cart.id)));
+        await tx.delete(cartItems).where(
+          inArray(
+            cartItems.cartId,
+            userCarts.map((cart) => cart.id),
+          ),
+        );
         await tx.delete(carts).where(eq(carts.buyerId, user.id));
       }
       await tx.update(auditLogs).set({ actorId: null }).where(eq(auditLogs.actorId, user.id));
@@ -351,7 +348,10 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
       return user;
     });
 
-    await writeAuditLog(actor.id, "user.delete", "user", target.id, { name: target.name, role: target.role });
+    await writeAuditLog(actor.id, "user.delete", "user", target.id, {
+      name: target.name,
+      role: target.role,
+    });
     const { notifyRole } = await import("@/services/messaging/notification-server");
     await notifyRole(
       "Management",

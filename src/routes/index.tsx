@@ -71,7 +71,7 @@ const pillars = [
   {
     icon: Users,
     title: "Farmer members",
-    body: "Farmer members supply their harvests to PROCY and can view their own production records.",
+    body: "Farmer members supply their harvests to PROCY and can view their own receiving history.",
   },
   {
     icon: ClipboardCheck,

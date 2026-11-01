@@ -2018,17 +2018,9 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
   const { requireRole } = await import("@/services/auth/auth-server");
   await requireRole("Management");
   const { db } = await import("@/db/client.server");
-  const {
-    classifications,
-    inventory,
-    listings,
-    orders,
-    payments,
-    products,
-    productionRecords,
-    receivingRecords,
-  } = await import("@/db/schema");
-  const [stock, received, production, databaseOrders, databasePayments] = await Promise.all([
+  const { classifications, inventory, listings, orders, payments, products, receivingRecords } =
+    await import("@/db/schema");
+  const [stock, received, databaseOrders, databasePayments] = await Promise.all([
     db
       .select({
         name: products.name,
@@ -2042,7 +2034,6 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
       .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
       .leftJoin(listings, eq(listings.inventoryId, inventory.id)),
     db.select({ totalKg: receivingRecords.totalKg }).from(receivingRecords),
-    db.select({ harvestedKg: productionRecords.harvestedQuantityKg }).from(productionRecords),
     db
       .select({
         status: orders.status,
@@ -2065,7 +2056,6 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
         : 0),
     0,
   );
-  const harvestKg = production.reduce((total, row) => total + Number(row.harvestedKg ?? 0), 0);
   const demand = databaseOrders.filter(
     (order) => order.status === "pending" || order.status === "confirmed",
   ).length;
@@ -2137,12 +2127,6 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
         value: `${demand} order${demand === 1 ? "" : "s"}`,
         detail: "Pending or confirmed buyer orders",
       },
-      {
-        label: "Production",
-        value: `${production.length} records`,
-        detail: "Recorded production entries",
-      },
-      { label: "Harvest", value: `${harvestKg} kg`, detail: "Recorded harvested quantity" },
       {
         label: "Receiving",
         value: `${received.length} records`,

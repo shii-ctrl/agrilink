@@ -33,7 +33,7 @@ const roles = [
   { role: "Accounting", body: "Records payments and marks confirmed orders as paid." },
   {
     role: "Farmer Member",
-    body: "Supplies harvests to PROCY and views their own production records.",
+    body: "Supplies harvests to PROCY and views their own receiving history.",
   },
   { role: "Buyer", body: "Self-registers, purchases from PROCY, and tracks their own orders." },
 ];
@@ -61,8 +61,8 @@ function AboutPage() {
         </h1>
         <p className="mt-6 max-w-2xl text-base text-muted-foreground">
           Traditional farming remains labor-intensive and disconnected from market demand. AgriLink
-          links farmer members, PROCY personnel, and buyers in one coordinated system —
-          from delivery intake and quality classification to order fulfillment and demand insight.
+          links farmer members, PROCY personnel, and buyers in one coordinated system — from
+          delivery intake and quality classification to order fulfillment and demand insight.
         </p>
 
         <section className="mt-16 grid gap-6 md:grid-cols-2">

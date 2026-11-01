@@ -2,13 +2,7 @@ import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const messagingRoles = [
-  "Management",
-  "Marketer",
-  "Accounting",
-  "Farmer",
-  "Buyer",
-] as const;
+const messagingRoles = ["Management", "Marketer", "Accounting", "Farmer", "Buyer"] as const;
 
 const conversationInput = z.object({ participantId: z.string().uuid() });
 const messageInput = conversationInput.extend({ message: z.string().trim().min(1).max(4_000) });
@@ -19,7 +13,13 @@ type MessagingUser = {
   displayName: string;
   roles: string[];
 };
-type Contact = { id: string; name: string; role: string; canSend: boolean };
+type Contact = {
+  id: string;
+  name: string;
+  role: string;
+  avatarUrl: string | null;
+  canSend: boolean;
+};
 
 const workspaceByRole: Record<MessagingRole, string> = {
   Management: "/management/community",
@@ -83,7 +83,12 @@ async function contactsForViewer(viewer: MessagingUser): Promise<Contact[]> {
   if (!contactIds.length) return [];
 
   const rows = await db
-    .select({ id: users.id, name: users.displayName, role: roles.name })
+    .select({
+      id: users.id,
+      name: users.displayName,
+      avatarUrl: users.avatarUrl,
+      role: roles.name,
+    })
     .from(users)
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -95,11 +100,13 @@ async function contactsForViewer(viewer: MessagingUser): Promise<Contact[]> {
       id: row.id,
       name: row.name,
       role: "AgriLink member",
+      avatarUrl: row.avatarUrl,
       roles: [],
       // Buyers cannot begin a new thread, but they may reply after a permitted
       // marketplace user has contacted them. This keeps Buyer messaging private
       // without allowing them to message unrelated accounts.
-      canSend: allowedIds.has(row.id) || (viewer.roles.includes("Buyer") && existingIds.has(row.id)),
+      canSend:
+        allowedIds.has(row.id) || (viewer.roles.includes("Buyer") && existingIds.has(row.id)),
     };
     current.roles.push(row.role);
     current.role = displayRole(current.roles);

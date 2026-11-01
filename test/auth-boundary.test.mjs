@@ -320,10 +320,7 @@ test("role workspaces refresh saved operational data while users are active", as
 
   assert.match(hook, /window\.addEventListener\("focus", refreshWhenVisible\)/);
   assert.match(hook, /document\.addEventListener\("visibilitychange", refreshWhenVisible\)/);
-  for (const source of [
-    farmerReceiving,
-    managementProducts,
-  ]) {
+  for (const source of [farmerReceiving, managementProducts]) {
     assert.match(source, /useWorkspaceData/);
     assert.match(source, /WorkspaceLoadState/);
   }
@@ -466,10 +463,13 @@ test("private messages enforce the Community role recipient rules", async () => 
   assert.match(directMessages, /export const sendDirectMessage/);
   assert.match(directMessages, /Your role cannot start a private message/);
   assert.match(directMessages, /New private message/);
+  assert.match(directMessages, /avatarUrl: users\.avatarUrl/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS direct_messages/);
   assert.match(migration, /fk_direct_message_sender/);
   assert.match(panel, /Private messages/);
   assert.match(panel, /Message only the people your role is allowed to contact/);
+  assert.match(panel, /function ContactAvatar/);
+  assert.match(panel, /contact\.avatarUrl/);
 });
 
 test("Farmer Crop AI keeps the Gemini key server-only and scopes chats to each Farmer", async () => {
@@ -482,15 +482,22 @@ test("Farmer Crop AI keeps the Gemini key server-only and scopes chats to each F
   assert.match(serverSource, /requireRole\("Farmer"\)/);
   assert.match(serverSource, /process\.env\["GEMINI_API_KEY"\]/);
   assert.match(serverSource, /eq\(farmerAiConversations\.farmerId, farmerId\)/);
-  assert.match(serverSource, /consumeRateLimit\("farmer-crop-ai", farmer\.id, questionBurstLimit\)/);
+  assert.match(
+    serverSource,
+    /consumeRateLimit\("farmer-crop-ai", farmer\.id, questionBurstLimit\)/,
+  );
   assert.doesNotMatch(routeSource, /GEMINI_API_KEY/);
   assert.match(migration, /FOREIGN KEY \(farmer_id\) REFERENCES users\(id\) ON DELETE CASCADE/);
-  assert.match(migration, /FOREIGN KEY \(conversation_id\) REFERENCES farmer_ai_conversations\(id\) ON DELETE CASCADE/);
+  assert.match(
+    migration,
+    /FOREIGN KEY \(conversation_id\) REFERENCES farmer_ai_conversations\(id\) ON DELETE CASCADE/,
+  );
 });
 
 test("community reactions and comments are saved with role checks", async () => {
-  const [community, migration] = await Promise.all([
+  const [community, feed, migration] = await Promise.all([
     readFile("src/services/messaging/community-server-functions.ts", "utf8"),
+    readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
     readFile("drizzle/0011_community_reactions_and_comments.sql", "utf8"),
   ]);
 
@@ -510,6 +517,10 @@ test("community reactions and comments are saved with role checks", async () => 
   assert.match(community, /await assertCommunityMessageExists\(data\.messageId\)/);
   assert.match(community, /onDuplicateKeyUpdate/);
   assert.match(community, /community\.comment/);
+  assert.match(community, /authorAvatarUrl: users\.avatarUrl/);
+  assert.match(feed, /function CommunityAvatar/);
+  assert.match(feed, /message\.authorAvatarUrl/);
+  assert.match(feed, /comment\.authorAvatarUrl/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS community_reactions/);
   assert.match(migration, /UNIQUE KEY community_reactions_message_user_unique/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS community_comments/);
@@ -557,14 +568,13 @@ test("Community search and owner-only post controls are available in the feed", 
 });
 
 test("Community users can view only their own saved posts from their profile", async () => {
-  const [profile, feed, farmerProfile, marketerProfile, managementProfile] =
-    await Promise.all([
-      readFile("src/features/auth/components/live-profile.tsx", "utf8"),
-      readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
-      readFile("src/routes/farmer.profile.tsx", "utf8"),
-      readFile("src/routes/marketer.profile.tsx", "utf8"),
-      readFile("src/routes/management.profile.tsx", "utf8"),
-    ]);
+  const [profile, feed, farmerProfile, marketerProfile, managementProfile] = await Promise.all([
+    readFile("src/features/auth/components/live-profile.tsx", "utf8"),
+    readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
+    readFile("src/routes/farmer.profile.tsx", "utf8"),
+    readFile("src/routes/marketer.profile.tsx", "utf8"),
+    readFile("src/routes/management.profile.tsx", "utf8"),
+  ]);
 
   assert.match(profile, /CommunityFeed title="My Community posts" scope="mine"/);
   assert.match(feed, /getMyCommunityMessages/);
@@ -576,14 +586,12 @@ test("Community users can view only their own saved posts from their profile", a
 });
 
 test("new messages and Community activity create timely recipient notifications", async () => {
-  const [community, notifications, notificationCenter, communityFeed] = await Promise.all(
-    [
-      readFile("src/services/messaging/community-server-functions.ts", "utf8"),
-      readFile("src/services/messaging/notification-server.ts", "utf8"),
-      readFile("src/features/messaging/components/notification-center.tsx", "utf8"),
-      readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
-    ],
-  );
+  const [community, notifications, notificationCenter, communityFeed] = await Promise.all([
+    readFile("src/services/messaging/community-server-functions.ts", "utf8"),
+    readFile("src/services/messaging/notification-server.ts", "utf8"),
+    readFile("src/features/messaging/components/notification-center.tsx", "utf8"),
+    readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
+  ]);
 
   assert.match(community, /notifyCommunityUsers/);
   assert.match(community, /New Community post/);
@@ -607,18 +615,15 @@ test("new messages and Community activity create timely recipient notifications"
 });
 
 test("operational changes notify the users who need to respond", async () => {
-  const [marketplace, receiving, production, accounts, notifications] = await Promise.all([
+  const [marketplace, receiving, accounts, notifications] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/services/operations/receiving-server-functions.ts", "utf8"),
-    readFile("src/services/operations/production-server-functions.ts", "utf8"),
     readFile("src/services/auth/admin-server-functions.ts", "utf8"),
     readFile("src/services/messaging/notification-server.ts", "utf8"),
   ]);
 
   assert.match(receiving, /Delivery received and classified/);
   assert.match(receiving, /New farmer delivery received/);
-  assert.match(production, /Production record updated/);
-  assert.match(production, /Production record updated/);
   assert.match(accounts, /Account activated/);
   assert.match(accounts, /Account deactivated/);
   assert.match(marketplace, /New marketplace listing/);
@@ -665,27 +670,41 @@ test("public marketplace data keeps farmer identities private while Marketer can
   assert.match(marketerListings, /requireRole\("Marketer"\)/);
 });
 
-test("production records remain available for Farmer operations without Consultant filtering", async () => {
-  const production = await readFile(
-    "src/services/operations/production-server-functions.ts",
-    "utf8",
-  );
+test("retired Production Records is removed without changing historical migrations", async () => {
+  const [schema, retirement, managementLayout, farmerLayout, marketplace] = await Promise.all([
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0024_remove_production_records.sql", "utf8"),
+    readFile("src/components/workspaces/management-layout.tsx", "utf8"),
+    readFile("src/components/workspaces/farmer-layout.tsx", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+  ]);
 
-  assert.match(production, /export const getFarmerProductionRecords/);
-  assert.doesNotMatch(production, /consultant|guidance/i);
+  assert.doesNotMatch(schema, /productionRecords|production_records/);
+  assert.match(retirement, /DROP TABLE IF EXISTS production_records/);
+  assert.match(retirement, /entity_type = 'production_record'/);
+  assert.doesNotMatch(managementLayout, /management\/production|Production Records/);
+  assert.doesNotMatch(farmerLayout, /farmer\/production|Production Records/);
+  assert.doesNotMatch(marketplace, /productionRecords|Recorded production entries/);
 });
 
 test("workspace identity is loaded from the authenticated server session", async () => {
-  const [header, hook, roleGate] = await Promise.all([
+  const [header, hook, roleGate, profile, buyerLayout] = await Promise.all([
     readFile("src/components/layout/site-header.tsx", "utf8"),
     readFile("src/hooks/use-workspace-user.ts", "utf8"),
     readFile("src/components/layout/role-gate.tsx", "utf8"),
+    readFile("src/features/auth/components/live-profile.tsx", "utf8"),
+    readFile("src/components/workspaces/buyer-layout.tsx", "utf8"),
   ]);
 
   assert.match(header, /getCurrentSessionUser/);
   assert.doesNotMatch(header, /demo-session/);
   assert.match(hook, /getCurrentSessionUser/);
   assert.match(hook, /user\?\.roles\.includes\(role\)/);
+  assert.match(hook, /agrilink:profile-updated/);
+  assert.match(hook, /avatarUrl/);
+  assert.match(profile, /new CustomEvent\("agrilink:profile-updated"/);
+  assert.match(buyerLayout, /<AvatarImage/);
+  assert.match(buyerLayout, /buyer\.avatarUrl/);
   assert.doesNotMatch(roleGate, /demo-session/);
 });
 

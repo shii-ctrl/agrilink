@@ -88,6 +88,9 @@ try {
     const [[orders]] = await db.query("SELECT COUNT(*) AS total FROM orders");
     const [[payments]] = await db.query("SELECT COUNT(*) AS total FROM payments");
     const [[receiving]] = await db.query("SELECT COUNT(*) AS total FROM receiving_records");
+    const [[productionRecordsTable]] = await db.query(
+      "SELECT COUNT(*) AS total FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'production_records'",
+    );
     const [legacyModes] = await db.query(
       "SELECT migration_id, application_mode FROM _agrilink_migration_modes WHERE migration_id IN (?, ?) ORDER BY migration_id",
       ["0001_operational_tables_and_demo_seed.sql", "0002_production_records.sql"],
@@ -101,6 +104,7 @@ try {
       orders.total !== 0 ||
       payments.total !== 0 ||
       receiving.total !== 0 ||
+      productionRecordsTable.total !== 0 ||
       legacyModes.length !== 2 ||
       legacyModes.some((mode) => mode.application_mode !== "schema_only")
     ) {

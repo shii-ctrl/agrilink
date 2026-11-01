@@ -41,14 +41,9 @@ try {
     join(process.cwd(), "drizzle", "0001_operational_tables_and_demo_seed.sql"),
     "utf8",
   );
-  const productionMigration = await readFile(
-    join(process.cwd(), "drizzle", "0002_production_records.sql"),
-    "utf8",
-  );
   const operationalSeedStart = operationalMigration.indexOf("-- Roles and accounts.");
   const operationalSeedEnd = operationalMigration.indexOf("INSERT IGNORE INTO community_messages");
-  const productionSeedStart = productionMigration.indexOf("INSERT IGNORE INTO production_records");
-  if (operationalSeedStart < 0 || operationalSeedEnd < 0 || productionSeedStart < 0) {
+  if (operationalSeedStart < 0 || operationalSeedEnd < 0) {
     throw new Error("The legacy demo seed data could not be located.");
   }
 
@@ -63,7 +58,6 @@ try {
   // legacy Community and guidance examples below this point reference the
   // retired Consultant feature and must never be re-created.
   await pool.query(operationalMigration.slice(operationalSeedStart, operationalSeedEnd));
-  await pool.query(productionMigration.slice(productionSeedStart));
   // The immutable historical seed includes the retired Consultant account in
   // this retained section, so remove it before the development data is usable.
   await pool.query(`

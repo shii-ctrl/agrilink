@@ -169,6 +169,11 @@ export function LiveProfile({
       setAccount(saved);
       setAvatarUrl(saved.avatarUrl);
       setAvatarDraft(null);
+      window.dispatchEvent(
+        new CustomEvent("agrilink:profile-updated", {
+          detail: { role, displayName: saved.displayName, avatarUrl: saved.avatarUrl },
+        }),
+      );
       toast.success("Profile saved");
     } catch (error) {
       toast.error("Profile could not be saved", {
@@ -293,7 +298,9 @@ export function LiveProfile({
                         max="3"
                         step="0.01"
                         value={avatarDraft.zoom}
-                        onChange={(event) => updateAvatarDraft({ zoom: Number(event.target.value) })}
+                        onChange={(event) =>
+                          updateAvatarDraft({ zoom: Number(event.target.value) })
+                        }
                         className="w-full accent-primary"
                       />
                     </label>
@@ -317,7 +324,9 @@ export function LiveProfile({
                         min="0"
                         max="100"
                         value={avatarDraft.vertical}
-                        onChange={(event) => updateAvatarDraft({ vertical: Number(event.target.value) })}
+                        onChange={(event) =>
+                          updateAvatarDraft({ vertical: Number(event.target.value) })
+                        }
                         className="w-full accent-primary"
                       />
                     </label>

@@ -7,6 +7,7 @@ import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { NotificationCenter } from "@/features/messaging/components/notification-center";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
 import {
   Sidebar,
@@ -71,9 +72,16 @@ export function RiderLayout({ children }: { children: ReactNode }) {
           <SidebarFooter className="p-4">
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">
               <div className="flex items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  {rider.initials}
-                </span>
+                <Avatar className="size-9">
+                  <AvatarImage
+                    src={rider.avatarUrl ?? undefined}
+                    alt={`${rider.displayName} profile photo`}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-primary text-sm font-bold text-primary-foreground">
+                    {rider.initials}
+                  </AvatarFallback>
+                </Avatar>
                 <div>
                   <p className="max-w-36 truncate text-sm font-semibold">{rider.displayName}</p>
                   <p className="text-xs text-sidebar-foreground/65">Rider</p>
