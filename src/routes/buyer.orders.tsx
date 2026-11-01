@@ -107,23 +107,20 @@ function BuyerOrdersPage() {
         status:
           `${detail.status.charAt(0).toUpperCase()}${detail.status.slice(1)}` as DemoOrder["status"],
         paymentStatus: detail.payment ? "Paid" : "Unpaid",
-        date: new Date(detail.createdAt).toLocaleDateString("en-PH"),
-        ...(detail.confirmedAt
-          ? { confirmedAt: new Date(detail.confirmedAt).toLocaleDateString("en-PH") }
-          : {}),
-        ...(detail.soldAt ? { soldAt: new Date(detail.soldAt).toLocaleDateString("en-PH") } : {}),
+        date: detail.createdAt,
+        createdAt: detail.createdAt,
+        ...(detail.confirmedAt ? { confirmedAt: detail.confirmedAt } : {}),
+        ...(detail.soldAt ? { soldAt: detail.soldAt } : {}),
         ...(detail.payment?.paymentNumber ? { paymentId: detail.payment.paymentNumber } : {}),
         ...(detail.payment?.method ? { paymentMethod: detail.payment.method } : {}),
-        ...(detail.payment?.paidAt
-          ? { paidAt: new Date(detail.payment.paidAt).toLocaleDateString("en-PH") }
-          : {}),
+        ...(detail.payment?.paidAt ? { paidAt: detail.payment.paidAt } : {}),
         contact: detail.contact,
         pickupNote: detail.pickupNote,
         items: detail.items,
         history: detail.history.map((entry) => ({
           status: `${entry.status.charAt(0).toUpperCase()}${entry.status.slice(1)}`,
           note: entry.note,
-          changedAt: new Date(entry.changedAt).toLocaleString("en-PH"),
+          changedAt: entry.changedAt,
         })),
         stockReserved: detail.status === "pending" || detail.status === "confirmed",
       });
@@ -159,169 +156,169 @@ function BuyerOrdersPage() {
           description="Track buyer orders submitted to PROCY. Payment status is recorded separately by Accounting."
         />
         <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
-        <WorkspaceLoadState
-          loading={loading}
-          error={error}
-          onRetry={() => void reload()}
-          label="order history"
-        />
-        {!loading && !error && (
-          <>
-            <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-              <div className="flex items-start gap-3 border-b border-border px-6 py-5">
-                <PackageCheck className="mt-0.5 size-5 text-primary" />
-                <div>
-                  <h2 className="text-lg font-semibold">Order history</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Orders saved in AgriLink.</p>
+          <WorkspaceLoadState
+            loading={loading}
+            error={error}
+            onRetry={() => void reload()}
+            label="order history"
+          />
+          {!loading && !error && (
+            <>
+              <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+                <div className="flex items-start gap-3 border-b border-border px-6 py-5">
+                  <PackageCheck className="mt-0.5 size-5 text-primary" />
+                  <div>
+                    <h2 className="text-lg font-semibold">Order history</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Orders saved in AgriLink.</p>
+                  </div>
                 </div>
-              </div>
-              <div className="grid gap-3 border-b border-border p-5 md:grid-cols-3">
-                <Input
-                  aria-label="Search my orders"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search order, product, or status"
-                />
-                <AppSelect
-                  ariaLabel="Filter my orders by status"
-                  value={orderStatus}
-                  onValueChange={setOrderStatus}
-                  options={[
-                    { value: "", label: "All order states" },
-                    ...["Pending", "Confirmed", "Sold", "Cancelled", "Rejected"].map((value) => ({
-                      value,
-                      label: value,
-                    })),
-                  ]}
-                />
-                <AppSelect
-                  ariaLabel="Filter my orders by payment status"
-                  value={paymentStatus}
-                  onValueChange={setPaymentStatus}
-                  options={[
-                    { value: "", label: "All payment states" },
-                    { value: "Paid", label: "Paid" },
-                    { value: "Unpaid", label: "Unpaid" },
-                  ]}
-                />
-                <DatePicker
-                  ariaLabel="Filter my orders by date"
-                  value={orderDate}
-                  onValueChange={setOrderDate}
-                />
-                {hasFilters && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setQuery("");
-                      setOrderStatus("");
-                      setPaymentStatus("");
-                      setOrderDate("");
-                    }}
-                  >
-                    Clear filters
-                  </Button>
-                )}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[700px] text-left text-sm">
-                  <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-6 py-4 font-medium">Order ID</th>
-                      <th className="px-6 py-4 font-medium">Items</th>
-                      <th className="px-6 py-4 font-medium">Total</th>
-                      <th className="px-6 py-4 font-medium">Status</th>
-                      <th className="px-6 py-4 font-medium">Payment</th>
-                      <th className="px-6 py-4 font-medium">Date</th>
-                      <th className="px-6 py-4 font-medium">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ordersPage.pageItems.map((order) => (
-                      <tr key={order.id} className="border-b border-border last:border-0">
-                        <td className="px-6 py-4 font-medium">{order.id}</td>
-                        <td className="px-6 py-4">
-                          {order.quantity} {order.product} ({order.classification})
-                        </td>
-                        <td className="px-6 py-4">{order.total}</td>
-                        <td className="px-6 py-4">
-                          <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                              order.paymentStatus === "Paid"
-                                ? "bg-primary/10 text-primary"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {order.paymentStatus}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-muted-foreground">{order.date}</td>
-                        <td className="px-6 py-4">
+                <div className="grid gap-3 border-b border-border p-5 md:grid-cols-3">
+                  <Input
+                    aria-label="Search my orders"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search order, product, or status"
+                  />
+                  <AppSelect
+                    ariaLabel="Filter my orders by status"
+                    value={orderStatus}
+                    onValueChange={setOrderStatus}
+                    options={[
+                      { value: "", label: "All order states" },
+                      ...["Pending", "Confirmed", "Sold", "Cancelled", "Rejected"].map((value) => ({
+                        value,
+                        label: value,
+                      })),
+                    ]}
+                  />
+                  <AppSelect
+                    ariaLabel="Filter my orders by payment status"
+                    value={paymentStatus}
+                    onValueChange={setPaymentStatus}
+                    options={[
+                      { value: "", label: "All payment states" },
+                      { value: "Paid", label: "Paid" },
+                      { value: "Unpaid", label: "Unpaid" },
+                    ]}
+                  />
+                  <DatePicker
+                    ariaLabel="Filter my orders by date"
+                    value={orderDate}
+                    onValueChange={setOrderDate}
+                  />
+                  {hasFilters && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setQuery("");
+                        setOrderStatus("");
+                        setPaymentStatus("");
+                        setOrderDate("");
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  )}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[700px] text-left text-sm">
+                    <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="px-6 py-4 font-medium">Order ID</th>
+                        <th className="px-6 py-4 font-medium">Items</th>
+                        <th className="px-6 py-4 font-medium">Total</th>
+                        <th className="px-6 py-4 font-medium">Status</th>
+                        <th className="px-6 py-4 font-medium">Payment</th>
+                        <th className="px-6 py-4 font-medium">Date</th>
+                        <th className="px-6 py-4 font-medium">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ordersPage.pageItems.map((order) => (
+                        <tr key={order.id} className="border-b border-border last:border-0">
+                          <td className="px-6 py-4 font-medium">{order.id}</td>
+                          <td className="px-6 py-4">
+                            {order.quantity} {order.product} ({order.classification})
+                          </td>
+                          <td className="px-6 py-4">{order.total}</td>
+                          <td className="px-6 py-4">
+                            <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">
+                              {order.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                order.paymentStatus === "Paid"
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {order.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-muted-foreground">{order.date}</td>
+                          <td className="px-6 py-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-full"
+                              onClick={() => void openDetails(order.id)}
+                            >
+                              Details
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                      {!visibleOrders.length && (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
+                            {orders.length
+                              ? "No orders match these filters."
+                              : "No orders have been saved yet."}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <PaginationControls {...ordersPage} itemLabel="orders" />
+              </section>
+              {selectedId &&
+                (() => {
+                  const order = selectedOrder ?? orders.find((item) => item.id === selectedId);
+                  return order ? (
+                    <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {order.status === "Pending" && (
                           <Button
                             variant="outline"
-                            size="sm"
                             className="rounded-full"
-                            onClick={() => void openDetails(order.id)}
+                            onClick={() => cancelOrder(order)}
                           >
-                            Details
+                            Cancel order
                           </Button>
-                        </td>
-                      </tr>
-                    ))}
-                    {!visibleOrders.length && (
-                      <tr>
-                        <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
-                          {orders.length
-                            ? "No orders match these filters."
-                            : "No orders have been saved yet."}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <PaginationControls {...ordersPage} itemLabel="orders" />
-            </section>
-            {selectedId &&
-              (() => {
-                const order = selectedOrder ?? orders.find((item) => item.id === selectedId);
-                return order ? (
-                  <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card">
-                    <div className="flex flex-wrap justify-end gap-2">
-                      {order.status === "Pending" && (
-                        <Button
-                          variant="outline"
-                          className="rounded-full"
-                          onClick={() => cancelOrder(order)}
-                        >
-                          Cancel order
-                        </Button>
-                      )}
-                      {order.status === "Confirmed" && (
-                        <p className="self-center text-sm text-muted-foreground">
-                          This order is confirmed. Contact PROCY if you need it cancelled.
-                        </p>
-                      )}
-                      {order.status === "Sold" && (
-                        <Button className="rounded-full" onClick={() => buyAgain(order)}>
-                          <RotateCcw className="size-4" /> Buy again
-                        </Button>
-                      )}
-                    </div>
-                    <div className="mt-2">
-                      <OrderDetails order={order} />
-                    </div>
-                  </section>
-                ) : null;
-              })()}
-          </>
-        )}
+                        )}
+                        {order.status === "Confirmed" && (
+                          <p className="self-center text-sm text-muted-foreground">
+                            This order is confirmed. Contact PROCY if you need it cancelled.
+                          </p>
+                        )}
+                        {order.status === "Sold" && (
+                          <Button className="rounded-full" onClick={() => buyAgain(order)}>
+                            <RotateCcw className="size-4" /> Buy again
+                          </Button>
+                        )}
+                      </div>
+                      <div className="mt-2">
+                        <OrderDetails order={order} />
+                      </div>
+                    </section>
+                  ) : null;
+                })()}
+            </>
+          )}
         </main>
       </div>
     </BuyerLayout>

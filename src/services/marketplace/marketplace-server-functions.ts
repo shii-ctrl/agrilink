@@ -8,6 +8,9 @@ import type { Classification, Product } from "@/features/marketplace/products";
 import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
 import type { DemoOrder } from "@/lib/demo/demo-orders";
 
+type MarketplaceDatabase = (typeof import("@/db/client.server"))["db"];
+type MarketplaceTransaction = Parameters<Parameters<MarketplaceDatabase["transaction"]>[0]>[0];
+
 const listingInput = z.object({ listingId: z.string().uuid() });
 const orderNumberInput = z.object({ orderNumber: z.string().trim().min(3).max(40) });
 const checkoutInput = z.object({
@@ -838,7 +841,7 @@ async function buyerCartRows(buyerId: string) {
 
 /** Reserve from the oldest available batches in one product-quality group. */
 async function reserveListingStock(
-  tx: any,
+  tx: MarketplaceTransaction,
   {
     listingId,
     quantityKg,
@@ -933,7 +936,7 @@ async function reserveListingStock(
 
 /** Release a portion of the reservations attached to one cart item. */
 async function releaseCartReservation(
-  tx: any,
+  tx: MarketplaceTransaction,
   {
     cartItemId,
     quantityKg,
@@ -1763,6 +1766,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
         .select({
           listingId: orderItems.listingId,
           name: products.name,
+          image: products.imageUrl,
           classification: classifications.name,
           quantityKg: orderItems.quantityKg,
           pricePerKg: orderItems.pricePerKg,
@@ -1849,6 +1853,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       orderId: orderItems.orderId,
       listingId: orderItems.listingId,
       name: products.name,
+      image: products.imageUrl,
       classification: classifications.name,
       farmer: farmerUsers.displayName,
       quantityKg: orderItems.quantityKg,
@@ -1892,11 +1897,11 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       paymentStatus: order.paymentId ? "Paid" : "Unpaid",
       date: order.createdAt.toLocaleDateString("en-PH"),
       createdAt: order.createdAt.toISOString(),
-      ...(order.confirmedAt ? { confirmedAt: order.confirmedAt.toLocaleDateString("en-PH") } : {}),
-      ...(order.soldAt ? { soldAt: order.soldAt.toLocaleDateString("en-PH") } : {}),
+      ...(order.confirmedAt ? { confirmedAt: order.confirmedAt.toISOString() } : {}),
+      ...(order.soldAt ? { soldAt: order.soldAt.toISOString() } : {}),
       ...(order.paymentId ? { paymentId: order.paymentId } : {}),
       ...(order.paymentMethod ? { paymentMethod: order.paymentMethod } : {}),
-      ...(order.paidAt ? { paidAt: order.paidAt.toLocaleDateString("en-PH") } : {}),
+      ...(order.paidAt ? { paidAt: order.paidAt.toISOString() } : {}),
       contact: order.contact,
       pickupNote: order.pickupNote,
       items: lines,

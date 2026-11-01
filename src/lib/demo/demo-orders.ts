@@ -7,6 +7,7 @@ export type DemoOrderItem = {
   classification: string;
   quantityKg: number;
   pricePerKg: number;
+  image?: string | null;
 };
 
 export type DemoOrder = {
@@ -99,6 +100,8 @@ function normalizeOrder(order: Partial<DemoOrder>): DemoOrder {
     status: order.status ?? "Pending",
     paymentStatus: order.paymentStatus ?? "Unpaid",
     date: order.date ?? "Just now",
+    ...(order.createdAt ? { createdAt: order.createdAt } : {}),
+    ...(order.amount !== undefined ? { amount: order.amount } : {}),
     ...(order.paymentId ? { paymentId: order.paymentId } : {}),
     ...(order.paymentMethod ? { paymentMethod: order.paymentMethod } : {}),
     ...(order.paidAt ? { paidAt: order.paidAt } : {}),
@@ -107,6 +110,7 @@ function normalizeOrder(order: Partial<DemoOrder>): DemoOrder {
     ...(order.confirmedAt ? { confirmedAt: order.confirmedAt } : {}),
     ...(order.soldAt ? { soldAt: order.soldAt } : {}),
     ...(order.items ? { items: order.items } : {}),
+    ...(order.history ? { history: order.history } : {}),
     stockReserved: order.stockReserved ?? order.status === "Sold",
   };
 }
