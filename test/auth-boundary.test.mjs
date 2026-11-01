@@ -216,6 +216,24 @@ test("profile completion is limited to Farmer and Buyer accounts", async () => {
   }
 });
 
+test("signed-in Buyers keep their workspace navigation across marketplace browsing", async () => {
+  const [marketplace, productDetail, buyerLayout] = await Promise.all([
+    readFile("src/routes/marketplace.index.tsx", "utf8"),
+    readFile("src/routes/marketplace.$productId.tsx", "utf8"),
+    readFile("src/components/workspaces/buyer-layout.tsx", "utf8"),
+  ]);
+
+  for (const page of [marketplace, productDetail]) {
+    assert.match(page, /getCurrentSessionUser/);
+    assert.match(page, /roles\.includes\("Buyer"\)/);
+    assert.match(page, /<BuyerLayout>/);
+    assert.match(page, /<BuyerPageHeader/);
+    assert.match(page, /<SiteHeader/);
+    assert.match(page, /<SiteFooter/);
+  }
+  assert.match(buyerLayout, /pathname\.startsWith\("\/marketplace"\)/);
+});
+
 test("marketplace cart controls prevent duplicate additions beyond available stock", async () => {
   const source = await readFile("src/routes/marketplace.$productId.tsx", "utf8");
   assert.match(source, /const \[isAdding, setIsAdding\] = useState\(false\)/);

@@ -58,9 +58,13 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
                       <SidebarMenuButton
                         asChild
                         tooltip={item.label}
-                        isActive={pathname === item.to}
+                        isActive={
+                          item.to === "/marketplace"
+                            ? pathname.startsWith("/marketplace")
+                            : pathname === item.to
+                        }
                       >
-                        <Link to={item.to} activeOptions={{ exact: true }}>
+                        <Link to={item.to} activeOptions={{ exact: item.to !== "/marketplace" }}>
                           <item.icon />
                           <span>{item.label}</span>
                         </Link>
