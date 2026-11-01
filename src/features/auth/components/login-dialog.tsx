@@ -202,28 +202,7 @@ export function LoginDialog({
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="landing-login-password">Password</Label>
-                {onForgotPassword ? (
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-primary hover:underline"
-                    onClick={() => {
-                      onOpenChange(false);
-                      onForgotPassword();
-                    }}
-                  >
-                    Forgot password?
-                  </button>
-                ) : (
-                  <AuthSwitchLink
-                    to="/forgot-password"
-                    className="text-xs font-semibold text-primary hover:underline"
-                  >
-                    Forgot password?
-                  </AuthSwitchLink>
-                )}
-              </div>
+              <Label htmlFor="landing-login-password">Password</Label>
               <div className="relative">
                 <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -243,6 +222,27 @@ export function LoginDialog({
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
+              </div>
+              <div className="flex justify-end pt-0.5">
+                {onForgotPassword ? (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-primary hover:underline"
+                    onClick={() => {
+                      onOpenChange(false);
+                      onForgotPassword();
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                ) : (
+                  <AuthSwitchLink
+                    to="/forgot-password"
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </AuthSwitchLink>
+                )}
               </div>
             </div>
             <Button type="submit" size="lg" className="w-full rounded-full" disabled={isSigningIn}>

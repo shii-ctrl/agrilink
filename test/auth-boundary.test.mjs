@@ -486,6 +486,7 @@ test("public authentication uses the floating dialog system", async () => {
   assert.match(loginDialog, /router\.invalidate\(\)/);
   assert.match(loginDialog, /destinationForRoles/);
   assert.match(loginDialog, /Forgot password\?/);
+  assert.match(loginDialog, /className="flex justify-end pt-0\.5"/);
   assert.match(loginDialog, />\s*Register\s*</);
   assert.match(loginDialog, /onForgotPassword/);
   assert.match(loginDialog, /window\.visualViewport/);
