@@ -117,7 +117,12 @@ function MarketerReceivingPage() {
                   }
                 }}
               >
-                <Select label="Farmer" name="farmerId" options={workspace?.farmers ?? []} />
+                <Select
+                  label="Farmer"
+                  name="farmerId"
+                  options={workspace?.farmers ?? []}
+                  searchable
+                />
                 <Select label="Product" name="productId" options={workspace?.products ?? []} />
                 <Field
                   name="totalKg"
@@ -245,10 +250,12 @@ function Select({
   label,
   name,
   options,
+  searchable = false,
 }: {
   label: string;
   name: string;
   options: { id: string; name: string }[];
+  searchable?: boolean;
 }) {
   const [value, setValue] = useState("");
 
@@ -263,6 +270,7 @@ function Select({
         onReset={() => setValue("")}
         placeholder={`Select ${label.toLowerCase()}`}
         options={options.map((option) => ({ value: option.id, label: option.name }))}
+        searchable={searchable}
       />
     </div>
   );

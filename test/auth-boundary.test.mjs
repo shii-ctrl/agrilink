@@ -578,6 +578,7 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.match(marketerPage, /Corrections create a separate audited inventory movement/);
   assert.match(receivingPage, /Live quality distribution/);
   assert.match(receivingPage, /marketplace totals updated/);
+  assert.match(receivingPage, /name="farmerId"[\s\S]*searchable/);
   assert.match(stockRecordsPage, /saved deliveries are immutable/);
   assert.match(rejectStockPage, /Marketplace-ready quality/);
   assert.match(rejectStockPage, /let Buyers purchase available Reject\s+stock/);
