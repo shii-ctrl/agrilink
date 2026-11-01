@@ -263,11 +263,11 @@ export function LoginDialog({
                   onRegister();
                 }}
               >
-                Register as Buyer
+                Register
               </button>
             ) : (
               <AuthSwitchLink to="/register" className="font-semibold text-primary hover:underline">
-                Register as Buyer
+                Register
               </AuthSwitchLink>
             )}
           </p>

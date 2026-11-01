@@ -390,7 +390,7 @@ function Index() {
                   className="rounded-full"
                   onClick={() => setRegisterOpen(true)}
                 >
-                  Register as Buyer
+                  Register
                 </Button>
               )}
               {isBuyer ? (

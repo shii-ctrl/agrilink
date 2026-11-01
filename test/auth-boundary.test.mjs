@@ -486,7 +486,7 @@ test("public authentication uses the floating dialog system", async () => {
   assert.match(loginDialog, /router\.invalidate\(\)/);
   assert.match(loginDialog, /destinationForRoles/);
   assert.match(loginDialog, /Forgot password\?/);
-  assert.match(loginDialog, /Register as Buyer/);
+  assert.match(loginDialog, />\s*Register\s*</);
   assert.match(loginDialog, /onForgotPassword/);
   assert.match(loginDialog, /window\.visualViewport/);
   assert.match(loginDialog, /viewport\.addEventListener\("resize", syncViewport\)/);

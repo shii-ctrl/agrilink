@@ -30,7 +30,7 @@ function HelpPage() {
     {
       icon: LogIn,
       title: "Create or use a Buyer account",
-      text: "You may browse freely. Login or Register as Buyer is required before adding products to a cart or placing an order.",
+      text: "You may browse freely. Login or registration is required before adding products to a cart or placing an order.",
     },
     {
       icon: ShoppingCart,

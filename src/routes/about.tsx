@@ -139,7 +139,7 @@ function AboutPage() {
             </Button>
             {account === null ? (
               <Button asChild size="lg" variant="outline" className="rounded-full">
-                <Link to="/register">Register as Buyer</Link>
+                <Link to="/register">Register</Link>
               </Button>
             ) : isBuyer ? (
               <Button asChild size="lg" variant="outline" className="rounded-full">

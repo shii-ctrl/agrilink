@@ -50,7 +50,7 @@ export function SiteFooter() {
                 </li>
                 <li>
                   <Link to="/register" className="hover:underline">
-                    Register as Buyer
+                    Register
                   </Link>
                 </li>
               </>

@@ -163,7 +163,7 @@ export function SiteHeader({
                   className="rounded-full"
                   onClick={() => (onRegister ? onRegister() : setRegisterOpen(true))}
                 >
-                  Register as Buyer
+                  Register
                 </Button>
               </>
             )}
