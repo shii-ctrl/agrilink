@@ -91,3 +91,8 @@ test("Vercel applies checked migrations before building production code", async 
   const config = JSON.parse(await readFile("vercel.json", "utf8"));
   assert.equal(config.buildCommand, "npm run db:migrate && npm run build");
 });
+
+test("retired profile-photo visibility choices normalize to Everyone", async () => {
+  const migration = await readFile("drizzle/0026_simplify_profile_photo_privacy.sql", "utf8");
+  assert.match(migration, /NOT IN \('everyone', 'hidden'\)/);
+});

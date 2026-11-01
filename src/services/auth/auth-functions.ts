@@ -43,7 +43,7 @@ const profileImage = z
       Math.ceil(((value.split(",")[1]?.length ?? 0) * 3) / 4) <= 200 * 1024,
     { message: "Profile photo must be 200 KB or smaller." },
   );
-const avatarVisibility = z.enum(["everyone", "members", "community_messages", "hidden"]);
+const avatarVisibility = z.enum(["everyone", "hidden"]);
 const profileInput = z.object({
   displayName: z.string().trim().min(2).max(160),
   contact: z.string().trim().min(5).max(80).nullable(),

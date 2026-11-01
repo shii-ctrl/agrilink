@@ -331,7 +331,7 @@ export function LiveProfile({
           contact: String(formData.get("contact") ?? "").trim() || null,
           avatarUrl: nextAvatarUrl,
           avatarVisibility: String(formData.get("avatarVisibility") ?? "everyone") as
-            "everyone" | "members" | "community_messages" | "hidden",
+            "everyone" | "hidden",
         },
       });
       setAccount(saved);
@@ -510,8 +510,6 @@ export function LiveProfile({
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:max-w-md"
             >
               <option value="everyone">Everyone</option>
-              <option value="members">Signed-in AgriLink members</option>
-              <option value="community_messages">Community and private messages only</option>
               <option value="hidden">Only me</option>
             </select>
             <p className="text-xs text-muted-foreground">

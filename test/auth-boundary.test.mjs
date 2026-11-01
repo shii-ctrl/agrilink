@@ -176,6 +176,7 @@ test("profile photos accept secure external URLs or cropped local uploads and Ma
   assert.match(privacyMigration, /ADD COLUMN avatar_visibility/);
   assert.match(authFunctions, /Profile photo must be 200 KB or smaller/);
   assert.match(authFunctions, /avatarVisibility/);
+  assert.match(authFunctions, /z\.enum\(\["everyone", "hidden"\]\)/);
   assert.match(profile, /Crop your profile photo/);
   assert.match(profile, /onPointerMove={moveCrop}/);
   assert.match(profile, /Rotate left/);
@@ -184,6 +185,7 @@ test("profile photos accept secure external URLs or cropped local uploads and Ma
   assert.match(profile, /canvas\.toDataURL\("image\/jpeg", quality\)/);
   assert.match(profile, /capture="user"/);
   assert.match(profile, /Who can see your profile photo/);
+  assert.doesNotMatch(profile, /Signed-in AgriLink members|Community and private messages only/);
   assert.match(avatar, /onLoadingStatusChange/);
   assert.match(avatar, /profile photo enlarged/);
   assert.match(adminFunctions, /export const setManagedUserActive/);

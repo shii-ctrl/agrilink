@@ -22,7 +22,7 @@ export type AuthUser = {
   displayName: string;
   contact: string | null;
   avatarUrl: string | null;
-  avatarVisibility: string;
+  avatarVisibility: "everyone" | "hidden";
   roles: string[];
 };
 
@@ -173,7 +173,9 @@ async function asAuthUser(user: typeof users.$inferSelect): Promise<AuthUser> {
     displayName: user.displayName,
     contact: user.contact,
     avatarUrl: user.avatarUrl,
-    avatarVisibility: user.avatarVisibility,
+    // Older middle-scope choices were retired. Treat them as Everyone until
+    // the normalization migration updates the saved value.
+    avatarVisibility: user.avatarVisibility === "hidden" ? "hidden" : "everyone",
     roles: await getRolesForUser(user.id),
   };
 }
