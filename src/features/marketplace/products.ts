@@ -3,6 +3,7 @@ export type Classification = "Good" | "Semi" | "Reject";
 export type ProductOffer = {
   id: string;
   classification: Classification;
+  image?: string;
   pricePerKg: number;
   retailPricePerKg?: number;
   bundlePricePerKg?: number | null;

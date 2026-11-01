@@ -314,13 +314,15 @@ test("order details use a responsive real-workflow stepper and clear summaries",
 });
 
 test("catalog photos use a safe file picker and bundle prices are enforced at checkout", async () => {
-  const [marketplace, productPage, marketerPage, schema, migration] = await Promise.all([
-    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
-    readFile("src/routes/marketplace.$productId.tsx", "utf8"),
-    readFile("src/routes/marketer.products.tsx", "utf8"),
-    readFile("src/db/schema.ts", "utf8"),
-    readFile("drizzle/0010_product_photos_and_bundle_pricing.sql", "utf8"),
-  ]);
+  const [marketplace, productPage, productCard, marketerPage, schema, migration] =
+    await Promise.all([
+      readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+      readFile("src/routes/marketplace.$productId.tsx", "utf8"),
+      readFile("src/features/marketplace/components/product-card.tsx", "utf8"),
+      readFile("src/routes/marketer.products.tsx", "utf8"),
+      readFile("src/db/schema.ts", "utf8"),
+      readFile("drizzle/0010_product_photos_and_bundle_pricing.sql", "utf8"),
+    ]);
 
   assert.match(marketerPage, /type="file"/);
   assert.match(marketerPage, /prepareProductImage/);
@@ -333,6 +335,10 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(marketplace, /listingUnitPrice\(row, item\.quantityKg\)/);
   assert.match(productPage, /Bundle: \{peso\(selectedOffer\.bundlePricePerKg\)\}/);
   assert.match(productPage, /selectedOffer\.classification/);
+  assert.match(productPage, /selectedOffer\.image \|\| product\.image/);
+  assert.match(productCard, /translateX\(-\$\{activeImage \* 100\}%\)/);
+  assert.match(productCard, /onMouseEnter=\{\(\) => setPreviewing\(true\)\}/);
+  assert.match(productCard, /prefers-reduced-motion: reduce/);
   assert.match(schema, /bundlePricePerKg: decimal\("bundle_price_per_kg"/);
   assert.match(migration, /MODIFY COLUMN image_url MEDIUMTEXT/);
 });
@@ -592,9 +598,12 @@ test("role workflows keep catalog, cart, and Farmer stock states consistent", as
   assert.match(marketplace, /Saves every Good\/Semi\/Reject setting in one transaction/);
   assert.match(marketerCatalog, /saveMarketplaceProductOffers/);
   assert.match(marketerCatalog, /Save all marketplace settings/);
+  assert.match(marketerCatalog, /Replace quality photo/);
+  assert.match(marketerCatalog, /updateMarketplaceOfferImage/);
   assert.doesNotMatch(marketerCatalog, /await updateMarketplaceListingPricing/);
   assert.doesNotMatch(marketerCatalog, /await setMarketplaceListingStatus/);
   assert.match(marketerCatalog, /requestId !== latestLoad\.current/);
+  assert.match(marketplace, /offerImageUrl: listings\.imageUrl/);
   assert.match(marketplace, /inArray\(cartItems\.listingId, listingIds\)/);
   assert.match(receiving, /"Listed — partly reserved"/);
   assert.match(receiving, /"Sold out"/);

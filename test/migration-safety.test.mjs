@@ -125,3 +125,11 @@ test("Reject marketplace migration prepares hidden offers without changing stock
   assert.match(migration, /existing\.id IS NULL/);
   assert.doesNotMatch(migration, /UPDATE inventory|DELETE|DROP TABLE|TRUNCATE TABLE/);
 });
+
+test("quality-image migration preserves the catalog photo as every offer fallback", async () => {
+  const migration = await readFile("drizzle/0029_listing_quality_images.sql", "utf8");
+
+  assert.match(migration, /ADD COLUMN image_url MEDIUMTEXT NULL/);
+  assert.match(migration, /SET listing\.image_url = product\.image_url/);
+  assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
+});

@@ -30,6 +30,7 @@ import {
   saveMarketplaceProductOffers,
   setCatalogProductActive,
   updateCatalogProduct,
+  updateMarketplaceOfferImage,
 } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/products")({
@@ -498,6 +499,7 @@ function MarketplaceEditor({
           active={product.active}
           draft={drafts[offer.id] ?? marketplaceOfferDraft(offer)}
           onChange={(field, value) => updateDraft(offer.id, field, value)}
+          onPhotoSaved={onSaved}
         />
       ))}
       <Button type="submit" className="rounded-full" disabled={saving || !product.active}>
@@ -512,11 +514,13 @@ function OfferEditor({
   active,
   draft,
   onChange,
+  onPhotoSaved,
 }: {
   offer: CatalogProduct["offers"][number];
   active: boolean;
   draft: MarketplaceOfferDraft;
   onChange: (field: keyof MarketplaceOfferDraft, value: string | boolean) => void;
+  onPhotoSaved: () => Promise<void>;
 }) {
   return (
     <section className="grid gap-4 rounded-3xl border p-5 sm:grid-cols-3">
@@ -535,6 +539,7 @@ function OfferEditor({
           Visible in marketplace
         </label>
       </div>
+      <QualityPhoto offer={offer} active={active} onSaved={onPhotoSaved} />
       <Field label="Retail ₱ / kg">
         <Input
           type="number"
@@ -567,6 +572,81 @@ function OfferEditor({
   );
 }
 
+function QualityPhoto({
+  offer,
+  active,
+  onSaved,
+}: {
+  offer: CatalogProduct["offers"][number];
+  active: boolean;
+  onSaved: () => Promise<void>;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState("");
+  const [preparing, setPreparing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  return (
+    <div className="space-y-2 sm:col-span-3">
+      <Label>{offer.classification} photo</Label>
+      <div className="flex flex-wrap items-center gap-4 rounded-2xl border bg-muted/20 p-3">
+        <img
+          src={preview || offer.imageUrl || marketplaceImageFor(offer.classification)}
+          alt={`${offer.classification} quality preview`}
+          className="h-20 w-28 rounded-xl object-cover"
+        />
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="sr-only"
+          disabled={!active || preparing || saving}
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (!file) return;
+            setPreparing(true);
+            void prepareProductImage(file)
+              .then(async (imageDataUrl) => {
+                setPreview(imageDataUrl);
+                setSaving(true);
+                await updateMarketplaceOfferImage({
+                  data: { listingId: offer.id, imageDataUrl },
+                });
+                toast.success(`${offer.classification} photo updated`);
+                await onSaved();
+                setPreview("");
+              })
+              .catch((error) =>
+                toast.error(`${offer.classification} photo could not be updated`, {
+                  description: error instanceof Error ? error.message : "Choose another image.",
+                }),
+              )
+              .finally(() => {
+                setPreparing(false);
+                setSaving(false);
+              });
+          }}
+        />
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            disabled={!active || preparing || saving}
+            onClick={() => inputRef.current?.click()}
+          >
+            <ImagePlus className="size-4" />
+            {preparing ? "Preparing…" : saving ? "Saving…" : "Replace quality photo"}
+          </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Shown when Buyers preview or select {offer.classification}.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type MarketplaceOfferDraft = {
   retailPricePerKg: string;
   bundlePricePerKg: string;
@@ -593,7 +673,7 @@ function marketplaceSavedSignature(offers: CatalogProduct["offers"]) {
   return offers
     .map(
       (offer) =>
-        `${offer.id}:${offer.status}:${offer.retailPricePerKg}:${offer.bundlePricePerKg}:${offer.bundleMinimumKg}:${offer.priceConfigured}`,
+        `${offer.id}:${offer.status}:${offer.retailPricePerKg}:${offer.bundlePricePerKg}:${offer.bundleMinimumKg}:${offer.priceConfigured}:${offer.imageUrl ?? ""}`,
     )
     .join("|");
 }

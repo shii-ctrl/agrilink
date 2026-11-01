@@ -170,6 +170,11 @@ const updateCatalogProductImageInput = z.object({
     ),
 });
 
+const updateMarketplaceOfferImageInput = z.object({
+  listingId: z.string().uuid(),
+  imageDataUrl: updateCatalogProductImageInput.shape.imageDataUrl,
+});
+
 const updateCatalogProductInput = z.object({
   productId: z.string().uuid(),
   name: z.string().trim().min(2).max(160),
@@ -244,7 +249,8 @@ function asProduct(row: {
   bundleMinimumKg: string | null;
   availableKg: string;
   description: string | null;
-  imageUrl: string | null;
+  productImageUrl: string | null;
+  offerImageUrl: string | null;
 }): MarketplaceProduct {
   const retailPricePerKg = Number(row.retailPricePerKg ?? row.pricePerKg);
   const bundlePricePerKg =
@@ -265,11 +271,12 @@ function asProduct(row: {
     description:
       row.description ??
       `${row.name} supplied by PROCY farmer members and classified ${row.classification}.`,
-    image: row.imageUrl ?? "",
+    image: row.productImageUrl ?? "",
     offers: [
       {
         id: row.listingId,
         classification: row.classification as ProductOffer["classification"],
+        image: row.offerImageUrl ?? row.productImageUrl ?? "",
         pricePerKg: retailPricePerKg,
         retailPricePerKg,
         bundlePricePerKg,
@@ -323,7 +330,8 @@ async function fetchListings(productId?: string) {
           AND stock.classification_id = ${listings.classificationId}
       )`,
       description: products.description,
-      imageUrl: products.imageUrl,
+      productImageUrl: products.imageUrl,
+      offerImageUrl: listings.imageUrl,
       active: products.active,
     })
     .from(listings)
@@ -373,7 +381,8 @@ async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
           AND stock.classification_id = ${listings.classificationId}
       )`,
       description: products.description,
-      imageUrl: products.imageUrl,
+      productImageUrl: products.imageUrl,
+      offerImageUrl: listings.imageUrl,
       status: listings.status,
     })
     .from(listings)
@@ -438,6 +447,7 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
           classificationId: classification.id,
           pricePerKg: "0.01",
           retailPricePerKg: "0.01",
+          imageUrl: data.imageDataUrl || null,
           status: "draft" as const,
         })),
       );
@@ -534,6 +544,36 @@ export const updateCatalogProductImage = createServerFn({ method: "POST" })
     return { id: product.id };
   });
 
+export const updateMarketplaceOfferImage = createServerFn({ method: "POST" })
+  .validator(updateMarketplaceOfferImageInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    assertSafeProductImage(data.imageDataUrl);
+    const { db } = await import("@/db/client.server");
+    const { classifications, listings, products } = await import("@/db/schema");
+    const [offer] = await db
+      .select({
+        id: listings.id,
+        product: products.name,
+        classification: classifications.name,
+        productActive: products.active,
+      })
+      .from(listings)
+      .innerJoin(products, eq(listings.productId, products.id))
+      .innerJoin(classifications, eq(listings.classificationId, classifications.id))
+      .where(eq(listings.id, data.listingId));
+    if (!offer) throw new Error("This marketplace quality could not be found.");
+    if (!offer.productActive) throw new Error("Restore this product before changing its photo.");
+
+    await db.update(listings).set({ imageUrl: data.imageDataUrl }).where(eq(listings.id, offer.id));
+    await writeAuditLog(actor.id, "listing.image.update", "marketplace_listing", offer.id, {
+      product: offer.product,
+      classification: offer.classification,
+    });
+    return { id: offer.id, imageUrl: data.imageDataUrl };
+  });
+
 export const getCatalogProducts = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
   await requireRole("Marketer");
@@ -578,6 +618,7 @@ export const getMarketerProductCatalog = createServerFn({ method: "GET" }).handl
         priceConfigured: listings.priceConfigured,
         bundlePricePerKg: listings.bundlePricePerKg,
         bundleMinimumKg: listings.bundleMinimumKg,
+        imageUrl: listings.imageUrl,
         status: listings.status,
         availableKg: sql<string>`(
           SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
@@ -627,6 +668,7 @@ export const getMarketerProductCatalog = createServerFn({ method: "GET" }).handl
       .filter((offer) => offer.productId === product.id)
       .map((offer) => ({
         ...offer,
+        imageUrl: offer.imageUrl ?? product.imageUrl,
         retailPricePerKg: Number(offer.retailPricePerKg ?? 0),
         bundlePricePerKg: offer.bundlePricePerKg === null ? null : Number(offer.bundlePricePerKg),
         bundleMinimumKg: offer.bundleMinimumKg === null ? null : Number(offer.bundleMinimumKg),
@@ -1204,7 +1246,7 @@ async function buyerCartRows(buyerId: string) {
         WHERE stock.product_id = ${listings.productId}
           AND stock.classification_id = ${listings.classificationId}
       )`,
-      imageUrl: products.imageUrl,
+      imageUrl: sql<string | null>`COALESCE(${listings.imageUrl}, ${products.imageUrl})`,
     })
     .from(carts)
     .innerJoin(cartItems, eq(cartItems.cartId, carts.id))
@@ -1776,7 +1818,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         .select({
           listingId: listings.id,
           name: products.name,
-          imageUrl: products.imageUrl,
+          imageUrl: sql<string | null>`COALESCE(${listings.imageUrl}, ${products.imageUrl})`,
           classification: classifications.name,
           pricePerKg: listings.pricePerKg,
           retailPricePerKg: listings.retailPricePerKg,

@@ -80,6 +80,7 @@ function ProductDetail() {
           bundlePricePerKg: product.bundlePricePerKg,
           bundleMinimumKg: product.bundleMinimumKg,
           quantityKg: product.quantityKg,
+          image: product.image,
         },
       ];
   const [selectedOfferId, setSelectedOfferId] = useState(offers[0]?.id ?? product.id);
@@ -258,11 +259,11 @@ function ProductDetail() {
       <div className="mt-4 grid gap-6 sm:mt-6 sm:gap-10 lg:grid-cols-2">
         <div className="overflow-hidden rounded-2xl shadow-field sm:rounded-[2rem]">
           <img
-            src={product.image}
-            alt={product.name}
+            src={selectedOffer.image || product.image}
+            alt={`${product.name} — ${selectedOffer.classification} quality`}
             width={900}
             height={700}
-            className="aspect-[4/3] w-full object-cover"
+            className="aspect-[4/3] w-full object-cover transition-opacity duration-300"
           />
         </div>
 

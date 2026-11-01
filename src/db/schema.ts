@@ -144,6 +144,7 @@ export const listings = mysqlTable(
     priceConfigured: boolean("price_configured").default(false).notNull(),
     bundlePricePerKg: decimal("bundle_price_per_kg", { precision: 12, scale: 2 }),
     bundleMinimumKg: decimal("bundle_minimum_kg", { precision: 12, scale: 2 }),
+    imageUrl: mediumtext("image_url"),
     status: mysqlEnum("status", ["draft", "published", "unavailable", "archived"])
       .default("draft")
       .notNull(),
