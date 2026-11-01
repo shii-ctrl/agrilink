@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   Archive,
   Check,
@@ -41,13 +41,6 @@ export const Route = createFileRoute("/marketer/products")({
 type Catalog = Awaited<ReturnType<typeof getMarketerProductCatalog>>;
 type CatalogProduct = Catalog[number];
 type EditorTab = "details" | "marketplace" | "stock" | "history";
-
-const workflow = [
-  ["Product Catalog", "/marketer/products"],
-  ["Record Stock", "/marketer/receiving"],
-  ["Stock Records", "/marketer/classification"],
-  ["Orders", "/marketer/orders"],
-] as const;
 
 function ProductCatalogPage() {
   const [products, setProducts] = useState<Catalog>([]);
@@ -94,7 +87,6 @@ function ProductCatalogPage() {
         description="Maintain permanent vegetables, prices, visibility, pooled stock, and Farmer ownership."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
-        <WorkflowStepper />
         <WorkspaceLoadState
           loading={loading}
           error={loadError}
@@ -230,31 +222,6 @@ function ProductCatalogPage() {
         ) : null}
       </main>
     </MarketerLayout>
-  );
-}
-
-function WorkflowStepper() {
-  return (
-    <nav
-      aria-label="Product workflow"
-      className="rounded-3xl border border-border bg-card p-4 shadow-card"
-    >
-      <ol className="grid gap-2 sm:grid-cols-4">
-        {workflow.map(([label, to], index) => (
-          <li key={to}>
-            <Link
-              to={to}
-              className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted/50 hover:bg-muted"}`}
-            >
-              <span className="flex size-7 items-center justify-center rounded-full border border-current/20 text-xs">
-                {index + 1}
-              </span>
-              {label}
-            </Link>
-          </li>
-        ))}
-      </ol>
-    </nav>
   );
 }
 
