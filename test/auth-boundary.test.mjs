@@ -464,6 +464,19 @@ test("public authentication uses the floating dialog system", async () => {
   assert.doesNotMatch(resetRoute, /auth-panel|auth-visual/);
 });
 
+test("home featured produce supports horizontal drag and carousel controls", async () => {
+  const home = await readFile("src/routes/index.tsx", "utf8");
+
+  assert.match(home, /useEmblaCarousel/);
+  assert.match(home, /dragFree: true/);
+  assert.match(home, /featuredCarouselApi\?\.scrollPrev\(\)/);
+  assert.match(home, /featuredCarouselApi\?\.scrollNext\(\)/);
+  assert.match(home, /Featured produce carousel/);
+  assert.match(home, /Swipe left or right to browse more products/);
+  assert.match(home, /cursor-grab overflow-hidden active:cursor-grabbing/);
+  assert.match(home, /\.slice\(0, 8\)/);
+});
+
 test("Marketer product listing uses separate workflow pages without removing existing tools", async () => {
   const [marketerPage, marketerLayout, pricePublishPage, publishedListingsPage] = await Promise.all(
     [

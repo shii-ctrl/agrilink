@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   LineChart,
   LockKeyhole,
@@ -10,7 +12,8 @@ import {
   Sprout,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import useEmblaCarousel from "embla-carousel-react";
 import { z } from "zod";
 import heroImg from "@/assets/hero-farm.jpg";
 import { Button } from "@/components/ui/button";
@@ -98,6 +101,29 @@ function Index() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [passwordResetOpen, setPasswordResetOpen] = useState(false);
+  const [featuredCarouselRef, featuredCarouselApi] = useEmblaCarousel({
+    align: "start",
+    containScroll: "trimSnaps",
+    dragFree: true,
+  });
+  const [canScrollFeaturedPrev, setCanScrollFeaturedPrev] = useState(false);
+  const [canScrollFeaturedNext, setCanScrollFeaturedNext] = useState(false);
+  const updateFeaturedCarouselControls = useCallback(() => {
+    if (!featuredCarouselApi) return;
+    setCanScrollFeaturedPrev(featuredCarouselApi.canScrollPrev());
+    setCanScrollFeaturedNext(featuredCarouselApi.canScrollNext());
+  }, [featuredCarouselApi]);
+
+  useEffect(() => {
+    if (!featuredCarouselApi) return;
+    updateFeaturedCarouselControls();
+    featuredCarouselApi.on("select", updateFeaturedCarouselControls);
+    featuredCarouselApi.on("reInit", updateFeaturedCarouselControls);
+    return () => {
+      featuredCarouselApi.off("select", updateFeaturedCarouselControls);
+      featuredCarouselApi.off("reInit", updateFeaturedCarouselControls);
+    };
+  }, [featuredCarouselApi, updateFeaturedCarouselControls]);
   useEffect(() => {
     setLoginOpen(auth === "login");
     setRegisterOpen(auth === "register");
@@ -127,7 +153,7 @@ function Index() {
       setFeatured(
         listings
           .filter((listing) => listing.classification === "Good")
-          .slice(0, 3)
+          .slice(0, 8)
           .map((listing) => ({
             ...listing,
             image: listing.image || marketplaceImageFor(listing.name),
@@ -293,15 +319,58 @@ function Index() {
                 Live listings and availability from the AgriLink database.
               </p>
             </div>
-            <Button asChild variant="outline" className="rounded-full">
-              <Link to="/marketplace">View all products</Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="hidden rounded-full sm:inline-flex"
+                onClick={() => featuredCarouselApi?.scrollPrev()}
+                disabled={!canScrollFeaturedPrev}
+                aria-label="Previous featured products"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="hidden rounded-full sm:inline-flex"
+                onClick={() => featuredCarouselApi?.scrollNext()}
+                disabled={!canScrollFeaturedNext}
+                aria-label="Next featured products"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to="/marketplace">View all products</Link>
+              </Button>
+            </div>
           </div>
           {featured.length > 0 ? (
-            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {featured.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
+            <div
+              ref={featuredCarouselRef}
+              className="mt-8 cursor-grab overflow-hidden active:cursor-grabbing"
+              role="region"
+              aria-label="Featured produce carousel"
+              aria-roledescription="carousel"
+            >
+              <div className="flex touch-pan-y gap-4 sm:gap-6">
+                {featured.map((p, index) => (
+                  <div
+                    key={p.id}
+                    className="flex shrink-0 basis-[86%] snap-start sm:basis-[47%] lg:basis-[31.5%] [&>a]:w-full"
+                    role="group"
+                    aria-roledescription="slide"
+                    aria-label={`${index + 1} of ${featured.length}`}
+                  >
+                    <ProductCard product={p} />
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-center text-xs text-muted-foreground sm:hidden">
+                Swipe left or right to browse more products
+              </p>
             </div>
           ) : (
             <div className="mt-8 rounded-3xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
