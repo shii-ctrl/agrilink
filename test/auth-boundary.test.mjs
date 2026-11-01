@@ -578,9 +578,10 @@ test("role workflows keep catalog, cart, and Farmer stock states consistent", as
 
   assert.match(marketplace, /cropType: z\.enum\(cropTypes\)/);
   assert.match(marketplace, /A catalog product with that name already exists/);
-  assert.match(marketplace, /export const saveMarketplaceOfferSettings/);
-  assert.match(marketplace, /Saves price and visibility in one transaction/);
-  assert.match(marketerCatalog, /saveMarketplaceOfferSettings/);
+  assert.match(marketplace, /export const saveMarketplaceProductOffers/);
+  assert.match(marketplace, /Saves every Good\/Semi setting in one transaction/);
+  assert.match(marketerCatalog, /saveMarketplaceProductOffers/);
+  assert.match(marketerCatalog, /Save all marketplace settings/);
   assert.doesNotMatch(marketerCatalog, /await updateMarketplaceListingPricing/);
   assert.doesNotMatch(marketerCatalog, /await setMarketplaceListingStatus/);
   assert.match(marketerCatalog, /requestId !== latestLoad\.current/);

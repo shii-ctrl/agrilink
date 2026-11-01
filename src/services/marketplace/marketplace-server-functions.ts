@@ -84,13 +84,17 @@ const createListingInput = z
 const updateListingPricingInput = z
   .object({ listingId: z.string().uuid(), ...listingPricingFields })
   .superRefine(validateBundlePricing);
-const saveMarketplaceOfferInput = z
+const marketplaceOfferSettingsInput = z
   .object({
     listingId: z.string().uuid(),
     ...listingPricingFields,
     visible: z.boolean(),
   })
   .superRefine(validateBundlePricing);
+const saveMarketplaceProductOffersInput = z.object({
+  productId: z.string().uuid(),
+  offers: z.array(marketplaceOfferSettingsInput).min(1).max(2),
+});
 const listingStatusInput = z.object({
   listingId: z.string().uuid(),
   status: z.enum(["draft", "published", "archived"]),
@@ -875,17 +879,19 @@ export const updateMarketplaceListingPricing = createServerFn({ method: "POST" }
     return { id: data.listingId };
   });
 
-/** Saves price and visibility in one transaction so refreshes can never observe a half-saved offer. */
-export const saveMarketplaceOfferSettings = createServerFn({ method: "POST" })
-  .validator(saveMarketplaceOfferInput)
+/** Saves every Good/Semi setting in one transaction so refreshes cannot observe partial changes. */
+export const saveMarketplaceProductOffers = createServerFn({ method: "POST" })
+  .validator(saveMarketplaceProductOffersInput)
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
     const { classifications, listings, products } = await import("@/db/schema");
     const saved = await db.transaction(async (tx) => {
-      const [listing] = await tx
+      const currentOffers = await tx
         .select({
+          id: listings.id,
+          productId: listings.productId,
           classification: classifications.name,
           productName: products.name,
           productActive: products.active,
@@ -894,60 +900,80 @@ export const saveMarketplaceOfferSettings = createServerFn({ method: "POST" })
         .from(listings)
         .innerJoin(classifications, eq(listings.classificationId, classifications.id))
         .innerJoin(products, eq(listings.productId, products.id))
-        .where(eq(listings.id, data.listingId));
-      if (!listing) throw new Error("The marketplace offer could not be found.");
-      if (!listing.productActive)
+        .where(
+          and(
+            eq(listings.productId, data.productId),
+            inArray(
+              listings.id,
+              data.offers.map((offer) => offer.listingId),
+            ),
+          ),
+        );
+      if (currentOffers.length !== data.offers.length) {
+        throw new Error("One or more marketplace offers could not be found.");
+      }
+      if (new Set(data.offers.map((offer) => offer.listingId)).size !== data.offers.length) {
+        throw new Error("Each marketplace quality can only be saved once.");
+      }
+      if (currentOffers.some((offer) => !offer.productActive))
         throw new Error("Restore this product before changing its offer.");
-      if (listing.classification === "Reject") {
+      if (currentOffers.some((offer) => offer.classification === "Reject")) {
         throw new Error("Reject stock is kept internally and cannot be shown to buyers.");
       }
-      const status = data.visible ? ("published" as const) : ("draft" as const);
-      const [updated] = await tx
-        .update(listings)
-        .set({
-          pricePerKg: data.retailPricePerKg.toFixed(2),
-          retailPricePerKg: data.retailPricePerKg.toFixed(2),
-          priceConfigured: true,
-          bundlePricePerKg:
-            data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
-          bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
-          status,
-        })
-        .where(eq(listings.id, data.listingId));
-      if (updated.affectedRows !== 1) throw new Error("The marketplace offer could not be saved.");
-      return { ...listing, status };
+      const results = [];
+      for (const offer of data.offers) {
+        const current = currentOffers.find((item) => item.id === offer.listingId)!;
+        const status = offer.visible ? ("published" as const) : ("draft" as const);
+        const [updated] = await tx
+          .update(listings)
+          .set({
+            pricePerKg: offer.retailPricePerKg.toFixed(2),
+            retailPricePerKg: offer.retailPricePerKg.toFixed(2),
+            priceConfigured: true,
+            bundlePricePerKg:
+              offer.bundlePricePerKg === null ? null : offer.bundlePricePerKg.toFixed(2),
+            bundleMinimumKg:
+              offer.bundleMinimumKg === null ? null : offer.bundleMinimumKg.toFixed(2),
+            status,
+          })
+          .where(eq(listings.id, offer.listingId));
+        if (updated.affectedRows !== 1) {
+          throw new Error(`${current.classification} settings could not be saved.`);
+        }
+        results.push({ ...current, ...offer, status });
+      }
+      return results;
     });
 
-    await writeAuditLog(
-      actor.id,
-      "listing.settings.update",
-      "marketplace_listing",
-      data.listingId,
-      {
-        retailPricePerKg: data.retailPricePerKg,
-        bundlePricePerKg: data.bundlePricePerKg,
-        bundleMinimumKg: data.bundleMinimumKg,
-        status: saved.status,
-      },
+    await Promise.all(
+      saved.map((offer) =>
+        writeAuditLog(actor.id, "listing.settings.update", "marketplace_listing", offer.id, {
+          retailPricePerKg: offer.retailPricePerKg,
+          bundlePricePerKg: offer.bundlePricePerKg,
+          bundleMinimumKg: offer.bundleMinimumKg,
+          status: offer.status,
+        }),
+      ),
     );
     const { notifyCartHoldersForListing, notifyRole } =
       await import("@/services/messaging/notification-server");
-    if (saved.previousStatus !== saved.status) {
-      if (saved.status === "published") {
+    for (const offer of saved) {
+      if (offer.previousStatus === offer.status) continue;
+      if (offer.status === "published") {
         await notifyRole("Buyer", {
           title: "Marketplace offer available",
-          message: `${saved.productName} — ${saved.classification} is now visible in the marketplace.`,
+          message: `${offer.productName} — ${offer.classification} is now visible in the marketplace.`,
           target: "/marketplace",
         });
       } else {
-        await notifyCartHoldersForListing(data.listingId, {
+        await notifyCartHoldersForListing(offer.id, {
           title: "Marketplace offer changed",
-          message: `${saved.productName} — ${saved.classification} is no longer available. Review your cart before ordering.`,
+          message: `${offer.productName} — ${offer.classification} is no longer available. Review your cart before ordering.`,
           target: "/buyer/cart",
         });
       }
     }
-    return { id: data.listingId, status: saved.status };
+    return saved.map((offer) => ({ id: offer.id, status: offer.status }));
   });
 
 export const setMarketplaceListingStatus = createServerFn({ method: "POST" })

@@ -27,7 +27,7 @@ import {
   adjustCatalogStock,
   createCatalogProduct,
   getMarketerProductCatalog,
-  saveMarketplaceOfferSettings,
+  saveMarketplaceProductOffers,
   setCatalogProductActive,
   updateCatalogProduct,
 } from "@/services/marketplace/marketplace-server-functions";
@@ -208,7 +208,11 @@ function ProductCatalogPage() {
                   <div className="p-5 md:p-6">
                     {tab === "details" ? <DetailsEditor product={selected} onSaved={load} /> : null}
                     {tab === "marketplace" ? (
-                      <MarketplaceEditor product={selected} onSaved={load} />
+                      <MarketplaceEditor
+                        key={marketplaceSavedSignature(selected.offers)}
+                        product={selected}
+                        onSaved={load}
+                      />
                     ) : null}
                     {tab === "stock" ? <StockOwnership product={selected} onSaved={load} /> : null}
                     {tab === "history" ? <ProductHistory product={selected} /> : null}
@@ -436,49 +440,42 @@ function MarketplaceEditor({
   product: CatalogProduct;
   onSaved: () => Promise<void>;
 }) {
-  return (
-    <div className="space-y-5">
-      <div className="rounded-2xl border border-primary/20 bg-accent/50 p-4 text-sm">
-        Published qualities stay visible as Sold out and automatically become purchasable after new
-        stock is recorded.
-      </div>
-      {product.offers.map((offer) => (
-        <OfferEditor key={offer.id} offer={offer} active={product.active} onSaved={onSaved} />
-      ))}
-    </div>
-  );
-}
-
-function OfferEditor({
-  offer,
-  active,
-  onSaved,
-}: {
-  offer: CatalogProduct["offers"][number];
-  active: boolean;
-  onSaved: () => Promise<void>;
-}) {
-  const [visible, setVisible] = useState(offer.status === "published");
+  const [drafts, setDrafts] = useState(() => marketplaceDrafts(product.offers));
   const [saving, setSaving] = useState(false);
-  useEffect(() => setVisible(offer.status === "published"), [offer.status]);
+  const updateDraft = (
+    offerId: string,
+    field: keyof MarketplaceOfferDraft,
+    value: string | boolean,
+  ) => {
+    setDrafts((current) => {
+      const existing = current[offerId];
+      if (!existing) return current;
+      return { ...current, [offerId]: { ...existing, [field]: value } };
+    });
+  };
   return (
     <form
-      className="grid gap-4 rounded-3xl border p-5 sm:grid-cols-3"
+      className="space-y-5"
       onSubmit={async (event) => {
         event.preventDefault();
-        const data = new FormData(event.currentTarget);
         setSaving(true);
         try {
-          await saveMarketplaceOfferSettings({
+          await saveMarketplaceProductOffers({
             data: {
-              listingId: offer.id,
-              retailPricePerKg: Number(data.get("retailPricePerKg")),
-              bundlePricePerKg: optionalNumber(data.get("bundlePricePerKg")),
-              bundleMinimumKg: optionalNumber(data.get("bundleMinimumKg")),
-              visible,
+              productId: product.id,
+              offers: product.offers.map((offer) => {
+                const draft = drafts[offer.id];
+                return {
+                  listingId: offer.id,
+                  retailPricePerKg: Number(draft?.retailPricePerKg),
+                  bundlePricePerKg: optionalNumber(draft?.bundlePricePerKg ?? null),
+                  bundleMinimumKg: optionalNumber(draft?.bundleMinimumKg ?? null),
+                  visible: draft?.visible ?? false,
+                };
+              }),
             },
           });
-          toast.success(`${offer.classification} settings saved`);
+          toast.success("Good and Semi marketplace settings saved");
           await onSaved();
         } catch (error) {
           toast.error("Marketplace settings could not be saved", {
@@ -489,6 +486,40 @@ function OfferEditor({
         }
       }}
     >
+      <div className="rounded-2xl border border-primary/20 bg-accent/50 p-4 text-sm">
+        Select all qualities you want buyers to see, then use the single Save button below.
+        Published qualities stay visible as Sold out and automatically become purchasable after new
+        stock is recorded.
+      </div>
+      {product.offers.map((offer) => (
+        <OfferEditor
+          key={offer.id}
+          offer={offer}
+          active={product.active}
+          draft={drafts[offer.id] ?? marketplaceOfferDraft(offer)}
+          onChange={(field, value) => updateDraft(offer.id, field, value)}
+        />
+      ))}
+      <Button type="submit" className="rounded-full" disabled={saving || !product.active}>
+        {saving ? "Saving Good and Semi…" : "Save all marketplace settings"}
+      </Button>
+    </form>
+  );
+}
+
+function OfferEditor({
+  offer,
+  active,
+  draft,
+  onChange,
+}: {
+  offer: CatalogProduct["offers"][number];
+  active: boolean;
+  draft: MarketplaceOfferDraft;
+  onChange: (field: keyof MarketplaceOfferDraft, value: string | boolean) => void;
+}) {
+  return (
+    <section className="grid gap-4 rounded-3xl border p-5 sm:grid-cols-3">
       <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-3">
         <div>
           <h3 className="font-semibold">{offer.classification} quality</h3>
@@ -497,8 +528,8 @@ function OfferEditor({
         <label className="flex items-center gap-2 text-sm font-medium">
           <input
             type="checkbox"
-            checked={visible}
-            onChange={(event) => setVisible(event.target.checked)}
+            checked={draft.visible}
+            onChange={(event) => onChange("visible", event.target.checked)}
             disabled={!active}
           />{" "}
           Visible in marketplace
@@ -506,41 +537,65 @@ function OfferEditor({
       </div>
       <Field label="Retail ₱ / kg">
         <Input
-          name="retailPricePerKg"
           type="number"
           min="0.01"
           step="0.01"
-          defaultValue={offer.priceConfigured ? offer.retailPricePerKg : ""}
+          value={draft.retailPricePerKg}
+          onChange={(event) => onChange("retailPricePerKg", event.target.value)}
           required
         />
       </Field>
       <Field label="Bundle ₱ / kg">
         <Input
-          name="bundlePricePerKg"
           type="number"
           min="0.01"
           step="0.01"
-          defaultValue={offer.bundlePricePerKg ?? ""}
+          value={draft.bundlePricePerKg}
+          onChange={(event) => onChange("bundlePricePerKg", event.target.value)}
         />
       </Field>
       <Field label="Bundle starts at kg">
         <Input
-          name="bundleMinimumKg"
           type="number"
           min="1"
           step="0.01"
-          defaultValue={offer.bundleMinimumKg ?? ""}
+          value={draft.bundleMinimumKg}
+          onChange={(event) => onChange("bundleMinimumKg", event.target.value)}
         />
       </Field>
-      <Button
-        type="submit"
-        className="rounded-full sm:col-span-3 sm:justify-self-start"
-        disabled={saving || !active}
-      >
-        {saving ? "Saving…" : "Save price and visibility"}
-      </Button>
-    </form>
+    </section>
   );
+}
+
+type MarketplaceOfferDraft = {
+  retailPricePerKg: string;
+  bundlePricePerKg: string;
+  bundleMinimumKg: string;
+  visible: boolean;
+};
+
+function marketplaceOfferDraft(offer: CatalogProduct["offers"][number]): MarketplaceOfferDraft {
+  return {
+    retailPricePerKg: offer.priceConfigured ? String(offer.retailPricePerKg) : "",
+    bundlePricePerKg: offer.bundlePricePerKg === null ? "" : String(offer.bundlePricePerKg),
+    bundleMinimumKg: offer.bundleMinimumKg === null ? "" : String(offer.bundleMinimumKg),
+    visible: offer.status === "published",
+  };
+}
+
+function marketplaceDrafts(offers: CatalogProduct["offers"]) {
+  return Object.fromEntries(
+    offers.map((offer) => [offer.id, marketplaceOfferDraft(offer)]),
+  ) as Record<string, MarketplaceOfferDraft>;
+}
+
+function marketplaceSavedSignature(offers: CatalogProduct["offers"]) {
+  return offers
+    .map(
+      (offer) =>
+        `${offer.id}:${offer.status}:${offer.retailPricePerKg}:${offer.bundlePricePerKg}:${offer.bundleMinimumKg}:${offer.priceConfigured}`,
+    )
+    .join("|");
 }
 
 function StockOwnership({
