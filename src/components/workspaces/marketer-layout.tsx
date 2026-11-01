@@ -40,11 +40,9 @@ const marketerSections = [
   {
     title: "Product workflow",
     items: [
-      { title: "Add Product", to: "/marketer/products", icon: ShoppingBag },
-      { title: "Product Receiving", to: "/marketer/receiving", icon: ReceiptText },
-      { title: "Classification", to: "/marketer/classification", icon: PackageCheck },
-      { title: "Price & Publish", to: "/marketer/price-publish", icon: Tag },
-      { title: "Published Listings", to: "/marketer/published-listings", icon: Boxes },
+      { title: "Product Catalog", to: "/marketer/products", icon: ShoppingBag },
+      { title: "Record Stock", to: "/marketer/receiving", icon: ReceiptText },
+      { title: "Stock Records", to: "/marketer/classification", icon: PackageCheck },
     ],
   },
   {

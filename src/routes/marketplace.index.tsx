@@ -32,7 +32,7 @@ export const Route = createFileRoute("/marketplace/")({
   component: MarketplacePage,
 });
 
-const classifications: Classification[] = ["Good", "Semi", "Reject"];
+const classifications: Classification[] = ["Good", "Semi"];
 
 function Chip({
   active,
@@ -81,11 +81,17 @@ function MarketplacePage() {
     () =>
       products.filter((p) => {
         const q = query.trim().toLowerCase();
-        if (q && !`${p.name} ${p.cropType} ${p.classification}`.toLowerCase().includes(q))
+        if (
+          q &&
+          !`${p.name} ${p.cropType} ${(p.offers ?? []).map((offer) => offer.classification).join(" ")}`
+            .toLowerCase()
+            .includes(q)
+        )
           return false;
         if (crop && p.cropType !== crop) return false;
-        if (grade && p.classification !== grade) return false;
-        if (inStockOnly && p.quantityKg <= 0) return false;
+        if (grade && !(p.offers ?? []).some((offer) => offer.classification === grade))
+          return false;
+        if (inStockOnly && !(p.offers ?? []).some((offer) => offer.quantityKg > 0)) return false;
         return true;
       }),
     [products, query, crop, grade, inStockOnly],

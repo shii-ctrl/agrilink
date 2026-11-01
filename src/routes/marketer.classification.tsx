@@ -10,8 +10,8 @@ import { getReceivingWorkspace } from "@/services/operations/receiving-server-fu
 export const Route = createFileRoute("/marketer/classification")({
   head: () => ({
     meta: [
-      { title: "Classification — Marketer | AgriLink" },
-      { name: "description", content: "Review saved Good, Semi, and Reject delivery groups." },
+      { title: "Stock Records — Marketer | AgriLink" },
+      { name: "description", content: "Review immutable Farmer deliveries and quality records." },
     ],
   }),
   component: MarketerClassificationPage,
@@ -45,31 +45,31 @@ function MarketerClassificationPage() {
   return (
     <MarketerLayout>
       <MarketerPageHeader
-        title="Classification"
-        description="Saved Good, Semi, and Reject quantities from farmer deliveries. Classifications can only be created while recording a delivery."
+        title="Stock Records"
+        description="Immutable Farmer delivery records with their saved Good, Semi, and Reject distribution."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
         <WorkspaceLoadState
           loading={loading}
           error={loadError}
           onRetry={() => void loadWorkspace()}
-          label="classification records"
+          label="stock records"
         />
         {!loading && !loadError ? (
           <>
             <div className="mb-6 flex gap-3 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
               <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
               <p>
-                <span className="font-semibold">Inventory rule:</span> each classification is saved
-                with its delivery. Only delivery-backed classified inventory can be published to the
-                marketplace.
+                <span className="font-semibold">Audit rule:</span> saved deliveries are immutable.
+                If physical stock needs correction, use the audited adjustment action in Product
+                Catalog instead of changing the original record.
               </p>
             </div>
             <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
               <div className="flex items-start gap-3 border-b border-border px-6 py-5">
                 <PackageCheck className="mt-0.5 size-5 text-primary" />
                 <div>
-                  <h2 className="text-lg font-semibold">Saved classification records</h2>
+                  <h2 className="text-lg font-semibold">Saved stock records</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     These records are stored in AgriLink and trace back to the delivery reference.
                   </p>

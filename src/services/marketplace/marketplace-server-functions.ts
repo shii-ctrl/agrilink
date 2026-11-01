@@ -1,10 +1,9 @@
 // Server functions are client-safe RPC stubs; their handlers stay on the server.
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/mysql-core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import type { Classification, Product } from "@/features/marketplace/products";
+import type { Classification, Product, ProductOffer } from "@/features/marketplace/products";
 import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
 import type { DemoOrder } from "@/lib/demo/demo-orders";
 
@@ -154,6 +153,31 @@ const updateCatalogProductImageInput = z.object({
     ),
 });
 
+const updateCatalogProductInput = z.object({
+  productId: z.string().uuid(),
+  name: z.string().trim().min(2).max(160),
+  cropType: z.enum(cropTypes),
+  description: z.string().trim().max(2000),
+  imageDataUrl: createCatalogProductInput.shape.imageDataUrl,
+});
+
+const catalogProductStatusInput = z.object({
+  productId: z.string().uuid(),
+  active: z.boolean(),
+});
+
+const stockAdjustmentInput = z.object({
+  inventoryId: z.string().uuid(),
+  adjustmentKg: z
+    .number()
+    .finite()
+    .min(-1_000_000)
+    .max(1_000_000)
+    .refine((value) => value !== 0, "Enter a non-zero adjustment.")
+    .refine((value) => Number.isInteger(value * 100), "Use at most two decimal places."),
+  reason: z.string().trim().min(3).max(500),
+});
+
 function hasImageSignature(image: Buffer, contentType: "jpeg" | "png" | "webp") {
   if (contentType === "jpeg")
     return image.length >= 3 && image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff;
@@ -193,6 +217,7 @@ type MarketerMarketplaceProduct = MarketplaceProduct & {
 
 function asProduct(row: {
   listingId: string;
+  productId: string;
   name: string;
   cropType: string;
   classification: string;
@@ -211,7 +236,7 @@ function asProduct(row: {
       : Number(row.bundlePricePerKg);
   const bundleMinimumKg = bundlePricePerKg === null ? null : Number(row.bundleMinimumKg);
   return {
-    id: row.listingId,
+    id: row.productId,
     name: row.name,
     cropType: row.cropType,
     classification: row.classification as Classification,
@@ -224,6 +249,17 @@ function asProduct(row: {
       row.description ??
       `${row.name} supplied by PROCY farmer members and classified ${row.classification}.`,
     image: row.imageUrl ?? "",
+    offers: [
+      {
+        id: row.listingId,
+        classification: row.classification as ProductOffer["classification"],
+        pricePerKg: retailPricePerKg,
+        retailPricePerKg,
+        bundlePricePerKg,
+        bundleMinimumKg,
+        quantityKg: Math.max(0, Number(row.availableKg)),
+      },
+    ],
   };
 }
 
@@ -244,15 +280,15 @@ function listingUnitPrice(
     : retailPricePerKg;
 }
 
-async function fetchListings(listingId?: string) {
+async function fetchListings(productId?: string) {
   const { db } = await import("@/db/client.server");
   const { classifications, inventory, listings, products } = await import("@/db/schema");
-  const where = listingId ? eq(listings.id, listingId) : undefined;
+  const where = productId ? eq(listings.productId, productId) : undefined;
   const rows = await db
     .select({
       listingId: listings.id,
-      productId: inventory.productId,
-      classificationId: inventory.classificationId,
+      productId: listings.productId,
+      classificationId: listings.classificationId,
       name: products.name,
       cropType: products.cropType,
       classification: classifications.name,
@@ -266,38 +302,48 @@ async function fetchListings(listingId?: string) {
       availableKg: sql<string>`(
         SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
         FROM inventory AS stock
-        WHERE stock.product_id = ${inventory.productId}
-          AND stock.classification_id = ${inventory.classificationId}
+        WHERE stock.product_id = ${listings.productId}
+          AND stock.classification_id = ${listings.classificationId}
       )`,
       description: products.description,
       imageUrl: products.imageUrl,
+      active: products.active,
     })
     .from(listings)
-    .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-    .innerJoin(products, eq(inventory.productId, products.id))
-    .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+    .innerJoin(products, eq(listings.productId, products.id))
+    .innerJoin(classifications, eq(listings.classificationId, classifications.id))
     .where(where)
     .orderBy(desc(listings.updatedAt), desc(listings.id));
-  // Older data can contain a listing for each delivery. Keep the newest control
-  // listing only so buyers see one price and one combined stock total.
-  const grouped = new Map<string, (typeof rows)[number]>();
-  for (const row of rows) {
-    const key = `${row.productId}:${row.classificationId}`;
-    if (!grouped.has(key)) grouped.set(key, row);
+  const visibleRows = rows.filter(
+    (row) => row.status === "published" && row.classification !== "Reject",
+  );
+  const grouped = new Map<string, MarketplaceProduct>();
+  for (const row of visibleRows) {
+    const offerProduct = asProduct(row);
+    const current = grouped.get(row.productId);
+    if (!current) {
+      grouped.set(row.productId, offerProduct);
+      continue;
+    }
+    current.offers = [...(current.offers ?? []), ...(offerProduct.offers ?? [])].sort((a, b) =>
+      a.classification.localeCompare(b.classification),
+    );
+    current.quantityKg = (current.offers ?? []).reduce(
+      (total, offer) => total + offer.quantityKg,
+      0,
+    );
   }
-  return [...grouped.values()]
-    .filter((row) => row.status === "published" && row.classification !== "Reject")
-    .map(asProduct);
+  return [...grouped.values()];
 }
 
 async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
   const { db } = await import("@/db/client.server");
-  const { classifications, inventory, listings, products, users } = await import("@/db/schema");
+  const { classifications, inventory, listings, products } = await import("@/db/schema");
   const rows = await db
     .select({
       listingId: listings.id,
-      productId: inventory.productId,
-      classificationId: inventory.classificationId,
+      productId: listings.productId,
+      classificationId: listings.classificationId,
       name: products.name,
       cropType: products.cropType,
       classification: classifications.name,
@@ -308,27 +354,20 @@ async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
       availableKg: sql<string>`(
         SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
         FROM inventory AS stock
-        WHERE stock.product_id = ${inventory.productId}
-          AND stock.classification_id = ${inventory.classificationId}
+        WHERE stock.product_id = ${listings.productId}
+          AND stock.classification_id = ${listings.classificationId}
       )`,
       description: products.description,
       imageUrl: products.imageUrl,
-      farmer: users.displayName,
       status: listings.status,
     })
     .from(listings)
-    .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-    .innerJoin(products, eq(inventory.productId, products.id))
-    .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-    .leftJoin(users, eq(inventory.farmerId, users.id))
+    .innerJoin(products, eq(listings.productId, products.id))
+    .innerJoin(classifications, eq(listings.classificationId, classifications.id))
     .orderBy(desc(listings.updatedAt), desc(listings.id));
-  const grouped = new Map<string, (typeof rows)[number]>();
-  for (const row of rows) {
-    const key = `${row.productId}:${row.classificationId}`;
-    if (!grouped.has(key)) grouped.set(key, row);
-  }
-  return [...grouped.values()].map((row) => ({
+  return rows.map((row) => ({
     ...asProduct(row),
+    id: row.listingId,
     farmer: null,
     status: row.status,
   }));
@@ -354,7 +393,7 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
     const actor = await requireRole("Marketer");
     assertSafeProductImage(data.imageDataUrl);
     const { db } = await import("@/db/client.server");
-    const { products } = await import("@/db/schema");
+    const { classifications, listings, products } = await import("@/db/schema");
     const [existing] = await db
       .select({ id: products.id })
       .from(products)
@@ -363,15 +402,96 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
       throw new Error("A catalog product with that name already exists.");
     }
     const id = crypto.randomUUID();
-    await db.insert(products).values({
-      id,
-      name: data.name,
-      cropType: data.cropType,
-      ...(data.description ? { description: data.description } : {}),
-      ...(data.imageDataUrl ? { imageUrl: data.imageDataUrl } : {}),
+    await db.transaction(async (tx) => {
+      await tx.insert(products).values({
+        id,
+        name: data.name,
+        cropType: data.cropType,
+        ...(data.description ? { description: data.description } : {}),
+        ...(data.imageDataUrl ? { imageUrl: data.imageDataUrl } : {}),
+      });
+      const qualityRows = await tx
+        .select({ id: classifications.id })
+        .from(classifications)
+        .where(inArray(classifications.name, ["Good", "Semi"]));
+      if (qualityRows.length !== 2) throw new Error("Good and Semi classifications are required.");
+      await tx.insert(listings).values(
+        qualityRows.map((classification) => ({
+          id: crypto.randomUUID(),
+          productId: id,
+          classificationId: classification.id,
+          pricePerKg: "0.01",
+          retailPricePerKg: "0.01",
+          status: "draft" as const,
+        })),
+      );
     });
     await writeAuditLog(actor.id, "product.catalog_create", "product", id, { name: data.name });
     return { id };
+  });
+
+export const updateCatalogProduct = createServerFn({ method: "POST" })
+  .validator(updateCatalogProductInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    assertSafeProductImage(data.imageDataUrl);
+    const { db } = await import("@/db/client.server");
+    const { products } = await import("@/db/schema");
+    const [duplicate] = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(
+        and(
+          sql`LOWER(${products.name}) = LOWER(${data.name})`,
+          sql`${products.id} <> ${data.productId}`,
+        ),
+      );
+    if (duplicate) throw new Error("A catalog product with that name already exists.");
+    const [updated] = await db
+      .update(products)
+      .set({
+        name: data.name,
+        cropType: data.cropType,
+        description: data.description || null,
+        ...(data.imageDataUrl ? { imageUrl: data.imageDataUrl } : {}),
+      })
+      .where(eq(products.id, data.productId));
+    if (updated.affectedRows !== 1) throw new Error("The catalog product could not be found.");
+    await writeAuditLog(actor.id, "product.catalog_update", "product", data.productId, {
+      name: data.name,
+      cropType: data.cropType,
+    });
+    return { id: data.productId };
+  });
+
+export const setCatalogProductActive = createServerFn({ method: "POST" })
+  .validator(catalogProductStatusInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    const { db } = await import("@/db/client.server");
+    const { listings, products } = await import("@/db/schema");
+    await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(products)
+        .set({ active: data.active })
+        .where(eq(products.id, data.productId));
+      if (updated.affectedRows !== 1) throw new Error("The catalog product could not be found.");
+      if (!data.active) {
+        await tx
+          .update(listings)
+          .set({ status: "archived" })
+          .where(eq(listings.productId, data.productId));
+      }
+    });
+    await writeAuditLog(
+      actor.id,
+      data.active ? "product.restore" : "product.archive",
+      "product",
+      data.productId,
+    );
+    return { id: data.productId, active: data.active };
   });
 
 export const updateCatalogProductImage = createServerFn({ method: "POST" })
@@ -412,9 +532,195 @@ export const getCatalogProducts = createServerFn({ method: "GET" }).handler(asyn
       imageUrl: products.imageUrl,
     })
     .from(products)
-    .where(eq(products.active, true))
-    .orderBy(asc(products.name));
+    .orderBy(desc(products.active), asc(products.name));
 });
+
+export const getMarketerProductCatalog = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/services/auth/auth-server");
+  await requireRole("Marketer");
+  const { db } = await import("@/db/client.server");
+  const { classifications, inventory, inventoryMovements, listings, products, users } =
+    await import("@/db/schema");
+  const [productRows, offerRows, contributionRows, movementRows] = await Promise.all([
+    db
+      .select({
+        id: products.id,
+        name: products.name,
+        cropType: products.cropType,
+        description: products.description,
+        imageUrl: products.imageUrl,
+        active: products.active,
+      })
+      .from(products)
+      .orderBy(desc(products.active), asc(products.name)),
+    db
+      .select({
+        id: listings.id,
+        productId: listings.productId,
+        classification: classifications.name,
+        retailPricePerKg: listings.retailPricePerKg,
+        priceConfigured: listings.priceConfigured,
+        bundlePricePerKg: listings.bundlePricePerKg,
+        bundleMinimumKg: listings.bundleMinimumKg,
+        status: listings.status,
+        availableKg: sql<string>`(
+          SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
+          FROM inventory AS stock
+          WHERE stock.product_id = ${listings.productId}
+            AND stock.classification_id = ${listings.classificationId}
+        )`,
+      })
+      .from(listings)
+      .innerJoin(classifications, eq(listings.classificationId, classifications.id))
+      .where(inArray(classifications.name, ["Good", "Semi"])),
+    db
+      .select({
+        id: inventory.id,
+        productId: inventory.productId,
+        farmerId: inventory.farmerId,
+        farmer: users.displayName,
+        classification: classifications.name,
+        quantityKg: inventory.quantityKg,
+        reservedKg: inventory.reservedKg,
+      })
+      .from(inventory)
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .leftJoin(users, eq(inventory.farmerId, users.id)),
+    db
+      .select({
+        id: inventoryMovements.id,
+        productId: inventory.productId,
+        farmer: users.displayName,
+        classification: classifications.name,
+        movementType: inventoryMovements.movementType,
+        availableChangeKg: inventoryMovements.availableChangeKg,
+        reservedChangeKg: inventoryMovements.reservedChangeKg,
+        note: inventoryMovements.note,
+        createdAt: inventoryMovements.createdAt,
+      })
+      .from(inventoryMovements)
+      .innerJoin(inventory, eq(inventoryMovements.inventoryId, inventory.id))
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .leftJoin(users, eq(inventory.farmerId, users.id))
+      .orderBy(desc(inventoryMovements.createdAt)),
+  ]);
+
+  return productRows.map((product) => ({
+    ...product,
+    offers: offerRows
+      .filter((offer) => offer.productId === product.id)
+      .map((offer) => ({
+        ...offer,
+        retailPricePerKg: Number(offer.retailPricePerKg ?? 0),
+        bundlePricePerKg: offer.bundlePricePerKg === null ? null : Number(offer.bundlePricePerKg),
+        bundleMinimumKg: offer.bundleMinimumKg === null ? null : Number(offer.bundleMinimumKg),
+        availableKg: Math.max(0, Number(offer.availableKg)),
+      })),
+    contributions: contributionRows
+      .filter((stock) => stock.productId === product.id)
+      .map((stock) => ({
+        ...stock,
+        quantityKg: Number(stock.quantityKg),
+        reservedKg: Number(stock.reservedKg),
+        availableKg: Math.max(0, Number(stock.quantityKg) - Number(stock.reservedKg)),
+      })),
+    history: movementRows
+      .filter((movement) => movement.productId === product.id)
+      .slice(0, 50)
+      .map((movement) => ({
+        ...movement,
+        availableChangeKg: Number(movement.availableChangeKg),
+        reservedChangeKg: Number(movement.reservedChangeKg),
+        createdAt: movement.createdAt.toISOString(),
+      })),
+  }));
+});
+
+export const adjustCatalogStock = createServerFn({ method: "POST" })
+  .validator(stockAdjustmentInput)
+  .handler(async ({ data }) => {
+    const { requireRole } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    const { db } = await import("@/db/client.server");
+    const { auditLogs, classifications, inventory, inventoryMovements, products, users } =
+      await import("@/db/schema");
+    const result = await db.transaction(async (tx) => {
+      const [stock] = await tx
+        .select({
+          id: inventory.id,
+          productId: inventory.productId,
+          farmerId: inventory.farmerId,
+          farmer: users.displayName,
+          product: products.name,
+          classification: classifications.name,
+          quantityKg: inventory.quantityKg,
+          reservedKg: inventory.reservedKg,
+        })
+        .from(inventory)
+        .innerJoin(products, eq(inventory.productId, products.id))
+        .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+        .leftJoin(users, eq(inventory.farmerId, users.id))
+        .where(eq(inventory.id, data.inventoryId));
+      if (!stock) throw new Error("The selected farmer stock could not be found.");
+
+      const nextQuantity = Number(stock.quantityKg) + data.adjustmentKg;
+      if (nextQuantity < Number(stock.reservedKg)) {
+        throw new Error("The corrected stock cannot be lower than its reserved quantity.");
+      }
+      if (nextQuantity < 0) throw new Error("The corrected stock cannot be negative.");
+
+      const [updated] = await tx
+        .update(inventory)
+        .set({ quantityKg: nextQuantity.toFixed(2) })
+        .where(
+          and(
+            eq(inventory.id, data.inventoryId),
+            eq(inventory.quantityKg, stock.quantityKg),
+            eq(inventory.reservedKg, stock.reservedKg),
+          ),
+        );
+      if (updated.affectedRows !== 1) {
+        throw new Error("Stock changed while the correction was being saved. Please try again.");
+      }
+
+      const movementId = crypto.randomUUID();
+      await tx.insert(inventoryMovements).values({
+        id: movementId,
+        inventoryId: stock.id,
+        movementType: "adjustment",
+        availableChangeKg: data.adjustmentKg.toFixed(2),
+        reservedChangeKg: "0",
+        referenceType: "stock_adjustment",
+        referenceId: movementId,
+        recordedById: actor.id,
+        note: data.reason,
+      });
+      await tx.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        actorId: actor.id,
+        action: "inventory.adjust",
+        entityType: "inventory",
+        entityId: stock.id,
+        details: {
+          productId: stock.productId,
+          farmerId: stock.farmerId,
+          classification: stock.classification,
+          adjustmentKg: data.adjustmentKg,
+          previousQuantityKg: Number(stock.quantityKg),
+          nextQuantityKg: nextQuantity,
+          reason: data.reason,
+        },
+      });
+      return {
+        id: stock.id,
+        product: stock.product,
+        farmer: stock.farmer,
+        classification: stock.classification,
+        quantityKg: nextQuantity,
+      };
+    });
+    return result;
+  });
 
 export const getPublishableInventory = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
@@ -438,7 +744,7 @@ export const getPublishableInventory = createServerFn({ method: "GET" }).handler
     .orderBy(
       asc(products.name),
       asc(classifications.name),
-      asc(inventory.updatedAt),
+      asc(inventory.receivedAt),
       asc(inventory.id),
     );
 
@@ -491,24 +797,25 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
       const [existing] = await tx
         .select({ id: listings.id })
         .from(listings)
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
         .where(
           and(
-            eq(inventory.productId, stock.productId),
-            eq(inventory.classificationId, stock.classificationId),
+            eq(listings.productId, stock.productId),
+            eq(listings.classificationId, stock.classificationId),
           ),
         )
-        .orderBy(desc(listings.updatedAt));
+        .limit(1);
       if (existing) {
         await tx
           .update(listings)
           .set({
             pricePerKg: data.retailPricePerKg.toFixed(2),
             retailPricePerKg: data.retailPricePerKg.toFixed(2),
+            priceConfigured: true,
             bundlePricePerKg:
               data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
             bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
             status: data.status,
+            inventoryId: data.inventoryId,
           })
           .where(eq(listings.id, existing.id));
         return { listingId: existing.id, inventoryId: data.inventoryId, updated: true };
@@ -517,9 +824,12 @@ export const createMarketplaceListing = createServerFn({ method: "POST" })
       await tx.insert(listings).values({
         id: listingId,
         inventoryId: data.inventoryId,
+        productId: stock.productId,
+        classificationId: stock.classificationId,
         // price_per_kg remains the retail fallback for older reports and existing integrations.
         pricePerKg: data.retailPricePerKg.toFixed(2),
         retailPricePerKg: data.retailPricePerKg.toFixed(2),
+        priceConfigured: true,
         bundlePricePerKg: data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
         bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
         status: data.status,
@@ -544,6 +854,7 @@ export const updateMarketplaceListingPricing = createServerFn({ method: "POST" }
       .set({
         pricePerKg: data.retailPricePerKg.toFixed(2),
         retailPricePerKg: data.retailPricePerKg.toFixed(2),
+        priceConfigured: true,
         bundlePricePerKg: data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
         bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
       })
@@ -563,38 +874,29 @@ export const setMarketplaceListingStatus = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { classifications, inventory, listings, products } = await import("@/db/schema");
+    const { classifications, listings, products } = await import("@/db/schema");
     const [listing] = await db
       .select({
-        productId: inventory.productId,
-        classificationId: inventory.classificationId,
+        productId: listings.productId,
+        classificationId: listings.classificationId,
         classification: classifications.name,
         productName: products.name,
+        priceConfigured: listings.priceConfigured,
       })
       .from(listings)
-      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-      .innerJoin(products, eq(inventory.productId, products.id))
+      .innerJoin(classifications, eq(listings.classificationId, classifications.id))
+      .innerJoin(products, eq(listings.productId, products.id))
       .where(eq(listings.id, data.listingId));
     if (!listing) throw new Error("The marketplace listing could not be found.");
     if (data.status === "published") {
+      if (!listing.priceConfigured) {
+        throw new Error("Save a valid retail price before making this quality visible.");
+      }
       if (listing.classification === "Reject") {
         throw new Error("Reject stock is kept internally and cannot be shown to buyers.");
       }
-      const [stock] = await db
-        .select({
-          availableKg: sql<string>`COALESCE(SUM(${inventory.quantityKg} - ${inventory.reservedKg}), 0)`,
-        })
-        .from(inventory)
-        .where(
-          and(
-            eq(inventory.productId, listing.productId),
-            eq(inventory.classificationId, listing.classificationId),
-          ),
-        );
-      if (Number(stock?.availableKg ?? 0) <= 0) {
-        throw new Error("Only listings with available stock can be published.");
-      }
+      // Permanent offers may be published while sold out; receiving automatically
+      // makes them purchasable without requiring another publish action.
     }
     const [updated] = await db
       .update(listings)
@@ -647,9 +949,8 @@ async function fetchDailyPrices(publicOnly: boolean) {
     })
     .from(dailyPrices)
     .innerJoin(listings, eq(dailyPrices.listingId, listings.id))
-    .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-    .innerJoin(products, eq(inventory.productId, products.id))
-    .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+    .innerJoin(products, eq(listings.productId, products.id))
+    .innerJoin(classifications, eq(listings.classificationId, classifications.id))
     // A public price is only meaningful while its listing is buyer-visible and
     // has stock that can still be purchased. Marketers retain the full history
     // (including hidden, archived, and sold-out listing prices) in their view.
@@ -661,19 +962,9 @@ async function fetchDailyPrices(publicOnly: boolean) {
             sql`(
               SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
               FROM inventory AS stock
-              WHERE stock.product_id = ${inventory.productId}
-                AND stock.classification_id = ${inventory.classificationId}
+              WHERE stock.product_id = ${listings.productId}
+                AND stock.classification_id = ${listings.classificationId}
             ) > 0`,
-            sql`(
-              SELECT current_listing.status
-              FROM marketplace_listings AS current_listing
-              INNER JOIN inventory AS current_inventory
-                ON current_listing.inventory_id = current_inventory.id
-              WHERE current_inventory.product_id = ${inventory.productId}
-                AND current_inventory.classification_id = ${inventory.classificationId}
-              ORDER BY current_listing.updated_at DESC, current_listing.id DESC
-              LIMIT 1
-            ) = 'published'`,
             sql`${classifications.name} <> 'Reject'`,
           )
         : undefined,
@@ -703,12 +994,11 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { dailyPrices, inventory, listings, products } = await import("@/db/schema");
+    const { dailyPrices, listings, products } = await import("@/db/schema");
     const [listing] = await db
       .select({ id: listings.id, status: listings.status, productName: products.name })
       .from(listings)
-      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-      .innerJoin(products, eq(inventory.productId, products.id))
+      .innerJoin(products, eq(listings.productId, products.id))
       .where(eq(listings.id, data.listingId));
     if (!listing || listing.status !== "published") {
       throw new Error("Choose a currently published marketplace listing.");
@@ -761,13 +1051,12 @@ export const setDailyPricePublished = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { dailyPrices, inventory, listings, products } = await import("@/db/schema");
+    const { dailyPrices, listings, products } = await import("@/db/schema");
     const [dailyPrice] = await db
       .select({ productName: products.name })
       .from(dailyPrices)
       .innerJoin(listings, eq(dailyPrices.listingId, listings.id))
-      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-      .innerJoin(products, eq(inventory.productId, products.id))
+      .innerJoin(products, eq(listings.productId, products.id))
       .where(eq(dailyPrices.id, data.id));
     if (!dailyPrice) throw new Error("The daily price could not be found.");
     const [result] = await db
@@ -805,17 +1094,16 @@ async function buyerCartRows(buyerId: string) {
       availableKg: sql<string>`(
         SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
         FROM inventory AS stock
-        WHERE stock.product_id = ${inventory.productId}
-          AND stock.classification_id = ${inventory.classificationId}
+        WHERE stock.product_id = ${listings.productId}
+          AND stock.classification_id = ${listings.classificationId}
       )`,
       imageUrl: products.imageUrl,
     })
     .from(carts)
     .innerJoin(cartItems, eq(cartItems.cartId, carts.id))
     .innerJoin(listings, eq(cartItems.listingId, listings.id))
-    .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-    .innerJoin(products, eq(inventory.productId, products.id))
-    .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+    .innerJoin(products, eq(listings.productId, products.id))
+    .innerJoin(classifications, eq(listings.classificationId, classifications.id))
     .where(eq(carts.buyerId, buyerId));
   return rows.map((row) => {
     const quantityKg = Number(row.quantityKg);
@@ -859,14 +1147,13 @@ async function reserveListingStock(
   const { classifications, inventory, inventoryMovements, listings } = await import("@/db/schema");
   const [listing] = await tx
     .select({
-      productId: inventory.productId,
-      classificationId: inventory.classificationId,
+      productId: listings.productId,
+      classificationId: listings.classificationId,
       classification: classifications.name,
       status: listings.status,
     })
     .from(listings)
-    .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-    .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+    .innerJoin(classifications, eq(listings.classificationId, classifications.id))
     .where(eq(listings.id, listingId));
   if (!listing || listing.status !== "published") {
     throw new Error("This product is no longer available in the marketplace.");
@@ -889,7 +1176,7 @@ async function reserveListingStock(
         sql`${inventory.quantityKg} - ${inventory.reservedKg} > 0`,
       ),
     )
-    .orderBy(asc(inventory.updatedAt), asc(inventory.id))
+    .orderBy(asc(inventory.receivedAt), asc(inventory.id))
     .for("update");
   const availableKg = batches.reduce(
     (total: number, batch: { quantityKg: string; reservedKg: string }) =>
@@ -1037,13 +1324,12 @@ async function reserveExistingBuyerCartStock(buyerId: string) {
     for (const item of unreservedItems) {
       const [listing] = await tx
         .select({
-          productId: inventory.productId,
-          classificationId: inventory.classificationId,
+          productId: listings.productId,
+          classificationId: listings.classificationId,
           classification: classifications.name,
         })
         .from(listings)
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-        .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+        .innerJoin(classifications, eq(listings.classificationId, classifications.id))
         .where(eq(listings.id, item.listingId));
       if (!listing || listing.classification === "Reject") {
         await tx.delete(cartItems).where(eq(cartItems.id, item.cartItemId));
@@ -1052,14 +1338,12 @@ async function reserveExistingBuyerCartStock(buyerId: string) {
       const [controllerListing] = await tx
         .select({ id: listings.id, status: listings.status })
         .from(listings)
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
         .where(
           and(
-            eq(inventory.productId, listing.productId),
-            eq(inventory.classificationId, listing.classificationId),
+            eq(listings.productId, listing.productId),
+            eq(listings.classificationId, listing.classificationId),
           ),
         )
-        .orderBy(desc(listings.updatedAt), desc(listings.id))
         .limit(1);
       if (!controllerListing || controllerListing.status !== "published") {
         await tx.delete(cartItems).where(eq(cartItems.id, item.cartItemId));
@@ -1387,20 +1671,17 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
       const rows = await tx
         .select({
           listingId: listings.id,
-          inventoryId: inventory.id,
           name: products.name,
+          imageUrl: products.imageUrl,
           classification: classifications.name,
           pricePerKg: listings.pricePerKg,
           retailPricePerKg: listings.retailPricePerKg,
           bundlePricePerKg: listings.bundlePricePerKg,
           bundleMinimumKg: listings.bundleMinimumKg,
-          quantityKg: inventory.quantityKg,
-          reservedKg: inventory.reservedKg,
         })
         .from(listings)
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-        .innerJoin(products, eq(inventory.productId, products.id))
-        .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+        .innerJoin(products, eq(listings.productId, products.id))
+        .innerJoin(classifications, eq(listings.classificationId, classifications.id))
         .where(and(eq(listings.status, "published"), inArray(listings.id, listingIds)));
 
       if (rows.length !== requestedItems.length) {
@@ -1450,6 +1731,9 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
           listingId: item.listingId,
           quantityKg: item.quantityKg.toFixed(2),
           pricePerKg: listingUnitPrice(row, item.quantityKg).toFixed(2),
+          productName: row.name,
+          classificationName: row.classification,
+          imageUrl: row.imageUrl,
         });
       }
 
@@ -1765,17 +2049,16 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       db
         .select({
           listingId: orderItems.listingId,
-          name: products.name,
-          image: products.imageUrl,
-          classification: classifications.name,
+          name: sql<string>`COALESCE(${orderItems.productName}, ${products.name})`,
+          image: sql<string | null>`COALESCE(${orderItems.imageUrl}, ${products.imageUrl})`,
+          classification: sql<string>`COALESCE(${orderItems.classificationName}, ${classifications.name})`,
           quantityKg: orderItems.quantityKg,
           pricePerKg: orderItems.pricePerKg,
         })
         .from(orderItems)
         .innerJoin(listings, eq(orderItems.listingId, listings.id))
-        .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-        .innerJoin(products, eq(inventory.productId, products.id))
-        .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+        .innerJoin(products, eq(listings.productId, products.id))
+        .innerJoin(classifications, eq(listings.classificationId, classifications.id))
         .where(eq(orderItems.orderId, order.id)),
       db
         .select({
@@ -1823,9 +2106,17 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
   const { requireAnyRole } = await import("@/services/auth/auth-server");
   await requireAnyRole(["Management", "Marketer", "Accounting"]);
   const { db } = await import("@/db/client.server");
-  const { classifications, inventory, listings, orderItems, orders, payments, products, users } =
-    await import("@/db/schema");
-  const farmerUsers = alias(users, "farmer_users");
+  const {
+    classifications,
+    inventory,
+    inventoryMovements,
+    listings,
+    orderItems,
+    orders,
+    payments,
+    products,
+    users,
+  } = await import("@/db/schema");
   const orderRows = await db
     .select({
       id: orders.id,
@@ -1848,29 +2139,45 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
     .leftJoin(payments, eq(payments.orderId, orders.id))
     .orderBy(desc(orders.createdAt), desc(orders.id));
   if (!orderRows.length) return [] as DemoOrder[];
-  const items = await db
-    .select({
-      orderId: orderItems.orderId,
-      listingId: orderItems.listingId,
-      name: products.name,
-      image: products.imageUrl,
-      classification: classifications.name,
-      farmer: farmerUsers.displayName,
-      quantityKg: orderItems.quantityKg,
-      pricePerKg: orderItems.pricePerKg,
-    })
-    .from(orderItems)
-    .innerJoin(listings, eq(orderItems.listingId, listings.id))
-    .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-    .innerJoin(products, eq(inventory.productId, products.id))
-    .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-    .leftJoin(farmerUsers, eq(inventory.farmerId, farmerUsers.id))
-    .where(
-      inArray(
-        orderItems.orderId,
-        orderRows.map((order) => order.id),
+  const orderIds = orderRows.map((order) => order.id);
+  const [items, allocations] = await Promise.all([
+    db
+      .select({
+        orderId: orderItems.orderId,
+        listingId: orderItems.listingId,
+        name: sql<string>`COALESCE(${orderItems.productName}, ${products.name})`,
+        image: sql<string | null>`COALESCE(${orderItems.imageUrl}, ${products.imageUrl})`,
+        classification: sql<string>`COALESCE(${orderItems.classificationName}, ${classifications.name})`,
+        quantityKg: orderItems.quantityKg,
+        pricePerKg: orderItems.pricePerKg,
+      })
+      .from(orderItems)
+      .innerJoin(listings, eq(orderItems.listingId, listings.id))
+      .innerJoin(products, eq(listings.productId, products.id))
+      .innerJoin(classifications, eq(listings.classificationId, classifications.id))
+      .where(inArray(orderItems.orderId, orderIds)),
+    db
+      .select({
+        orderId: inventoryMovements.referenceId,
+        farmer: users.displayName,
+        product: products.name,
+        classification: classifications.name,
+        quantityKg: inventoryMovements.reservedChangeKg,
+        receivedAt: inventory.receivedAt,
+      })
+      .from(inventoryMovements)
+      .innerJoin(inventory, eq(inventoryMovements.inventoryId, inventory.id))
+      .innerJoin(products, eq(inventory.productId, products.id))
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .leftJoin(users, eq(inventory.farmerId, users.id))
+      .where(
+        and(
+          eq(inventoryMovements.referenceType, "order"),
+          eq(inventoryMovements.movementType, "reservation"),
+          inArray(inventoryMovements.referenceId, orderIds),
+        ),
       ),
-    );
+  ]);
   return orderRows.map((order) => {
     const lines = items
       .filter((item) => item.orderId === order.id)
@@ -1883,7 +2190,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
     return {
       id: order.orderNumber,
       buyer: order.buyer,
-      farmer: first?.farmer ?? "Legacy / mixed stock",
+      farmer: "PROCY farmer members",
       product: first?.name ?? "Product",
       classification: first?.classification ?? "Good",
       quantity: `${lines.reduce((sum, item) => sum + item.quantityKg, 0)} kg`,
@@ -1905,6 +2212,15 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       contact: order.contact,
       pickupNote: order.pickupNote,
       items: lines,
+      allocations: allocations
+        .filter((allocation) => allocation.orderId === order.id)
+        .map((allocation) => ({
+          farmer: allocation.farmer ?? "Legacy stock",
+          product: allocation.product,
+          classification: allocation.classification,
+          quantityKg: Number(allocation.quantityKg),
+          receivedAt: allocation.receivedAt.toISOString(),
+        })),
       stockReserved: order.status === "pending" || order.status === "confirmed",
     } satisfies DemoOrder;
   });
@@ -1941,7 +2257,13 @@ export const getManagementProductWorkspace = createServerFn({ method: "GET" }).h
       .from(inventory)
       .innerJoin(products, eq(inventory.productId, products.id))
       .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-      .leftJoin(listings, eq(listings.inventoryId, inventory.id))
+      .leftJoin(
+        listings,
+        and(
+          eq(listings.productId, inventory.productId),
+          eq(listings.classificationId, inventory.classificationId),
+        ),
+      )
       .leftJoin(users, eq(inventory.farmerId, users.id)),
   ]);
   return {
@@ -1974,7 +2296,13 @@ export const getManagementDecisionSupport = createServerFn({ method: "GET" }).ha
       .from(inventory)
       .innerJoin(products, eq(inventory.productId, products.id))
       .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-      .leftJoin(listings, eq(listings.inventoryId, inventory.id)),
+      .leftJoin(
+        listings,
+        and(
+          eq(listings.productId, inventory.productId),
+          eq(listings.classificationId, inventory.classificationId),
+        ),
+      ),
     db
       .select({
         name: products.name,
@@ -1986,9 +2314,8 @@ export const getManagementDecisionSupport = createServerFn({ method: "GET" }).ha
       .from(orderItems)
       .innerJoin(orders, eq(orderItems.orderId, orders.id))
       .innerJoin(listings, eq(orderItems.listingId, listings.id))
-      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-      .innerJoin(products, eq(inventory.productId, products.id))
-      .innerJoin(classifications, eq(inventory.classificationId, classifications.id)),
+      .innerJoin(products, eq(listings.productId, products.id))
+      .innerJoin(classifications, eq(listings.classificationId, classifications.id)),
     db
       .select({
         listingId: dailyPrices.listingId,
@@ -1999,9 +2326,8 @@ export const getManagementDecisionSupport = createServerFn({ method: "GET" }).ha
       })
       .from(dailyPrices)
       .innerJoin(listings, eq(dailyPrices.listingId, listings.id))
-      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
-      .innerJoin(products, eq(inventory.productId, products.id))
-      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .innerJoin(products, eq(listings.productId, products.id))
+      .innerJoin(classifications, eq(listings.classificationId, classifications.id))
       .where(eq(dailyPrices.published, true)),
   ]);
   return {
@@ -2037,7 +2363,13 @@ export const getManagementReport = createServerFn({ method: "GET" }).handler(asy
       .from(inventory)
       .innerJoin(products, eq(inventory.productId, products.id))
       .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-      .leftJoin(listings, eq(listings.inventoryId, inventory.id)),
+      .leftJoin(
+        listings,
+        and(
+          eq(listings.productId, inventory.productId),
+          eq(listings.classificationId, inventory.classificationId),
+        ),
+      ),
     db.select({ totalKg: receivingRecords.totalKg }).from(receivingRecords),
     db
       .select({
@@ -2547,8 +2879,14 @@ export const getMarketerDashboard = createServerFn({ method: "GET" }).handler(as
         classification: classifications.name,
         availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
       })
-      .from(listings)
-      .innerJoin(inventory, eq(listings.inventoryId, inventory.id))
+      .from(inventory)
+      .innerJoin(
+        listings,
+        and(
+          eq(listings.productId, inventory.productId),
+          eq(listings.classificationId, inventory.classificationId),
+        ),
+      )
       .innerJoin(products, eq(inventory.productId, products.id))
       .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
       .where(

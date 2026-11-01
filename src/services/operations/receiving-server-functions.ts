@@ -111,6 +111,7 @@ export const recordReceivingDelivery = createServerFn({ method: "POST" })
         totalKg: data.totalKg.toFixed(2),
         receivedAt: new Date(),
       });
+      const receivedAt = new Date();
       const quantities = { Good: data.goodKg, Semi: data.semiKg, Reject: data.rejectKg } as const;
       for (const classification of configured) {
         const amount = quantities[classification.name];
@@ -120,23 +121,18 @@ export const recordReceivingDelivery = createServerFn({ method: "POST" })
           classificationId: classification.id,
           quantityKg: amount.toFixed(2),
         });
-        await tx.execute(sql`
-          INSERT INTO inventory (id, product_id, farmer_id, classification_id, quantity_kg, reserved_kg, updated_at)
-          VALUES (${crypto.randomUUID()}, ${data.productId}, ${data.farmerId}, ${classification.id}, ${amount.toFixed(2)}, '0', CURRENT_TIMESTAMP)
-          ON DUPLICATE KEY UPDATE quantity_kg = quantity_kg + VALUES(quantity_kg), updated_at = CURRENT_TIMESTAMP
-        `);
-        const [current] = await tx
-          .select({ id: inventory.id })
-          .from(inventory)
-          .where(
-            and(
-              eq(inventory.productId, data.productId),
-              eq(inventory.farmerId, data.farmerId),
-              eq(inventory.classificationId, classification.id),
-            ),
-          );
-        if (!current) throw new Error("Inventory could not be updated for this classification.");
-        const inventoryId = current.id;
+        if (amount === 0) continue;
+        const inventoryId = crypto.randomUUID();
+        await tx.insert(inventory).values({
+          id: inventoryId,
+          productId: data.productId,
+          farmerId: data.farmerId,
+          receivingId: data.id,
+          classificationId: classification.id,
+          quantityKg: amount.toFixed(2),
+          reservedKg: "0",
+          receivedAt,
+        });
         await tx.insert(inventoryMovements).values({
           id: crypto.randomUUID(),
           inventoryId,
@@ -261,30 +257,35 @@ export const getFarmerProductStatuses = createServerFn({ method: "GET" }).handle
   const { requireRole } = await import("@/services/auth/auth-server");
   const farmer = await requireRole("Farmer");
   const { db } = await import("@/db/client.server");
-  const { classifications, inventory, products } = await import("@/db/schema");
+  const { classifications, inventory, listings, products } = await import("@/db/schema");
   const rows = await db
     .select({
-      id: inventory.id,
+      id: sql<string>`MIN(${inventory.id})`,
       product: products.name,
       classification: classifications.name,
-      quantityKg: inventory.quantityKg,
-      reservedKg: inventory.reservedKg,
-      availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
-      listingStatus: sql<string | null>`(
-        SELECT current_listing.status
-        FROM marketplace_listings AS current_listing
-        INNER JOIN inventory AS current_inventory
-          ON current_listing.inventory_id = current_inventory.id
-        WHERE current_inventory.product_id = ${inventory.productId}
-          AND current_inventory.classification_id = ${inventory.classificationId}
-        ORDER BY current_listing.updated_at DESC, current_listing.id DESC
-        LIMIT 1
-      )`,
+      quantityKg: sql<string>`SUM(${inventory.quantityKg})`,
+      reservedKg: sql<string>`SUM(${inventory.reservedKg})`,
+      availableKg: sql<string>`SUM(${inventory.quantityKg} - ${inventory.reservedKg})`,
+      listingStatus: listings.status,
     })
     .from(inventory)
     .innerJoin(products, eq(inventory.productId, products.id))
     .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
-    .where(eq(inventory.farmerId, farmer.id));
+    .leftJoin(
+      listings,
+      and(
+        eq(listings.productId, inventory.productId),
+        eq(listings.classificationId, inventory.classificationId),
+      ),
+    )
+    .where(eq(inventory.farmerId, farmer.id))
+    .groupBy(
+      inventory.productId,
+      inventory.classificationId,
+      products.name,
+      classifications.name,
+      listings.status,
+    );
   return rows.map((row) => {
     const availableKg = Math.max(0, Number(row.availableKg));
     const reservedKg = Math.max(0, Number(row.reservedKg));

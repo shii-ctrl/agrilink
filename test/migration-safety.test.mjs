@@ -96,3 +96,22 @@ test("retired profile-photo visibility choices normalize to Everyone", async () 
   const migration = await readFile("drizzle/0026_simplify_profile_photo_privacy.sql", "utf8");
   assert.match(migration, /NOT IN \('everyone', 'hidden'\)/);
 });
+
+test("permanent catalog migration preserves carts, orders, stock, and historical snapshots", async () => {
+  const migration = await readFile("drizzle/0027_permanent_product_catalog.sql", "utf8");
+
+  assert.match(migration, /listings_product_classification_unique/);
+  assert.match(migration, /canonical_marketplace_listings/);
+  assert.match(migration, /inventory_product_classification_lot_idx/);
+  assert.match(migration, /receiving_id VARCHAR\(36\)/);
+  assert.match(migration, /received_at DATETIME/);
+  assert.match(migration, /canonical_cart_items/);
+  assert.match(migration, /movement\.reference_id = canonical\.keeper_id/);
+  assert.match(migration, /SUM\(quantity_kg\)/);
+  assert.match(migration, /classification\.name IN \('Good', 'Semi'\)/);
+  assert.match(migration, /price_configured BOOLEAN NOT NULL DEFAULT FALSE/);
+  assert.match(migration, /ADD COLUMN product_name VARCHAR\(160\)/);
+  assert.match(migration, /classification_name VARCHAR\(20\)/);
+  assert.match(migration, /image_url MEDIUMTEXT/);
+  assert.doesNotMatch(migration, /DROP TABLE|TRUNCATE TABLE/);
+});

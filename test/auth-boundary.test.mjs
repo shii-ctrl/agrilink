@@ -331,7 +331,8 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(marketplace, /Bundle price must be lower than the retail price/);
   assert.match(marketplace, /export const updateMarketplaceListingPricing/);
   assert.match(marketplace, /listingUnitPrice\(row, item\.quantityKg\)/);
-  assert.match(productPage, /Bundle: \{peso\(product\.bundlePricePerKg\)\}/);
+  assert.match(productPage, /Bundle: \{peso\(selectedOffer\.bundlePricePerKg\)\}/);
+  assert.match(productPage, /selectedOffer\.classification/);
   assert.match(schema, /bundlePricePerKg: decimal\("bundle_price_per_kg"/);
   assert.match(migration, /MODIFY COLUMN image_url MEDIUMTEXT/);
 });
@@ -378,7 +379,8 @@ test("public daily prices require an active, combined in-stock listing", async (
   assert.match(marketplace, /eq\(dailyPrices\.published, true\)/);
   assert.match(marketplace, /eq\(listings\.status, "published"\)/);
   assert.match(marketplace, /SUM\(stock\.quantity_kg - stock\.reserved_kg\)/);
-  assert.match(marketplace, /current_listing\.status/);
+  assert.match(marketplace, /stock\.product_id = \$\{listings\.productId\}/);
+  assert.match(marketplace, /stock\.classification_id = \$\{listings\.classificationId\}/);
   assert.match(marketplace, /classifications\.name\} <> 'Reject'/);
 });
 
@@ -533,38 +535,37 @@ test("home featured produce supports continuous horizontal movement", async () =
   assert.match(home, /\.slice\(0, 8\)/);
 });
 
-test("Marketer product listing uses separate workflow pages without removing existing tools", async () => {
-  const [marketerPage, marketerLayout, pricePublishPage, publishedListingsPage] = await Promise.all(
-    [
-      readFile("src/routes/marketer.products.tsx", "utf8"),
-      readFile("src/components/workspaces/marketer-layout.tsx", "utf8"),
-      readFile("src/routes/marketer.price-publish.tsx", "utf8"),
-      readFile("src/routes/marketer.published-listings.tsx", "utf8"),
-    ],
-  );
+test("Marketer product workflow uses one permanent catalog and preserves old URL redirects", async () => {
+  const [
+    marketerPage,
+    marketerLayout,
+    receivingPage,
+    stockRecordsPage,
+    pricePublishPage,
+    publishedListingsPage,
+  ] = await Promise.all([
+    readFile("src/routes/marketer.products.tsx", "utf8"),
+    readFile("src/components/workspaces/marketer-layout.tsx", "utf8"),
+    readFile("src/routes/marketer.receiving.tsx", "utf8"),
+    readFile("src/routes/marketer.classification.tsx", "utf8"),
+    readFile("src/routes/marketer.price-publish.tsx", "utf8"),
+    readFile("src/routes/marketer.published-listings.tsx", "utf8"),
+  ]);
 
   assert.match(marketerLayout, /Product workflow/);
-  assert.match(marketerLayout, /Add Product/);
-  assert.match(marketerLayout, /Price & Publish/);
-  assert.match(marketerLayout, /Published Listings/);
-  assert.match(marketerPage, /view === "catalog"/);
-  assert.match(marketerPage, /view === "publish"/);
-  assert.match(marketerPage, /view === "listings"/);
-  assert.match(pricePublishPage, /MarketerProductsPage view="publish"/);
-  assert.match(publishedListingsPage, /MarketerProductsPage view="listings"/);
-  assert.match(marketerPage, /Add product to catalog/);
-  assert.match(marketerPage, /Choose product and quality/);
-  assert.match(marketerPage, /Available stock/);
-  assert.match(marketerPage, /Search, then choose the product and quality you want to price/);
-  assert.match(marketerPage, /Search product, crop type, or quality/);
-  assert.match(marketerPage, /\["Good", "Semi", "Reject"\]/);
-  assert.match(marketerPage, /Buyer price preview/);
-  assert.match(marketerPage, /<Link\s+to="\/marketer\/receiving"/);
-  assert.match(marketerPage, /PROCY marketplace listings/);
-  assert.doesNotMatch(
-    marketerPage,
-    /Listing Assistant|First listing guide|Tabs(?:List|Content|Trigger)/,
-  );
+  assert.match(marketerLayout, /Product Catalog/);
+  assert.match(marketerLayout, /Record Stock/);
+  assert.match(marketerLayout, /Stock Records/);
+  assert.doesNotMatch(marketerLayout, /Price & Publish|Published Listings/);
+  assert.match(marketerPage, /Permanent products/);
+  assert.match(marketerPage, /Good and Semi offers are prepared automatically as drafts/);
+  assert.match(marketerPage, /Stock & owners/);
+  assert.match(marketerPage, /Corrections create a separate audited inventory movement/);
+  assert.match(receivingPage, /Live quality distribution/);
+  assert.match(receivingPage, /marketplace totals updated/);
+  assert.match(stockRecordsPage, /saved deliveries are immutable/);
+  assert.match(pricePublishPage, /redirect\(\{ to: "\/marketer\/products" \}\)/);
+  assert.match(publishedListingsPage, /redirect\(\{ to: "\/marketer\/products" \}\)/);
 });
 
 test("role workflows keep catalog, cart, and Farmer stock states consistent", async () => {
@@ -815,15 +816,15 @@ test("public marketplace data keeps farmer identities private while Marketer can
     marketplace.indexOf("async function fetchListings"),
     marketplace.indexOf("async function fetchMarketerListings"),
   );
-  const marketerListings = marketplace.slice(
-    marketplace.indexOf("async function fetchMarketerListings"),
-    marketplace.indexOf("export const createCatalogProduct"),
+  const marketerCatalog = marketplace.slice(
+    marketplace.indexOf("export const getMarketerProductCatalog"),
+    marketplace.indexOf("export const getPublishableInventory"),
   );
 
   assert.doesNotMatch(publicListings, /farmer: users\.displayName/);
-  assert.match(marketerListings, /farmer: users\.displayName/);
-  assert.match(marketerListings, /export const getMarketerMarketplaceListings/);
-  assert.match(marketerListings, /requireRole\("Marketer"\)/);
+  assert.match(marketerCatalog, /farmer: users\.displayName/);
+  assert.match(marketerCatalog, /export const getMarketerProductCatalog/);
+  assert.match(marketerCatalog, /requireRole\("Marketer"\)/);
 });
 
 test("retired Production Records is removed without changing historical migrations", async () => {

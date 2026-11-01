@@ -1,17 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { MarketerProductsPage } from "./marketer.products";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/marketer/published-listings")({
-  head: () => ({
-    meta: [
-      { title: "Published Listings — Marketer | AgriLink" },
-      { name: "description", content: "Review and manage PROCY marketplace listings." },
-    ],
-  }),
-  component: PublishedListingsPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/marketer/products" });
+  },
+  component: () => null,
 });
-
-function PublishedListingsPage() {
-  return <MarketerProductsPage view="listings" />;
-}

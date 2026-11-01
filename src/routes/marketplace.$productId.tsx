@@ -34,7 +34,7 @@ export const Route = createFileRoute("/marketplace/$productId")({
     const product = await getMarketplaceListing({ data: { listingId: params.productId } });
     if (!product) throw notFound();
     const related = (await getMarketplaceListings())
-      .filter((listing) => listing.id !== product.id && listing.name === product.name)
+      .filter((listing) => listing.id !== product.id && listing.cropType === product.cropType)
       .map((listing) => ({
         ...listing,
         image: listing.image || marketplaceImageFor(listing.name),
@@ -51,7 +51,7 @@ export const Route = createFileRoute("/marketplace/$productId")({
       };
     }
     const { product } = loaderData;
-    const title = `${product.name} — ${product.classification} | AgriLink Marketplace`;
+    const title = `${product.name} | AgriLink Marketplace`;
     return {
       meta: [
         { title },
@@ -69,6 +69,21 @@ type MarketplaceProductDetailData = { product: Product; related: Product[] };
 function ProductDetail() {
   const router = useRouter();
   const { product, related } = Route.useLoaderData() as MarketplaceProductDetailData;
+  const offers = product.offers?.length
+    ? product.offers
+    : [
+        {
+          id: product.id,
+          classification: product.classification as "Good" | "Semi",
+          pricePerKg: product.pricePerKg,
+          retailPricePerKg: product.retailPricePerKg,
+          bundlePricePerKg: product.bundlePricePerKg,
+          bundleMinimumKg: product.bundleMinimumKg,
+          quantityKg: product.quantityKg,
+        },
+      ];
+  const [selectedOfferId, setSelectedOfferId] = useState(offers[0]?.id ?? product.id);
+  const selectedOffer = offers.find((offer) => offer.id === selectedOfferId) ?? offers[0]!;
   const [quantityInput, setQuantityInput] = useState("1");
   const [isBuyer, setIsBuyer] = useState(false);
   const [cartQuantityKg, setCartQuantityKg] = useState(0);
@@ -88,7 +103,7 @@ function ProductDetail() {
         }
         const cart = await getBuyerCart();
         if (!mounted) return;
-        setCartQuantityKg(cart.find((item) => item.id === product.id)?.quantityKg ?? 0);
+        setCartQuantityKg(cart.find((item) => item.id === selectedOffer.id)?.quantityKg ?? 0);
         void router.invalidate();
       })
       .catch(() => {
@@ -99,8 +114,8 @@ function ProductDetail() {
     return () => {
       mounted = false;
     };
-  }, [product.id, router]);
-  const availableQuantity = product.quantityKg;
+  }, [router, selectedOffer.id]);
+  const availableQuantity = selectedOffer.quantityKg;
   const isAvailable = availableQuantity > 0;
   const remainingCartableQuantity = Math.max(0, availableQuantity);
   const maximumSelectableQuantity = Math.max(1, availableQuantity);
@@ -109,15 +124,15 @@ function ProductDetail() {
   const hasValidQuantity = qty >= 0.01 && qty <= maximumSelectableQuantity;
   const canDecreaseQuantity = qty > 0.01;
   const canIncreaseQuantity = qty < maximumSelectableQuantity;
-  const retailPricePerKg = product.retailPricePerKg ?? product.pricePerKg;
+  const retailPricePerKg = selectedOffer.retailPricePerKg ?? selectedOffer.pricePerKg;
   const pricedQuantityKg = isBuyer ? cartQuantityKg + qty : qty;
   const qualifiesForBundle =
-    product.bundlePricePerKg !== null &&
-    product.bundlePricePerKg !== undefined &&
-    product.bundleMinimumKg !== null &&
-    product.bundleMinimumKg !== undefined &&
-    pricedQuantityKg >= product.bundleMinimumKg;
-  const currentPricePerKg = qualifiesForBundle ? product.bundlePricePerKg! : retailPricePerKg;
+    selectedOffer.bundlePricePerKg !== null &&
+    selectedOffer.bundlePricePerKg !== undefined &&
+    selectedOffer.bundleMinimumKg !== null &&
+    selectedOffer.bundleMinimumKg !== undefined &&
+    pricedQuantityKg >= selectedOffer.bundleMinimumKg;
+  const currentPricePerKg = qualifiesForBundle ? selectedOffer.bundlePricePerKg! : retailPricePerKg;
 
   useEffect(() => {
     setQuantityInput((current) => {
@@ -135,9 +150,9 @@ function ProductDetail() {
   function handleAddToCart() {
     if (isBuyer) {
       setIsAdding(true);
-      void addBuyerCartItem({ data: { listingId: product.id, quantityKg: qty } })
+      void addBuyerCartItem({ data: { listingId: selectedOffer.id, quantityKg: qty } })
         .then((cart) => {
-          setCartQuantityKg(cart.find((item) => item.id === product.id)?.quantityKg ?? 0);
+          setCartQuantityKg(cart.find((item) => item.id === selectedOffer.id)?.quantityKg ?? 0);
           void router.invalidate();
           notifyBuyerCartChanged();
           toast.success("Added to your cart", {
@@ -214,9 +229,9 @@ function ProductDetail() {
     }
 
     setIsBuyingNow(true);
-    void addBuyerCartItem({ data: { listingId: product.id, quantityKg: qty } })
+    void addBuyerCartItem({ data: { listingId: selectedOffer.id, quantityKg: qty } })
       .then((cart) => {
-        setCartQuantityKg(cart.find((item) => item.id === product.id)?.quantityKg ?? 0);
+        setCartQuantityKg(cart.find((item) => item.id === selectedOffer.id)?.quantityKg ?? 0);
         notifyBuyerCartChanged();
         toast.success("Ready to place your order", {
           description: `${qty} kg of ${product.name} was reserved in your cart.`,
@@ -244,7 +259,7 @@ function ProductDetail() {
         <div className="overflow-hidden rounded-2xl shadow-field sm:rounded-[2rem]">
           <img
             src={product.image}
-            alt={`${product.name} — ${product.classification} classification`}
+            alt={product.name}
             width={900}
             height={700}
             className="aspect-[4/3] w-full object-cover"
@@ -252,7 +267,32 @@ function ProductDetail() {
         </div>
 
         <div>
-          <ClassificationBadge value={product.classification} />
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Choose quality
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {offers.map((offer) => (
+              <button
+                key={offer.id}
+                type="button"
+                onClick={() => {
+                  setSelectedOfferId(offer.id);
+                  setQuantityInput("1");
+                }}
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                  offer.id === selectedOffer.id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card hover:border-primary/40"
+                }`}
+              >
+                {offer.classification} ·{" "}
+                {offer.quantityKg > 0 ? `${offer.quantityKg} kg` : "Sold out"}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3">
+            <ClassificationBadge value={selectedOffer.classification} />
+          </div>
           <h1 className="mt-3 text-3xl font-semibold sm:mt-4 sm:text-4xl md:text-5xl">
             {product.name}
           </h1>
@@ -264,10 +304,10 @@ function ProductDetail() {
             {peso(currentPricePerKg)}
             <span className="ml-2 text-base font-normal text-muted-foreground">/ kg</span>
           </p>
-          {product.bundlePricePerKg && product.bundleMinimumKg ? (
+          {selectedOffer.bundlePricePerKg && selectedOffer.bundleMinimumKg ? (
             <p className="mt-2 text-sm text-muted-foreground">
-              Retail: {peso(retailPricePerKg)} / kg · Bundle: {peso(product.bundlePricePerKg)} / kg
-              from {product.bundleMinimumKg} kg
+              Retail: {peso(retailPricePerKg)} / kg · Bundle: {peso(selectedOffer.bundlePricePerKg)}{" "}
+              / kg from {selectedOffer.bundleMinimumKg} kg
               {qualifiesForBundle ? " — bundle price applied" : ""}
             </p>
           ) : null}
@@ -402,7 +442,7 @@ function ProductDetail() {
 
       {related.length > 0 && (
         <section className="mt-12 sm:mt-24">
-          <h2 className="text-2xl font-semibold">Other {product.name} classifications</h2>
+          <h2 className="text-2xl font-semibold">Related produce</h2>
           <div className="mt-5 grid gap-4 sm:mt-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
             {related.map((p) => (
               <ProductCard key={p.id} product={p} />

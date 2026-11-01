@@ -10,6 +10,14 @@ export type DemoOrderItem = {
   image?: string | null;
 };
 
+export type DemoOrderAllocation = {
+  farmer: string;
+  product: string;
+  classification: string;
+  quantityKg: number;
+  receivedAt: string;
+};
+
 export type DemoOrder = {
   id: string;
   buyer: string;
@@ -33,6 +41,7 @@ export type DemoOrder = {
   confirmedAt?: string;
   soldAt?: string;
   items?: DemoOrderItem[];
+  allocations?: DemoOrderAllocation[];
   history?: { status: string; note: string | null; changedAt: string }[];
   stockReserved?: boolean;
 };

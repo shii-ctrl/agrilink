@@ -93,18 +93,21 @@ export const inventory = mysqlTable(
     id: varchar("id", { length: 36 }).primaryKey(),
     productId: varchar("product_id", { length: 36 }).notNull(),
     farmerId: varchar("farmer_id", { length: 36 }),
+    receivingId: varchar("receiving_id", { length: 36 }),
     classificationId: int("classification_id").notNull(),
     quantityKg: decimal("quantity_kg", { precision: 12, scale: 2 }).notNull(),
     reservedKg: decimal("reserved_kg", { precision: 12, scale: 2 }).default("0").notNull(),
+    receivedAt: datetime("received_at").notNull(),
     updatedAt,
   },
   (table) => [
-    uniqueIndex("inventory_product_classification_farmer_unique").on(
+    index("inventory_product_classification_lot_idx").on(
       table.productId,
       table.classificationId,
-      table.farmerId,
+      table.receivedAt,
     ),
     index("inventory_farmer_idx").on(table.farmerId, table.productId),
+    index("inventory_receiving_idx").on(table.receivingId),
   ],
 );
 export const receivingRecords = mysqlTable("receiving_records", {
@@ -131,9 +134,14 @@ export const listings = mysqlTable(
   "marketplace_listings",
   {
     id: varchar("id", { length: 36 }).primaryKey(),
-    inventoryId: varchar("inventory_id", { length: 36 }).notNull(),
+    // Permanent offers belong to a product + quality, not to one Farmer's stock row.
+    // inventoryId remains nullable while older records are migrated.
+    inventoryId: varchar("inventory_id", { length: 36 }),
+    productId: varchar("product_id", { length: 36 }).notNull(),
+    classificationId: int("classification_id").notNull(),
     pricePerKg: decimal("price_per_kg", { precision: 12, scale: 2 }).notNull(),
     retailPricePerKg: decimal("retail_price_per_kg", { precision: 12, scale: 2 }),
+    priceConfigured: boolean("price_configured").default(false).notNull(),
     bundlePricePerKg: decimal("bundle_price_per_kg", { precision: 12, scale: 2 }),
     bundleMinimumKg: decimal("bundle_minimum_kg", { precision: 12, scale: 2 }),
     status: mysqlEnum("status", ["draft", "published", "unavailable", "archived"])
@@ -143,8 +151,12 @@ export const listings = mysqlTable(
     updatedAt,
   },
   (table) => [
-    uniqueIndex("listings_inventory_unique").on(table.inventoryId),
+    uniqueIndex("listings_product_classification_unique").on(
+      table.productId,
+      table.classificationId,
+    ),
     index("listings_status_idx").on(table.status),
+    index("listings_inventory_idx").on(table.inventoryId),
   ],
 );
 export const carts = mysqlTable(
@@ -237,6 +249,9 @@ export const orderItems = mysqlTable(
     listingId: varchar("listing_id", { length: 36 }).notNull(),
     quantityKg: decimal("quantity_kg", { precision: 12, scale: 2 }).notNull(),
     pricePerKg: decimal("price_per_kg", { precision: 12, scale: 2 }).notNull(),
+    productName: varchar("product_name", { length: 160 }),
+    classificationName: varchar("classification_name", { length: 20 }),
+    imageUrl: mediumtext("image_url"),
     createdAt,
   },
   (table) => [index("order_items_order_idx").on(table.orderId)],

@@ -1,5 +1,15 @@
 export type Classification = "Good" | "Semi" | "Reject";
 
+export type ProductOffer = {
+  id: string;
+  classification: Exclude<Classification, "Reject">;
+  pricePerKg: number;
+  retailPricePerKg?: number;
+  bundlePricePerKg?: number | null;
+  bundleMinimumKg?: number | null;
+  quantityKg: number;
+};
+
 export type Product = {
   id: string;
   name: string;
@@ -12,6 +22,7 @@ export type Product = {
   quantityKg: number;
   description: string;
   image: string;
+  offers?: ProductOffer[];
 };
 
 /**
