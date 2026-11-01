@@ -105,9 +105,12 @@ function Index() {
     align: "start",
     containScroll: "trimSnaps",
     dragFree: true,
+    loop: true,
   });
   const [canScrollFeaturedPrev, setCanScrollFeaturedPrev] = useState(false);
   const [canScrollFeaturedNext, setCanScrollFeaturedNext] = useState(false);
+  const [featuredCarouselHovered, setFeaturedCarouselHovered] = useState(false);
+  const [featuredCarouselInteracting, setFeaturedCarouselInteracting] = useState(false);
   const updateFeaturedCarouselControls = useCallback(() => {
     if (!featuredCarouselApi) return;
     setCanScrollFeaturedPrev(featuredCarouselApi.canScrollPrev());
@@ -124,6 +127,23 @@ function Index() {
       featuredCarouselApi.off("reInit", updateFeaturedCarouselControls);
     };
   }, [featuredCarouselApi, updateFeaturedCarouselControls]);
+
+  useEffect(() => {
+    if (
+      !featuredCarouselApi ||
+      featured.length < 2 ||
+      featuredCarouselHovered ||
+      featuredCarouselInteracting ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    const autoplay = window.setInterval(() => {
+      if (document.visibilityState === "visible") featuredCarouselApi.scrollNext();
+    }, 3_500);
+    return () => window.clearInterval(autoplay);
+  }, [featuredCarouselApi, featured.length, featuredCarouselHovered, featuredCarouselInteracting]);
   useEffect(() => {
     setLoginOpen(auth === "login");
     setRegisterOpen(auth === "register");
@@ -354,12 +374,23 @@ function Index() {
               role="region"
               aria-label="Featured produce carousel"
               aria-roledescription="carousel"
+              onMouseEnter={() => setFeaturedCarouselHovered(true)}
+              onMouseLeave={() => setFeaturedCarouselHovered(false)}
+              onPointerDown={() => setFeaturedCarouselInteracting(true)}
+              onPointerUp={() => setFeaturedCarouselInteracting(false)}
+              onPointerCancel={() => setFeaturedCarouselInteracting(false)}
+              onFocusCapture={() => setFeaturedCarouselInteracting(true)}
+              onBlurCapture={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  setFeaturedCarouselInteracting(false);
+                }
+              }}
             >
               <div className="flex touch-pan-y gap-4 sm:gap-6">
                 {featured.map((p, index) => (
                   <div
                     key={p.id}
-                    className="flex shrink-0 basis-[86%] snap-start sm:basis-[47%] lg:basis-[31.5%] [&>a]:w-full"
+                    className="flex shrink-0 basis-[86%] snap-start sm:basis-[54%] lg:basis-[36%] [&>a]:w-full"
                     role="group"
                     aria-roledescription="slide"
                     aria-label={`${index + 1} of ${featured.length}`}
@@ -369,7 +400,7 @@ function Index() {
                 ))}
               </div>
               <p className="mt-3 text-center text-xs text-muted-foreground sm:hidden">
-                Swipe left or right to browse more products
+                Products move automatically · Swipe left or right anytime
               </p>
             </div>
           ) : (

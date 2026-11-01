@@ -469,10 +469,17 @@ test("home featured produce supports horizontal drag and carousel controls", asy
 
   assert.match(home, /useEmblaCarousel/);
   assert.match(home, /dragFree: true/);
+  assert.match(home, /loop: true/);
+  assert.match(home, /window\.setInterval/);
+  assert.match(home, /featuredCarouselApi\.scrollNext\(\)/);
+  assert.match(home, /3_500/);
+  assert.match(home, /prefers-reduced-motion: reduce/);
+  assert.match(home, /setFeaturedCarouselHovered\(true\)/);
+  assert.match(home, /setFeaturedCarouselInteracting\(true\)/);
   assert.match(home, /featuredCarouselApi\?\.scrollPrev\(\)/);
   assert.match(home, /featuredCarouselApi\?\.scrollNext\(\)/);
   assert.match(home, /Featured produce carousel/);
-  assert.match(home, /Swipe left or right to browse more products/);
+  assert.match(home, /Products move automatically/);
   assert.match(home, /cursor-grab overflow-hidden active:cursor-grabbing/);
   assert.match(home, /\.slice\(0, 8\)/);
 });
