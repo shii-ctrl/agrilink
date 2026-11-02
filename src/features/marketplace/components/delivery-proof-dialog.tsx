@@ -1,5 +1,5 @@
-import { Camera, Eraser, LoaderCircle, MapPin, ShieldCheck, TriangleAlert } from "lucide-react";
-import { useRef, useState, type PointerEvent } from "react";
+import { LoaderCircle, ShieldCheck, TriangleAlert } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppSelect } from "@/components/ui/app-select";
@@ -15,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { prepareProductImage } from "@/features/marketplace/product-image-upload";
 import {
   reportDeliveryIssue,
   submitDeliveryProof,
@@ -28,46 +27,20 @@ type DialogProps = {
 };
 
 export function DeliveryCompletionDialog({ orderNumber, onClose, onSaved }: DialogProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
   const [recipientName, setRecipientName] = useState("");
   const [otp, setOtp] = useState("");
-  const [photo, setPhoto] = useState("");
-  const [signed, setSigned] = useState(false);
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [saving, setSaving] = useState(false);
 
   function reset() {
     setRecipientName("");
     setOtp("");
-    setPhoto("");
-    setSigned(false);
-    setLocation(null);
-    canvasRef.current?.getContext("2d")?.clearRect(0, 0, 600, 220);
-  }
-
-  function draw(event: PointerEvent<HTMLCanvasElement>) {
-    if (!drawing.current) return;
-    const canvas = event.currentTarget;
-    const bounds = canvas.getBoundingClientRect();
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    const x = ((event.clientX - bounds.left) / bounds.width) * canvas.width;
-    const y = ((event.clientY - bounds.top) / bounds.height) * canvas.height;
-    context.lineWidth = 4;
-    context.lineCap = "round";
-    context.strokeStyle = "#0b3d24";
-    context.lineTo(x, y);
-    context.stroke();
-    setSigned(true);
   }
 
   async function save() {
-    if (!orderNumber || !photo || !signed || recipientName.trim().length < 2 || otp.length !== 6) {
-      toast.error("Complete the OTP, recipient, photo, and signature.");
+    if (!orderNumber || recipientName.trim().length < 2 || otp.length !== 6) {
+      toast.error("Enter the 6-digit OTP and recipient name.");
       return;
     }
-    const signatureUrl = canvasRef.current?.toDataURL("image/png") ?? "";
     setSaving(true);
     try {
       await submitDeliveryProof({
@@ -75,16 +48,12 @@ export function DeliveryCompletionDialog({ orderNumber, onClose, onSaved }: Dial
           orderNumber,
           otp,
           recipientName: recipientName.trim(),
-          proofPhotoUrl: photo,
-          signatureUrl,
-          latitude: location?.latitude ?? null,
-          longitude: location?.longitude ?? null,
         },
       });
       await onSaved();
       reset();
       onClose();
-      toast.success("Delivery proof verified", {
+      toast.success("Delivery verified", {
         description: "The Buyer and PROCY were notified. COD is now marked Collected.",
       });
     } catch (cause) {
@@ -110,7 +79,7 @@ export function DeliveryCompletionDialog({ orderNumber, onClose, onSaved }: Dial
         <DialogHeader className="text-left">
           <DialogTitle>Complete delivery</DialogTitle>
           <DialogDescription>
-            Verify the Buyer OTP and save proof before marking {orderNumber} Delivered.
+            Verify the Buyer OTP and recipient name before marking {orderNumber} Delivered.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-5">
@@ -138,93 +107,6 @@ export function DeliveryCompletionDialog({ orderNumber, onClose, onSaved }: Dial
               maxLength={160}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="delivery-photo">Proof photo</Label>
-            <Input
-              id="delivery-photo"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              capture="environment"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (!file) return;
-                void prepareProductImage(file)
-                  .then(setPhoto)
-                  .catch((cause) =>
-                    toast.error(
-                      cause instanceof Error ? cause.message : "Could not prepare photo.",
-                    ),
-                  );
-              }}
-            />
-            {photo ? (
-              <img
-                src={photo}
-                alt="Delivery proof preview"
-                className="h-44 w-full rounded-xl object-cover"
-              />
-            ) : null}
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <Label>Buyer or recipient signature</Label>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  canvasRef.current?.getContext("2d")?.clearRect(0, 0, 600, 220);
-                  setSigned(false);
-                }}
-              >
-                <Eraser className="size-4" /> Clear
-              </Button>
-            </div>
-            <canvas
-              ref={canvasRef}
-              width={600}
-              height={220}
-              className="h-36 w-full touch-none rounded-xl border border-border bg-white"
-              onPointerDown={(event) => {
-                drawing.current = true;
-                event.currentTarget.setPointerCapture(event.pointerId);
-                const context = event.currentTarget.getContext("2d");
-                const bounds = event.currentTarget.getBoundingClientRect();
-                context?.beginPath();
-                context?.moveTo(
-                  ((event.clientX - bounds.left) / bounds.width) * event.currentTarget.width,
-                  ((event.clientY - bounds.top) / bounds.height) * event.currentTarget.height,
-                );
-              }}
-              onPointerMove={draw}
-              onPointerUp={() => (drawing.current = false)}
-              onPointerCancel={() => (drawing.current = false)}
-              aria-label="Recipient signature pad"
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-              if (!navigator.geolocation) {
-                toast.error("Location is not available on this device.");
-                return;
-              }
-              navigator.geolocation.getCurrentPosition(
-                (position) =>
-                  setLocation({
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                  }),
-                () => toast.error("Location permission was not granted."),
-                { enableHighAccuracy: true, timeout: 10_000 },
-              );
-            }}
-          >
-            <MapPin className="size-4" />{" "}
-            {location ? "Location captured" : "Add current location (optional)"}
-          </Button>
         </div>
         <DialogFooter className="gap-2 sm:space-x-0">
           <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
@@ -234,7 +116,7 @@ export function DeliveryCompletionDialog({ orderNumber, onClose, onSaved }: Dial
             {saving ? (
               <LoaderCircle className="size-4 animate-spin" />
             ) : (
-              <Camera className="size-4" />
+              <ShieldCheck className="size-4" />
             )}
             {saving ? "Verifying…" : "Verify and mark delivered"}
           </Button>

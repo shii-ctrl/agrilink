@@ -1262,7 +1262,7 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(orderDetails, /Assigned Rider/);
   assert.match(orderDetails, /Message Rider/);
   assert.match(orderDetails, /Delivery OTP/);
-  assert.match(orderDetails, /Verified delivery proof/);
+  assert.match(orderDetails, /Verified delivery receipt/);
   assert.match(buyerOrders, /assignedRiderId: detail\.assignedRiderId/);
   assert.match(buyerOrders, /canMessageRider/);
   assert.match(riderMessages, /Coordinate securely with Buyers assigned to your deliveries/);
@@ -1270,8 +1270,10 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(deliveryUpgrade, /CREATE TABLE delivery_attempts/);
   assert.match(deliveryUpgrade, /CREATE TABLE cod_remittances/);
   assert.match(proofDialog, /Buyer delivery OTP/);
-  assert.match(proofDialog, /Recipient signature pad/);
-  assert.match(proofDialog, /Add current location \(optional\)/);
+  assert.match(proofDialog, /Actual recipient name/);
+  assert.doesNotMatch(proofDialog, /Proof photo/);
+  assert.doesNotMatch(proofDialog, /Recipient signature pad/);
+  assert.doesNotMatch(proofDialog, /Add current location \(optional\)/);
   assert.match(management, /Assignment history/);
   assert.match(management, /activeAssignments/);
   assert.match(accounting, /Collected → Submitted → Verified → Closed/);

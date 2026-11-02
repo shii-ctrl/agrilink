@@ -76,10 +76,6 @@ const assignRiderInput = workflowActionInput.extend({
 const deliveryProofInput = workflowActionInput.extend({
   otp: z.string().regex(/^\d{6}$/),
   recipientName: z.string().trim().min(2).max(160),
-  proofPhotoUrl: z.string().startsWith("data:image/").max(2_400_000),
-  signatureUrl: z.string().startsWith("data:image/").max(500_000),
-  latitude: z.number().min(-90).max(90).nullable(),
-  longitude: z.number().min(-180).max(180).nullable(),
 });
 const deliveryIssueInput = workflowActionInput.extend({
   outcome: z.enum(["buyer_unavailable", "wrong_address", "refused", "rescheduled"]),
@@ -2581,10 +2577,6 @@ export const submitDeliveryProof = createServerFn({ method: "POST" })
         riderId: rider.id,
         outcome: "delivered",
         recipientName: data.recipientName,
-        proofPhotoUrl: data.proofPhotoUrl,
-        signatureUrl: data.signatureUrl,
-        latitude: data.latitude?.toFixed(7) ?? null,
-        longitude: data.longitude?.toFixed(7) ?? null,
         attemptedAt: now,
       });
       await tx.insert(orderFulfillmentHistory).values({
@@ -2592,7 +2584,7 @@ export const submitDeliveryProof = createServerFn({ method: "POST" })
         orderId: order.id,
         status: "delivered",
         changedById: rider.id,
-        note: `Delivered to ${data.recipientName}. OTP and proof were verified.`,
+        note: `Delivered to ${data.recipientName}. Buyer OTP was verified.`,
         changedAt: now,
       });
       await tx
@@ -2617,10 +2609,9 @@ export const submitDeliveryProof = createServerFn({ method: "POST" })
             closedAt: null,
           },
         });
-      await writeAuditLog(rider.id, "delivery.proof.submit", "order", order.id, {
+      await writeAuditLog(rider.id, "delivery.completion.submit", "order", order.id, {
         orderNumber: order.orderNumber,
         recipientName: data.recipientName,
-        locationCaptured: data.latitude !== null && data.longitude !== null,
       });
       return { buyerId: order.buyerId, orderNumber: order.orderNumber };
     });
@@ -2628,7 +2619,7 @@ export const submitDeliveryProof = createServerFn({ method: "POST" })
     await Promise.all([
       notifyUser(result.buyerId, {
         title: "Order delivered",
-        message: `${result.orderNumber} was delivered with verified proof.`,
+        message: `${result.orderNumber} was delivered with a verified Buyer OTP.`,
         target: "/buyer/orders",
       }),
       notifyRole("Marketer", {

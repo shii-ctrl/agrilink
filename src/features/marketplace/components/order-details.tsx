@@ -1,6 +1,5 @@
 import {
   Check,
-  Camera,
   CircleCheck,
   ClipboardList,
   Clock3,
@@ -378,8 +377,8 @@ export function OrderDetails({
       {order.deliveryProof ? (
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
           <div className="flex items-center gap-2">
-            <Camera className="size-5 text-primary" />
-            <h3 className="font-semibold">Verified delivery proof</h3>
+            <ShieldCheck className="size-5 text-primary" />
+            <h3 className="font-semibold">Verified delivery receipt</h3>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
             Received by {order.deliveryProof.recipientName ?? "recipient"} on{" "}

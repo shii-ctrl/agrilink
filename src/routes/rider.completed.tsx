@@ -129,7 +129,7 @@ function RiderCompletedDeliveries() {
                   <div>
                     <h2 className="text-lg font-semibold">Delivery history</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Completed orders move here automatically after proof and OTP verification.
+                      Completed orders move here automatically after Buyer OTP verification.
                     </p>
                   </div>
                 </div>

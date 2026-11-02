@@ -106,7 +106,7 @@ function RiderDashboard() {
                 <h2 className="text-lg font-semibold">My delivery assignments</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Start a trip only when the order is in your possession. Complete it with the Buyer
-                  OTP and delivery proof after handoff.
+                  OTP and recipient name after handoff.
                 </p>
               </div>
               {data.assignments.length ? (
