@@ -455,17 +455,17 @@ export function CommunityFeed({
           </div>
         )}
         {showComposer && (
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-4 h-14 w-full justify-start rounded-2xl border-primary/20 bg-background px-4 text-left text-muted-foreground shadow-sm hover:border-primary/35 hover:bg-primary/5 hover:text-foreground"
-            onClick={() => setComposerOpen(true)}
-          >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Pencil className="size-4" />
-            </span>
-            <span className="font-medium">Share your thoughts</span>
-          </Button>
+          <div className="mt-4 flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 w-auto rounded-full border-primary/20 bg-background px-4 text-muted-foreground shadow-sm hover:border-primary/35 hover:bg-primary/5 hover:text-foreground"
+              onClick={() => setComposerOpen(true)}
+            >
+              <Pencil className="size-4 text-primary" />
+              <span className="font-medium">Share your thoughts</span>
+            </Button>
+          </div>
         )}
       </section>
       <section className="mt-6 space-y-4" aria-live="polite">
