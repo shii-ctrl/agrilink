@@ -784,6 +784,9 @@ test("Community search and owner-only post controls are available in the feed", 
   assert.match(feed, /Share your thoughts/);
   assert.match(feed, /DialogContent/);
   assert.match(feed, /Post to Community/);
+  assert.match(feed, /Post category/);
+  assert.match(feed, /communityPostCategoryOptions/);
+  assert.match(feed, /communityPostCategoryLabels/);
   assert.match(feed, /getCommunityMessages\(\{ data \}\)/);
   assert.match(feed, /message\.isOwner/);
   assert.match(feed, /Edit post/);

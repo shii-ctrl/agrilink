@@ -152,3 +152,13 @@ test("expanded selling units preserve existing product and order selections", as
   assert.match(migration, /ALTER TABLE order_items/);
   assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
 });
+
+test("Community post categories preserve existing posts as general discussions", async () => {
+  const migration = await readFile("drizzle/0032_community_post_categories.sql", "utf8");
+
+  assert.match(migration, /ALTER TABLE community_messages/);
+  assert.match(migration, /ADD COLUMN category ENUM/);
+  assert.match(migration, /DEFAULT 'general_discussion'/);
+  assert.match(migration, /community_messages_category_created_idx/);
+  assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
+});

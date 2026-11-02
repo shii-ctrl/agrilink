@@ -327,13 +327,26 @@ export const dailyPrices = mysqlTable(
   },
   (table) => [index("daily_prices_listing_date_idx").on(table.listingId, table.priceDate)],
 );
-export const communityMessages = mysqlTable("community_messages", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  authorId: varchar("author_id", { length: 36 }).notNull(),
-  message: text("message").notNull(),
-  createdAt,
-  updatedAt,
-});
+export const communityMessages = mysqlTable(
+  "community_messages",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    authorId: varchar("author_id", { length: 36 }).notNull(),
+    category: mysqlEnum("category", [
+      "announcement",
+      "question",
+      "farming_tip",
+      "marketplace_update",
+      "general_discussion",
+    ])
+      .default("general_discussion")
+      .notNull(),
+    message: text("message").notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [index("community_messages_category_created_idx").on(table.category, table.createdAt)],
+);
 export const communityReactions = mysqlTable(
   "community_reactions",
   {

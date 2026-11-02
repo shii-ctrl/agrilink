@@ -33,6 +33,12 @@ import { ProfileAvatar } from "@/components/profile-avatar";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AppSelect } from "@/components/ui/app-select";
+import {
+  communityPostCategoryLabels,
+  communityPostCategoryOptions,
+  type CommunityPostCategory,
+} from "@/features/messaging/community-categories";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +56,13 @@ type CommunityFeedProps = {
 };
 
 const COMMUNITY_PAGE_SIZE = 25;
+const categoryBadgeTone: Record<CommunityPostCategory, string> = {
+  announcement: "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  question: "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  farming_tip: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  marketplace_update: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  general_discussion: "border-border bg-muted text-muted-foreground",
+};
 type CommunityPost = Awaited<ReturnType<typeof getCommunityMessages>>["messages"][number];
 type CommunityComment = CommunityPost["comments"][number];
 
@@ -189,6 +202,7 @@ export function CommunityFeed({
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const [messages, setMessages] = useState<CommunityPost[]>([]);
   const [postMessage, setPostMessage] = useState("");
+  const [postCategory, setPostCategory] = useState<CommunityPostCategory>("general_discussion");
   const [composerOpen, setComposerOpen] = useState(false);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [replyTargets, setReplyTargets] = useState<Record<string, string | null>>({});
@@ -349,8 +363,9 @@ export function CommunityFeed({
     if (!message) return;
     setBusyPost(true);
     try {
-      await postCommunityMessage({ data: { message } });
+      await postCommunityMessage({ data: { category: postCategory, message } });
       setPostMessage("");
+      setPostCategory("general_discussion");
       setComposerOpen(false);
       await load();
       toast.success("Your post is now visible in Community.");
@@ -386,6 +401,22 @@ export function CommunityFeed({
               </DialogHeader>
 
               <div className="space-y-3 px-5 py-5 sm:px-6">
+                <div className="space-y-2">
+                  <label htmlFor="community-post-category" className="text-sm font-semibold">
+                    Post category
+                  </label>
+                  <AppSelect
+                    id="community-post-category"
+                    name="category"
+                    value={postCategory}
+                    onValueChange={(value) => setPostCategory(value as CommunityPostCategory)}
+                    options={communityPostCategoryOptions}
+                    ariaLabel="Choose a Community post category"
+                    searchable={false}
+                    disabled={busyPost}
+                    className="min-h-12"
+                  />
+                </div>
                 <label htmlFor="community-post-message" className="text-sm font-semibold">
                   Community update
                 </label>
@@ -521,6 +552,11 @@ export function CommunityFeed({
                     })}
                   </p>
                 </div>
+                <span
+                  className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${categoryBadgeTone[message.category]}`}
+                >
+                  {communityPostCategoryLabels[message.category]}
+                </span>
                 {editing ? (
                   <form
                     className="mt-4 space-y-3"

@@ -1,8 +1,12 @@
 import { and, asc, desc, eq, inArray, like, or } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { communityPostCategories } from "@/features/messaging/community-categories";
 
-const messageInput = z.object({ message: z.string().trim().min(1).max(4_000) });
+const messageInput = z.object({
+  category: z.enum(communityPostCategories),
+  message: z.string().trim().min(1).max(4_000),
+});
 const commentInput = z.object({
   messageId: z.string().uuid(),
   parentCommentId: z.string().uuid().optional(),
@@ -24,7 +28,10 @@ const communityFeedInput = z.object({
   offset: z.number().int().min(0).max(100_000).default(0),
   pageSize: z.number().int().min(1).max(100).default(25),
 });
-const postUpdateInput = messageInput.extend({ messageId: z.string().uuid() });
+const postUpdateInput = z.object({
+  messageId: z.string().uuid(),
+  message: z.string().trim().min(1).max(4_000),
+});
 const postRemovalInput = z.object({ messageId: z.string().uuid() });
 const communityRoles = ["Management", "Marketer", "Accounting", "Farmer"];
 
@@ -89,6 +96,7 @@ async function communityMessagesForViewer(
   const messageRows = await db
     .select({
       id: communityMessages.id,
+      category: communityMessages.category,
       message: communityMessages.message,
       createdAt: communityMessages.createdAt,
       authorId: communityMessages.authorId,
@@ -229,6 +237,7 @@ async function communityMessagesForViewer(
   return {
     messages: pageRows.map((message) => ({
       id: message.id,
+      category: message.category,
       isOwner: message.authorId === viewer.id,
       message: message.message,
       author: message.author,
@@ -274,12 +283,14 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
     const { db } = await import("@/db/client.server");
     const { communityMessages } = await import("@/db/schema");
     const id = crypto.randomUUID();
-    await db.insert(communityMessages).values({ id, authorId: author.id, message: data.message });
+    await db
+      .insert(communityMessages)
+      .values({ id, authorId: author.id, category: data.category, message: data.message });
     const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");
     await notifyCommunityUsers(
       {
         title: "New Community post",
-        message: `${author.displayName} shared an update in Community.`,
+        message: `${author.displayName} shared a ${data.category.replaceAll("_", " ")} in Community.`,
       },
       { excludeUserId: author.id },
     );
