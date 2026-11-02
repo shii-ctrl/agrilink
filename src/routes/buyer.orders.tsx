@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { PackageCheck, RotateCcw } from "lucide-react";
+import { LoaderCircle, PackageCheck, RotateCcw } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
@@ -9,6 +9,7 @@ import { AppSelect } from "@/components/ui/app-select";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
@@ -27,6 +28,7 @@ function BuyerOrdersPage() {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<DemoOrder | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
@@ -100,6 +102,9 @@ function BuyerOrdersPage() {
     }
   };
   const openDetails = async (orderNumber: string) => {
+    setSelectedId(orderNumber);
+    setSelectedOrder(null);
+    setDetailsLoading(true);
     try {
       const detail = await getOrderDetails({ data: { orderNumber } });
       setSelectedOrder({
@@ -149,11 +154,13 @@ function BuyerOrdersPage() {
         })),
         stockReserved: detail.status === "pending" || detail.status === "confirmed",
       });
-      setSelectedId(orderNumber);
     } catch (error) {
+      setSelectedId(null);
       toast.error("Could not load order details", {
         description: error instanceof Error ? error.message : "Please try again.",
       });
+    } finally {
+      setDetailsLoading(false);
     }
   };
   const buyAgain = async (order: DemoOrder) => {
@@ -310,41 +317,63 @@ function BuyerOrdersPage() {
                 </div>
                 <PaginationControls {...ordersPage} itemLabel="orders" />
               </section>
-              {selectedId &&
-                (() => {
-                  const order = selectedOrder ?? orders.find((item) => item.id === selectedId);
-                  return order ? (
-                    <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        {order.status === "Pending" && (
-                          <Button
-                            variant="outline"
-                            className="rounded-full"
-                            onClick={() => cancelOrder(order)}
-                          >
-                            Cancel order
-                          </Button>
-                        )}
-                        {order.status === "Confirmed" && (
-                          <p className="self-center text-sm text-muted-foreground">
-                            This order is confirmed. Contact PROCY if you need it cancelled.
-                          </p>
-                        )}
-                        {order.status === "Sold" && (
-                          <Button className="rounded-full" onClick={() => buyAgain(order)}>
-                            <RotateCcw className="size-4" /> Buy again
-                          </Button>
-                        )}
-                      </div>
-                      <div className="mt-2">
-                        <OrderDetails order={order} canMessageRider />
-                      </div>
-                    </section>
-                  ) : null;
-                })()}
             </>
           )}
         </main>
+        <Dialog
+          open={Boolean(selectedId)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedId(null);
+              setSelectedOrder(null);
+            }
+          }}
+        >
+          <DialogContent className="h-[100dvh] max-h-[100dvh] w-full max-w-none overflow-y-auto border-0 p-4 sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100%-2rem)] sm:max-w-6xl sm:rounded-3xl sm:border sm:p-6">
+            <DialogTitle className="sr-only">Order details</DialogTitle>
+            <DialogDescription className="sr-only">
+              Review the selected order without leaving the order history.
+            </DialogDescription>
+            {detailsLoading ? (
+              <div
+                className="flex min-h-[50dvh] flex-col items-center justify-center gap-3 text-center"
+                role="status"
+                aria-live="polite"
+              >
+                <LoaderCircle className="size-8 animate-spin text-primary" />
+                <div>
+                  <p className="font-semibold">Loading order details</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Please wait a moment.</p>
+                </div>
+              </div>
+            ) : selectedOrder ? (
+              <div className="pt-10 sm:pt-4">
+                <div className="mb-4 flex flex-wrap justify-end gap-2 pr-12">
+                  {selectedOrder.status === "Pending" && (
+                    <Button
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => cancelOrder(selectedOrder)}
+                    >
+                      Cancel order
+                    </Button>
+                  )}
+                  {selectedOrder.status === "Confirmed" && (
+                    <p className="self-center text-sm text-muted-foreground">
+                      This order is confirmed. Contact PROCY if you need it cancelled.
+                    </p>
+                  )}
+                  {selectedOrder.status === "Sold" && (
+                    <Button className="rounded-full" onClick={() => buyAgain(selectedOrder)}>
+                      <RotateCcw className="size-4" /> Buy again
+                    </Button>
+                  )}
+                </div>
+                <OrderDetails order={selectedOrder} canMessageRider />
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
       </div>
     </BuyerLayout>
   );

@@ -933,7 +933,9 @@ test("buyers can cancel only pending orders while Marketers handle confirmed can
   assert.match(marketplace, /buyerIsCancellingOwnOrder && order\.status !== "pending"/);
   assert.match(marketplace, /Confirmed orders can only be cancelled by a Marketer/);
   assert.match(marketplace, /Only a Pending order can be cancelled/);
-  assert.match(buyerOrders, /order\.status === "Pending"/);
+  assert.match(buyerOrders, /selectedOrder\.status === "Pending"/);
+  assert.match(buyerOrders, /<Dialog[\s\S]*open=\{Boolean\(selectedId\)\}/);
+  assert.match(buyerOrders, /Loading order details/);
   assert.match(buyerOrders, /Contact PROCY if you need it cancelled/);
   assert.match(marketerOrders, /cancelConfirmedOrder/);
   assert.match(marketerOrders, /Cancelled by Marketer/);
