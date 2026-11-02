@@ -467,39 +467,44 @@ export function CommunityFeed({
           </DialogContent>
         </Dialog>
       )}
-      <section className="rounded-3xl border border-border bg-card p-6 shadow-card">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="size-5 text-primary" />
-          <h2 className="text-lg font-semibold">{title}</h2>
+      <section className="rounded-3xl border border-border bg-card p-4 shadow-card sm:p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10">
+                <MessageCircle className="size-4.5 text-primary" />
+              </span>
+              <h2 className="truncate text-base font-semibold sm:text-lg">{title}</h2>
+            </div>
+            <p className="mt-2 flex items-start gap-1.5 pl-0 text-xs font-medium leading-5 text-primary sm:pl-11">
+              <Radio className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+              <span>Live updates are on. New posts, comments, and reactions appear automatically.</span>
+            </p>
+          </div>
+          {showComposer && (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 w-auto shrink-0 rounded-full border-primary/20 bg-background px-3 text-foreground shadow-sm hover:border-primary/35 hover:bg-primary/5 sm:px-4"
+              onClick={() => setComposerOpen(true)}
+            >
+              <Pencil className="size-4 text-primary" />
+              <span className="hidden font-medium sm:inline">Share your thoughts</span>
+              <span className="font-medium sm:hidden">Post</span>
+            </Button>
+          )}
         </div>
-        <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-          <Radio className="size-3.5" aria-hidden="true" />
-          Live updates are on. New posts, comments, and reactions appear automatically.
-        </p>
         {scope === "all" && (
           <div className="relative mt-4">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search Community by post or author"
               aria-label="Search Community posts"
-              className="pl-9"
+              className="h-11 rounded-2xl bg-background pl-10"
               maxLength={120}
             />
-          </div>
-        )}
-        {showComposer && (
-          <div className="mt-4 flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-auto rounded-full border-primary/20 bg-background px-4 text-muted-foreground shadow-sm hover:border-primary/35 hover:bg-primary/5 hover:text-foreground"
-              onClick={() => setComposerOpen(true)}
-            >
-              <Pencil className="size-4 text-primary" />
-              <span className="font-medium">Share your thoughts</span>
-            </Button>
           </div>
         )}
       </section>
