@@ -2735,6 +2735,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
     inventory,
     inventoryMovements,
     listings,
+    orderFulfillmentHistory,
     orderItems,
     orders,
     payments,
@@ -2772,7 +2773,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
     .orderBy(desc(orders.createdAt), desc(orders.id));
   if (!orderRows.length) return [] as DemoOrder[];
   const orderIds = orderRows.map((order) => order.id);
-  const [items, allocations] = await Promise.all([
+  const [items, allocations, fulfillmentHistory] = await Promise.all([
     db
       .select({
         orderId: orderItems.orderId,
@@ -2810,6 +2811,16 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
           inArray(inventoryMovements.referenceId, orderIds),
         ),
       ),
+    db
+      .select({
+        orderId: orderFulfillmentHistory.orderId,
+        status: orderFulfillmentHistory.status,
+        note: orderFulfillmentHistory.note,
+        changedAt: orderFulfillmentHistory.changedAt,
+      })
+      .from(orderFulfillmentHistory)
+      .where(inArray(orderFulfillmentHistory.orderId, orderIds))
+      .orderBy(asc(orderFulfillmentHistory.changedAt)),
   ]);
   return orderRows.map((order) => {
     const lines = items
@@ -2856,6 +2867,13 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       assignedRiderName: null,
       ...(order.fulfilledAt ? { fulfilledAt: order.fulfilledAt.toISOString() } : {}),
       items: lines,
+      history: fulfillmentHistory
+        .filter((entry) => entry.orderId === order.id)
+        .map((entry) => ({
+          status: entry.status.replaceAll("_", " ").replace(/^./, (value) => value.toUpperCase()),
+          note: entry.note,
+          changedAt: entry.changedAt.toISOString(),
+        })),
       allocations: allocations
         .filter((allocation) => allocation.orderId === order.id)
         .map((allocation) => ({

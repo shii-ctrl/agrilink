@@ -309,6 +309,7 @@ test("order details use a responsive real-workflow stepper and clear summaries",
   assert.match(source, /space-y-0 sm:hidden/);
   assert.match(source, /hidden px-2 pt-1 sm:flex/);
   assert.match(source, /Current ·/);
+  assert.match(source, /reached \? "Completed" : "Waiting"/);
   assert.match(source, /Order fulfilled — awaiting payment recording/);
   assert.match(source, /Awaiting payment recording/);
   assert.match(source, /marketplaceImageFor\(item\.name\)/);

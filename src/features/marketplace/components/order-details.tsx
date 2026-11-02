@@ -70,7 +70,18 @@ export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
   const currentStep = Math.max(0, matchedStep);
   const stepTime = (status: string) =>
     order.history?.find((entry) => entry.status.toLowerCase().replaceAll(" ", "_") === status)
-      ?.changedAt ?? (status === "pending" ? (order.createdAt ?? order.date) : undefined);
+      ?.changedAt ??
+    (status === "pending"
+      ? (order.createdAt ?? order.date)
+      : status === "confirmed"
+        ? order.confirmedAt
+        : status === "picked_up" || status === "delivered"
+          ? order.fulfilledAt
+          : undefined);
+  const stepDateLabel = (status: string, reached: boolean) => {
+    const timestamp = stepTime(status);
+    return timestamp ? formatOrderDate(timestamp) : reached ? "Completed" : "Waiting";
+  };
   const stepState = (index: number) => ({
     completed: index < currentStep,
     current: index === currentStep,
@@ -118,7 +129,7 @@ export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
                   className={`mt-0.5 text-xs ${current ? "font-medium text-primary" : "text-muted-foreground"}`}
                 >
                   {current ? "Current · " : ""}
-                  {formatOrderDate(stepTime(status))}
+                  {stepDateLabel(status, reached)}
                 </p>
               </div>
             </li>
@@ -167,7 +178,7 @@ export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
                   className={`mt-1 text-[11px] ${current ? "font-medium text-primary" : "text-muted-foreground"}`}
                 >
                   {current ? "Current · " : ""}
-                  {formatOrderDate(stepTime(status))}
+                  {stepDateLabel(status, reached)}
                 </p>
               </div>
             </li>
