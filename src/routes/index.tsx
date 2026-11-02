@@ -256,8 +256,8 @@ function Index() {
       />
 
       <main>
-        <section className="border-b border-border/70 bg-cream px-4 py-8 dark:bg-forest sm:px-6 sm:py-12 xl:px-8">
-          <div className="mx-auto grid max-w-[1500px] items-center gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12">
+        <section className="border-b border-border/70 bg-cream py-8 dark:bg-forest sm:py-12">
+          <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12">
             <div className="py-4 text-foreground dark:text-forest-foreground sm:py-8">
               <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary dark:border-white/20 dark:bg-white/10 dark:text-forest-foreground">
                 <Sprout className="size-3.5" /> Fresh from PROCY farmer members
@@ -365,7 +365,10 @@ function Index() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 pt-8 sm:pt-10" aria-label="Shop by category">
+        <section
+          className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 sm:pt-10"
+          aria-label="Shop by category"
+        >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {categories.map((category, index) => (
               <Link
@@ -387,7 +390,7 @@ function Index() {
           </div>
         </section>
 
-        <section className="mx-auto mt-16 max-w-6xl px-4 sm:mt-20">
+        <section className="mx-auto mt-16 max-w-6xl px-4 sm:mt-20 sm:px-6">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
@@ -450,7 +453,7 @@ function Index() {
           )}
         </section>
 
-        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24">
+        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24 sm:px-6">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
             · Simple ordering
           </p>
@@ -474,7 +477,7 @@ function Index() {
           </div>
         </section>
 
-        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24">
+        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24 sm:px-6">
           <div className="grid gap-8 overflow-hidden rounded-[2rem] surface-field p-7 md:grid-cols-[0.9fr_1.1fr] md:p-12">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-70">
@@ -528,7 +531,7 @@ function Index() {
           </div>
         </section>
 
-        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24">
+        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24 sm:px-6">
           <div className="grid gap-4 md:grid-cols-3">
             {trustPoints.map((point) => (
               <div
@@ -555,7 +558,7 @@ function Index() {
           </div>
         </section>
 
-        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24">
+        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24 sm:px-6">
           <div className="rounded-[2rem] border border-border bg-cream p-8 text-center dark:bg-card md:p-14">
             <h2 className="text-3xl font-semibold md:text-4xl">
               {isBuyer ? "Continue your AgriLink order" : "Ready to buy from PROCY?"}

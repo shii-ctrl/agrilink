@@ -111,7 +111,7 @@ export function SiteHeader({
   return (
     <>
       <header className={`sticky top-0 z-50 border-b backdrop-blur ${headerTone}`}>
-        <div className="mx-auto flex h-16 max-w-[1500px] items-center justify-between gap-2 px-3 sm:h-[5.75rem] sm:gap-4 sm:px-6 xl:px-8">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:h-[5.75rem] sm:gap-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-full surface-sprout">
               <ProcyLogo className="size-8" />
