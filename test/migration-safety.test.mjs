@@ -143,3 +143,12 @@ test("selling-unit migration defaults Egg and Itlog products to trays and preser
   assert.match(migration, /SET item\.selling_unit = product\.selling_unit/);
   assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
 });
+
+test("expanded selling units preserve existing product and order selections", async () => {
+  const migration = await readFile("drizzle/0031_expand_product_selling_units.sql", "utf8");
+
+  assert.match(migration, /ENUM\('kg', 'piece', 'bundle', 'pack', 'tray', 'sack'\)/);
+  assert.match(migration, /ALTER TABLE products/);
+  assert.match(migration, /ALTER TABLE order_items/);
+  assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
+});

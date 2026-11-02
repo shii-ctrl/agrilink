@@ -2,6 +2,11 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import {
+  requiresWholeSellingQuantity,
+  sellingUnitLabel,
+} from "@/features/marketplace/selling-units";
+
 const quantity = z
   .number()
   .finite()
@@ -96,12 +101,14 @@ export const recordReceivingDelivery = createServerFn({ method: "POST" })
         .where(and(eq(products.id, data.productId), eq(products.active, true)));
       if (!product) throw new Error("Choose an active product.");
       if (
-        product.sellingUnit === "tray" &&
+        requiresWholeSellingQuantity(product.sellingUnit) &&
         [data.totalKg, data.goodKg, data.semiKg, data.rejectKg].some(
           (amount) => !Number.isInteger(amount),
         )
       ) {
-        throw new Error("Egg deliveries must be recorded as whole trays.");
+        throw new Error(
+          `${sellingUnitLabel(product.sellingUnit, 2)} must be recorded as whole units.`,
+        );
       }
 
       const configured = await tx

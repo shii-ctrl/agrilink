@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { Classification, Product, ProductOffer } from "@/features/marketplace/products";
 import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
 import {
+  requiresWholeSellingQuantity,
   sellingUnitLabel,
   sellingUnits,
   type SellingUnit,
@@ -845,8 +846,10 @@ export const adjustCatalogStock = createServerFn({ method: "POST" })
         .leftJoin(users, eq(inventory.farmerId, users.id))
         .where(eq(inventory.id, data.inventoryId));
       if (!stock) throw new Error("The selected farmer stock could not be found.");
-      if (stock.sellingUnit === "tray" && !Number.isInteger(data.adjustmentKg)) {
-        throw new Error("Egg stock adjustments must use whole trays.");
+      if (requiresWholeSellingQuantity(stock.sellingUnit) && !Number.isInteger(data.adjustmentKg)) {
+        throw new Error(
+          `${sellingUnitLabel(stock.sellingUnit, 2)} stock adjustments must use whole numbers.`,
+        );
       }
 
       const nextQuantity = Number(stock.quantityKg) + data.adjustmentKg;
@@ -1442,8 +1445,8 @@ async function reserveListingStock(
   if (!listing || listing.status !== "published") {
     throw new Error("This product is no longer available in the marketplace.");
   }
-  if (listing.sellingUnit === "tray" && !Number.isInteger(quantityKg)) {
-    throw new Error("Egg quantities must be ordered as whole trays.");
+  if (requiresWholeSellingQuantity(listing.sellingUnit) && !Number.isInteger(quantityKg)) {
+    throw new Error(`${sellingUnitLabel(listing.sellingUnit, 2)} must be ordered as whole units.`);
   }
 
   const batches = await tx
@@ -1809,7 +1812,7 @@ export const setBuyerCartItem = createServerFn({ method: "POST" })
     const buyer = await requireRole("Buyer");
     await prepareBuyerCart(buyer.id);
     const { db } = await import("@/db/client.server");
-    const { cartItems, carts } = await import("@/db/schema");
+    const { cartItems, carts, listings, products } = await import("@/db/schema");
     await db.transaction(async (tx) => {
       const [cart] = await tx
         .select({ id: carts.id })
@@ -1833,6 +1836,20 @@ export const setBuyerCartItem = createServerFn({ method: "POST" })
           .delete(cartItems)
           .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
         return;
+      }
+      const [listingUnit] = await tx
+        .select({ sellingUnit: products.sellingUnit })
+        .from(listings)
+        .innerJoin(products, eq(listings.productId, products.id))
+        .where(eq(listings.id, data.listingId));
+      if (!listingUnit) throw new Error("That item is no longer available.");
+      if (
+        requiresWholeSellingQuantity(listingUnit.sellingUnit) &&
+        !Number.isInteger(data.quantityKg)
+      ) {
+        throw new Error(
+          `${sellingUnitLabel(listingUnit.sellingUnit, 2)} must be ordered as whole units.`,
+        );
       }
       const differenceKg = data.quantityKg - currentQuantityKg;
       if (differenceKg > 0) {
@@ -2485,7 +2502,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       classification: first?.classification ?? "Good",
       quantity:
         lines.length === 1
-          ? `${lines[0]!.quantityKg} ${lines[0]!.sellingUnit === "tray" ? (lines[0]!.quantityKg === 1 ? "tray" : "trays") : "kg"}`
+          ? `${lines[0]!.quantityKg} ${sellingUnitLabel(lines[0]!.sellingUnit, lines[0]!.quantityKg)}`
           : `${lines.length} classified items`,
       total: new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(
         Number(order.totalAmount),
@@ -3218,12 +3235,25 @@ export const getMarketerDashboard = createServerFn({ method: "GET" }).handler(as
       (total, row) => total + Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
       0,
     );
+  const unitTotals = sellingUnits.map((unit) => ({
+    unit,
+    received: receiving
+      .filter((row) => row.sellingUnit === unit)
+      .reduce((total, row) => total + Number(row.totalKg), 0),
+    available: stock
+      .filter((row) => row.sellingUnit === unit)
+      .reduce(
+        (total, row) => total + Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
+        0,
+      ),
+  }));
   return {
     receivedKg,
     receivedTrays,
     publishedListings: publishedListings.length,
     availableKg,
     availableTrays,
+    unitTotals,
     pendingOrders: pendingOrders.length,
     lowStock: lowStock
       .map((row) => ({ ...row, availableKg: Math.max(0, Number(row.availableKg)) }))

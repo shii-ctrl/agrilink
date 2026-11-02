@@ -24,6 +24,7 @@ import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import { notifyBuyerCartChanged } from "@/features/marketplace/cart-events";
 import {
   formatSellingQuantity,
+  requiresWholeSellingQuantity,
   sellingUnitLabel,
   sellingUnitStep,
 } from "@/features/marketplace/selling-units";
@@ -131,7 +132,7 @@ function ProductDetail() {
   const hasValidQuantity =
     qty >= quantityStep &&
     qty <= maximumSelectableQuantity &&
-    (product.sellingUnit !== "tray" || Number.isInteger(qty));
+    (!requiresWholeSellingQuantity(product.sellingUnit) || Number.isInteger(qty));
   const canDecreaseQuantity = qty > quantityStep;
   const canIncreaseQuantity = qty < maximumSelectableQuantity;
   const retailPricePerKg = selectedOffer.retailPricePerKg ?? selectedOffer.pricePerKg;
@@ -154,8 +155,9 @@ function ProductDetail() {
   }, [maximumSelectableQuantity]);
 
   function clampQuantity(value: number) {
-    const rounded =
-      product.sellingUnit === "tray" ? Math.round(value) : Math.round(value * 100) / 100;
+    const rounded = requiresWholeSellingQuantity(product.sellingUnit)
+      ? Math.round(value)
+      : Math.round(value * 100) / 100;
     return Math.min(maximumSelectableQuantity, Math.max(quantityStep, rounded));
   }
 
@@ -370,7 +372,9 @@ function ProductDetail() {
               <Input
                 aria-label={`Quantity in ${sellingUnitLabel(product.sellingUnit, 2)}`}
                 type="number"
-                inputMode={product.sellingUnit === "tray" ? "numeric" : "decimal"}
+                inputMode={
+                  requiresWholeSellingQuantity(product.sellingUnit) ? "numeric" : "decimal"
+                }
                 min={quantityStep}
                 max={maximumSelectableQuantity}
                 step={quantityStep}

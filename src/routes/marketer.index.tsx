@@ -17,7 +17,7 @@ import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMarketerDashboard } from "@/services/marketplace/marketplace-server-functions";
-import { formatSellingQuantity } from "@/features/marketplace/selling-units";
+import { formatSellingQuantity, type SellingUnit } from "@/features/marketplace/selling-units";
 
 export const Route = createFileRoute("/marketer/")({
   component: MarketerDashboard,
@@ -46,14 +46,18 @@ function MarketerDashboard() {
   }, [load]);
   useEffect(() => void loadDashboard(), [loadDashboard]);
   useAutoRefresh(() => load().catch(() => undefined));
-  const combinedUnits = (kg: number, trays: number) =>
-    [kg > 0 ? `${kg} kg` : "", trays > 0 ? formatSellingQuantity(trays, "tray") : ""]
-      .filter(Boolean)
+  const combinedUnits = (
+    totals: { unit: SellingUnit; received: number; available: number }[] | undefined,
+    field: "received" | "available",
+  ) =>
+    totals
+      ?.filter((item) => item[field] > 0)
+      .map((item) => formatSellingQuantity(item[field], item.unit))
       .join(" + ") || "0";
   const cards = [
     {
       label: "Products received",
-      value: combinedUnits(summary?.receivedKg ?? 0, summary?.receivedTrays ?? 0),
+      value: combinedUnits(summary?.unitTotals, "received"),
       detail: "Recorded from farmer deliveries",
       icon: ReceiptText,
     },
@@ -65,7 +69,7 @@ function MarketerDashboard() {
     },
     {
       label: "Available products",
-      value: combinedUnits(summary?.availableKg ?? 0, summary?.availableTrays ?? 0),
+      value: combinedUnits(summary?.unitTotals, "available"),
       detail: "Across Good, Semi and Reject",
       icon: ShoppingBag,
     },

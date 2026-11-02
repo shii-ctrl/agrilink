@@ -1112,11 +1112,13 @@ test("Egg products use tray units throughout catalog, receiving, marketplace, an
   ]);
 
   assert.match(units, /\(egg\|itlog\)/i);
-  assert.match(units, /unit === "tray" \? 1 : 0\.01/);
-  assert.match(schema, /sellingUnit: mysqlEnum\("selling_unit", \["kg", "tray"\]\)/);
+  assert.match(units, /"kg", "piece", "bundle", "pack", "tray", "sack"/);
+  assert.match(units, /unit === "kg" \? 0\.01 : 1/);
+  assert.match(units, /requiresWholeSellingQuantity/);
+  assert.match(schema, /"kg", "piece", "bundle", "pack", "tray", "sack"/);
   assert.match(catalog, /defaultSellingUnit\(name\)/);
   assert.match(receiving, /sellingUnitStep\(sellingUnit\)/);
-  assert.match(marketplace, /product\.sellingUnit === "tray"/);
+  assert.match(marketplace, /requiresWholeSellingQuantity\(product\.sellingUnit\)/);
   assert.match(cart, /formatSellingQuantity\(item\.quantityKg, item\.sellingUnit\)/);
   assert.match(orders, /item\.sellingUnit \?\? "kg"/);
 });
