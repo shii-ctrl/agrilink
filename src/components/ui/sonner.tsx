@@ -12,28 +12,51 @@ const Toaster = ({ ...props }: ToasterProps) => {
       visibleToasts={3}
       offset={{ top: 24 }}
       icons={{
-        success: <CheckCircle2 className="size-5" />,
-        error: <XCircle className="size-5" />,
-        warning: <CircleAlert className="size-5" />,
-        info: <Info className="size-5" />,
-        loading: <LoaderCircle className="size-5 animate-spin" />,
+        success: (
+          <span className="grid size-9 place-items-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            <CheckCircle2 className="size-5" />
+          </span>
+        ),
+        error: (
+          <span className="grid size-9 place-items-center rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+            <XCircle className="size-5" />
+          </span>
+        ),
+        warning: (
+          <span className="grid size-9 place-items-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            <CircleAlert className="size-5" />
+          </span>
+        ),
+        info: (
+          <span className="grid size-9 place-items-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+            <Info className="size-5" />
+          </span>
+        ),
+        loading: (
+          <span className="grid size-9 place-items-center rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            <LoaderCircle className="size-5 animate-spin" />
+          </span>
+        ),
       }}
       toastOptions={{
         classNames: {
           toast:
-            "group toast min-w-[min(92vw,380px)] overflow-hidden rounded-3xl border bg-card/95 px-5 py-4 text-foreground shadow-field backdrop-blur",
-          success: "border-primary/35",
-          error: "border-destructive/35",
-          warning: "border-[color:var(--semi)]/45",
-          info: "border-primary/25",
-          title: "font-semibold tracking-tight text-foreground",
-          description: "mt-1 text-sm leading-relaxed text-muted-foreground",
-          icon: "mt-0.5 text-primary group-data-[type=error]:text-destructive group-data-[type=warning]:text-[color:var(--semi)]",
+            "group toast min-w-[min(92vw,360px)] gap-3 overflow-hidden rounded-2xl border bg-card px-4 py-3.5 pr-11 text-foreground shadow-field",
+          success: "border-emerald-500/70",
+          error: "border-red-500/70",
+          warning: "border-amber-500/75",
+          info: "border-blue-500/70",
+          loading: "border-slate-400/60",
+          default: "border-slate-400/60",
+          title: "text-sm font-bold tracking-tight text-foreground",
+          description: "mt-0.5 text-xs leading-relaxed text-muted-foreground",
+          content: "gap-0.5",
+          icon: "self-start",
           actionButton:
             "rounded-full bg-primary px-4 font-semibold text-primary-foreground hover:bg-secondary",
           cancelButton: "rounded-full bg-muted px-3 text-muted-foreground",
           closeButton:
-            "right-3 top-3 rounded-full border-border bg-card text-muted-foreground shadow-card hover:bg-muted hover:text-foreground",
+            "!left-auto !right-2.5 !top-2.5 !size-7 !translate-x-0 !translate-y-0 rounded-full border-0 bg-transparent text-muted-foreground shadow-none hover:bg-muted hover:text-foreground",
         },
       }}
       {...props}
