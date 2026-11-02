@@ -38,6 +38,7 @@ import { Route as FarmerReceivingRouteImport } from './routes/farmer.receiving'
 import { Route as ManagementIndexRouteImport } from './routes/management.index'
 import { Route as ManagementCommunityRouteImport } from './routes/management.community'
 import { Route as ManagementDecisionSupportRouteImport } from './routes/management.decision-support'
+import { Route as ManagementDeliveriesRouteImport } from './routes/management.deliveries'
 import { Route as ManagementProductsRouteImport } from './routes/management.products'
 import { Route as ManagementProfileRouteImport } from './routes/management.profile'
 import { Route as ManagementReceivingRouteImport } from './routes/management.receiving'
@@ -208,6 +209,11 @@ const ManagementDecisionSupportRoute =
     path: '/management/decision-support',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ManagementDeliveriesRoute = ManagementDeliveriesRouteImport.update({
+  id: '/management/deliveries',
+  path: '/management/deliveries',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ManagementProductsRoute = ManagementProductsRouteImport.update({
   id: '/management/products',
   path: '/management/products',
@@ -351,6 +357,7 @@ export interface FileRoutesByFullPath {
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
   '/management/decision-support': typeof ManagementDecisionSupportRoute
+  '/management/deliveries': typeof ManagementDeliveriesRoute
   '/management/products': typeof ManagementProductsRoute
   '/management/profile': typeof ManagementProfileRoute
   '/management/receiving': typeof ManagementReceivingRoute
@@ -405,6 +412,7 @@ export interface FileRoutesByTo {
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
   '/management/decision-support': typeof ManagementDecisionSupportRoute
+  '/management/deliveries': typeof ManagementDeliveriesRoute
   '/management/products': typeof ManagementProductsRoute
   '/management/profile': typeof ManagementProfileRoute
   '/management/receiving': typeof ManagementReceivingRoute
@@ -460,6 +468,7 @@ export interface FileRoutesById {
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
   '/management/decision-support': typeof ManagementDecisionSupportRoute
+  '/management/deliveries': typeof ManagementDeliveriesRoute
   '/management/products': typeof ManagementProductsRoute
   '/management/profile': typeof ManagementProfileRoute
   '/management/receiving': typeof ManagementReceivingRoute
@@ -516,6 +525,7 @@ export interface FileRouteTypes {
     | '/farmer/receiving'
     | '/management/community'
     | '/management/decision-support'
+    | '/management/deliveries'
     | '/management/products'
     | '/management/profile'
     | '/management/receiving'
@@ -570,6 +580,7 @@ export interface FileRouteTypes {
     | '/farmer/receiving'
     | '/management/community'
     | '/management/decision-support'
+    | '/management/deliveries'
     | '/management/products'
     | '/management/profile'
     | '/management/receiving'
@@ -624,6 +635,7 @@ export interface FileRouteTypes {
     | '/farmer/receiving'
     | '/management/community'
     | '/management/decision-support'
+    | '/management/deliveries'
     | '/management/products'
     | '/management/profile'
     | '/management/receiving'
@@ -679,6 +691,7 @@ export interface RootRouteChildren {
   FarmerReceivingRoute: typeof FarmerReceivingRoute
   ManagementCommunityRoute: typeof ManagementCommunityRoute
   ManagementDecisionSupportRoute: typeof ManagementDecisionSupportRoute
+  ManagementDeliveriesRoute: typeof ManagementDeliveriesRoute
   ManagementProductsRoute: typeof ManagementProductsRoute
   ManagementProfileRoute: typeof ManagementProfileRoute
   ManagementReceivingRoute: typeof ManagementReceivingRoute
@@ -913,6 +926,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ManagementDecisionSupportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/management/deliveries': {
+      id: '/management/deliveries'
+      path: '/management/deliveries'
+      fullPath: '/management/deliveries'
+      preLoaderRoute: typeof ManagementDeliveriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/management/products': {
       id: '/management/products'
       path: '/management/products'
@@ -1103,6 +1123,7 @@ const rootRouteChildren: RootRouteChildren = {
   FarmerReceivingRoute: FarmerReceivingRoute,
   ManagementCommunityRoute: ManagementCommunityRoute,
   ManagementDecisionSupportRoute: ManagementDecisionSupportRoute,
+  ManagementDeliveriesRoute: ManagementDeliveriesRoute,
   ManagementProductsRoute: ManagementProductsRoute,
   ManagementProfileRoute: ManagementProfileRoute,
   ManagementReceivingRoute: ManagementReceivingRoute,

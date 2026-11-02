@@ -1119,7 +1119,7 @@ test("delivery availability is controlled by Management and Rider access stays r
     readFile("drizzle/0020_rider_role_and_delivery_availability.sql", "utf8"),
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/routes/buyer.cart.tsx", "utf8"),
-    readFile("src/routes/management.index.tsx", "utf8"),
+    readFile("src/routes/management.deliveries.tsx", "utf8"),
     readFile("src/components/workspaces/rider-layout.tsx", "utf8"),
     readFile("src/routes/rider.index.tsx", "utf8"),
   ]);
@@ -1176,16 +1176,27 @@ test("delivery checkout collects a complete recipient and delivery address", asy
 });
 
 test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilities separate", async () => {
-  const [schema, migration, marketplace, marketer, management, rider, accounting] =
-    await Promise.all([
-      readFile("src/db/schema.ts", "utf8"),
-      readFile("drizzle/0035_delivery_fulfillment_flow.sql", "utf8"),
-      readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
-      readFile("src/routes/marketer.orders.tsx", "utf8"),
-      readFile("src/routes/management.index.tsx", "utf8"),
-      readFile("src/routes/rider.index.tsx", "utf8"),
-      readFile("src/routes/accounting.payments.tsx", "utf8"),
-    ]);
+  const [
+    schema,
+    migration,
+    marketplace,
+    marketer,
+    management,
+    dashboard,
+    layout,
+    rider,
+    accounting,
+  ] = await Promise.all([
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0035_delivery_fulfillment_flow.sql", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+    readFile("src/routes/marketer.orders.tsx", "utf8"),
+    readFile("src/routes/management.deliveries.tsx", "utf8"),
+    readFile("src/routes/management.index.tsx", "utf8"),
+    readFile("src/components/workspaces/management-layout.tsx", "utf8"),
+    readFile("src/routes/rider.index.tsx", "utf8"),
+    readFile("src/routes/accounting.payments.tsx", "utf8"),
+  ]);
 
   assert.match(schema, /fulfillmentMethod: mysqlEnum/);
   assert.match(schema, /orderFulfillmentHistory/);
@@ -1197,6 +1208,11 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(marketer, /Start preparing/);
   assert.match(marketer, /Ready for dispatch/);
   assert.match(management, /Delivery dispatch/);
+  assert.match(management, /Active \{activeCount\}/);
+  assert.match(management, /Delivered \{completedCount\}/);
+  assert.doesNotMatch(dashboard, /Delivery dispatch/);
+  assert.match(layout, /Delivery Operations/);
+  assert.match(layout, /\/management\/deliveries/);
   assert.match(rider, /Start delivery/);
   assert.match(rider, /Mark delivered/);
   assert.match(accounting, /Accounting scope/);
