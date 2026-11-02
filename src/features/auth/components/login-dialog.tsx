@@ -110,12 +110,12 @@ export function LoginDialog({
             }`}
           >
             <span
-              className={`${formFocused ? "hidden" : "flex"} size-14 items-center justify-center rounded-2xl surface-sprout shadow-sm sm:flex`}
+              className={`${formFocused ? "hidden" : "flex"} size-14 items-center justify-center rounded-2xl surface-sprout shadow-sm lg:flex`}
             >
               <ProcyLogo className="size-12" />
             </span>
             <p
-              className={`${formFocused ? "hidden" : "block"} pt-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary sm:block`}
+              className={`${formFocused ? "hidden" : "block"} pt-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary lg:block`}
             >
               AgriLink
             </p>
@@ -123,14 +123,14 @@ export function LoginDialog({
               Welcome back
             </DialogTitle>
             <DialogDescription
-              className={`${formFocused ? "hidden" : "block"} max-w-xs pt-1 text-center sm:block`}
+              className={`${formFocused ? "hidden" : "block"} max-w-xs pt-1 text-center lg:block`}
             >
               Sign in to access the AgriLink workspace assigned to your account.
             </DialogDescription>
           </DialogHeader>
 
           <form
-            className={`${formFocused ? "mt-3 space-y-3" : "mt-7 space-y-5"} sm:mt-7 sm:space-y-5`}
+            className={`${formFocused ? "mt-3 space-y-3" : "mt-7 space-y-5"} lg:mt-7 lg:space-y-5`}
             onFocusCapture={(event) => {
               if (blurTimer.current !== null) {
                 window.clearTimeout(blurTimer.current);
@@ -251,7 +251,7 @@ export function LoginDialog({
           </form>
 
           <p
-            className={`${formFocused ? "hidden" : "block"} mt-6 text-center text-sm text-muted-foreground sm:block`}
+            className={`${formFocused ? "hidden" : "block"} mt-6 text-center text-sm text-muted-foreground lg:block`}
           >
             New buyer?{" "}
             {onRegister ? (
