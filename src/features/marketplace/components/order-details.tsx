@@ -7,6 +7,7 @@ import {
   Phone,
   WalletCards,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 import { peso } from "@/features/marketplace/products";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
@@ -192,9 +193,11 @@ export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
 export function OrderDetails({
   order,
   showBuyer = true,
+  canMessageRider = false,
 }: {
   order: DemoOrder;
   showBuyer?: boolean;
+  canMessageRider?: boolean;
 }) {
   const items = orderItems(order);
   const isPaid = order.paymentStatus === "Paid";
@@ -290,6 +293,28 @@ export function OrderDetails({
             </div>
           </div>
         </div>
+        {order.fulfillmentMethod === "delivery" && order.assignedRiderName ? (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Assigned Rider
+            </p>
+            {canMessageRider && order.assignedRiderId ? (
+              <Link
+                to="/buyer/community"
+                search={{ contact: order.assignedRiderId }}
+                className="mt-2 inline-flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-primary underline-offset-4 hover:underline"
+              >
+                <span>{order.assignedRiderName}</span>
+                <span className="text-xs font-medium">Message Rider</span>
+              </Link>
+            ) : (
+              <p className="mt-2 font-semibold">{order.assignedRiderName}</p>
+            )}
+            <p className="mt-1 text-sm text-muted-foreground">
+              This Rider is assigned to deliver your order.
+            </p>
+          </div>
+        ) : null}
         <div
           className={`rounded-2xl border p-4 ${
             isPaid ? "border-primary/25 bg-primary/5" : "border-amber-300 bg-amber-50"

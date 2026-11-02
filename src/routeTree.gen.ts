@@ -61,6 +61,7 @@ import { Route as MarketerSalesRouteImport } from './routes/marketer.sales'
 import { Route as MarketplaceIndexRouteImport } from './routes/marketplace.index'
 import { Route as MarketplaceProductIdRouteImport } from './routes/marketplace.$productId'
 import { Route as RiderIndexRouteImport } from './routes/rider.index'
+import { Route as RiderCommunityRouteImport } from './routes/rider.community'
 import { Route as RiderProfileRouteImport } from './routes/rider.profile'
 
 const IndexRoute = IndexRouteImport.update({
@@ -325,6 +326,11 @@ const RiderIndexRoute = RiderIndexRouteImport.update({
   path: '/rider/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RiderCommunityRoute = RiderCommunityRouteImport.update({
+  id: '/rider/community',
+  path: '/rider/community',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RiderProfileRoute = RiderProfileRouteImport.update({
   id: '/rider/profile',
   path: '/rider/profile',
@@ -377,6 +383,7 @@ export interface FileRoutesByFullPath {
   '/marketer/rejects': typeof MarketerRejectsRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
+  '/rider/community': typeof RiderCommunityRoute
   '/rider/profile': typeof RiderProfileRoute
   '/accounting/': typeof AccountingIndexRoute
   '/buyer/': typeof BuyerIndexRoute
@@ -432,6 +439,7 @@ export interface FileRoutesByTo {
   '/marketer/rejects': typeof MarketerRejectsRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
+  '/rider/community': typeof RiderCommunityRoute
   '/rider/profile': typeof RiderProfileRoute
   '/accounting': typeof AccountingIndexRoute
   '/buyer': typeof BuyerIndexRoute
@@ -488,6 +496,7 @@ export interface FileRoutesById {
   '/marketer/rejects': typeof MarketerRejectsRoute
   '/marketer/sales': typeof MarketerSalesRoute
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
+  '/rider/community': typeof RiderCommunityRoute
   '/rider/profile': typeof RiderProfileRoute
   '/accounting/': typeof AccountingIndexRoute
   '/buyer/': typeof BuyerIndexRoute
@@ -545,6 +554,7 @@ export interface FileRouteTypes {
     | '/marketer/rejects'
     | '/marketer/sales'
     | '/marketplace/$productId'
+    | '/rider/community'
     | '/rider/profile'
     | '/accounting/'
     | '/buyer/'
@@ -600,6 +610,7 @@ export interface FileRouteTypes {
     | '/marketer/rejects'
     | '/marketer/sales'
     | '/marketplace/$productId'
+    | '/rider/community'
     | '/rider/profile'
     | '/accounting'
     | '/buyer'
@@ -655,6 +666,7 @@ export interface FileRouteTypes {
     | '/marketer/rejects'
     | '/marketer/sales'
     | '/marketplace/$productId'
+    | '/rider/community'
     | '/rider/profile'
     | '/accounting/'
     | '/buyer/'
@@ -711,6 +723,7 @@ export interface RootRouteChildren {
   MarketerRejectsRoute: typeof MarketerRejectsRoute
   MarketerSalesRoute: typeof MarketerSalesRoute
   MarketplaceProductIdRoute: typeof MarketplaceProductIdRoute
+  RiderCommunityRoute: typeof RiderCommunityRoute
   RiderProfileRoute: typeof RiderProfileRoute
   AccountingIndexRoute: typeof AccountingIndexRoute
   BuyerIndexRoute: typeof BuyerIndexRoute
@@ -1087,6 +1100,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RiderIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rider/community': {
+      id: '/rider/community'
+      path: '/rider/community'
+      fullPath: '/rider/community'
+      preLoaderRoute: typeof RiderCommunityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/rider/profile': {
       id: '/rider/profile'
       path: '/rider/profile'
@@ -1143,6 +1163,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketerRejectsRoute: MarketerRejectsRoute,
   MarketerSalesRoute: MarketerSalesRoute,
   MarketplaceProductIdRoute: MarketplaceProductIdRoute,
+  RiderCommunityRoute: RiderCommunityRoute,
   RiderProfileRoute: RiderProfileRoute,
   AccountingIndexRoute: AccountingIndexRoute,
   BuyerIndexRoute: BuyerIndexRoute,

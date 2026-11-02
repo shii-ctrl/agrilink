@@ -8,15 +8,17 @@ type CommunityWorkspaceProps = {
   postTitle: string;
   placeholder: string;
   messagesOnly?: boolean;
+  initialContactId?: string | undefined;
 };
 
 export function CommunityWorkspace({
   postTitle,
   placeholder,
   messagesOnly = false,
+  initialContactId,
 }: CommunityWorkspaceProps) {
   if (messagesOnly) {
-    return <DirectMessagesPanel />;
+    return <DirectMessagesPanel initialContactId={initialContactId} />;
   }
 
   return (
@@ -33,7 +35,7 @@ export function CommunityWorkspace({
         <CommunityFeed title={postTitle} placeholder={placeholder} />
       </TabsContent>
       <TabsContent value="messages" className="mt-6">
-        <DirectMessagesPanel />
+        <DirectMessagesPanel initialContactId={initialContactId} />
       </TabsContent>
     </Tabs>
   );

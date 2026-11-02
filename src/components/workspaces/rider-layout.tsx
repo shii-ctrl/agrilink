@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bike, LogOut, UserRound } from "lucide-react";
+import { Bike, LogOut, MessageCircle, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { RoleGate } from "@/components/layout/role-gate";
@@ -24,7 +24,10 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-const navigation = [{ label: "Delivery status", to: "/rider", icon: Bike }] as const;
+const navigation = [
+  { label: "Delivery status", to: "/rider", icon: Bike },
+  { label: "Messages", to: "/rider/community", icon: MessageCircle },
+] as const;
 
 export function RiderLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();

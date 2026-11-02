@@ -2315,7 +2315,7 @@ export const assignDeliveryRider = createServerFn({ method: "POST" })
       notifyUser(assignment.buyerId, {
         title: "Rider assigned",
         message: `${assignment.rider.name} was assigned to ${assignment.orderNumber}.`,
-        target: "/buyer/orders",
+        target: `/buyer/community?contact=${assignment.rider.id}`,
       }),
     ]);
     return assignment;
@@ -2661,6 +2661,14 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       throw new Error("You do not have permission to view this order.");
     }
 
+    const [assignedRider] = order.assignedRiderId
+      ? await db
+          .select({ id: users.id, name: users.displayName })
+          .from(users)
+          .where(eq(users.id, order.assignedRiderId))
+          .limit(1)
+      : [];
+
     const [items, history] = await Promise.all([
       db
         .select({
@@ -2700,6 +2708,8 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       deliveryAddress: order.deliveryAddress,
       preferredSchedule: order.preferredSchedule,
       deliveryInstructions: order.deliveryInstructions,
+      assignedRiderId: assignedRider?.id ?? null,
+      assignedRiderName: assignedRider?.name ?? null,
       fulfilledAt: order.fulfilledAt?.toISOString(),
       totalAmount: Number(order.totalAmount),
       deliveryFee: Number(order.deliveryFee),

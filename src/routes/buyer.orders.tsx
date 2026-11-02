@@ -136,6 +136,8 @@ function BuyerOrdersPage() {
         deliveryAddress: detail.deliveryAddress,
         preferredSchedule: detail.preferredSchedule,
         deliveryInstructions: detail.deliveryInstructions,
+        assignedRiderId: detail.assignedRiderId,
+        assignedRiderName: detail.assignedRiderName,
         ...(detail.fulfilledAt ? { fulfilledAt: detail.fulfilledAt } : {}),
         items: detail.items,
         history: detail.history.map((entry) => ({
@@ -333,7 +335,7 @@ function BuyerOrdersPage() {
                         )}
                       </div>
                       <div className="mt-2">
-                        <OrderDetails order={order} />
+                        <OrderDetails order={order} canMessageRider />
                       </div>
                     </section>
                   ) : null;

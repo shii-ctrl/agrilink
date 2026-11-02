@@ -1,8 +1,15 @@
-import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const messagingRoles = ["Management", "Marketer", "Accounting", "Farmer", "Buyer"] as const;
+const messagingRoles = [
+  "Management",
+  "Marketer",
+  "Accounting",
+  "Farmer",
+  "Buyer",
+  "Rider",
+] as const;
 
 const conversationInput = z.object({ participantId: z.string().uuid() });
 const messageInput = conversationInput.extend({ message: z.string().trim().min(1).max(4_000) });
@@ -27,6 +34,7 @@ const workspaceByRole: Record<MessagingRole, string> = {
   Accounting: "/accounting/community",
   Farmer: "/farmer/community",
   Buyer: "/buyer/community",
+  Rider: "/rider/community",
 };
 
 function displayRole(roles: string[]) {
@@ -57,6 +65,24 @@ async function directRecipientIds(viewer: MessagingUser) {
   if (viewer.roles.includes("Farmer")) {
     // Farmers can find and start private conversations with other active Farmers.
     await addRoleRecipients(["Farmer"]);
+  }
+  if (viewer.roles.includes("Buyer")) {
+    const { orders } = await import("@/db/schema");
+    const assignedRiders = await db
+      .select({ id: orders.assignedRiderId })
+      .from(orders)
+      .where(and(eq(orders.buyerId, viewer.id), isNotNull(orders.assignedRiderId)));
+    assignedRiders.forEach((row) => {
+      if (row.id) ids.add(row.id);
+    });
+  }
+  if (viewer.roles.includes("Rider")) {
+    const { orders } = await import("@/db/schema");
+    const assignedBuyers = await db
+      .select({ id: orders.buyerId })
+      .from(orders)
+      .where(eq(orders.assignedRiderId, viewer.id));
+    assignedBuyers.forEach((row) => ids.add(row.id));
   }
   ids.delete(viewer.id);
   return ids;
@@ -103,9 +129,8 @@ async function contactsForViewer(viewer: MessagingUser): Promise<Contact[]> {
       role: "AgriLink member",
       avatarUrl: row.avatarVisibility === "hidden" ? null : row.avatarUrl,
       roles: [],
-      // Buyers cannot begin a new thread, but they may reply after a permitted
-      // marketplace user has contacted them. This keeps Buyer messaging private
-      // without allowing them to message unrelated accounts.
+      // Buyers may start a thread only with a Rider assigned to one of their orders.
+      // Existing permitted conversations remain replyable without exposing unrelated accounts.
       canSend:
         allowedIds.has(row.id) || (viewer.roles.includes("Buyer") && existingIds.has(row.id)),
     };
@@ -207,7 +232,7 @@ export const sendDirectMessage = createServerFn({ method: "POST" })
     await notifyUser(contact.id, {
       title: "New private message",
       message: `${viewer.displayName} sent you a private message.`,
-      target: workspaceByRole[recipientRole as MessagingRole] ?? "/",
+      target: `${workspaceByRole[recipientRole as MessagingRole] ?? "/"}?contact=${viewer.id}`,
     });
     const { writeAuditLog } = await import("@/services/auth/auth-server");
     await writeAuditLog(viewer.id, "direct_message.send", "direct_message", id, {

@@ -35,7 +35,11 @@ function ContactAvatar({
   );
 }
 
-export function DirectMessagesPanel() {
+export function DirectMessagesPanel({
+  initialContactId = "",
+}: {
+  initialContactId?: string | undefined;
+}) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [selectedContactId, setSelectedContactId] = useState("");
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
@@ -53,7 +57,9 @@ export function DirectMessagesPanel() {
       setSelectedContactId((current) =>
         result.contacts.some((contact) => contact.id === current)
           ? current
-          : (result.contacts[0]?.id ?? ""),
+          : result.contacts.some((contact) => contact.id === initialContactId)
+            ? initialContactId
+            : (result.contacts[0]?.id ?? ""),
       );
       setError(null);
     } catch (reason) {
@@ -61,7 +67,7 @@ export function DirectMessagesPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [initialContactId]);
 
   const loadConversation = useCallback(async (participantId: string, silent = false) => {
     if (!participantId) {

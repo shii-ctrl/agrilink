@@ -688,6 +688,12 @@ test("private messages enforce the Community role recipient rules", async () => 
     /viewer\.roles\.includes\("Farmer"\)[\s\S]*?addRoleRecipients\(\["Farmer"\]\)/,
   );
   assert.match(directMessages, /viewer\.roles\.includes\("Buyer"\) && existingIds\.has\(row\.id\)/);
+  assert.match(directMessages, /viewer\.roles\.includes\("Buyer"\)/);
+  assert.match(directMessages, /isNotNull\(orders\.assignedRiderId\)/);
+  assert.match(directMessages, /viewer\.roles\.includes\("Rider"\)/);
+  assert.match(directMessages, /eq\(orders\.assignedRiderId, viewer\.id\)/);
+  assert.match(directMessages, /Rider: "\/rider\/community"/);
+  assert.match(directMessages, /\?contact=\$\{viewer\.id\}/);
   assert.doesNotMatch(directMessages, /Farm Consultant|farmerConsultantAssignments/);
   assert.match(directMessages, /export const getDirectConversation/);
   assert.match(directMessages, /export const sendDirectMessage/);
@@ -1190,6 +1196,9 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
     layout,
     rider,
     accounting,
+    orderDetails,
+    buyerOrders,
+    riderMessages,
   ] = await Promise.all([
     readFile("src/db/schema.ts", "utf8"),
     readFile("drizzle/0035_delivery_fulfillment_flow.sql", "utf8"),
@@ -1200,6 +1209,9 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
     readFile("src/components/workspaces/management-layout.tsx", "utf8"),
     readFile("src/routes/rider.index.tsx", "utf8"),
     readFile("src/routes/accounting.payments.tsx", "utf8"),
+    readFile("src/features/marketplace/components/order-details.tsx", "utf8"),
+    readFile("src/routes/buyer.orders.tsx", "utf8"),
+    readFile("src/routes/rider.community.tsx", "utf8"),
   ]);
 
   assert.match(schema, /fulfillmentMethod: mysqlEnum/);
@@ -1208,6 +1220,8 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(migration, /assigned_rider_id/);
   assert.match(marketplace, /export const assignDeliveryRider/);
   assert.match(marketplace, /export const updateOrderFulfillment/);
+  assert.match(marketplace, /title: "Rider assigned"/);
+  assert.match(marketplace, /\/buyer\/community\?contact=\$\{assignment\.rider\.id\}/);
   assert.match(marketplace, /Cash on Delivery can only be recorded for a Delivery order/);
   assert.match(marketer, /Start preparing/);
   assert.match(marketer, /Ready for dispatch/);
@@ -1221,6 +1235,11 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(rider, /Mark delivered/);
   assert.match(accounting, /Accounting scope/);
   assert.match(accounting, /verify the order total/);
+  assert.match(orderDetails, /Assigned Rider/);
+  assert.match(orderDetails, /Message Rider/);
+  assert.match(buyerOrders, /assignedRiderId: detail\.assignedRiderId/);
+  assert.match(buyerOrders, /canMessageRider/);
+  assert.match(riderMessages, /Coordinate securely with Buyers assigned to your deliveries/);
 });
 
 test("Egg products use tray units throughout catalog, receiving, marketplace, and orders", async () => {

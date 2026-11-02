@@ -60,6 +60,7 @@ export type DemoOrder = {
   deliveryAddress?: string | null;
   preferredSchedule?: string | null;
   deliveryInstructions?: string | null;
+  assignedRiderId?: string | null;
   assignedRiderName?: string | null;
   fulfilledAt?: string;
   confirmedAt?: string;
