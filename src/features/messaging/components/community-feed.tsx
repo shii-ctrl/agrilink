@@ -288,6 +288,9 @@ export function CommunityFeed({
   const [messages, setMessages] = useState<CommunityPost[]>([]);
   const [postMessage, setPostMessage] = useState("");
   const [postCategory, setPostCategory] = useState<CommunityPostCategory>("general_discussion");
+  const [allowedCategories, setAllowedCategories] = useState<CommunityPostCategory[]>([
+    "general_discussion",
+  ]);
   const [postImages, setPostImages] = useState<string[]>([]);
   const [processingImages, setProcessingImages] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -364,6 +367,12 @@ export function CommunityFeed({
                 ),
               ]
             : result.messages;
+        setAllowedCategories(result.allowedCategories);
+        setPostCategory((current) =>
+          result.allowedCategories.includes(current)
+            ? current
+            : (result.allowedCategories[0] ?? "general_discussion"),
+        );
         messagesRef.current = nextMessages;
         const nextHasMore = preservePages ? hasMoreRef.current : result.hasMore;
         nextOffsetRef.current = preservePages
@@ -519,12 +528,17 @@ export function CommunityFeed({
                     name="category"
                     value={postCategory}
                     onValueChange={(value) => setPostCategory(value as CommunityPostCategory)}
-                    options={communityPostCategoryOptions}
+                    options={communityPostCategoryOptions.filter((option) =>
+                      allowedCategories.includes(option.value),
+                    )}
                     ariaLabel="Choose a Community post category"
                     searchable={false}
                     disabled={busyPost}
                     className="min-h-12"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Available categories are based on your AgriLink account role.
+                  </p>
                 </div>
                 <label htmlFor="community-post-message" className="text-sm font-semibold">
                   Community update

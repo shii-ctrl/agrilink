@@ -1,7 +1,11 @@
 import { and, asc, desc, eq, gte, inArray, like, ne, or, sql } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { communityPostCategories } from "@/features/messaging/community-categories";
+import {
+  communityCategoriesForRoles,
+  communityPostCategories,
+  communityPostCategoryLabels,
+} from "@/features/messaging/community-categories";
 
 const messageInput = z.object({
   category: z.enum(communityPostCategories),
@@ -140,6 +144,7 @@ async function communityMessagesForViewer(
     sort?: "latest" | "discussed" | "liked" | "unanswered";
   } = {},
 ) {
+  const allowedCategories = communityCategoriesForRoles(viewer.roles);
   const { db } = await import("@/db/client.server");
   const {
     communityAttachments,
@@ -223,7 +228,7 @@ async function communityMessagesForViewer(
   const hasMore = messageRows.length > pageSize;
   const pageRows = hasMore ? messageRows.slice(0, pageSize) : messageRows;
   if (pageRows.length === 0) {
-    return { messages: [], hasMore: false, nextOffset: null };
+    return { messages: [], hasMore: false, nextOffset: null, allowedCategories };
   }
 
   const messageIds = pageRows.map((message) => message.id);
@@ -440,6 +445,7 @@ async function communityMessagesForViewer(
     })),
     hasMore,
     nextOffset: hasMore ? (options.offset ?? 0) + pageRows.length : null,
+    allowedCategories,
   };
 }
 
@@ -472,6 +478,12 @@ export const postCommunityMessage = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const author = await requireAnyRole(communityRoles);
+    const allowedCategories = communityCategoriesForRoles(author.roles);
+    if (!allowedCategories.includes(data.category)) {
+      throw new Error(
+        `Your account role cannot publish ${communityPostCategoryLabels[data.category]} posts.`,
+      );
+    }
     const { db } = await import("@/db/client.server");
     const { communityAttachments, communityMessages } = await import("@/db/schema");
     const recent = await db

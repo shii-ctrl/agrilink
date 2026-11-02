@@ -118,7 +118,15 @@ export function AppSelect({
               </div>
             </div>
           ) : null}
-          <div role="listbox" className="max-h-72 overflow-y-auto p-2">
+          <div
+            role="listbox"
+            tabIndex={0}
+            className="max-h-[min(18rem,50dvh)] touch-pan-y overflow-y-auto overscroll-contain p-2 [scrollbar-gutter:stable]"
+            onWheel={(event) => {
+              event.currentTarget.scrollTop += event.deltaY;
+              event.stopPropagation();
+            }}
+          >
             {visibleOptions.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground">
                 No matching choices.

@@ -8,6 +8,20 @@ export const communityPostCategories = [
 
 export type CommunityPostCategory = (typeof communityPostCategories)[number];
 
+export const communityCategoryRoles: Record<CommunityPostCategory, readonly string[]> = {
+  announcement: ["Management", "Marketer"],
+  question: ["Management", "Marketer", "Accounting", "Farmer"],
+  farming_tip: ["Management", "Marketer", "Farmer"],
+  marketplace_update: ["Management", "Marketer", "Accounting"],
+  general_discussion: ["Management", "Marketer", "Accounting", "Farmer"],
+};
+
+export function communityCategoriesForRoles(roles: string[]) {
+  return communityPostCategories.filter((category) =>
+    communityCategoryRoles[category].some((role) => roles.includes(role)),
+  );
+}
+
 export const communityPostCategoryOptions: Array<{
   value: CommunityPostCategory;
   label: string;

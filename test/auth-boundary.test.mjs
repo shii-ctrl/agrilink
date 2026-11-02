@@ -827,11 +827,13 @@ test("Community users can view only their own saved posts from their profile", a
 });
 
 test("Community advanced engagement features enforce server-side permissions and safety", async () => {
-  const [feed, community, profile, notifications] = await Promise.all([
+  const [feed, community, profile, notifications, categories, appSelect] = await Promise.all([
     readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
     readFile("src/services/messaging/community-server-functions.ts", "utf8"),
     readFile("src/features/auth/components/live-profile.tsx", "utf8"),
     readFile("src/services/messaging/notification-server.ts", "utf8"),
+    readFile("src/features/messaging/community-categories.ts", "utf8"),
+    readFile("src/components/ui/app-select.tsx", "utf8"),
   ]);
 
   assert.match(feed, /compressCommunityImage/);
@@ -850,6 +852,12 @@ test("Community advanced engagement features enforce server-side permissions and
   assert.match(community, /requireRole\("Management"\)/);
   assert.match(community, /notifyMentionedUsers/);
   assert.match(notifications, /targetSuffix/);
+  assert.match(categories, /announcement: \["Management", "Marketer"\]/);
+  assert.match(categories, /communityCategoriesForRoles/);
+  assert.match(community, /Your account role cannot publish/);
+  assert.match(feed, /allowedCategories/);
+  assert.match(appSelect, /touch-pan-y/);
+  assert.match(appSelect, /event\.currentTarget\.scrollTop \+= event\.deltaY/);
 });
 
 test("new messages and Community activity create timely recipient notifications", async () => {
