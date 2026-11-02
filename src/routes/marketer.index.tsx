@@ -17,6 +17,7 @@ import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMarketerDashboard } from "@/services/marketplace/marketplace-server-functions";
+import { formatSellingQuantity } from "@/features/marketplace/selling-units";
 
 export const Route = createFileRoute("/marketer/")({
   component: MarketerDashboard,
@@ -45,10 +46,14 @@ function MarketerDashboard() {
   }, [load]);
   useEffect(() => void loadDashboard(), [loadDashboard]);
   useAutoRefresh(() => load().catch(() => undefined));
+  const combinedUnits = (kg: number, trays: number) =>
+    [kg > 0 ? `${kg} kg` : "", trays > 0 ? formatSellingQuantity(trays, "tray") : ""]
+      .filter(Boolean)
+      .join(" + ") || "0";
   const cards = [
     {
       label: "Products received",
-      value: `${summary?.receivedKg ?? 0} kg`,
+      value: combinedUnits(summary?.receivedKg ?? 0, summary?.receivedTrays ?? 0),
       detail: "Recorded from farmer deliveries",
       icon: ReceiptText,
     },
@@ -60,7 +65,7 @@ function MarketerDashboard() {
     },
     {
       label: "Available products",
-      value: `${summary?.availableKg ?? 0} kg`,
+      value: combinedUnits(summary?.availableKg ?? 0, summary?.availableTrays ?? 0),
       detail: "Across Good, Semi and Reject",
       icon: ShoppingBag,
     },
@@ -153,8 +158,8 @@ function MarketerDashboard() {
                     <AlertTriangle className="size-5 text-semi" /> Low-stock attention
                   </h2>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Published listings with 5 kg or less available. Refreshes automatically while
-                    this page is open.
+                    Published listings with 5 selling units or less available. Refreshes
+                    automatically while this page is open.
                   </p>
                 </div>
                 <Button
@@ -176,14 +181,14 @@ function MarketerDashboard() {
                         {item.classification} classification
                       </p>
                       <p className="mt-3 font-semibold text-semi">
-                        {item.availableKg.toFixed(2)} kg available
+                        {formatSellingQuantity(item.availableKg, item.sellingUnit)} available
                       </p>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className="mt-5 rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground">
-                  No published listings are at or below 5 kg right now.
+                  No published listings are at or below 5 selling units right now.
                 </p>
               )}
             </section>

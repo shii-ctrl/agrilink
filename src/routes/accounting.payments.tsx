@@ -9,6 +9,7 @@ import { AppSelect } from "@/components/ui/app-select";
 import { Label } from "@/components/ui/label";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { type DemoOrder } from "@/lib/demo/demo-orders";
+import { formatSellingQuantity, sellingUnitLabel } from "@/features/marketplace/selling-units";
 import {
   getDatabaseOrders,
   recordDatabasePayment,
@@ -34,9 +35,15 @@ function AccountingPaymentReceipt({ order }: { order: DemoOrder }) {
           classification: order.classification,
           quantityKg: Number.parseFloat(order.quantity) || 0,
           pricePerKg: 0,
+          sellingUnit: "kg" as const,
         },
       ];
+  const units = new Set(items.map((item) => item.sellingUnit ?? "kg"));
   const totalQuantity = items.reduce((total, item) => total + item.quantityKg, 0);
+  const quantitySummary =
+    units.size === 1
+      ? formatSellingQuantity(totalQuantity, items[0]?.sellingUnit ?? "kg")
+      : `${items.length} classified items`;
   const fulfillment = order.pickupNote?.startsWith("Delivery:") ? "Delivery" : "Pickup";
   const itemTotal = items.reduce((total, item) => total + item.quantityKg * item.pricePerKg, 0);
 
@@ -94,9 +101,11 @@ function AccountingPaymentReceipt({ order }: { order: DemoOrder }) {
                 <span className="block font-semibold">{item.name}</span>
                 <span className="text-slate-600">{item.classification}</span>
               </span>
-              <span>{item.quantityKg} kg</span>
+              <span>{formatSellingQuantity(item.quantityKg, item.sellingUnit ?? "kg")}</span>
               <span>
-                {item.pricePerKg > 0 ? `₱${item.pricePerKg.toFixed(2)} / kg` : "Included"}
+                {item.pricePerKg > 0
+                  ? `₱${item.pricePerKg.toFixed(2)} / ${sellingUnitLabel(item.sellingUnit ?? "kg")}`
+                  : "Included"}
               </span>
             </div>
           ))}
@@ -113,7 +122,7 @@ function AccountingPaymentReceipt({ order }: { order: DemoOrder }) {
             </>
           ) : null}
           <div className="flex items-center justify-between border-t-2 border-slate-400 px-4 py-4">
-            <span className="font-semibold">Total paid · {totalQuantity} kg</span>
+            <span className="font-semibold">Total paid · {quantitySummary}</span>
             <span className="text-xl font-bold">{order.total}</span>
           </div>
         </div>
@@ -271,7 +280,9 @@ function AccountingPaymentsPage() {
                     className="grid grid-cols-1 gap-3 px-6 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{order.paymentId ?? "Payment recorded"}</p>
+                      <p className="truncate font-medium">
+                        {order.paymentId ?? "Payment recorded"}
+                      </p>
                       <p className="truncate text-sm text-muted-foreground">
                         {order.id} · {order.buyer} · {paymentMethodLabel(order.paymentMethod)}
                       </p>

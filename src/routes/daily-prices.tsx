@@ -20,6 +20,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import type { Classification } from "@/features/marketplace/products";
+import { sellingUnitLabel, type SellingUnit } from "@/features/marketplace/selling-units";
 import {
   procyCategoryOrder,
   procyMarketCategories,
@@ -75,6 +76,7 @@ function DailyPricesPage() {
           return {
             product: name,
             crop: product.cropType,
+            sellingUnit: product.sellingUnit,
             marketCategory: procyMarketCategoryForProduct(name),
             good: values["good"],
             semi: values["semi"],
@@ -163,7 +165,7 @@ function DailyPricesPage() {
         <section className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
           <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border px-6 py-5">
             <div>
-              <h2 className="text-lg font-semibold">Price per kilogram</h2>
+              <h2 className="text-lg font-semibold">Price by selling unit</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 A dash means that classification has no published price for this date.
               </p>
@@ -211,13 +213,15 @@ function DailyPricesPage() {
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">{item.crop}</td>
                     <td className="px-6 py-4 font-medium text-good">
-                      {item.good ? `₱${item.good}` : "—"}
+                      {item.good ? `₱${item.good} / ${sellingUnitLabel(item.sellingUnit)}` : "—"}
                     </td>
                     <td className="px-6 py-4 font-medium text-semi">
-                      {item.semi ? `₱${item.semi}` : "—"}
+                      {item.semi ? `₱${item.semi} / ${sellingUnitLabel(item.sellingUnit)}` : "—"}
                     </td>
                     <td className="px-6 py-4 font-medium text-reject">
-                      {item.reject ? `₱${item.reject}` : "—"}
+                      {item.reject
+                        ? `₱${item.reject} / ${sellingUnitLabel(item.sellingUnit)}`
+                        : "—"}
                     </td>
                   </tr>
                 ))}
@@ -253,7 +257,14 @@ function DailyPricesPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.12} />
                 <XAxis dataKey="date" tickLine={false} axisLine={false} />
                 <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `₱${value}`} />
-                <Tooltip formatter={(value) => [`₱${Number(value).toFixed(2)}`, "Price per kg"]} />
+                <Tooltip
+                  formatter={(value) => [
+                    `₱${Number(value).toFixed(2)}`,
+                    `Price per ${sellingUnitLabel(
+                      entries.find((entry) => entry.product === chartProduct)?.sellingUnit ?? "kg",
+                    )}`,
+                  ]}
+                />
                 <Legend />
                 <Line
                   type="monotone"
@@ -302,6 +313,7 @@ type DailyPriceEntry = {
   date: string;
   product: string;
   cropType: string;
+  sellingUnit: SellingUnit;
   classification: Classification;
   price: number;
   status: "Published" | "Hidden";

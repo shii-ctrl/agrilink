@@ -1,3 +1,5 @@
+import type { SellingUnit } from "@/features/marketplace/selling-units";
+
 export type Classification = "Good" | "Semi" | "Reject";
 
 export type ProductOffer = {
@@ -23,6 +25,7 @@ export type Product = {
   quantityKg: number;
   description: string;
   image: string;
+  sellingUnit: SellingUnit;
   offers?: ProductOffer[];
 };
 

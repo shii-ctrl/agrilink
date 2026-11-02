@@ -4,6 +4,7 @@ import { AppSelect } from "@/components/ui/app-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { formatSellingQuantity, type SellingUnit } from "@/features/marketplace/selling-units";
 
 export type ReceivingClassificationRecord = {
   id: string;
@@ -13,6 +14,7 @@ export type ReceivingClassificationRecord = {
   classification: string;
   quantityKg: string | number;
   recordedAt: Date | string;
+  sellingUnit: SellingUnit;
 };
 
 type Delivery = {
@@ -25,6 +27,7 @@ type Delivery = {
   semiKg: number;
   rejectKg: number;
   recordedAt: Date | string;
+  sellingUnit: SellingUnit;
 };
 
 function dateKey(value: Date | string) {
@@ -55,6 +58,7 @@ function groupDeliveries(records: ReceivingClassificationRecord[]): Delivery[] {
       semiKg: 0,
       rejectKg: 0,
       recordedAt: record.recordedAt,
+      sellingUnit: record.sellingUnit,
     };
     const quantity = Number(record.quantityKg);
     if (record.classification === "Good") delivery.goodKg = quantity;
@@ -209,16 +213,16 @@ export function ReceivingRecordsTable({
                   {showFarmer && <td className="px-5 py-3">{delivery.farmer}</td>}
                   <td className="px-5 py-3">{delivery.product}</td>
                   <td className="px-5 py-3 text-right text-emerald-700 dark:text-emerald-400">
-                    {delivery.goodKg.toFixed(2)} kg
+                    {formatSellingQuantity(delivery.goodKg, delivery.sellingUnit)}
                   </td>
                   <td className="px-5 py-3 text-right text-amber-700 dark:text-amber-300">
-                    {delivery.semiKg.toFixed(2)} kg
+                    {formatSellingQuantity(delivery.semiKg, delivery.sellingUnit)}
                   </td>
                   <td className="px-5 py-3 text-right text-red-700 dark:text-red-300">
-                    {delivery.rejectKg.toFixed(2)} kg
+                    {formatSellingQuantity(delivery.rejectKg, delivery.sellingUnit)}
                   </td>
                   <td className="px-5 py-3 text-right font-semibold">
-                    {delivery.totalKg.toFixed(2)} kg
+                    {formatSellingQuantity(delivery.totalKg, delivery.sellingUnit)}
                   </td>
                   <td className="px-5 py-3 text-muted-foreground">
                     {deliveryDate(delivery.recordedAt)}
@@ -230,9 +234,11 @@ export function ReceivingRecordsTable({
                       <span className="font-medium text-foreground">Delivery details:</span>{" "}
                       {delivery.reference}
                       {showFarmer ? ` · ${delivery.farmer}` : ""} delivered{" "}
-                      {delivery.totalKg.toFixed(2)} kg of {delivery.product}. Good:{" "}
-                      {delivery.goodKg.toFixed(2)} kg, Semi: {delivery.semiKg.toFixed(2)} kg,
-                      Reject: {delivery.rejectKg.toFixed(2)} kg.
+                      {formatSellingQuantity(delivery.totalKg, delivery.sellingUnit)} of{" "}
+                      {delivery.product}. Good:{" "}
+                      {formatSellingQuantity(delivery.goodKg, delivery.sellingUnit)}, Semi:{" "}
+                      {formatSellingQuantity(delivery.semiKg, delivery.sellingUnit)}, Reject:{" "}
+                      {formatSellingQuantity(delivery.rejectKg, delivery.sellingUnit)}.
                     </td>
                   </tr>
                 )}

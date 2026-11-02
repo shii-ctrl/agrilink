@@ -11,6 +11,7 @@ import {
 import { peso } from "@/features/marketplace/products";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import type { DemoOrder, DemoOrderItem } from "@/lib/demo/demo-orders";
+import { formatSellingQuantity, sellingUnitLabel } from "@/features/marketplace/selling-units";
 
 function formatOrderDate(value: string | undefined, includeTime = false) {
   if (!value) return "Waiting";
@@ -34,6 +35,7 @@ function orderItems(order: DemoOrder): DemoOrderItem[] {
       classification: order.classification,
       quantityKg: Number.parseFloat(order.quantity) || 0,
       pricePerKg: 0,
+      sellingUnit: "kg",
     },
   ];
 }
@@ -301,11 +303,16 @@ export function OrderDetails({
                   <>
                     <p className="font-semibold">{peso(item.quantityKg * item.pricePerKg)}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {item.quantityKg} kg × {peso(item.pricePerKg)} / kg
+                      {formatSellingQuantity(item.quantityKg, item.sellingUnit ?? "kg")} ×{" "}
+                      {peso(item.pricePerKg)} / {sellingUnitLabel(item.sellingUnit ?? "kg")}
                     </p>
                   </>
                 )}
-                {item.pricePerKg <= 0 ? <p className="font-medium">{item.quantityKg} kg</p> : null}
+                {item.pricePerKg <= 0 ? (
+                  <p className="font-medium">
+                    {formatSellingQuantity(item.quantityKg, item.sellingUnit ?? "kg")}
+                  </p>
+                ) : null}
               </div>
             </div>
           ))}

@@ -3,6 +3,7 @@ import { ArrowUpRight, PackageX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { peso, type Product } from "@/features/marketplace/products";
 import { ClassificationBadge } from "@/features/marketplace/components/classification-badge";
+import { formatSellingQuantity } from "@/features/marketplace/selling-units";
 
 export function ProductCard({ product }: { product: Product }) {
   const offers = product.offers?.length
@@ -110,7 +111,7 @@ export function ProductCard({ product }: { product: Product }) {
             <p className="text-xs text-muted-foreground">
               {outOfStock
                 ? "Sold out — restocking soon"
-                : `${offers.length} quality option${offers.length === 1 ? "" : "s"} · ${availableQuantity} kg available`}
+                : `${offers.length} quality option${offers.length === 1 ? "" : "s"} · ${formatSellingQuantity(availableQuantity, product.sellingUnit)} available`}
             </p>
           </div>
           <span

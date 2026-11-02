@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import type { Classification } from "@/features/marketplace/products";
+import { sellingUnitLabel, type SellingUnit } from "@/features/marketplace/selling-units";
 import { procyMarketCategoryForProduct } from "@/features/marketplace/procy-market-categories";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import {
@@ -78,6 +79,7 @@ function MarketerDailyPricesPage() {
   );
   const pricesPage = usePagination(dateEntries);
   const editingEntry = entries.find((entry) => entry.id === editingId) ?? null;
+  const selectedListing = listings.find((listing) => listing.id === listingId) ?? null;
 
   const resetForm = () => {
     setEditingId(null);
@@ -175,7 +177,9 @@ function MarketerDailyPricesPage() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price per kg (₱)</Label>
+                    <Label htmlFor="price">
+                      Price per {sellingUnitLabel(selectedListing?.sellingUnit ?? "kg")} (₱)
+                    </Label>
                     <Input
                       id="price"
                       type="number"
@@ -241,7 +245,7 @@ function MarketerDailyPricesPage() {
                         <th className="px-6 py-4">Product</th>
                         <th className="px-6 py-4">PROCY market category</th>
                         <th className="px-6 py-4">Classification</th>
-                        <th className="px-6 py-4">Price / kg</th>
+                        <th className="px-6 py-4">Unit price</th>
                         <th className="px-6 py-4">Status</th>
                         <th className="px-6 py-4">Action</th>
                       </tr>
@@ -254,7 +258,9 @@ function MarketerDailyPricesPage() {
                             {procyMarketCategoryForProduct(entry.product) ?? "Not in PROCY guide"}
                           </td>
                           <td className="px-6 py-4">{entry.classification}</td>
-                          <td className="px-6 py-4">₱{entry.price.toFixed(2)}</td>
+                          <td className="px-6 py-4">
+                            ₱{entry.price.toFixed(2)} / {sellingUnitLabel(entry.sellingUnit)}
+                          </td>
                           <td className="px-6 py-4">{entry.status}</td>
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-2">
@@ -339,6 +345,7 @@ type DailyPriceEntry = {
   date: string;
   product: string;
   cropType: string;
+  sellingUnit: SellingUnit;
   classification: Classification;
   price: number;
   status: "Published" | "Hidden";
@@ -353,4 +360,5 @@ type MarketplaceListing = {
   quantityKg: number;
   description: string;
   image: string;
+  sellingUnit: SellingUnit;
 };

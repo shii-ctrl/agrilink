@@ -1,3 +1,5 @@
+import type { SellingUnit } from "@/features/marketplace/selling-units";
+
 export type DemoOrderStatus = "Pending" | "Confirmed" | "Sold" | "Cancelled" | "Rejected";
 export type DemoPaymentStatus = "Unpaid" | "Paid";
 
@@ -8,6 +10,7 @@ export type DemoOrderItem = {
   quantityKg: number;
   pricePerKg: number;
   image?: string | null;
+  sellingUnit?: SellingUnit;
 };
 
 export type DemoOrderAllocation = {
@@ -87,6 +90,7 @@ export const initialDemoOrders: DemoOrder[] = [
         classification: "Good",
         quantityKg: 25,
         pricePerKg: 78,
+        sellingUnit: "kg",
       },
     ],
     date: "Sep 01, 2026",

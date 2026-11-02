@@ -91,10 +91,18 @@ export const recordReceivingDelivery = createServerFn({ method: "POST" })
         .where(and(eq(users.id, data.farmerId), eq(users.active, true), eq(roles.name, "Farmer")));
       if (!farmer) throw new Error("Choose an active Farmer account.");
       const [product] = await tx
-        .select({ id: products.id, name: products.name })
+        .select({ id: products.id, name: products.name, sellingUnit: products.sellingUnit })
         .from(products)
         .where(and(eq(products.id, data.productId), eq(products.active, true)));
       if (!product) throw new Error("Choose an active product.");
+      if (
+        product.sellingUnit === "tray" &&
+        [data.totalKg, data.goodKg, data.semiKg, data.rejectKg].some(
+          (amount) => !Number.isInteger(amount),
+        )
+      ) {
+        throw new Error("Egg deliveries must be recorded as whole trays.");
+      }
 
       const configured = await tx
         .select({ id: classifications.id, name: classifications.name })
@@ -199,7 +207,7 @@ export const getReceivingWorkspace = createServerFn({ method: "GET" }).handler(a
     .innerJoin(roles, eq(userRoles.roleId, roles.id))
     .where(and(eq(users.active, true), eq(roles.name, "Farmer")));
   const productRows = await db
-    .select({ id: products.id, name: products.name })
+    .select({ id: products.id, name: products.name, sellingUnit: products.sellingUnit })
     .from(products)
     .where(eq(products.active, true));
   const rows = await db
@@ -207,6 +215,7 @@ export const getReceivingWorkspace = createServerFn({ method: "GET" }).handler(a
       id: receivingRecords.id,
       farmer: users.displayName,
       product: products.name,
+      sellingUnit: products.sellingUnit,
       totalKg: receivingRecords.totalKg,
       recordedAt: receivingRecords.receivedAt,
       classification: classifications.name,
@@ -232,6 +241,7 @@ async function receiveRows(farmerId?: string) {
       id: receivingRecords.id,
       farmer: users.displayName,
       product: products.name,
+      sellingUnit: products.sellingUnit,
       totalKg: receivingRecords.totalKg,
       classification: classifications.name,
       quantityKg: receivingClassifications.quantityKg,

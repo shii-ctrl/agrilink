@@ -13,6 +13,7 @@ import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import type { DemoOrder } from "@/lib/demo/demo-orders";
+import { formatSellingQuantity } from "@/features/marketplace/selling-units";
 import {
   getBuyerOrders,
   getOrderDetails,
@@ -100,7 +101,13 @@ function BuyerOrdersPage() {
         farmer: "PROCY farmer members",
         product: detail.items[0]?.name ?? "Order details",
         classification: detail.items[0]?.classification ?? "Mixed",
-        quantity: `${detail.items.reduce((total, item) => total + item.quantityKg, 0)} kg`,
+        quantity:
+          detail.items.length === 1
+            ? formatSellingQuantity(
+                detail.items[0]!.quantityKg,
+                detail.items[0]!.sellingUnit ?? "kg",
+              )
+            : `${detail.items.length} classified items`,
         total: new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(
           detail.totalAmount,
         ),
@@ -133,9 +140,9 @@ function BuyerOrdersPage() {
   };
   const buyAgain = async (order: DemoOrder) => {
     try {
-      const rebuilt = await rebuildBuyerCartFromOrder({ data: { orderNumber: order.id } });
+      await rebuildBuyerCartFromOrder({ data: { orderNumber: order.id } });
       toast.success("Order added to cart", {
-        description: `${rebuilt.quantityKg} kg is ready for your next checkout.`,
+        description: "The available quantities are reserved for your next checkout.",
       });
       navigate({ to: "/buyer/cart" });
     } catch (error) {

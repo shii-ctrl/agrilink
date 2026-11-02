@@ -72,6 +72,7 @@ export const products = mysqlTable(
     // Product photos selected by a Marketer are stored as validated, size-limited data URLs.
     // MEDIUMTEXT leaves enough room for a compressed marketplace image.
     imageUrl: mediumtext("image_url"),
+    sellingUnit: mysqlEnum("selling_unit", ["kg", "tray"]).default("kg").notNull(),
     active: boolean("active").default(true).notNull(),
     createdAt,
     updatedAt,
@@ -252,6 +253,7 @@ export const orderItems = mysqlTable(
     pricePerKg: decimal("price_per_kg", { precision: 12, scale: 2 }).notNull(),
     productName: varchar("product_name", { length: 160 }),
     classificationName: varchar("classification_name", { length: 20 }),
+    sellingUnit: mysqlEnum("selling_unit", ["kg", "tray"]).default("kg").notNull(),
     imageUrl: mediumtext("image_url"),
     createdAt,
   },

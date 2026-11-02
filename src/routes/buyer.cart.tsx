@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { peso } from "@/features/marketplace/products";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
+import { formatSellingQuantity, sellingUnitLabel } from "@/features/marketplace/selling-units";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import {
   getBuyerCart,
@@ -109,7 +110,6 @@ function BuyerCartPage() {
     () => items.reduce((sum, item) => sum + item.pricePerKg * item.quantityKg, 0),
     [items],
   );
-  const totalKg = useMemo(() => items.reduce((sum, item) => sum + item.quantityKg, 0), [items]);
   const retailSubtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.retailPricePerKg * item.quantityKg, 0),
     [items],
@@ -170,7 +170,7 @@ function BuyerCartPage() {
     const nextQuantity = Math.min(quantityKg, maximumQuantity);
     if (quantityKg > maximumQuantity) {
       toast("Only the available quantity can be ordered", {
-        description: `This classified listing currently has ${maximumQuantity} kg available for your cart.`,
+        description: `This classified listing currently has ${formatSellingQuantity(maximumQuantity, item?.sellingUnit ?? "kg")} available for your cart.`,
       });
     }
     try {
@@ -189,11 +189,11 @@ function BuyerCartPage() {
     const orderContact = fulfillment === "delivery" ? deliveryDetails.phone.trim() : contact.trim();
     const pickupNote =
       fulfillment === "pickup"
-          ? `Pickup recipient: ${pickupName.trim()}\nPreferred pickup: ${arrangementNote.trim()}`
+        ? `Pickup recipient: ${pickupName.trim()}\nPreferred pickup: ${arrangementNote.trim()}`
         : `Delivery:\n${deliveryNote(deliveryDetails)}`;
     const accepted = await requestConfirmation({
       title: "Confirm your order?",
-      description: `You are submitting ${items.length} product group${items.length === 1 ? "" : "s"} (${totalKg} kg) for ${peso(finalTotal)}. PROCY will review the ${fulfillmentLabel.toLocaleLowerCase()} arrangement before confirming it.`,
+      description: `You are submitting ${items.length} product group${items.length === 1 ? "" : "s"} for ${peso(finalTotal)}. PROCY will review the ${fulfillmentLabel.toLocaleLowerCase()} arrangement before confirming it.`,
       confirmLabel: "Confirm order",
       cancelLabel: "Edit order",
       details: (
@@ -205,7 +205,9 @@ function BuyerCartPage() {
                 <div>
                   <p className="font-medium">{item.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {item.classification} · {item.quantityKg} kg × {peso(item.pricePerKg)}
+                    {item.classification} ·{" "}
+                    {formatSellingQuantity(item.quantityKg, item.sellingUnit)} ×{" "}
+                    {peso(item.pricePerKg)}
                   </p>
                 </div>
                 <span className="shrink-0 font-medium">
@@ -350,11 +352,14 @@ function BuyerCartPage() {
                     <div className="min-w-36 flex-1">
                       <p className="font-semibold">{item.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {item.classification} · {peso(item.pricePerKg)} / kg
+                        {item.classification} · {peso(item.pricePerKg)} /{" "}
+                        {sellingUnitLabel(item.sellingUnit)}
                       </p>
                       {item.bundlePricePerKg && item.bundleMinimumKg ? (
                         <p className="mt-1 text-xs text-primary">
-                          Bundle: {peso(item.bundlePricePerKg)} / kg from {item.bundleMinimumKg} kg
+                          Bundle: {peso(item.bundlePricePerKg)} /{" "}
+                          {sellingUnitLabel(item.sellingUnit)} from{" "}
+                          {formatSellingQuantity(item.bundleMinimumKg, item.sellingUnit)}
                           {item.quantityKg >= item.bundleMinimumKg ? " — applied" : ""}
                         </p>
                       ) : null}
@@ -372,7 +377,7 @@ function BuyerCartPage() {
                         <Minus className="size-4" />
                       </button>
                       <span className="w-14 text-center text-sm font-semibold">
-                        {item.quantityKg} kg
+                        {formatSellingQuantity(item.quantityKg, item.sellingUnit)}
                       </span>
                       <button
                         className="flex size-8 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
@@ -394,11 +399,11 @@ function BuyerCartPage() {
                   <div>
                     <h2 className="text-lg font-semibold">Order summary</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {items.length} product group{items.length === 1 ? "" : "s"} · {totalKg} kg
+                      {items.length} product group{items.length === 1 ? "" : "s"}
                     </p>
                   </div>
                   <span className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground">
-                    {totalKg} kg
+                    {items.length} item{items.length === 1 ? "" : "s"}
                   </span>
                 </div>
 
@@ -408,7 +413,9 @@ function BuyerCartPage() {
                       <div>
                         <p className="font-medium">{item.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {item.classification} · {item.quantityKg} kg × {peso(item.pricePerKg)}
+                          {item.classification} ·{" "}
+                          {formatSellingQuantity(item.quantityKg, item.sellingUnit)} ×{" "}
+                          {peso(item.pricePerKg)}
                         </p>
                       </div>
                       <p className="shrink-0 font-medium">

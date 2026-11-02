@@ -12,6 +12,7 @@ import { PaginationControls, usePagination } from "@/components/data/pagination-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { getManagementProductWorkspace } from "@/services/marketplace/marketplace-server-functions";
+import { formatSellingQuantity, sellingUnitLabel } from "@/features/marketplace/selling-units";
 
 export const Route = createFileRoute("/management/products")({
   head: () => ({
@@ -234,9 +235,13 @@ function StockTable({
                 <td className="px-6 py-4">{item.classification}</td>
                 <td className="px-6 py-4 text-primary">{item.listingStatus ?? "Not listed"}</td>
                 <td className="px-6 py-4">
-                  {item.pricePerKg === null ? "—" : `₱${item.pricePerKg.toFixed(2)} / kg`}
+                  {item.pricePerKg === null
+                    ? "—"
+                    : `₱${item.pricePerKg.toFixed(2)} / ${sellingUnitLabel(item.sellingUnit)}`}
                 </td>
-                <td className="px-6 py-4 text-primary">{item.availableKg} kg</td>
+                <td className="px-6 py-4 text-primary">
+                  {formatSellingQuantity(item.availableKg, item.sellingUnit)}
+                </td>
               </tr>
             ))}
             {!visibleStock.length && (

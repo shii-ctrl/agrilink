@@ -10,6 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import {
+  formatSellingQuantity,
+  sellingUnitLabel,
+  sellingUnitStep,
+  type SellingUnit,
+} from "@/features/marketplace/selling-units";
+import {
   getReceivingWorkspace,
   recordReceivingDelivery,
 } from "@/services/operations/receiving-server-functions";
@@ -24,6 +30,7 @@ function MarketerReceivingPage() {
   const [goodKg, setGoodKg] = useState("");
   const [semiKg, setSemiKg] = useState("");
   const [rejectKg, setRejectKg] = useState("");
+  const [productId, setProductId] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -48,6 +55,9 @@ function MarketerReceivingPage() {
   const quantitiesMatch =
     totalValue > 0 && Math.round(classifiedKg * 100) === Math.round(totalValue * 100);
   const quantityDifference = totalValue - classifiedKg;
+  const sellingUnit =
+    (workspace?.products.find((product) => product.id === productId)?.sellingUnit as SellingUnit) ??
+    "kg";
   return (
     <MarketerLayout>
       <MarketerPageHeader
@@ -108,6 +118,7 @@ function MarketerReceivingPage() {
                     setGoodKg("");
                     setSemiKg("");
                     setRejectKg("");
+                    setProductId("");
                     deliveryReference.current = crypto.randomUUID();
                     await load();
                   } catch (error) {
@@ -123,20 +134,40 @@ function MarketerReceivingPage() {
                   options={workspace?.farmers ?? []}
                   searchable
                 />
-                <Select label="Product" name="productId" options={workspace?.products ?? []} />
+                <Select
+                  label="Product"
+                  name="productId"
+                  options={workspace?.products ?? []}
+                  value={productId}
+                  onValueChange={setProductId}
+                />
                 <Field
                   name="totalKg"
-                  label="Total delivered (kg)"
+                  label={`Total delivered (${sellingUnitLabel(sellingUnit, 2)})`}
                   value={totalKg}
                   onChange={setTotalKg}
+                  sellingUnit={sellingUnit}
                 />
-                <Field name="goodKg" label="Good (kg)" value={goodKg} onChange={setGoodKg} />
-                <Field name="semiKg" label="Semi (kg)" value={semiKg} onChange={setSemiKg} />
+                <Field
+                  name="goodKg"
+                  label={`Good (${sellingUnitLabel(sellingUnit, 2)})`}
+                  value={goodKg}
+                  onChange={setGoodKg}
+                  sellingUnit={sellingUnit}
+                />
+                <Field
+                  name="semiKg"
+                  label={`Semi (${sellingUnitLabel(sellingUnit, 2)})`}
+                  value={semiKg}
+                  onChange={setSemiKg}
+                  sellingUnit={sellingUnit}
+                />
                 <Field
                   name="rejectKg"
-                  label="Reject (kg)"
+                  label={`Reject (${sellingUnitLabel(sellingUnit, 2)})`}
                   value={rejectKg}
                   onChange={setRejectKg}
+                  sellingUnit={sellingUnit}
                 />
                 <div
                   className={`sm:col-span-2 rounded-2xl border p-4 text-sm ${quantitiesMatch ? "border-good/30 bg-good/10 text-good" : "border-border bg-muted/30 text-muted-foreground"}`}
@@ -145,8 +176,8 @@ function MarketerReceivingPage() {
                   <span className="font-semibold">Classification check: </span>
                   {totalValue > 0
                     ? quantitiesMatch
-                      ? `Ready — Good, Semi, and Reject equal ${totalValue.toFixed(2)} kg.`
-                      : `${classifiedKg.toFixed(2)} of ${totalValue.toFixed(2)} kg classified. ${Math.abs(quantityDifference).toFixed(2)} kg ${quantityDifference > 0 ? "still needs a classification" : "is over the delivered quantity"}.`
+                      ? `Ready — Good, Semi, and Reject equal ${formatSellingQuantity(totalValue, sellingUnit)}.`
+                      : `${formatSellingQuantity(classifiedKg, sellingUnit)} of ${formatSellingQuantity(totalValue, sellingUnit)} classified. ${formatSellingQuantity(Math.abs(quantityDifference), sellingUnit)} ${quantityDifference > 0 ? "still needs a classification" : "is over the delivered quantity"}.`
                     : "Enter the total delivery first, then distribute it across Good, Semi, and Reject."}
                 </div>
                 {totalValue > 0 ? (
@@ -189,18 +220,21 @@ function MarketerReceivingPage() {
                         label="Good"
                         value={Number(goodKg || 0)}
                         total={totalValue}
+                        sellingUnit={sellingUnit}
                       />
                       <Legend
                         color="bg-warning"
                         label="Semi"
                         value={Number(semiKg || 0)}
                         total={totalValue}
+                        sellingUnit={sellingUnit}
                       />
                       <Legend
                         color="bg-destructive"
                         label="Reject"
                         value={Number(rejectKg || 0)}
                         total={totalValue}
+                        sellingUnit={sellingUnit}
                       />
                     </div>
                     <div className="flex items-start gap-2 border-t pt-3 text-sm">
@@ -233,16 +267,18 @@ function Legend({
   label,
   value,
   total,
+  sellingUnit,
 }: {
   color: string;
   label: string;
   value: number;
   total: number;
+  sellingUnit: SellingUnit;
 }) {
   return (
     <div>
       <span className={`mr-1.5 inline-block size-2 rounded-full ${color}`} />
-      {label}: {value.toFixed(2)} kg ({Math.round((value / total) * 100)}%)
+      {label}: {formatSellingQuantity(value, sellingUnit)} ({Math.round((value / total) * 100)}%)
     </div>
   );
 }
@@ -251,13 +287,19 @@ function Select({
   name,
   options,
   searchable = false,
+  value: controlledValue,
+  onValueChange,
 }: {
   label: string;
   name: string;
   options: { id: string; name: string }[];
   searchable?: boolean;
+  value?: string;
+  onValueChange?: (value: string) => void;
 }) {
-  const [value, setValue] = useState("");
+  const [internalValue, setInternalValue] = useState("");
+  const value = controlledValue ?? internalValue;
+  const setValue = onValueChange ?? setInternalValue;
 
   return (
     <div className="space-y-2">
@@ -280,11 +322,13 @@ function Field({
   name,
   value,
   onChange,
+  sellingUnit,
 }: {
   label: string;
   name: string;
   value: string;
   onChange: (value: string) => void;
+  sellingUnit: SellingUnit;
 }) {
   return (
     <div className="space-y-2">
@@ -294,7 +338,7 @@ function Field({
         name={name}
         type="number"
         min="0"
-        step="0.01"
+        step={sellingUnitStep(sellingUnit)}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required

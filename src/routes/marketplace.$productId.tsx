@@ -23,6 +23,11 @@ import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import { notifyBuyerCartChanged } from "@/features/marketplace/cart-events";
 import {
+  formatSellingQuantity,
+  sellingUnitLabel,
+  sellingUnitStep,
+} from "@/features/marketplace/selling-units";
+import {
   addBuyerCartItem,
   getBuyerCart,
   getMarketplaceListing,
@@ -120,10 +125,14 @@ function ProductDetail() {
   const isAvailable = availableQuantity > 0;
   const remainingCartableQuantity = Math.max(0, availableQuantity);
   const maximumSelectableQuantity = Math.max(1, availableQuantity);
+  const quantityStep = sellingUnitStep(product.sellingUnit);
   const requestedQuantity = Number(quantityInput);
   const qty = Number.isFinite(requestedQuantity) ? requestedQuantity : 0;
-  const hasValidQuantity = qty >= 0.01 && qty <= maximumSelectableQuantity;
-  const canDecreaseQuantity = qty > 0.01;
+  const hasValidQuantity =
+    qty >= quantityStep &&
+    qty <= maximumSelectableQuantity &&
+    (product.sellingUnit !== "tray" || Number.isInteger(qty));
+  const canDecreaseQuantity = qty > quantityStep;
   const canIncreaseQuantity = qty < maximumSelectableQuantity;
   const retailPricePerKg = selectedOffer.retailPricePerKg ?? selectedOffer.pricePerKg;
   const pricedQuantityKg = isBuyer ? cartQuantityKg + qty : qty;
@@ -145,7 +154,9 @@ function ProductDetail() {
   }, [maximumSelectableQuantity]);
 
   function clampQuantity(value: number) {
-    return Math.min(maximumSelectableQuantity, Math.max(0.01, Math.round(value * 100) / 100));
+    const rounded =
+      product.sellingUnit === "tray" ? Math.round(value) : Math.round(value * 100) / 100;
+    return Math.min(maximumSelectableQuantity, Math.max(quantityStep, rounded));
   }
 
   function handleAddToCart() {
@@ -157,7 +168,7 @@ function ProductDetail() {
           void router.invalidate();
           notifyBuyerCartChanged();
           toast.success("Added to your cart", {
-            description: `${qty} kg of ${product.name} is saved to your account.`,
+            description: `${formatSellingQuantity(qty, product.sellingUnit)} of ${product.name} is saved to your account.`,
           });
         })
         .catch((error) => {
@@ -235,7 +246,7 @@ function ProductDetail() {
         setCartQuantityKg(cart.find((item) => item.id === selectedOffer.id)?.quantityKg ?? 0);
         notifyBuyerCartChanged();
         toast.success("Ready to place your order", {
-          description: `${qty} kg of ${product.name} was reserved in your cart.`,
+          description: `${formatSellingQuantity(qty, product.sellingUnit)} of ${product.name} was reserved in your cart.`,
         });
         void router.navigate({ to: "/buyer/cart" });
       })
@@ -287,7 +298,9 @@ function ProductDetail() {
                 }`}
               >
                 {offer.classification} ·{" "}
-                {offer.quantityKg > 0 ? `${offer.quantityKg} kg` : "Sold out"}
+                {offer.quantityKg > 0
+                  ? formatSellingQuantity(offer.quantityKg, product.sellingUnit)
+                  : "Sold out"}
               </button>
             ))}
           </div>
@@ -303,12 +316,15 @@ function ProductDetail() {
 
           <p className="mt-5 font-display text-3xl font-semibold text-primary sm:mt-6 sm:text-4xl">
             {peso(currentPricePerKg)}
-            <span className="ml-2 text-base font-normal text-muted-foreground">/ kg</span>
+            <span className="ml-2 text-base font-normal text-muted-foreground">
+              / {sellingUnitLabel(product.sellingUnit)}
+            </span>
           </p>
           {selectedOffer.bundlePricePerKg && selectedOffer.bundleMinimumKg ? (
             <p className="mt-2 text-sm text-muted-foreground">
-              Retail: {peso(retailPricePerKg)} / kg · Bundle: {peso(selectedOffer.bundlePricePerKg)}{" "}
-              / kg from {selectedOffer.bundleMinimumKg} kg
+              Retail: {peso(retailPricePerKg)} / {sellingUnitLabel(product.sellingUnit)} · Bundle:{" "}
+              {peso(selectedOffer.bundlePricePerKg)} / {sellingUnitLabel(product.sellingUnit)} from{" "}
+              {formatSellingQuantity(selectedOffer.bundleMinimumKg, product.sellingUnit)}
               {qualifiesForBundle ? " — bundle price applied" : ""}
             </p>
           ) : null}
@@ -318,7 +334,9 @@ function ProductDetail() {
               <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                 Available quantity
               </dt>
-              <dd className="mt-1 text-lg font-semibold">{availableQuantity} kg</dd>
+              <dd className="mt-1 text-lg font-semibold">
+                {formatSellingQuantity(availableQuantity, product.sellingUnit)}
+              </dd>
             </div>
             <div className="rounded-2xl border border-border bg-card p-4">
               <dt className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -342,7 +360,7 @@ function ProductDetail() {
           <div className="mt-7 hidden items-center gap-2 sm:mt-8 sm:flex sm:flex-wrap sm:gap-4">
             <div className="col-span-2 flex items-center justify-center gap-1 rounded-full border border-border bg-card p-1 sm:col-span-1 sm:justify-start">
               <button
-                onClick={() => setQuantityInput(String(clampQuantity((qty || 0.01) - 1)))}
+                onClick={() => setQuantityInput(String(clampQuantity((qty || quantityStep) - 1)))}
                 disabled={!isAvailable || !canDecreaseQuantity}
                 className="flex size-9 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Decrease quantity"
@@ -350,19 +368,21 @@ function ProductDetail() {
                 <Minus className="size-4" />
               </button>
               <Input
-                aria-label="Quantity in kilograms"
+                aria-label={`Quantity in ${sellingUnitLabel(product.sellingUnit, 2)}`}
                 type="number"
-                inputMode="decimal"
-                min="0.01"
+                inputMode={product.sellingUnit === "tray" ? "numeric" : "decimal"}
+                min={quantityStep}
                 max={maximumSelectableQuantity}
-                step="0.01"
+                step={quantityStep}
                 value={quantityInput}
                 disabled={!isAvailable}
                 onChange={(event) => setQuantityInput(event.target.value)}
                 onBlur={() => setQuantityInput(String(clampQuantity(Number(quantityInput) || 1)))}
                 className="h-9 w-20 border-0 bg-transparent px-1 text-center font-semibold shadow-none focus-visible:ring-0"
               />
-              <span className="pr-1 text-sm text-muted-foreground">kg</span>
+              <span className="pr-1 text-sm text-muted-foreground">
+                {sellingUnitLabel(product.sellingUnit, qty)}
+              </span>
               <button
                 onClick={() => setQuantityInput(String(clampQuantity((qty || 0) + 1)))}
                 disabled={!isAvailable || !canIncreaseQuantity}
@@ -413,15 +433,15 @@ function ProductDetail() {
           <p className="mt-4 text-xs text-muted-foreground">
             {isAvailable
               ? cartQuantityKg > 0
-                ? `Cart total for ${pricedQuantityKg} kg: ${peso(pricedQuantityKg * currentPricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
-                : `Subtotal for ${qty} kg: ${peso(qty * currentPricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
+                ? `Cart total for ${formatSellingQuantity(pricedQuantityKg, product.sellingUnit)}: ${peso(pricedQuantityKg * currentPricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
+                : `Subtotal for ${formatSellingQuantity(qty, product.sellingUnit)}: ${peso(qty * currentPricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
               : "This listing is currently unavailable."}
           </p>
           {isBuyer && cartQuantityKg > 0 ? (
             <p className="mt-2 text-xs text-muted-foreground">
               {remainingCartableQuantity > 0
-                ? `${cartQuantityKg} kg is already in your cart. You can add up to ${remainingCartableQuantity} kg more.`
-                : `All ${cartQuantityKg} kg available is already in your cart.`}
+                ? `${formatSellingQuantity(cartQuantityKg, product.sellingUnit)} is already in your cart. You can add up to ${formatSellingQuantity(remainingCartableQuantity, product.sellingUnit)} more.`
+                : `All ${formatSellingQuantity(cartQuantityKg, product.sellingUnit)} available is already in your cart.`}
             </p>
           ) : (
             isAvailable && (
@@ -458,12 +478,12 @@ function ProductDetail() {
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground">Selected subtotal</p>
               <p className="truncate font-semibold text-primary">
-                {peso(qty * currentPricePerKg)} · {qty} kg
+                {peso(qty * currentPricePerKg)} · {formatSellingQuantity(qty, product.sellingUnit)}
               </p>
             </div>
             <div className="flex shrink-0 items-center rounded-full border border-border bg-card p-1">
               <button
-                onClick={() => setQuantityInput(String(clampQuantity((qty || 0.01) - 1)))}
+                onClick={() => setQuantityInput(String(clampQuantity((qty || quantityStep) - 1)))}
                 disabled={!isAvailable || !canDecreaseQuantity}
                 className="flex size-8 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
                 aria-label="Decrease quantity"
@@ -474,9 +494,9 @@ function ProductDetail() {
                 aria-label="Mobile quantity in kilograms"
                 type="number"
                 inputMode="decimal"
-                min="0.01"
+                min={quantityStep}
                 max={maximumSelectableQuantity}
-                step="0.01"
+                step={quantityStep}
                 value={quantityInput}
                 disabled={!isAvailable}
                 onChange={(event) => setQuantityInput(event.target.value)}

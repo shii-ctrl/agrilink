@@ -5,6 +5,11 @@ import { z } from "zod";
 
 import type { Classification, Product, ProductOffer } from "@/features/marketplace/products";
 import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
+import {
+  sellingUnitLabel,
+  sellingUnits,
+  type SellingUnit,
+} from "@/features/marketplace/selling-units";
 import type { DemoOrder } from "@/lib/demo/demo-orders";
 
 type MarketplaceDatabase = (typeof import("@/db/client.server"))["db"];
@@ -135,6 +140,7 @@ const cropTypes = procyMarketCategories;
 const createCatalogProductInput = z.object({
   name: z.string().trim().min(2).max(160),
   cropType: z.enum(cropTypes),
+  sellingUnit: z.enum(sellingUnits),
   description: z
     .string()
     .trim()
@@ -179,6 +185,7 @@ const updateCatalogProductInput = z.object({
   productId: z.string().uuid(),
   name: z.string().trim().min(2).max(160),
   cropType: z.enum(cropTypes),
+  sellingUnit: z.enum(sellingUnits),
   description: z.string().trim().max(2000),
   imageDataUrl: createCatalogProductInput.shape.imageDataUrl,
 });
@@ -246,6 +253,7 @@ function asProduct(row: {
   productId: string;
   name: string;
   cropType: string;
+  sellingUnit: string;
   classification: string;
   pricePerKg: string;
   retailPricePerKg: string | null;
@@ -266,6 +274,7 @@ function asProduct(row: {
     id: row.productId,
     name: row.name,
     cropType: row.cropType,
+    sellingUnit: row.sellingUnit as SellingUnit,
     classification: row.classification as Classification,
     pricePerKg: retailPricePerKg,
     retailPricePerKg,
@@ -319,6 +328,7 @@ async function fetchListings(productId?: string) {
       classificationId: listings.classificationId,
       name: products.name,
       cropType: products.cropType,
+      sellingUnit: products.sellingUnit,
       classification: classifications.name,
       pricePerKg: listings.pricePerKg,
       retailPricePerKg: listings.retailPricePerKg,
@@ -373,6 +383,7 @@ async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
       classificationId: listings.classificationId,
       name: products.name,
       cropType: products.cropType,
+      sellingUnit: products.sellingUnit,
       classification: classifications.name,
       pricePerKg: listings.pricePerKg,
       retailPricePerKg: listings.retailPricePerKg,
@@ -435,6 +446,7 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
         id,
         name: data.name,
         cropType: data.cropType,
+        sellingUnit: data.sellingUnit,
         ...(data.description ? { description: data.description } : {}),
         ...(data.imageDataUrl ? { imageUrl: data.imageDataUrl } : {}),
       });
@@ -467,7 +479,7 @@ export const updateCatalogProduct = createServerFn({ method: "POST" })
     const actor = await requireRole("Marketer");
     assertSafeProductImage(data.imageDataUrl);
     const { db } = await import("@/db/client.server");
-    const { products } = await import("@/db/schema");
+    const { inventory, products, receivingRecords } = await import("@/db/schema");
     const [duplicate] = await db
       .select({ id: products.id })
       .from(products)
@@ -478,11 +490,34 @@ export const updateCatalogProduct = createServerFn({ method: "POST" })
         ),
       );
     if (duplicate) throw new Error("A catalog product with that name already exists.");
+    const [savedProduct] = await db
+      .select({ sellingUnit: products.sellingUnit })
+      .from(products)
+      .where(eq(products.id, data.productId));
+    if (!savedProduct) throw new Error("The catalog product could not be found.");
+    if (savedProduct.sellingUnit !== data.sellingUnit) {
+      const [[stock], [receiving]] = await Promise.all([
+        db
+          .select({ id: inventory.id })
+          .from(inventory)
+          .where(eq(inventory.productId, data.productId))
+          .limit(1),
+        db
+          .select({ id: receivingRecords.id })
+          .from(receivingRecords)
+          .where(eq(receivingRecords.productId, data.productId))
+          .limit(1),
+      ]);
+      if (stock || receiving) {
+        throw new Error("Selling unit cannot be changed after stock has been recorded.");
+      }
+    }
     const [updated] = await db
       .update(products)
       .set({
         name: data.name,
         cropType: data.cropType,
+        sellingUnit: data.sellingUnit,
         description: data.description || null,
         ...(data.imageDataUrl ? { imageUrl: data.imageDataUrl } : {}),
       })
@@ -491,6 +526,7 @@ export const updateCatalogProduct = createServerFn({ method: "POST" })
     await writeAuditLog(actor.id, "product.catalog_update", "product", data.productId, {
       name: data.name,
       cropType: data.cropType,
+      sellingUnit: data.sellingUnit,
     });
     return { id: data.productId };
   });
@@ -668,6 +704,7 @@ export const getCatalogProducts = createServerFn({ method: "GET" }).handler(asyn
       cropType: products.cropType,
       description: products.description,
       imageUrl: products.imageUrl,
+      sellingUnit: products.sellingUnit,
     })
     .from(products)
     .orderBy(desc(products.active), asc(products.name));
@@ -688,6 +725,7 @@ export const getMarketerProductCatalog = createServerFn({ method: "GET" }).handl
         description: products.description,
         imageUrl: products.imageUrl,
         active: products.active,
+        sellingUnit: products.sellingUnit,
       })
       .from(products)
       .orderBy(desc(products.active), asc(products.name)),
@@ -796,6 +834,7 @@ export const adjustCatalogStock = createServerFn({ method: "POST" })
           farmerId: inventory.farmerId,
           farmer: users.displayName,
           product: products.name,
+          sellingUnit: products.sellingUnit,
           classification: classifications.name,
           quantityKg: inventory.quantityKg,
           reservedKg: inventory.reservedKg,
@@ -806,6 +845,9 @@ export const adjustCatalogStock = createServerFn({ method: "POST" })
         .leftJoin(users, eq(inventory.farmerId, users.id))
         .where(eq(inventory.id, data.inventoryId));
       if (!stock) throw new Error("The selected farmer stock could not be found.");
+      if (stock.sellingUnit === "tray" && !Number.isInteger(data.adjustmentKg)) {
+        throw new Error("Egg stock adjustments must use whole trays.");
+      }
 
       const nextQuantity = Number(stock.quantityKg) + data.adjustmentKg;
       if (nextQuantity < Number(stock.reservedKg)) {
@@ -877,6 +919,7 @@ export const getPublishableInventory = createServerFn({ method: "GET" }).handler
       productId: inventory.productId,
       classificationId: inventory.classificationId,
       name: products.name,
+      sellingUnit: products.sellingUnit,
       cropType: products.cropType,
       classification: classifications.name,
       quantityKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
@@ -1175,6 +1218,7 @@ async function fetchDailyPrices(publicOnly: boolean) {
       date: sql<string>`DATE(${dailyPrices.priceDate})`,
       product: products.name,
       cropType: products.cropType,
+      sellingUnit: products.sellingUnit,
       classification: classifications.name,
       price: dailyPrices.price,
       published: dailyPrices.published,
@@ -1227,7 +1271,12 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
     const { db } = await import("@/db/client.server");
     const { dailyPrices, listings, products } = await import("@/db/schema");
     const [listing] = await db
-      .select({ id: listings.id, status: listings.status, productName: products.name })
+      .select({
+        id: listings.id,
+        status: listings.status,
+        productName: products.name,
+        sellingUnit: products.sellingUnit,
+      })
       .from(listings)
       .innerJoin(products, eq(listings.productId, products.id))
       .where(eq(listings.id, data.listingId));
@@ -1252,7 +1301,7 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
       const { notifyRole } = await import("@/services/messaging/notification-server");
       await notifyRole("Buyer", {
         title: "Daily price updated",
-        message: `${listing.productName} is now ₱${data.price.toFixed(2)} per kg for ${data.date}.`,
+        message: `${listing.productName} is now ₱${data.price.toFixed(2)} per ${sellingUnitLabel(listing.sellingUnit)} for ${data.date}.`,
         target: "/daily-prices",
       });
       return { id: existing.id, updated: true };
@@ -1270,7 +1319,7 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
     const { notifyRole } = await import("@/services/messaging/notification-server");
     await notifyRole("Buyer", {
       title: "New daily price",
-      message: `${listing.productName} is ₱${data.price.toFixed(2)} per kg for ${data.date}.`,
+      message: `${listing.productName} is ₱${data.price.toFixed(2)} per ${sellingUnitLabel(listing.sellingUnit)} for ${data.date}.`,
       target: "/daily-prices",
     });
     return { id, updated: false };
@@ -1315,6 +1364,7 @@ async function buyerCartRows(buyerId: string) {
     .select({
       id: listings.id,
       name: products.name,
+      sellingUnit: products.sellingUnit,
       classification: classifications.name,
       pricePerKg: listings.pricePerKg,
       retailPricePerKg: listings.retailPricePerKg,
@@ -1375,19 +1425,25 @@ async function reserveListingStock(
     note: string;
   },
 ) {
-  const { classifications, inventory, inventoryMovements, listings } = await import("@/db/schema");
+  const { classifications, inventory, inventoryMovements, listings, products } =
+    await import("@/db/schema");
   const [listing] = await tx
     .select({
       productId: listings.productId,
       classificationId: listings.classificationId,
       classification: classifications.name,
+      sellingUnit: products.sellingUnit,
       status: listings.status,
     })
     .from(listings)
+    .innerJoin(products, eq(listings.productId, products.id))
     .innerJoin(classifications, eq(listings.classificationId, classifications.id))
     .where(eq(listings.id, listingId));
   if (!listing || listing.status !== "published") {
     throw new Error("This product is no longer available in the marketplace.");
+  }
+  if (listing.sellingUnit === "tray" && !Number.isInteger(quantityKg)) {
+    throw new Error("Egg quantities must be ordered as whole trays.");
   }
 
   const batches = await tx
@@ -1412,7 +1468,9 @@ async function reserveListingStock(
     0,
   );
   if (quantityKg > availableKg) {
-    throw new Error(`Only ${availableKg} kg is currently available.`);
+    throw new Error(
+      `Only ${availableKg} ${sellingUnitLabel(listing.sellingUnit, availableKg)} is currently available.`,
+    );
   }
 
   let remainingKg = quantityKg;
@@ -1900,6 +1958,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         .select({
           listingId: listings.id,
           name: products.name,
+          sellingUnit: products.sellingUnit,
           imageUrl: sql<string | null>`COALESCE(${listings.imageUrl}, ${products.imageUrl})`,
           classification: classifications.name,
           pricePerKg: listings.pricePerKg,
@@ -1961,6 +2020,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
           pricePerKg: listingUnitPrice(row, item.quantityKg).toFixed(2),
           productName: row.name,
           classificationName: row.classification,
+          sellingUnit: row.sellingUnit,
           imageUrl: row.imageUrl,
         });
       }
@@ -2280,6 +2340,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
           name: sql<string>`COALESCE(${orderItems.productName}, ${products.name})`,
           image: sql<string | null>`COALESCE(${orderItems.imageUrl}, ${products.imageUrl})`,
           classification: sql<string>`COALESCE(${orderItems.classificationName}, ${classifications.name})`,
+          sellingUnit: orderItems.sellingUnit,
           quantityKg: orderItems.quantityKg,
           pricePerKg: orderItems.pricePerKg,
         })
@@ -2376,6 +2437,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
         name: sql<string>`COALESCE(${orderItems.productName}, ${products.name})`,
         image: sql<string | null>`COALESCE(${orderItems.imageUrl}, ${products.imageUrl})`,
         classification: sql<string>`COALESCE(${orderItems.classificationName}, ${classifications.name})`,
+        sellingUnit: orderItems.sellingUnit,
         quantityKg: orderItems.quantityKg,
         pricePerKg: orderItems.pricePerKg,
       })
@@ -2421,7 +2483,10 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       farmer: "PROCY farmer members",
       product: first?.name ?? "Product",
       classification: first?.classification ?? "Good",
-      quantity: `${lines.reduce((sum, item) => sum + item.quantityKg, 0)} kg`,
+      quantity:
+        lines.length === 1
+          ? `${lines[0]!.quantityKg} ${lines[0]!.sellingUnit === "tray" ? (lines[0]!.quantityKg === 1 ? "tray" : "trays") : "kg"}`
+          : `${lines.length} classified items`,
       total: new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(
         Number(order.totalAmount),
       ),
@@ -2465,6 +2530,7 @@ export const getManagementProductWorkspace = createServerFn({ method: "GET" }).h
         id: products.id,
         name: products.name,
         cropType: products.cropType,
+        sellingUnit: products.sellingUnit,
         active: products.active,
       })
       .from(products)
@@ -2474,6 +2540,7 @@ export const getManagementProductWorkspace = createServerFn({ method: "GET" }).h
         id: inventory.id,
         name: products.name,
         cropType: products.cropType,
+        sellingUnit: products.sellingUnit,
         classification: classifications.name,
         quantityKg: inventory.quantityKg,
         reservedKg: inventory.reservedKg,
@@ -3094,10 +3161,18 @@ export const getMarketerDashboard = createServerFn({ method: "GET" }).handler(as
   const { classifications, inventory, listings, orders, products, receivingRecords } =
     await import("@/db/schema");
   const [receiving, stock, publishedListings, pendingOrders, lowStock] = await Promise.all([
-    db.select({ totalKg: receivingRecords.totalKg }).from(receivingRecords),
     db
-      .select({ quantityKg: inventory.quantityKg, reservedKg: inventory.reservedKg })
-      .from(inventory),
+      .select({ totalKg: receivingRecords.totalKg, sellingUnit: products.sellingUnit })
+      .from(receivingRecords)
+      .innerJoin(products, eq(receivingRecords.productId, products.id)),
+    db
+      .select({
+        quantityKg: inventory.quantityKg,
+        reservedKg: inventory.reservedKg,
+        sellingUnit: products.sellingUnit,
+      })
+      .from(inventory)
+      .innerJoin(products, eq(inventory.productId, products.id)),
     db.select({ id: listings.id }).from(listings).where(eq(listings.status, "published")),
     db.select({ id: orders.id }).from(orders).where(eq(orders.status, "pending")),
     db
@@ -3105,6 +3180,7 @@ export const getMarketerDashboard = createServerFn({ method: "GET" }).handler(as
         id: inventory.id,
         name: products.name,
         classification: classifications.name,
+        sellingUnit: products.sellingUnit,
         availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
       })
       .from(inventory)
@@ -3124,15 +3200,30 @@ export const getMarketerDashboard = createServerFn({ method: "GET" }).handler(as
         ),
       ),
   ]);
-  const receivedKg = receiving.reduce((total, row) => total + Number(row.totalKg), 0);
-  const availableKg = stock.reduce(
-    (total, row) => total + Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
-    0,
-  );
+  const receivedKg = receiving
+    .filter((row) => row.sellingUnit === "kg")
+    .reduce((total, row) => total + Number(row.totalKg), 0);
+  const receivedTrays = receiving
+    .filter((row) => row.sellingUnit === "tray")
+    .reduce((total, row) => total + Number(row.totalKg), 0);
+  const availableKg = stock
+    .filter((row) => row.sellingUnit === "kg")
+    .reduce(
+      (total, row) => total + Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
+      0,
+    );
+  const availableTrays = stock
+    .filter((row) => row.sellingUnit === "tray")
+    .reduce(
+      (total, row) => total + Math.max(0, Number(row.quantityKg) - Number(row.reservedKg)),
+      0,
+    );
   return {
     receivedKg,
+    receivedTrays,
     publishedListings: publishedListings.length,
     availableKg,
+    availableTrays,
     pendingOrders: pendingOrders.length,
     lowStock: lowStock
       .map((row) => ({ ...row, availableKg: Math.max(0, Number(row.availableKg)) }))

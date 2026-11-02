@@ -255,7 +255,10 @@ test("marketplace cart controls prevent duplicate additions beyond available sto
   assert.match(source, /Buy now/);
   assert.match(source, /getBuyerCart\(\)/);
   assert.match(source, /remainingCartableQuantity/);
-  assert.match(source, /All \$\{cartQuantityKg\} kg available is already in your cart/);
+  assert.match(
+    source,
+    /All \$\{formatSellingQuantity\(cartQuantityKg, product\.sellingUnit\)\} available is already in your cart/,
+  );
 });
 
 test("buyer cart reservations expire after ten minutes and return stock", async () => {
@@ -333,7 +336,7 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(marketplace, /Bundle price must be lower than the retail price/);
   assert.match(marketplace, /export const updateMarketplaceListingPricing/);
   assert.match(marketplace, /listingUnitPrice\(row, item\.quantityKg\)/);
-  assert.match(productPage, /Bundle: \{peso\(selectedOffer\.bundlePricePerKg\)\}/);
+  assert.match(productPage, /Bundle:[\s\S]*peso\(selectedOffer\.bundlePricePerKg\)/);
   assert.match(productPage, /selectedOffer\.classification/);
   assert.match(productPage, /selectedOffer\.image \|\| product\.image/);
   assert.match(productCard, /translateX\(-\$\{activeImage \* 100\}%\)/);
@@ -1095,4 +1098,25 @@ test("delivery checkout collects a complete recipient and delivery address", asy
   assert.match(cart, /Delivery recipient:/);
   assert.match(cart, /Delivery address/);
   assert.match(marketplace, /pickupNote: z\.string\(\)\.trim\(\)\.min\(3\)\.max\(2000\)/);
+});
+
+test("Egg products use tray units throughout catalog, receiving, marketplace, and orders", async () => {
+  const [units, schema, catalog, receiving, marketplace, cart, orders] = await Promise.all([
+    readFile("src/features/marketplace/selling-units.ts", "utf8"),
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("src/routes/marketer.products.tsx", "utf8"),
+    readFile("src/routes/marketer.receiving.tsx", "utf8"),
+    readFile("src/routes/marketplace.$productId.tsx", "utf8"),
+    readFile("src/routes/buyer.cart.tsx", "utf8"),
+    readFile("src/features/marketplace/components/order-details.tsx", "utf8"),
+  ]);
+
+  assert.match(units, /\(egg\|itlog\)/i);
+  assert.match(units, /unit === "tray" \? 1 : 0\.01/);
+  assert.match(schema, /sellingUnit: mysqlEnum\("selling_unit", \["kg", "tray"\]\)/);
+  assert.match(catalog, /defaultSellingUnit\(name\)/);
+  assert.match(receiving, /sellingUnitStep\(sellingUnit\)/);
+  assert.match(marketplace, /product\.sellingUnit === "tray"/);
+  assert.match(cart, /formatSellingQuantity\(item\.quantityKg, item\.sellingUnit\)/);
+  assert.match(orders, /item\.sellingUnit \?\? "kg"/);
 });

@@ -23,6 +23,14 @@ import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/mark
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import { prepareProductImage } from "@/features/marketplace/product-image-upload";
 import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
+import {
+  defaultSellingUnit,
+  formatSellingQuantity,
+  sellingUnitLabel,
+  sellingUnitOptions,
+  sellingUnitStep,
+  type SellingUnit,
+} from "@/features/marketplace/selling-units";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import {
   adjustCatalogStock,
@@ -46,7 +54,7 @@ type EditorTab = "details" | "marketplace" | "stock" | "history";
 
 const bundleMinimumKgChoices = [5, 10, 15, 20, 25, 30, 50, 100];
 
-function bundleMinimumOptions(currentValue: string) {
+function bundleMinimumOptions(currentValue: string, sellingUnit: SellingUnit) {
   const current = Number(currentValue);
   const choices =
     Number.isFinite(current) && current > 0 && !bundleMinimumKgChoices.includes(current)
@@ -55,7 +63,7 @@ function bundleMinimumOptions(currentValue: string) {
 
   return choices.map((kilograms) => ({
     value: String(kilograms),
-    label: `${kilograms} kg`,
+    label: formatSellingQuantity(kilograms, sellingUnit),
   }));
 }
 
@@ -163,7 +171,9 @@ function ProductCatalogPage() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold">{product.name}</span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {product.active ? `${stock} kg pooled stock` : "Archived"}
+                          {product.active
+                            ? `${formatSellingQuantity(stock, product.sellingUnit)} pooled stock`
+                            : "Archived"}
                         </span>
                       </span>
                     </button>
@@ -315,6 +325,8 @@ function EditorTabs({ value, onChange }: { value: EditorTab; onChange: (tab: Edi
 
 function CreateProductCard({ onSaved }: { onSaved: (id: string) => Promise<void> }) {
   const [cropType, setCropType] = useState("");
+  const [productName, setProductName] = useState("");
+  const [sellingUnit, setSellingUnit] = useState<SellingUnit>("kg");
   const [saving, setSaving] = useState(false);
   return (
     <section className="rounded-3xl border border-primary/25 bg-card p-5 shadow-card">
@@ -336,6 +348,7 @@ function CreateProductCard({ onSaved }: { onSaved: (id: string) => Promise<void>
               data: {
                 name: String(data.get("name")),
                 cropType: cropType as (typeof procyMarketCategories)[number],
+                sellingUnit,
                 description: String(data.get("description") ?? ""),
                 imageDataUrl: "",
               },
@@ -343,6 +356,8 @@ function CreateProductCard({ onSaved }: { onSaved: (id: string) => Promise<void>
             toast.success("Permanent product created");
             form.reset();
             setCropType("");
+            setProductName("");
+            setSellingUnit("kg");
             await onSaved(result.id);
           } catch (error) {
             toast.error("Product could not be created", {
@@ -354,7 +369,25 @@ function CreateProductCard({ onSaved }: { onSaved: (id: string) => Promise<void>
         }}
       >
         <Field label="Product name">
-          <Input name="name" required minLength={2} />
+          <Input
+            name="name"
+            value={productName}
+            onChange={(event) => {
+              const name = event.target.value;
+              setProductName(name);
+              setSellingUnit(defaultSellingUnit(name));
+            }}
+            required
+            minLength={2}
+          />
+        </Field>
+        <Field label="Selling unit">
+          <AppSelect
+            value={sellingUnit}
+            onValueChange={(value) => setSellingUnit(value as SellingUnit)}
+            options={sellingUnitOptions}
+            searchable={false}
+          />
         </Field>
         <Field label="Category">
           <AppSelect
@@ -389,14 +422,16 @@ function DetailsEditor({
   onSaved: () => Promise<void>;
 }) {
   const [cropType, setCropType] = useState(product.cropType);
+  const [sellingUnit, setSellingUnit] = useState<SellingUnit>(product.sellingUnit);
   const [imageDataUrl, setImageDataUrl] = useState("");
   const [preparing, setPreparing] = useState(false);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     setCropType(product.cropType);
+    setSellingUnit(product.sellingUnit);
     setImageDataUrl("");
-  }, [product.cropType, product.id]);
+  }, [product.cropType, product.id, product.sellingUnit]);
   return (
     <form
       className="grid gap-5 sm:grid-cols-2"
@@ -410,6 +445,7 @@ function DetailsEditor({
               productId: product.id,
               name: String(data.get("name")),
               cropType: cropType as (typeof procyMarketCategories)[number],
+              sellingUnit,
               description: String(data.get("description") ?? ""),
               imageDataUrl,
             },
@@ -428,6 +464,14 @@ function DetailsEditor({
     >
       <Field label="Product name">
         <Input name="name" defaultValue={product.name} key={`${product.id}-name`} required />
+      </Field>
+      <Field label="Selling unit">
+        <AppSelect
+          value={sellingUnit}
+          onValueChange={(value) => setSellingUnit(value as SellingUnit)}
+          options={sellingUnitOptions}
+          searchable={false}
+        />
       </Field>
       <Field label="Category">
         <AppSelect
@@ -558,6 +602,7 @@ function MarketplaceEditor({
         <OfferEditor
           key={offer.id}
           offer={offer}
+          sellingUnit={product.sellingUnit}
           active={product.active}
           draft={drafts[offer.id] ?? marketplaceOfferDraft(offer)}
           onChange={(field, value) => updateDraft(offer.id, field, value)}
@@ -573,12 +618,14 @@ function MarketplaceEditor({
 
 function OfferEditor({
   offer,
+  sellingUnit,
   active,
   draft,
   onChange,
   onPhotoSaved,
 }: {
   offer: CatalogProduct["offers"][number];
+  sellingUnit: SellingUnit;
   active: boolean;
   draft: MarketplaceOfferDraft;
   onChange: (field: keyof MarketplaceOfferDraft, value: string | boolean) => void;
@@ -589,7 +636,9 @@ function OfferEditor({
       <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-3">
         <div>
           <h3 className="font-semibold">{offer.classification} quality</h3>
-          <p className="text-sm text-muted-foreground">{offer.availableKg} kg pooled stock</p>
+          <p className="text-sm text-muted-foreground">
+            {formatSellingQuantity(offer.availableKg, sellingUnit)} pooled stock
+          </p>
         </div>
         <label className="flex items-center gap-2 text-sm font-medium">
           <input
@@ -602,7 +651,7 @@ function OfferEditor({
         </label>
       </div>
       <QualityPhoto offer={offer} active={active} onSaved={onPhotoSaved} />
-      <Field label="Retail ₱ / kg">
+      <Field label={`Retail ₱ / ${sellingUnitLabel(sellingUnit)}`}>
         <Input
           type="number"
           min="0.01"
@@ -612,7 +661,7 @@ function OfferEditor({
           required
         />
       </Field>
-      <Field label="Bundle ₱ / kg">
+      <Field label={`Bundle ₱ / ${sellingUnitLabel(sellingUnit)}`}>
         <Input
           type="number"
           min="0.01"
@@ -621,11 +670,11 @@ function OfferEditor({
           onChange={(event) => onChange("bundlePricePerKg", event.target.value)}
         />
       </Field>
-      <Field label="Bundle starts at kg">
+      <Field label={`Bundle starts at ${sellingUnitLabel(sellingUnit)}`}>
         <AppSelect
           value={draft.bundleMinimumKg}
           onValueChange={(value) => onChange("bundleMinimumKg", value)}
-          options={bundleMinimumOptions(draft.bundleMinimumKg)}
+          options={bundleMinimumOptions(draft.bundleMinimumKg, sellingUnit)}
           ariaLabel={`${offer.classification} bundle minimum kilograms`}
           searchable={false}
           disabled={!active}
@@ -754,9 +803,12 @@ function StockOwnership({
   return (
     <div>
       <div className="grid gap-3 sm:grid-cols-3">
-        <Metric label="Pooled available" value={`${total} kg`} />
+        <Metric
+          label="Pooled available"
+          value={formatSellingQuantity(total, product.sellingUnit)}
+        />
         <Metric label="Farmer contributors" value={String(owners)} />
-        <Metric label="Reserved" value={`${reserved} kg`} />
+        <Metric label="Reserved" value={formatSellingQuantity(reserved, product.sellingUnit)} />
       </div>
       <div className="mt-5 overflow-x-auto rounded-2xl border">
         <table className="w-full min-w-[760px] text-left text-sm">
@@ -775,13 +827,20 @@ function StockOwnership({
               <tr key={row.id} className="border-t">
                 <td className="px-4 py-3 font-medium">{row.farmer ?? "Legacy stock"}</td>
                 <td className="px-4 py-3">{row.classification}</td>
-                <td className="px-4 py-3">{row.availableKg} kg</td>
-                <td className="px-4 py-3">{row.reservedKg} kg</td>
-                <td className="px-4 py-3">{row.quantityKg} kg</td>
+                <td className="px-4 py-3">
+                  {formatSellingQuantity(row.availableKg, product.sellingUnit)}
+                </td>
+                <td className="px-4 py-3">
+                  {formatSellingQuantity(row.reservedKg, product.sellingUnit)}
+                </td>
+                <td className="px-4 py-3">
+                  {formatSellingQuantity(row.quantityKg, product.sellingUnit)}
+                </td>
                 <td className="px-4 py-3">
                   <StockAdjustment
                     inventoryId={row.id}
                     label={`${row.farmer ?? "Legacy stock"} ${row.classification}`}
+                    sellingUnit={product.sellingUnit}
                     onSaved={onSaved}
                   />
                 </td>
@@ -808,10 +867,12 @@ function StockOwnership({
 function StockAdjustment({
   inventoryId,
   label,
+  sellingUnit,
   onSaved,
 }: {
   inventoryId: string;
   label: string;
+  sellingUnit: SellingUnit;
   onSaved: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -856,7 +917,13 @@ function StockAdjustment({
         }
       }}
     >
-      <Input name="adjustmentKg" type="number" step="0.01" placeholder="+ or - kg" required />
+      <Input
+        name="adjustmentKg"
+        type="number"
+        step={sellingUnitStep(sellingUnit)}
+        placeholder={`+ or - ${sellingUnitLabel(sellingUnit, 2)}`}
+        required
+      />
       <Input
         name="reason"
         minLength={3}
@@ -886,7 +953,10 @@ function ProductHistory({ product }: { product: CatalogProduct }) {
             <p className="font-semibold capitalize">{entry.movementType}</p>
             <p className="text-muted-foreground">
               {entry.farmer ?? "Legacy stock"} · {entry.classification} · Available{" "}
-              {signed(entry.availableChangeKg)} kg · Reserved {signed(entry.reservedChangeKg)} kg
+              {signed(entry.availableChangeKg)}{" "}
+              {sellingUnitLabel(product.sellingUnit, Math.abs(entry.availableChangeKg))} · Reserved{" "}
+              {signed(entry.reservedChangeKg)}{" "}
+              {sellingUnitLabel(product.sellingUnit, Math.abs(entry.reservedChangeKg))}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {entry.note ?? "Inventory updated."} ·{" "}

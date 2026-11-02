@@ -20,6 +20,7 @@ export const demoPublicProducts: Product[] = [
     quantityKg: 45,
     description: "Tomatoes supplied by farmer members, classified Good, and listed by PROCY.",
     image: tomatoImg,
+    sellingUnit: "kg",
   },
   {
     id: "tomato-semi",
@@ -30,6 +31,7 @@ export const demoPublicProducts: Product[] = [
     quantityKg: 20,
     description: "Tomatoes supplied by farmer members, classified Semi, and listed by PROCY.",
     image: tomatoImg,
+    sellingUnit: "kg",
   },
   {
     id: "tomato-reject",
@@ -40,6 +42,7 @@ export const demoPublicProducts: Product[] = [
     quantityKg: 10,
     description: "Tomatoes supplied by farmer members, classified Reject, and listed by PROCY.",
     image: tomatoImg,
+    sellingUnit: "kg",
   },
   {
     id: "cabbage-good",
@@ -50,6 +53,7 @@ export const demoPublicProducts: Product[] = [
     quantityKg: 120,
     description: "Cabbage supplied by farmer members, classified Good, and listed by PROCY.",
     image: cabbageImg,
+    sellingUnit: "kg",
   },
 ];
 

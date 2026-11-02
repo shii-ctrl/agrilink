@@ -133,3 +133,13 @@ test("quality-image migration preserves the catalog photo as every offer fallbac
   assert.match(migration, /SET listing\.image_url = product\.image_url/);
   assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
 });
+
+test("selling-unit migration defaults Egg and Itlog products to trays and preserves order history", async () => {
+  const migration = await readFile("drizzle/0030_product_selling_units.sql", "utf8");
+
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS selling_unit ENUM\('kg', 'tray'\)/);
+  assert.match(migration, /\(egg\|itlog\)/);
+  assert.match(migration, /ALTER TABLE order_items/);
+  assert.match(migration, /SET item\.selling_unit = product\.selling_unit/);
+  assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
+});
