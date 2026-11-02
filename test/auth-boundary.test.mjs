@@ -781,6 +781,9 @@ test("comment reaction migration preserves one reaction per user", async () => {
 test("Community search and owner-only post controls are available in the feed", async () => {
   const feed = await readFile("src/features/messaging/components/community-feed.tsx", "utf8");
   assert.match(feed, /Search Community by post or author/);
+  assert.match(feed, /Share your thoughts/);
+  assert.match(feed, /DialogContent/);
+  assert.match(feed, /Post to Community/);
   assert.match(feed, /getCommunityMessages\(\{ data \}\)/);
   assert.match(feed, /message\.isOwner/);
   assert.match(feed, /Edit post/);

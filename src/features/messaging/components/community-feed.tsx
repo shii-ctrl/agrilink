@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -33,6 +33,14 @@ import { ProfileAvatar } from "@/components/profile-avatar";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type CommunityFeedProps = {
   title: string;
@@ -181,6 +189,7 @@ export function CommunityFeed({
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const [messages, setMessages] = useState<CommunityPost[]>([]);
   const [postMessage, setPostMessage] = useState("");
+  const [composerOpen, setComposerOpen] = useState(false);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [replyTargets, setReplyTargets] = useState<Record<string, string | null>>({});
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
@@ -334,9 +343,95 @@ export function CommunityFeed({
     }
   };
 
+  const submitCommunityPost = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const message = postMessage.trim();
+    if (!message) return;
+    setBusyPost(true);
+    try {
+      await postCommunityMessage({ data: { message } });
+      setPostMessage("");
+      setComposerOpen(false);
+      await load();
+      toast.success("Your post is now visible in Community.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not post community message.");
+    } finally {
+      setBusyPost(false);
+    }
+  };
+
   return (
     <>
       {confirmationDialog}
+      {showComposer && (
+        <Dialog
+          open={composerOpen}
+          onOpenChange={(open) => {
+            if (!busyPost) setComposerOpen(open);
+          }}
+        >
+          <DialogContent className="max-h-[calc(100dvh_-_1rem)] overflow-y-auto rounded-3xl border-primary/20 p-0 shadow-field sm:max-w-2xl">
+            <form onSubmit={submitCommunityPost}>
+              <DialogHeader className="border-b border-border px-5 pb-4 pt-5 text-left sm:px-6 sm:pt-6">
+                <DialogTitle className="flex items-center gap-2 pr-10 text-xl">
+                  <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <MessageCircle className="size-5" />
+                  </span>
+                  Share your thoughts
+                </DialogTitle>
+                <DialogDescription>
+                  {title}. Your update will be visible to AgriLink Community members.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 px-5 py-5 sm:px-6">
+                <label htmlFor="community-post-message" className="text-sm font-semibold">
+                  Community update
+                </label>
+                <Textarea
+                  id="community-post-message"
+                  name="message"
+                  value={postMessage}
+                  onChange={(event) => setPostMessage(event.target.value)}
+                  placeholder={placeholder}
+                  className="min-h-40 resize-y"
+                  maxLength={4_000}
+                  autoFocus
+                  required
+                />
+                <p className="text-right text-xs text-muted-foreground">
+                  {postMessage.length}/4000 characters
+                </p>
+              </div>
+
+              <DialogFooter className="border-t border-border px-5 py-4 sm:px-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full rounded-full sm:w-auto"
+                  disabled={busyPost}
+                  onClick={() => setComposerOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="w-full rounded-full sm:w-auto"
+                  disabled={busyPost || !postMessage.trim()}
+                >
+                  {busyPost ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                  {busyPost ? "Posting…" : "Post to Community"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
       <section className="rounded-3xl border border-border bg-card p-6 shadow-card">
         <div className="flex items-center gap-2">
           <MessageCircle className="size-5 text-primary" />
@@ -360,47 +455,17 @@ export function CommunityFeed({
           </div>
         )}
         {showComposer && (
-          <form
-            className="mt-4"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              const message = postMessage.trim();
-              if (!message) return;
-              setBusyPost(true);
-              try {
-                await postCommunityMessage({ data: { message } });
-                setPostMessage("");
-                await load();
-                toast.success("Your post is now visible in Community.");
-              } catch (error) {
-                toast.error(
-                  error instanceof Error ? error.message : "Could not post community message.",
-                );
-              } finally {
-                setBusyPost(false);
-              }
-            }}
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4 h-14 w-full justify-start rounded-2xl border-primary/20 bg-background px-4 text-left text-muted-foreground shadow-sm hover:border-primary/35 hover:bg-primary/5 hover:text-foreground"
+            onClick={() => setComposerOpen(true)}
           >
-            <Textarea
-              name="message"
-              value={postMessage}
-              onChange={(event) => setPostMessage(event.target.value)}
-              placeholder={placeholder}
-              maxLength={4_000}
-              required
-            />
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">{postMessage.length}/4000 characters</p>
-              <Button type="submit" className="rounded-full" disabled={busyPost}>
-                {busyPost ? (
-                  <LoaderCircle className="size-4 animate-spin" />
-                ) : (
-                  <Send className="size-4" />
-                )}
-                Post update
-              </Button>
-            </div>
-          </form>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Pencil className="size-4" />
+            </span>
+            <span className="font-medium">Share your thoughts</span>
+          </Button>
         )}
       </section>
       <section className="mt-6 space-y-4" aria-live="polite">
