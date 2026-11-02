@@ -1,9 +1,12 @@
 import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  ImageIcon,
   LockKeyhole,
+  Maximize2,
   Minus,
   PackageCheck,
+  PackageX,
   Plus,
   ShoppingCart,
   X,
@@ -13,7 +16,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
-import { ClassificationBadge } from "@/features/marketplace/components/classification-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { peso, type Product } from "@/features/marketplace/products";
@@ -72,6 +74,10 @@ export const Route = createFileRoute("/marketplace/$productId")({
 
 type MarketplaceProductDetailData = { product: Product; related: Product[] };
 
+function displayProductName(name: string) {
+  return name.replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase());
+}
+
 function ProductDetail() {
   const router = useRouter();
   const { product, related } = Route.useLoaderData() as MarketplaceProductDetailData;
@@ -98,6 +104,20 @@ function ProductDetail() {
   const [cartQuantityKg, setCartQuantityKg] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
+  const [isImageOpen, setIsImageOpen] = useState(false);
+  useEffect(() => {
+    if (!isImageOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsImageOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isImageOpen]);
   useAutoRefresh(() => router.invalidate());
   useEffect(() => {
     let mounted = true;
@@ -146,6 +166,13 @@ function ProductDetail() {
     selectedOffer.bundleMinimumKg !== undefined &&
     pricedQuantityKg >= selectedOffer.bundleMinimumKg;
   const currentPricePerKg = qualifiesForBundle ? selectedOffer.bundlePricePerKg! : retailPricePerKg;
+  const bundleSavingsPerUnit =
+    selectedOffer.bundlePricePerKg !== null && selectedOffer.bundlePricePerKg !== undefined
+      ? Math.max(0, retailPricePerKg - selectedOffer.bundlePricePerKg)
+      : 0;
+  const productName = displayProductName(product.name);
+  const hasCartReservation = isBuyer && cartQuantityKg > 0;
+  const canPurchase = isAvailable && selectedOfferHasPrice;
 
   useEffect(() => {
     setQuantityInput((current) => {
@@ -263,7 +290,7 @@ function ProductDetail() {
   }
 
   const productContent = (
-    <main className="mx-auto w-full max-w-6xl px-4 pb-40 pt-8 sm:pb-0 sm:pt-10">
+    <main className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 sm:pb-0 sm:pt-10">
       <Link
         to="/marketplace"
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -271,54 +298,107 @@ function ProductDetail() {
         <ArrowLeft className="size-4" /> Back to marketplace
       </Link>
 
-      <div className="mt-4 grid gap-6 sm:mt-6 sm:gap-10 lg:grid-cols-2">
-        <div className="overflow-hidden rounded-2xl shadow-field sm:rounded-[2rem]">
-          <img
-            src={selectedOffer.image || product.image}
-            alt={`${product.name} — ${selectedOffer.classification} quality`}
-            width={900}
-            height={700}
-            className="aspect-[4/3] w-full object-cover transition-opacity duration-300"
-          />
+      <div className="mt-4 grid items-start gap-7 sm:mt-6 sm:gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        <div className="lg:sticky lg:top-24">
+          <button
+            type="button"
+            onClick={() => setIsImageOpen(true)}
+            className="group relative block aspect-square w-full overflow-hidden rounded-3xl border border-border bg-muted text-left shadow-field sm:rounded-[2rem]"
+            aria-label={`Enlarge ${selectedOffer.classification} photo of ${productName}`}
+          >
+            <img
+              src={selectedOffer.image || product.image}
+              alt={`${productName} — ${selectedOffer.classification} quality`}
+              width={900}
+              height={900}
+              className="size-full object-cover transition duration-500 group-hover:scale-[1.025]"
+            />
+            <span className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-background/90 px-3 py-2 text-xs font-semibold shadow-card backdrop-blur transition group-hover:bg-background">
+              <Maximize2 className="size-4" /> View photo
+            </span>
+          </button>
+
+          {offers.length > 1 ? (
+            <div className="mt-3 flex gap-3 overflow-x-auto pb-1" aria-label="Quality photos">
+              {offers.map((offer) => (
+                <button
+                  key={offer.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedOfferId(offer.id);
+                    setQuantityInput("1");
+                  }}
+                  className={`relative size-20 shrink-0 overflow-hidden rounded-2xl border-2 bg-muted transition sm:size-24 ${
+                    offer.id === selectedOffer.id
+                      ? "border-primary shadow-card"
+                      : "border-transparent opacity-70 hover:opacity-100"
+                  }`}
+                  aria-label={`Show ${offer.classification} quality photo`}
+                  aria-pressed={offer.id === selectedOffer.id}
+                >
+                  <img
+                    src={offer.image || product.image}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                  <span className="absolute inset-x-1 bottom-1 rounded-full bg-background/90 px-1 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur">
+                    {offer.classification}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Choose quality
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {offers.map((offer) => (
-              <button
-                key={offer.id}
-                type="button"
-                onClick={() => {
-                  setSelectedOfferId(offer.id);
-                  setQuantityInput("1");
-                }}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-                  offer.id === selectedOffer.id
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card hover:border-primary/40"
-                }`}
-              >
-                {offer.classification} ·{" "}
-                {offer.quantityKg > 0
-                  ? formatSellingQuantity(offer.quantityKg, product.sellingUnit)
-                  : "No stock"}
-              </button>
-            ))}
-          </div>
-          <div className="mt-3">
-            <ClassificationBadge value={selectedOffer.classification} />
-          </div>
-          <h1 className="mt-3 text-3xl font-semibold sm:mt-4 sm:text-4xl md:text-5xl">
-            {product.name}
-          </h1>
-          <p className="mt-2 text-sm uppercase tracking-wide text-muted-foreground">
+        <div className="min-w-0">
+          <p className="text-sm font-medium uppercase tracking-[0.14em] text-primary">
             {product.cropType}
           </p>
+          <h1 className="mt-2 text-3xl font-semibold sm:text-4xl md:text-5xl">{productName}</h1>
 
-          <p className="mt-5 font-display text-3xl font-semibold text-primary sm:mt-6 sm:text-4xl">
+          <fieldset className="mt-6">
+            <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Choose quality
+            </legend>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {offers.map((offer) => (
+                <button
+                  key={offer.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedOfferId(offer.id);
+                    setQuantityInput("1");
+                  }}
+                  className={`rounded-2xl border px-4 py-3 text-left transition ${
+                    offer.id === selectedOffer.id
+                      ? "border-primary bg-primary/10 ring-1 ring-primary"
+                      : "border-border bg-card hover:border-primary/50"
+                  }`}
+                  aria-pressed={offer.id === selectedOffer.id}
+                >
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="font-semibold">{offer.classification}</span>
+                    <span
+                      className={`text-xs font-medium ${offer.quantityKg > 0 ? "text-primary" : "text-muted-foreground"}`}
+                    >
+                      {offer.id === selectedOffer.id && hasCartReservation && offer.quantityKg <= 0
+                        ? "Reserved"
+                        : offer.quantityKg > 0
+                          ? formatSellingQuantity(offer.quantityKg, product.sellingUnit)
+                          : "No stock"}
+                    </span>
+                  </span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    {offer.priceConfigured === false
+                      ? "Price not set"
+                      : `${peso(offer.retailPricePerKg ?? offer.pricePerKg)} / ${sellingUnitLabel(product.sellingUnit)}`}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <p className="mt-6 font-display text-3xl font-semibold text-primary sm:text-4xl">
             {selectedOfferHasPrice ? peso(currentPricePerKg) : "No price yet"}
             {selectedOfferHasPrice ? (
               <span className="ml-2 text-base font-normal text-muted-foreground">
@@ -326,146 +406,172 @@ function ProductDetail() {
               </span>
             ) : null}
           </p>
-          {selectedOffer.bundlePricePerKg && selectedOffer.bundleMinimumKg ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Retail: {peso(retailPricePerKg)} / {sellingUnitLabel(product.sellingUnit)} · Bundle:{" "}
-              {peso(selectedOffer.bundlePricePerKg)} / {sellingUnitLabel(product.sellingUnit)} from{" "}
-              {formatSellingQuantity(selectedOffer.bundleMinimumKg, product.sellingUnit)}
-              {qualifiesForBundle ? " — bundle price applied" : ""}
-            </p>
+          {selectedOfferHasPrice &&
+          selectedOffer.bundlePricePerKg &&
+          selectedOffer.bundleMinimumKg ? (
+            <div className="mt-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">Bundle deal</span>
+                {bundleSavingsPerUnit > 0 ? (
+                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                    Save {peso(bundleSavingsPerUnit)} per {sellingUnitLabel(product.sellingUnit)}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-muted-foreground">
+                {peso(selectedOffer.bundlePricePerKg)} / {sellingUnitLabel(product.sellingUnit)}{" "}
+                when ordering{" "}
+                {formatSellingQuantity(selectedOffer.bundleMinimumKg, product.sellingUnit)}
+                or more.{qualifiesForBundle ? " Bundle price is applied to your selection." : ""}
+              </p>
+            </div>
           ) : null}
 
-          <dl className="mt-5 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3">
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                Available quantity
-              </dt>
-              <dd className="mt-1 text-lg font-semibold">
-                {formatSellingQuantity(availableQuantity, product.sellingUnit)}
-              </dd>
+          <div
+            className={`mt-5 flex items-start gap-3 rounded-2xl border p-4 ${
+              hasCartReservation && !isAvailable
+                ? "border-primary/25 bg-primary/5"
+                : canPurchase
+                  ? "border-primary/20 bg-primary/5"
+                  : "border-border bg-muted/60"
+            }`}
+          >
+            {hasCartReservation && !isAvailable ? (
+              <ShoppingCart className="mt-0.5 size-5 shrink-0 text-primary" />
+            ) : canPurchase ? (
+              <PackageCheck className="mt-0.5 size-5 shrink-0 text-primary" />
+            ) : (
+              <PackageX className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+            )}
+            <div className="min-w-0">
+              <p className="font-semibold">
+                {hasCartReservation && !isAvailable
+                  ? "Reserved in your cart"
+                  : canPurchase
+                    ? `${formatSellingQuantity(availableQuantity, product.sellingUnit)} available`
+                    : selectedOfferHasPrice
+                      ? "Currently unavailable"
+                      : "Price and stock unavailable"}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                {hasCartReservation && !isAvailable
+                  ? `${formatSellingQuantity(cartQuantityKg, product.sellingUnit)} is reserved for you. Continue to your cart before the reservation expires.`
+                  : canPurchase
+                    ? "Available now from PROCY farmer-member supply."
+                    : "This quality will automatically become available after new stock and pricing are recorded."}
+              </p>
+              {hasCartReservation && !isAvailable ? (
+                <Link
+                  to="/buyer/cart"
+                  className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-card"
+                >
+                  <ShoppingCart className="size-4" /> View cart
+                </Link>
+              ) : null}
             </div>
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                Availability
-              </dt>
-              <dd
-                className={`mt-1 flex items-center gap-2 text-lg font-semibold ${
-                  isAvailable ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                <PackageCheck className="size-5" />
-                {isAvailable ? "Available" : "No stock"}
-              </dd>
-            </div>
-          </dl>
+          </div>
 
           <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
             {product.description}
           </p>
 
-          <div className="mt-7 hidden items-center gap-2 sm:mt-8 sm:flex sm:flex-wrap sm:gap-4">
-            <div className="col-span-2 flex items-center justify-center gap-1 rounded-full border border-border bg-card p-1 sm:col-span-1 sm:justify-start">
-              <button
-                onClick={() => setQuantityInput(String(clampQuantity((qty || quantityStep) - 1)))}
-                disabled={!isAvailable || !canDecreaseQuantity}
-                className="flex size-9 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Decrease quantity"
-              >
-                <Minus className="size-4" />
-              </button>
-              <Input
-                aria-label={`Quantity in ${sellingUnitLabel(product.sellingUnit, 2)}`}
-                type="number"
-                inputMode={
-                  requiresWholeSellingQuantity(product.sellingUnit) ? "numeric" : "decimal"
+          {canPurchase ? (
+            <div className="mt-7 hidden items-center gap-2 sm:flex sm:flex-wrap sm:gap-3">
+              <div className="flex items-center justify-center gap-1 rounded-full border border-border bg-card p-1 sm:justify-start">
+                <button
+                  onClick={() => setQuantityInput(String(clampQuantity((qty || quantityStep) - 1)))}
+                  disabled={!canDecreaseQuantity}
+                  className="flex size-9 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Decrease quantity"
+                >
+                  <Minus className="size-4" />
+                </button>
+                <Input
+                  aria-label={`Quantity in ${sellingUnitLabel(product.sellingUnit, 2)}`}
+                  type="number"
+                  inputMode={
+                    requiresWholeSellingQuantity(product.sellingUnit) ? "numeric" : "decimal"
+                  }
+                  min={quantityStep}
+                  max={maximumSelectableQuantity}
+                  step={quantityStep}
+                  value={quantityInput}
+                  onChange={(event) => setQuantityInput(event.target.value)}
+                  onBlur={() => setQuantityInput(String(clampQuantity(Number(quantityInput) || 1)))}
+                  className="h-9 w-20 border-0 bg-transparent px-1 text-center font-semibold shadow-none focus-visible:ring-0"
+                />
+                <span className="pr-1 text-sm text-muted-foreground">
+                  {sellingUnitLabel(product.sellingUnit, qty)}
+                </span>
+                <button
+                  onClick={() => setQuantityInput(String(clampQuantity((qty || 0) + 1)))}
+                  disabled={!canIncreaseQuantity}
+                  className="flex size-9 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Increase quantity"
+                >
+                  <Plus className="size-4" />
+                </button>
+              </div>
+
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full rounded-full sm:w-auto"
+                disabled={
+                  !hasValidQuantity || isAdding || isBuyingNow || remainingCartableQuantity <= 0
                 }
-                min={quantityStep}
-                max={maximumSelectableQuantity}
-                step={quantityStep}
-                value={quantityInput}
-                disabled={!isAvailable}
-                onChange={(event) => setQuantityInput(event.target.value)}
-                onBlur={() => setQuantityInput(String(clampQuantity(Number(quantityInput) || 1)))}
-                className="h-9 w-20 border-0 bg-transparent px-1 text-center font-semibold shadow-none focus-visible:ring-0"
-              />
-              <span className="pr-1 text-sm text-muted-foreground">
-                {sellingUnitLabel(product.sellingUnit, qty)}
-              </span>
-              <button
-                onClick={() => setQuantityInput(String(clampQuantity((qty || 0) + 1)))}
-                disabled={!isAvailable || !canIncreaseQuantity}
-                className="flex size-9 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Increase quantity"
+                onClick={handleAddToCart}
               >
-                <Plus className="size-4" />
-              </button>
+                <ShoppingCart className="size-4" />
+                {isAdding ? "Adding…" : hasCartReservation ? "Add more" : "Add to cart"}
+              </Button>
+              <Button
+                size="lg"
+                className="w-full rounded-full sm:w-auto"
+                disabled={
+                  !hasValidQuantity || isAdding || isBuyingNow || remainingCartableQuantity <= 0
+                }
+                onClick={handleBuyNow}
+              >
+                <Zap className="size-4" />
+                {isBuyingNow ? "Preparing checkout…" : "Buy now"}
+              </Button>
+              {hasCartReservation ? (
+                <Link
+                  to="/buyer/cart"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold text-primary hover:bg-primary/5"
+                >
+                  <ShoppingCart className="size-4" /> View cart
+                </Link>
+              ) : null}
             </div>
+          ) : null}
 
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full rounded-full sm:w-auto"
-              disabled={
-                !isAvailable ||
-                !hasValidQuantity ||
-                isAdding ||
-                isBuyingNow ||
-                (isBuyer && remainingCartableQuantity <= 0)
-              }
-              onClick={handleAddToCart}
-            >
-              <ShoppingCart className="size-4" />
-              {isAdding
-                ? "Adding…"
-                : isBuyer && remainingCartableQuantity <= 0
-                  ? "Already in cart"
-                  : "Add to cart"}
-            </Button>
-            <Button
-              size="lg"
-              className="w-full rounded-full sm:w-auto"
-              disabled={
-                !isAvailable ||
-                !hasValidQuantity ||
-                isAdding ||
-                isBuyingNow ||
-                (isBuyer && remainingCartableQuantity <= 0)
-              }
-              onClick={handleBuyNow}
-            >
-              <Zap className="size-4" />
-              {isBuyingNow ? "Preparing checkout…" : "Buy now"}
-            </Button>
-          </div>
-
-          <p className="mt-4 text-xs text-muted-foreground">
-            {isAvailable
-              ? cartQuantityKg > 0
-                ? `Cart total for ${formatSellingQuantity(pricedQuantityKg, product.sellingUnit)}: ${peso(pricedQuantityKg * currentPricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
-                : `Subtotal for ${formatSellingQuantity(qty, product.sellingUnit)}: ${peso(qty * currentPricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
-              : "No stock is currently available for this quality."}
-          </p>
-          {isBuyer && cartQuantityKg > 0 ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              {remainingCartableQuantity > 0
-                ? `${formatSellingQuantity(cartQuantityKg, product.sellingUnit)} is already in your cart. You can add up to ${formatSellingQuantity(remainingCartableQuantity, product.sellingUnit)} more.`
-                : `All ${formatSellingQuantity(cartQuantityKg, product.sellingUnit)} available is already in your cart.`}
-            </p>
-          ) : (
-            isAvailable && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                You need to{" "}
-                <Link to="/login" className="font-medium text-primary hover:underline">
-                  log in
-                </Link>{" "}
-                or{" "}
-                <Link to="/register" className="font-medium text-primary hover:underline">
-                  register as a buyer
-                </Link>{" "}
-                to add this item to your cart.
+          {canPurchase ? (
+            <div className="mt-4 text-xs leading-relaxed text-muted-foreground">
+              <p>
+                Subtotal for {formatSellingQuantity(qty, product.sellingUnit)}:{" "}
+                {peso(qty * currentPricePerKg)}
+                {hasCartReservation
+                  ? ` · ${formatSellingQuantity(cartQuantityKg, product.sellingUnit)} already reserved in your cart.`
+                  : ""}
               </p>
-            )
-          )}
+              <p className="mt-1">Sold by PROCY and supplied by AgriLink farmer members.</p>
+            </div>
+          ) : null}
+          {!isBuyer && canPurchase ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              You need to{" "}
+              <Link to="/login" className="font-medium text-primary hover:underline">
+                log in
+              </Link>{" "}
+              or{" "}
+              <Link to="/register" className="font-medium text-primary hover:underline">
+                register as a buyer
+              </Link>{" "}
+              to add this item to your cart.
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -480,85 +586,123 @@ function ProductDetail() {
         </section>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.12)] backdrop-blur sm:hidden">
-        <div className="mx-auto max-w-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] text-muted-foreground">Selected subtotal</p>
-              <p className="truncate font-semibold text-primary">
-                {peso(qty * currentPricePerKg)} · {formatSellingQuantity(qty, product.sellingUnit)}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center rounded-full border border-border bg-card p-1">
-              <button
-                onClick={() => setQuantityInput(String(clampQuantity((qty || quantityStep) - 1)))}
-                disabled={!isAvailable || !canDecreaseQuantity}
-                className="flex size-8 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
-                aria-label="Decrease quantity"
+      {(canPurchase || hasCartReservation) && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.12)] backdrop-blur sm:hidden">
+          <div className="mx-auto max-w-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {canPurchase ? (
+              <>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-muted-foreground">Selected subtotal</p>
+                    <p className="truncate font-semibold text-primary">
+                      {peso(qty * currentPricePerKg)} ·{" "}
+                      {formatSellingQuantity(qty, product.sellingUnit)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center rounded-full border border-border bg-card p-1">
+                    <button
+                      onClick={() =>
+                        setQuantityInput(String(clampQuantity((qty || quantityStep) - 1)))
+                      }
+                      disabled={!isAvailable || !canDecreaseQuantity}
+                      className="flex size-8 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
+                      aria-label="Decrease quantity"
+                    >
+                      <Minus className="size-4" />
+                    </button>
+                    <Input
+                      aria-label={`Mobile quantity in ${sellingUnitLabel(product.sellingUnit, 2)}`}
+                      type="number"
+                      inputMode={
+                        requiresWholeSellingQuantity(product.sellingUnit) ? "numeric" : "decimal"
+                      }
+                      min={quantityStep}
+                      max={maximumSelectableQuantity}
+                      step={quantityStep}
+                      value={quantityInput}
+                      onChange={(event) => setQuantityInput(event.target.value)}
+                      onBlur={() =>
+                        setQuantityInput(String(clampQuantity(Number(quantityInput) || 1)))
+                      }
+                      className="h-8 w-14 border-0 bg-transparent px-0 text-center text-base font-semibold shadow-none focus-visible:ring-0"
+                    />
+                    <span className="mr-1 text-xs text-muted-foreground">
+                      {sellingUnitLabel(product.sellingUnit, qty)}
+                    </span>
+                    <button
+                      onClick={() => setQuantityInput(String(clampQuantity((qty || 0) + 1)))}
+                      disabled={!isAvailable || !canIncreaseQuantity}
+                      className="flex size-8 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
+                      aria-label="Increase quantity"
+                    >
+                      <Plus className="size-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    className="min-h-11 rounded-full"
+                    disabled={
+                      !hasValidQuantity || isAdding || isBuyingNow || remainingCartableQuantity <= 0
+                    }
+                    onClick={handleAddToCart}
+                  >
+                    <ShoppingCart className="size-4" />
+                    {isAdding ? "Adding…" : hasCartReservation ? "Add more" : "Add to cart"}
+                  </Button>
+                  <Button
+                    className="min-h-11 rounded-full"
+                    disabled={
+                      !hasValidQuantity || isAdding || isBuyingNow || remainingCartableQuantity <= 0
+                    }
+                    onClick={handleBuyNow}
+                  >
+                    <Zap className="size-4" />
+                    {isBuyingNow ? "Preparing…" : "Buy now"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <Link
+                to="/buyer/cart"
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 font-semibold text-primary-foreground"
               >
-                <Minus className="size-4" />
-              </button>
-              <Input
-                aria-label="Mobile quantity in kilograms"
-                type="number"
-                inputMode="decimal"
-                min={quantityStep}
-                max={maximumSelectableQuantity}
-                step={quantityStep}
-                value={quantityInput}
-                disabled={!isAvailable}
-                onChange={(event) => setQuantityInput(event.target.value)}
-                onBlur={() => setQuantityInput(String(clampQuantity(Number(quantityInput) || 1)))}
-                className="h-8 w-14 border-0 bg-transparent px-0 text-center text-base font-semibold shadow-none focus-visible:ring-0"
-              />
-              <span className="mr-1 text-xs text-muted-foreground">kg</span>
-              <button
-                onClick={() => setQuantityInput(String(clampQuantity((qty || 0) + 1)))}
-                disabled={!isAvailable || !canIncreaseQuantity}
-                className="flex size-8 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
-                aria-label="Increase quantity"
-              >
-                <Plus className="size-4" />
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="outline"
-              className="min-h-11 rounded-full"
-              disabled={
-                !isAvailable ||
-                !hasValidQuantity ||
-                isAdding ||
-                isBuyingNow ||
-                (isBuyer && remainingCartableQuantity <= 0)
-              }
-              onClick={handleAddToCart}
-            >
-              <ShoppingCart className="size-4" />
-              {isAdding
-                ? "Adding…"
-                : isBuyer && remainingCartableQuantity <= 0
-                  ? "In cart"
-                  : "Add to cart"}
-            </Button>
-            <Button
-              className="min-h-11 rounded-full"
-              disabled={
-                !isAvailable ||
-                !hasValidQuantity ||
-                isAdding ||
-                isBuyingNow ||
-                (isBuyer && remainingCartableQuantity <= 0)
-              }
-              onClick={handleBuyNow}
-            >
-              <Zap className="size-4" />
-              {isBuyingNow ? "Preparing…" : "Buy now"}
-            </Button>
+                <ShoppingCart className="size-4" /> View reserved item in cart
+              </Link>
+            )}
           </div>
         </div>
-      </div>
+      )}
+
+      {isImageOpen ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${productName} photo preview`}
+          onClick={() => setIsImageOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setIsImageOpen(false)}
+            className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-full bg-background text-foreground shadow-field"
+            aria-label="Close photo preview"
+          >
+            <X className="size-5" />
+          </button>
+          <div className="max-h-[90vh] max-w-5xl" onClick={(event) => event.stopPropagation()}>
+            <img
+              src={selectedOffer.image || product.image}
+              alt={`${productName} — ${selectedOffer.classification} quality`}
+              className="max-h-[82vh] max-w-full rounded-2xl object-contain shadow-field"
+            />
+            <p className="mt-3 flex items-center justify-center gap-2 text-sm font-medium text-white">
+              <ImageIcon className="size-4" /> {selectedOffer.classification} quality
+            </p>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 

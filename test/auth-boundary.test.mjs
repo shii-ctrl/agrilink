@@ -255,10 +255,9 @@ test("marketplace cart controls prevent duplicate additions beyond available sto
   assert.match(source, /Buy now/);
   assert.match(source, /getBuyerCart\(\)/);
   assert.match(source, /remainingCartableQuantity/);
-  assert.match(
-    source,
-    /All \$\{formatSellingQuantity\(cartQuantityKg, product\.sellingUnit\)\} available is already in your cart/,
-  );
+  assert.match(source, /Reserved in your cart/);
+  assert.match(source, /View reserved item in cart/);
+  assert.match(source, /to="\/buyer\/cart"/);
 });
 
 test("buyer cart reservations expire after ten minutes and return stock", async () => {
@@ -346,7 +345,9 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(marketplace, /!listing\.priceConfigured/);
   assert.match(marketplace, /export const updateMarketplaceListingPricing/);
   assert.match(marketplace, /listingUnitPrice\(row, item\.quantityKg\)/);
-  assert.match(productPage, /Bundle:[\s\S]*peso\(selectedOffer\.bundlePricePerKg\)/);
+  assert.match(productPage, /Bundle deal/);
+  assert.match(productPage, /peso\(selectedOffer\.bundlePricePerKg\)/);
+  assert.match(productPage, /bundleSavingsPerUnit/);
   assert.match(productPage, /selectedOffer\.classification/);
   assert.match(productPage, /selectedOffer\.image \|\| product\.image/);
   assert.match(productCard, /translateX\(-\$\{activeImage \* 100\}%\)/);

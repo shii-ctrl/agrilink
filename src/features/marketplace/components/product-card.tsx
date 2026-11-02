@@ -105,7 +105,7 @@ export function ProductCard({ product }: { product: Product }) {
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             {product.cropType}
           </p>
-          <h3 className="mt-1 text-lg font-semibold">{product.name}</h3>
+          <h3 className="mt-1 text-lg font-semibold capitalize">{product.name}</h3>
         </div>
         <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
         <div className="mt-auto flex items-end justify-between pt-2">
