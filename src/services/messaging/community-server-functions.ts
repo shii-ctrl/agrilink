@@ -69,7 +69,7 @@ function searchPattern(query: string) {
 }
 
 async function communityMessagesForViewer(
-  viewer: { id: string },
+  viewer: { id: string; roles: string[] },
   options: { authorId?: string; query?: string; offset?: number; pageSize?: number } = {},
 ) {
   const { db } = await import("@/db/client.server");
@@ -239,6 +239,7 @@ async function communityMessagesForViewer(
       id: message.id,
       category: message.category,
       isOwner: message.authorId === viewer.id,
+      canDelete: message.authorId === viewer.id || viewer.roles.includes("Management"),
       message: message.message,
       author: message.author,
       authorAvatarUrl:
@@ -324,7 +325,8 @@ export const deleteCommunityMessage = createServerFn({ method: "POST" })
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const author = await requireAnyRole(communityRoles);
     const post = await assertCommunityMessageExists(data.messageId);
-    if (post.authorId !== author.id)
+    const deletingAsManagement = post.authorId !== author.id && author.roles.includes("Management");
+    if (post.authorId !== author.id && !deletingAsManagement)
       throw new Error("You can only delete your own Community posts.");
 
     const { db } = await import("@/db/client.server");
@@ -345,13 +347,25 @@ export const deleteCommunityMessage = createServerFn({ method: "POST" })
       }
       await tx.delete(communityComments).where(eq(communityComments.messageId, data.messageId));
       await tx.delete(communityReactions).where(eq(communityReactions.messageId, data.messageId));
-      await tx
-        .delete(communityMessages)
-        .where(
-          and(eq(communityMessages.id, data.messageId), eq(communityMessages.authorId, author.id)),
-        );
+      await tx.delete(communityMessages).where(eq(communityMessages.id, data.messageId));
     });
-    await writeAuditLog(author.id, "community.delete", "community_message", data.messageId);
+    if (deletingAsManagement) {
+      const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");
+      await notifyCommunityUsers(
+        {
+          title: "Community post removed",
+          message: "Management removed one of your Community posts.",
+        },
+        { userIds: [post.authorId] },
+      );
+    }
+    await writeAuditLog(
+      author.id,
+      deletingAsManagement ? "community.moderation.delete" : "community.delete",
+      "community_message",
+      data.messageId,
+      deletingAsManagement ? { postAuthorId: post.authorId } : undefined,
+    );
     return { id: data.messageId };
   });
 

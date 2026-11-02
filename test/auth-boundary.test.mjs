@@ -732,6 +732,9 @@ test("community reactions and comments are saved with role checks", async () => 
   assert.match(community, /export const deleteCommunityMessage/);
   assert.match(community, /You can only edit your own Community posts/);
   assert.match(community, /You can only delete your own Community posts/);
+  assert.match(community, /author\.roles\.includes\("Management"\)/);
+  assert.match(community, /community\.moderation\.delete/);
+  assert.match(community, /Community post removed/);
   assert.match(community, /tx\.delete\(communityComments\)/);
   assert.match(community, /tx\.delete\(communityReactions\)/);
   assert.match(community, /export const getMyCommunityMessages/);
@@ -778,7 +781,7 @@ test("comment reaction migration preserves one reaction per user", async () => {
   assert.match(migration, /fk_community_comment_reaction_comment/);
 });
 
-test("Community search and owner-only post controls are available in the feed", async () => {
+test("Community search, owner controls, and Management moderation are available in the feed", async () => {
   const feed = await readFile("src/features/messaging/components/community-feed.tsx", "utf8");
   assert.match(feed, /Search Community by post or author/);
   assert.match(feed, /Share your thoughts/);
@@ -789,6 +792,8 @@ test("Community search and owner-only post controls are available in the feed", 
   assert.match(feed, /communityPostCategoryLabels/);
   assert.match(feed, /getCommunityMessages\(\{ data \}\)/);
   assert.match(feed, /message\.isOwner/);
+  assert.match(feed, /message\.canDelete/);
+  assert.match(feed, /Management moderation/);
   assert.match(feed, /Edit post/);
   assert.match(feed, /Delete post/);
   assert.match(feed, /deleteCommunityMessage/);

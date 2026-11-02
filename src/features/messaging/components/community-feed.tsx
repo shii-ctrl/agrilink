@@ -625,61 +625,72 @@ export function CommunityFeed({
                     {message.message}
                   </p>
                 )}
-                {message.isOwner && !editing && (
+                {(message.isOwner || message.canDelete) && !editing && (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="rounded-full"
-                      disabled={deleting}
-                      onClick={() => {
-                        setEditingPostId(message.id);
-                        setEditDraft(message.message);
-                      }}
-                    >
-                      <Pencil className="size-4" /> Edit post
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="rounded-full text-destructive hover:text-destructive"
-                      disabled={deleting}
-                      onClick={async () => {
-                        if (
-                          !(await requestConfirmation({
-                            title: "Delete this post?",
-                            description:
-                              "This permanently removes the post, its comments, and its reactions.",
-                            confirmLabel: "Delete post",
-                            destructive: true,
-                          }))
-                        )
-                          return;
-                        setBusyDeleteId(message.id);
-                        try {
-                          await deleteCommunityMessage({ data: { messageId: message.id } });
-                          await load();
-                          toast.success("Community post deleted.");
-                        } catch (error) {
-                          toast.error(
-                            error instanceof Error
-                              ? error.message
-                              : "Could not delete your Community post.",
-                          );
-                        } finally {
-                          setBusyDeleteId(null);
-                        }
-                      }}
-                    >
-                      {deleting ? (
-                        <LoaderCircle className="size-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="size-4" />
-                      )}
-                      Delete post
-                    </Button>
+                    {message.isOwner && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-full"
+                        disabled={deleting}
+                        onClick={() => {
+                          setEditingPostId(message.id);
+                          setEditDraft(message.message);
+                        }}
+                      >
+                        <Pencil className="size-4" /> Edit post
+                      </Button>
+                    )}
+                    {message.canDelete && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-full text-destructive hover:text-destructive"
+                        disabled={deleting}
+                        onClick={async () => {
+                          if (
+                            !(await requestConfirmation({
+                              title: message.isOwner
+                                ? "Delete this post?"
+                                : "Remove this Community post?",
+                              description: message.isOwner
+                                ? "This permanently removes the post, its comments, and its reactions."
+                                : "Management moderation will permanently remove this post, its comments, and its reactions. This action is recorded in the audit log.",
+                              confirmLabel: "Delete post",
+                              destructive: true,
+                            }))
+                          )
+                            return;
+                          setBusyDeleteId(message.id);
+                          try {
+                            await deleteCommunityMessage({ data: { messageId: message.id } });
+                            await load();
+                            toast.success(
+                              message.isOwner
+                                ? "Community post deleted."
+                                : "Community post removed by Management.",
+                            );
+                          } catch (error) {
+                            toast.error(
+                              error instanceof Error
+                                ? error.message
+                                : "Could not delete this Community post.",
+                            );
+                          } finally {
+                            setBusyDeleteId(null);
+                          }
+                        }}
+                      >
+                        {deleting ? (
+                          <LoaderCircle className="size-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-4" />
+                        )}
+                        Delete post
+                      </Button>
+                    )}
                   </div>
                 )}
                 <div className="mt-5 flex flex-wrap items-center gap-2 border-y border-border/70 py-2">
