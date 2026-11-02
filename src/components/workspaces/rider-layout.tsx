@@ -8,7 +8,7 @@ import { ProcyLogo } from "@/components/layout/procy-logo";
 import { NotificationCenter } from "@/features/messaging/components/notification-center";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { signOutDemoAccount } from "@/lib/demo/demo-session";
+import { signOutCurrentAccount } from "@/lib/auth/session-view";
 import {
   Sidebar,
   SidebarContent,
@@ -109,7 +109,7 @@ export function RiderLayout({ children }: { children: ReactNode }) {
               <SidebarMenuItem>
                 <LogoutConfirmation
                   onConfirm={async () => {
-                    await signOutDemoAccount();
+                    await signOutCurrentAccount();
                     navigate({ to: "/" });
                   }}
                 >

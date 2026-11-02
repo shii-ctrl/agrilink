@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
 import { registerBuyer } from "@/services/auth/auth-functions";
-import { setSessionView } from "@/lib/demo/demo-session";
+import { setSessionView } from "@/lib/auth/session-view";
 import { notifyAuthSessionChanged } from "@/lib/auth/session-events";
 
 type RegisterDialogProps = {

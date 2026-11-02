@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
-import type { DemoOrder } from "@/lib/demo/demo-orders";
+import type { OrderRecord } from "@/features/marketplace/order-records";
 import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/management/sales")({
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/management/sales")({
 });
 
 function ManagementSalesPage() {
-  const [sales, setSales] = useState<DemoOrder[]>([]);
+  const [sales, setSales] = useState<OrderRecord[]>([]);
   const [query, setQuery] = useState("");
   const [saleDate, setSaleDate] = useState("");
   const [loading, setLoading] = useState(true);

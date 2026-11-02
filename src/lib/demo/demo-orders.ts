@@ -1,86 +1,21 @@
-import type { SellingUnit } from "@/features/marketplace/selling-units";
+import type {
+  FulfillmentMethod,
+  FulfillmentStatus,
+  OrderAllocation,
+  OrderLine,
+  OrderRecord,
+  OrderStatus,
+  PaymentStatus,
+} from "@/features/marketplace/order-records";
 
-export type DemoOrderStatus = "Pending" | "Confirmed" | "Sold" | "Cancelled" | "Rejected";
-export type DemoPaymentStatus = "Unpaid" | "Paid";
-export type FulfillmentMethod = "pickup" | "delivery";
-export type FulfillmentStatus =
-  | "pending"
-  | "confirmed"
-  | "preparing"
-  | "ready_for_pickup"
-  | "ready_for_dispatch"
-  | "rider_assigned"
-  | "out_for_delivery"
-  | "delivery_failed"
-  | "rescheduled"
-  | "picked_up"
-  | "delivered"
-  | "cancelled"
-  | "rejected";
-
-export type DemoOrderItem = {
-  listingId: string;
-  name: string;
-  classification: string;
-  quantityKg: number;
-  pricePerKg: number;
-  image?: string | null;
-  sellingUnit?: SellingUnit;
-};
-
-export type DemoOrderAllocation = {
-  farmer: string;
-  product: string;
-  classification: string;
-  quantityKg: number;
-  receivedAt: string;
-};
-
-export type DemoOrder = {
-  id: string;
-  buyer: string;
-  buyerUsername?: string;
-  farmer: string;
-  product: string;
-  classification: string;
-  quantity: string;
-  total: string;
-  amount?: number;
-  deliveryFee?: number;
-  status: DemoOrderStatus;
-  paymentStatus: DemoPaymentStatus;
-  date: string;
-  createdAt?: string;
-  paymentId?: string;
-  paymentMethod?: string;
-  paidAt?: string;
-  contact?: string;
-  pickupNote?: string;
-  fulfillmentMethod?: FulfillmentMethod;
-  fulfillmentStatus?: FulfillmentStatus;
-  recipientName?: string | null;
-  deliveryAddress?: string | null;
-  preferredSchedule?: string | null;
-  deliveryInstructions?: string | null;
-  assignedRiderId?: string | null;
-  assignedRiderName?: string | null;
-  deliveryOtpCode?: string | null;
-  deliveryProof?: {
-    recipientName: string | null;
-    proofPhotoUrl: string | null;
-    signatureUrl: string | null;
-    latitude: number | null;
-    longitude: number | null;
-    attemptedAt: string;
-  } | null;
-  fulfilledAt?: string;
-  confirmedAt?: string;
-  soldAt?: string;
-  items?: DemoOrderItem[];
-  allocations?: DemoOrderAllocation[];
-  history?: { status: string; note: string | null; changedAt: string }[];
-  stockReserved?: boolean;
-};
+// Compatibility aliases for the isolated browser demo helpers below. Production
+// routes import the neutral order types directly from the marketplace feature.
+export type DemoOrderStatus = OrderStatus;
+export type DemoPaymentStatus = PaymentStatus;
+export type DemoOrderItem = OrderLine;
+export type DemoOrderAllocation = OrderAllocation;
+export type DemoOrder = OrderRecord;
+export type { FulfillmentMethod, FulfillmentStatus };
 export const initialDemoOrders: DemoOrder[] = [
   {
     id: "ORD-2026-001",
@@ -204,5 +139,5 @@ export function subscribeDemoOrders(callback: (orders: DemoOrder[]) => void) {
     window.removeEventListener("storage", onStorage);
   };
 }
-import { products } from "@/features/marketplace/products";
+import { demoPublicProducts as products } from "@/lib/demo/demo-data";
 import type { InventoryLine } from "@/lib/demo/demo-inventory";

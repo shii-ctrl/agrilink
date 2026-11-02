@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthSwitchLink } from "@/features/auth/components/auth-switch-link";
 import { loginUser } from "@/services/auth/auth-functions";
-import { setSessionView } from "@/lib/demo/demo-session";
+import { setSessionView } from "@/lib/auth/session-view";
 import { notifyAuthSessionChanged } from "@/lib/auth/session-events";
 
 type LoginDialogProps = {

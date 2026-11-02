@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
 import { Label } from "@/components/ui/label";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
-import { type DemoOrder } from "@/lib/demo/demo-orders";
+import type { OrderRecord } from "@/features/marketplace/order-records";
 import { formatSellingQuantity, sellingUnitLabel } from "@/features/marketplace/selling-units";
 import {
   getAccountingCodRemittances,
@@ -27,7 +27,7 @@ function paymentMethodLabel(method: string | null | undefined) {
   return method ?? "Recorded method";
 }
 
-function AccountingPaymentReceipt({ order }: { order: DemoOrder }) {
+function AccountingPaymentReceipt({ order }: { order: OrderRecord }) {
   const items = order.items?.length
     ? order.items
     : [
@@ -138,10 +138,10 @@ function AccountingPaymentReceipt({ order }: { order: DemoOrder }) {
 }
 
 function AccountingPaymentsPage() {
-  const [orders, setOrders] = useState<DemoOrder[]>([]);
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState("");
   const [method, setMethod] = useState("");
-  const [receiptOrder, setReceiptOrder] = useState<DemoOrder | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<OrderRecord | null>(null);
   const [remittances, setRemittances] = useState<
     Awaited<ReturnType<typeof getAccountingCodRemittances>>
   >([]);
@@ -201,7 +201,7 @@ function AccountingPaymentsPage() {
     }
   }
 
-  function printReceipt(order: DemoOrder) {
+  function printReceipt(order: OrderRecord) {
     setReceiptOrder(order);
     window.requestAnimationFrame(() => window.print());
   }

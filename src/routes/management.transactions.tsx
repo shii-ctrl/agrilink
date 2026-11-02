@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
-import type { DemoOrder } from "@/lib/demo/demo-orders";
+import type { OrderRecord } from "@/features/marketplace/order-records";
 import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/management/transactions")({
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/management/transactions")({
 });
 
 function ManagementTransactionsPage() {
-  const [transactions, setTransactions] = useState<DemoOrder[]>([]);
+  const [transactions, setTransactions] = useState<OrderRecord[]>([]);
   const [query, setQuery] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");

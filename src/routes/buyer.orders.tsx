@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
-import type { DemoOrder } from "@/lib/demo/demo-orders";
+import type { OrderRecord } from "@/features/marketplace/order-records";
 import { formatSellingQuantity } from "@/features/marketplace/selling-units";
 import {
   getBuyerOrders,
@@ -22,12 +22,12 @@ import {
   rebuildBuyerCartFromOrder,
 } from "@/services/marketplace/marketplace-server-functions";
 export const Route = createFileRoute("/buyer/orders")({ component: BuyerOrdersPage });
-const emptyOrders: DemoOrder[] = [];
+const emptyOrders: OrderRecord[] = [];
 
 function BuyerOrdersPage() {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedOrder, setSelectedOrder] = useState<DemoOrder | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
@@ -47,8 +47,8 @@ function BuyerOrdersPage() {
         order.totalAmount,
       ),
       status:
-        `${order.status.charAt(0).toUpperCase()}${order.status.slice(1)}` as DemoOrder["status"],
-      paymentStatus: order.paymentStatus as DemoOrder["paymentStatus"],
+        `${order.status.charAt(0).toUpperCase()}${order.status.slice(1)}` as OrderRecord["status"],
+      paymentStatus: order.paymentStatus as OrderRecord["paymentStatus"],
       date: order.createdAt.toLocaleDateString("en-PH"),
       createdAt: order.createdAt.toISOString(),
       contact: order.contact,
@@ -79,7 +79,7 @@ function BuyerOrdersPage() {
   }, [orderDate, orderStatus, orders, paymentStatus, query]);
   const hasFilters = query || orderStatus || paymentStatus || orderDate;
   const ordersPage = usePagination(visibleOrders);
-  const cancelOrder = async (order: DemoOrder) => {
+  const cancelOrder = async (order: OrderRecord) => {
     if (
       !(await requestConfirmation({
         title: "Cancel this order?",
@@ -124,7 +124,7 @@ function BuyerOrdersPage() {
           detail.totalAmount,
         ),
         status:
-          `${detail.status.charAt(0).toUpperCase()}${detail.status.slice(1)}` as DemoOrder["status"],
+          `${detail.status.charAt(0).toUpperCase()}${detail.status.slice(1)}` as OrderRecord["status"],
         paymentStatus: detail.payment ? "Paid" : "Unpaid",
         date: detail.createdAt,
         createdAt: detail.createdAt,
@@ -163,7 +163,7 @@ function BuyerOrdersPage() {
       setDetailsLoading(false);
     }
   };
-  const buyAgain = async (order: DemoOrder) => {
+  const buyAgain = async (order: OrderRecord) => {
     try {
       await rebuildBuyerCartFromOrder({ data: { orderNumber: order.id } });
       toast.success("Order added to cart", {

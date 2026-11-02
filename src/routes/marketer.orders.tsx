@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
-import { type DemoOrder } from "@/lib/demo/demo-orders";
+import type { OrderRecord } from "@/features/marketplace/order-records";
 import {
   confirmDatabaseOrder,
   getDatabaseOrders,
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/marketer/orders")({
 const orderStatusFilters = ["Pending", "Confirmed", "Sold", "Cancelled", "Rejected"] as const;
 
 function MarketerOrdersPage() {
-  const [orders, setOrders] = useState<DemoOrder[]>([]);
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [orderDate, setOrderDate] = useState("");

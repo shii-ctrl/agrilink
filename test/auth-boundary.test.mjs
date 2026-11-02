@@ -1358,3 +1358,40 @@ test("Egg products use tray units throughout catalog, receiving, marketplace, an
   assert.match(cart, /formatSellingQuantity\(item\.quantityKg, item\.sellingUnit\)/);
   assert.match(orders, /item\.sellingUnit \?\? "kg"/);
 });
+
+test("production workspaces use neutral session and order contracts", async () => {
+  const productionFiles = await Promise.all(
+    [
+      "src/features/auth/components/login-dialog.tsx",
+      "src/features/auth/components/register-dialog.tsx",
+      "src/components/workspaces/accounting-layout.tsx",
+      "src/components/workspaces/buyer-layout.tsx",
+      "src/components/workspaces/farmer-layout.tsx",
+      "src/components/workspaces/management-layout.tsx",
+      "src/components/workspaces/marketer-layout.tsx",
+      "src/components/workspaces/rider-layout.tsx",
+      "src/features/marketplace/components/order-details.tsx",
+      "src/routes/accounting.payments.tsx",
+      "src/routes/buyer.orders.tsx",
+      "src/routes/management.sales.tsx",
+      "src/routes/management.transactions.tsx",
+      "src/routes/marketer.orders.tsx",
+      "src/services/marketplace/marketplace-server-functions.ts",
+    ].map((file) => readFile(file, "utf8")),
+  );
+  const [sessionView, demoSession, orderRecords, products] = await Promise.all([
+    readFile("src/lib/auth/session-view.ts", "utf8"),
+    readFile("src/lib/demo/demo-session.ts", "utf8"),
+    readFile("src/features/marketplace/order-records.ts", "utf8"),
+    readFile("src/features/marketplace/products.ts", "utf8"),
+  ]);
+
+  for (const source of productionFiles) {
+    assert.doesNotMatch(source, /@\/lib\/demo\//);
+  }
+  assert.match(sessionView, /agrilink-session-view/);
+  assert.match(sessionView, /signOutCurrentAccount/);
+  assert.match(demoSession, /signOutCurrentAccount as signOutDemoAccount/);
+  assert.match(orderRecords, /export type OrderRecord/);
+  assert.doesNotMatch(products, /demoPublicProducts/);
+});

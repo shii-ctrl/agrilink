@@ -12,7 +12,7 @@ import { Link } from "@tanstack/react-router";
 
 import { peso } from "@/features/marketplace/products";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
-import type { DemoOrder, DemoOrderItem } from "@/lib/demo/demo-orders";
+import type { OrderLine, OrderRecord } from "@/features/marketplace/order-records";
 import { formatSellingQuantity, sellingUnitLabel } from "@/features/marketplace/selling-units";
 
 function formatOrderDate(value: string | undefined, includeTime = false) {
@@ -28,7 +28,7 @@ function formatOrderDate(value: string | undefined, includeTime = false) {
   }).format(date);
 }
 
-function orderItems(order: DemoOrder): DemoOrderItem[] {
+function orderItems(order: OrderRecord): OrderLine[] {
   if (order.items?.length) return order.items;
   return [
     {
@@ -42,7 +42,7 @@ function orderItems(order: DemoOrder): DemoOrderItem[] {
   ];
 }
 
-export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
+export function OrderProgressTimeline({ order }: { order: OrderRecord }) {
   const isDelivery = order.fulfillmentMethod === "delivery";
   const steps: Array<[string, string]> = isDelivery
     ? [
@@ -199,7 +199,7 @@ export function OrderDetails({
   showBuyer = true,
   canMessageRider = false,
 }: {
-  order: DemoOrder;
+  order: OrderRecord;
   showBuyer?: boolean;
   canMessageRider?: boolean;
 }) {

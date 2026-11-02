@@ -1,4 +1,4 @@
-import { products } from "@/features/marketplace/products";
+import { demoPublicProducts as products } from "@/lib/demo/demo-data";
 
 export type InventoryLine = {
   listingId: string;

@@ -9,7 +9,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { type ReactNode } from "react";
-import { signOutDemoAccount } from "@/lib/demo/demo-session";
+import { signOutCurrentAccount } from "@/lib/auth/session-view";
 import { RoleGate } from "@/components/layout/role-gate";
 import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
@@ -128,7 +128,7 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
               <SidebarMenuItem>
                 <LogoutConfirmation
                   onConfirm={async () => {
-                    await signOutDemoAccount();
+                    await signOutCurrentAccount();
                     navigate({ to: "/" });
                   }}
                 >

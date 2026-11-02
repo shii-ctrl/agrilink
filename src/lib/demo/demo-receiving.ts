@@ -1,6 +1,5 @@
-import { demoReceivingRecords } from "@/lib/demo/demo-data";
+import { demoPublicProducts as products, demoReceivingRecords } from "@/lib/demo/demo-data";
 import { getDemoInventory, saveDemoInventory } from "@/lib/demo/demo-inventory";
-import { products } from "@/features/marketplace/products";
 
 export type DemoReceivingRecord = (typeof demoReceivingRecords)[number];
 

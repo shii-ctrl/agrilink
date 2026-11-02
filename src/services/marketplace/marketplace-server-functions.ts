@@ -11,7 +11,7 @@ import {
   sellingUnits,
   type SellingUnit,
 } from "@/features/marketplace/selling-units";
-import type { DemoOrder } from "@/lib/demo/demo-orders";
+import type { OrderRecord } from "@/features/marketplace/order-records";
 
 type MarketplaceDatabase = (typeof import("@/db/client.server"))["db"];
 type MarketplaceTransaction = Parameters<Parameters<MarketplaceDatabase["transaction"]>[0]>[0];
@@ -3373,7 +3373,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
     .innerJoin(users, eq(orders.buyerId, users.id))
     .leftJoin(payments, eq(payments.orderId, orders.id))
     .orderBy(desc(orders.createdAt), desc(orders.id));
-  if (!orderRows.length) return [] as DemoOrder[];
+  if (!orderRows.length) return [] as OrderRecord[];
   const orderIds = orderRows.map((order) => order.id);
   const [items, allocations, fulfillmentHistory] = await Promise.all([
     db
@@ -3449,7 +3449,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       amount: Number(order.totalAmount),
       deliveryFee: Number(order.deliveryFee),
       status:
-        `${order.status.charAt(0).toUpperCase()}${order.status.slice(1)}` as DemoOrder["status"],
+        `${order.status.charAt(0).toUpperCase()}${order.status.slice(1)}` as OrderRecord["status"],
       paymentStatus: order.paymentId ? "Paid" : "Unpaid",
       date: order.createdAt.toLocaleDateString("en-PH"),
       createdAt: order.createdAt.toISOString(),
@@ -3486,7 +3486,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
           receivedAt: allocation.receivedAt.toISOString(),
         })),
       stockReserved: order.status === "pending" || order.status === "confirmed",
-    } satisfies DemoOrder;
+    } satisfies OrderRecord;
   });
 });
 
