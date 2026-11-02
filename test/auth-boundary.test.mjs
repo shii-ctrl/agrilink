@@ -330,6 +330,11 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
 
   assert.match(marketerPage, /type="file"/);
   assert.match(marketerPage, /prepareProductImage/);
+  assert.doesNotMatch(
+    marketerPage,
+    /onChange=\{\(event\) => onChange\("retailPricePerKg"[\s\S]{0,160}required/,
+  );
+  assert.match(marketerPage, /optionalNumber\(draft\?\.retailPricePerKg/);
   assert.match(imageFallback, /product-no-image\.jpg/);
   assert.match(imageFallback, /return noProductImage/);
   assert.doesNotMatch(marketerPage, /catalog-image-url/);
@@ -337,6 +342,8 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(marketplace, /assertSafeProductImage/);
   assert.match(marketplace, /hasImageSignature/);
   assert.match(marketplace, /Bundle price must be lower than the retail price/);
+  assert.match(marketplace, /priceConfigured = offer\.retailPricePerKg !== null/);
+  assert.match(marketplace, /!listing\.priceConfigured/);
   assert.match(marketplace, /export const updateMarketplaceListingPricing/);
   assert.match(marketplace, /listingUnitPrice\(row, item\.quantityKg\)/);
   assert.match(productPage, /Bundle:[\s\S]*peso\(selectedOffer\.bundlePricePerKg\)/);
@@ -346,6 +353,7 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(productCard, /onMouseEnter=\{\(\) => setPreviewing\(true\)\}/);
   assert.match(productCard, /prefers-reduced-motion: reduce/);
   assert.match(productCard, /ClassificationBadge value=\{activeSlide\.classification\}/);
+  assert.match(productCard, /outOfStock \? "No stock"/);
   assert.doesNotMatch(productCard, /offers\.map\(\(offer\) => \(\s*<ClassificationBadge/);
   assert.match(schema, /bundlePricePerKg: decimal\("bundle_price_per_kg"/);
   assert.match(migration, /MODIFY COLUMN image_url MEDIUMTEXT/);

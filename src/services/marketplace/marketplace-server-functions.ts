@@ -99,7 +99,9 @@ const updateListingPricingInput = z
 const marketplaceOfferSettingsInput = z
   .object({
     listingId: z.string().uuid(),
-    ...listingPricingFields,
+    retailPricePerKg: z.number().positive().max(100_000).nullable(),
+    bundlePricePerKg: listingPricingFields.bundlePricePerKg,
+    bundleMinimumKg: listingPricingFields.bundleMinimumKg,
     visible: z.boolean(),
   })
   .superRefine(validateBundlePricing);
@@ -113,7 +115,7 @@ const listingStatusInput = z.object({
 });
 function validateBundlePricing(
   data: {
-    retailPricePerKg: number;
+    retailPricePerKg: number | null;
     bundlePricePerKg: number | null;
     bundleMinimumKg: number | null;
   },
@@ -121,6 +123,14 @@ function validateBundlePricing(
 ) {
   const hasBundlePrice = data.bundlePricePerKg !== null;
   const hasBundleMinimum = data.bundleMinimumKg !== null;
+  if (data.retailPricePerKg === null && (hasBundlePrice || hasBundleMinimum)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Enter a retail price before adding bundle pricing.",
+      path: ["retailPricePerKg"],
+    });
+    return;
+  }
   if (hasBundlePrice !== hasBundleMinimum) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -128,7 +138,11 @@ function validateBundlePricing(
       path: hasBundlePrice ? ["bundleMinimumKg"] : ["bundlePricePerKg"],
     });
   }
-  if (hasBundlePrice && data.bundlePricePerKg! >= data.retailPricePerKg) {
+  if (
+    hasBundlePrice &&
+    data.retailPricePerKg !== null &&
+    data.bundlePricePerKg! >= data.retailPricePerKg
+  ) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Bundle price must be lower than the retail price.",
@@ -264,6 +278,7 @@ function asProduct(row: {
   description: string | null;
   productImageUrl: string | null;
   offerImageUrl: string | null;
+  priceConfigured: boolean;
 }): MarketplaceProduct {
   const retailPricePerKg = Number(row.retailPricePerKg ?? row.pricePerKg);
   const bundlePricePerKg =
@@ -271,6 +286,7 @@ function asProduct(row: {
       ? null
       : Number(row.bundlePricePerKg);
   const bundleMinimumKg = bundlePricePerKg === null ? null : Number(row.bundleMinimumKg);
+  const availableQuantity = row.priceConfigured ? Math.max(0, Number(row.availableKg)) : 0;
   return {
     id: row.productId,
     name: row.name,
@@ -281,7 +297,7 @@ function asProduct(row: {
     retailPricePerKg,
     bundlePricePerKg,
     bundleMinimumKg,
-    quantityKg: Math.max(0, Number(row.availableKg)),
+    quantityKg: availableQuantity,
     description:
       row.description ??
       `${row.name} supplied by PROCY farmer members with selectable quality options.`,
@@ -295,7 +311,8 @@ function asProduct(row: {
         retailPricePerKg,
         bundlePricePerKg,
         bundleMinimumKg,
-        quantityKg: Math.max(0, Number(row.availableKg)),
+        quantityKg: availableQuantity,
+        priceConfigured: row.priceConfigured,
       },
     ],
   };
@@ -347,6 +364,7 @@ async function fetchListings(productId?: string) {
       description: products.description,
       productImageUrl: products.imageUrl,
       offerImageUrl: listings.imageUrl,
+      priceConfigured: listings.priceConfigured,
       active: products.active,
     })
     .from(listings)
@@ -399,6 +417,7 @@ async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
       description: products.description,
       productImageUrl: products.imageUrl,
       offerImageUrl: listings.imageUrl,
+      priceConfigured: listings.priceConfigured,
       status: listings.status,
     })
     .from(listings)
@@ -1097,16 +1116,21 @@ export const saveMarketplaceProductOffers = createServerFn({ method: "POST" })
       for (const offer of data.offers) {
         const current = currentOffers.find((item) => item.id === offer.listingId)!;
         const status = offer.visible ? ("published" as const) : ("draft" as const);
+        const priceConfigured = offer.retailPricePerKg !== null;
         const [updated] = await tx
           .update(listings)
           .set({
-            pricePerKg: offer.retailPricePerKg.toFixed(2),
-            retailPricePerKg: offer.retailPricePerKg.toFixed(2),
-            priceConfigured: true,
+            pricePerKg: priceConfigured ? offer.retailPricePerKg!.toFixed(2) : "0.01",
+            retailPricePerKg: priceConfigured ? offer.retailPricePerKg!.toFixed(2) : null,
+            priceConfigured,
             bundlePricePerKg:
-              offer.bundlePricePerKg === null ? null : offer.bundlePricePerKg.toFixed(2),
+              !priceConfigured || offer.bundlePricePerKg === null
+                ? null
+                : offer.bundlePricePerKg.toFixed(2),
             bundleMinimumKg:
-              offer.bundleMinimumKg === null ? null : offer.bundleMinimumKg.toFixed(2),
+              !priceConfigured || offer.bundleMinimumKg === null
+                ? null
+                : offer.bundleMinimumKg.toFixed(2),
             status,
           })
           .where(eq(listings.id, offer.listingId));
@@ -1437,12 +1461,13 @@ async function reserveListingStock(
       classification: classifications.name,
       sellingUnit: products.sellingUnit,
       status: listings.status,
+      priceConfigured: listings.priceConfigured,
     })
     .from(listings)
     .innerJoin(products, eq(listings.productId, products.id))
     .innerJoin(classifications, eq(listings.classificationId, classifications.id))
     .where(eq(listings.id, listingId));
-  if (!listing || listing.status !== "published") {
+  if (!listing || listing.status !== "published" || !listing.priceConfigured) {
     throw new Error("This product is no longer available in the marketplace.");
   }
   if (requiresWholeSellingQuantity(listing.sellingUnit) && !Number.isInteger(quantityKg)) {

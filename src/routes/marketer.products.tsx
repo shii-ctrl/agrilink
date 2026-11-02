@@ -571,7 +571,7 @@ function MarketplaceEditor({
                 const bundlePricePerKg = optionalNumber(draft?.bundlePricePerKg ?? null);
                 return {
                   listingId: offer.id,
-                  retailPricePerKg: Number(draft?.retailPricePerKg),
+                  retailPricePerKg: optionalNumber(draft?.retailPricePerKg ?? null),
                   bundlePricePerKg,
                   bundleMinimumKg:
                     bundlePricePerKg === null
@@ -594,9 +594,9 @@ function MarketplaceEditor({
       }}
     >
       <div className="rounded-2xl border border-primary/20 bg-accent/50 p-4 text-sm">
-        Select all qualities you want buyers to see, then use the single Save button below.
-        Published qualities stay visible as Sold out and automatically become purchasable after new
-        stock is recorded.
+        Select all qualities you want buyers to see, then use the single Save button below. Blank
+        prices can be saved. A visible quality without a price or stock is shown as No stock and
+        cannot be ordered until both are available.
       </div>
       {product.offers.map((offer) => (
         <OfferEditor
@@ -658,7 +658,6 @@ function OfferEditor({
           step="0.01"
           value={draft.retailPricePerKg}
           onChange={(event) => onChange("retailPricePerKg", event.target.value)}
-          required
         />
       </Field>
       <Field label={`Bundle ₱ / ${sellingUnitLabel(sellingUnit)}`}>

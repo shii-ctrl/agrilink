@@ -11,6 +11,7 @@ export type ProductOffer = {
   bundlePricePerKg?: number | null;
   bundleMinimumKg?: number | null;
   quantityKg: number;
+  priceConfigured?: boolean;
 };
 
 export type Product = {

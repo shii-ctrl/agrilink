@@ -17,7 +17,10 @@ export function ProductCard({ product }: { product: Product }) {
         },
       ];
   const availableQuantity = offers.reduce((total, offer) => total + offer.quantityKg, 0);
-  const minimumPrice = Math.min(...offers.map((offer) => offer.pricePerKg));
+  const pricedOffers = offers.filter((offer) => offer.priceConfigured !== false);
+  const minimumPrice = pricedOffers.length
+    ? Math.min(...pricedOffers.map((offer) => offer.pricePerKg))
+    : 0;
   const outOfStock = availableQuantity <= 0;
   const [activeImage, setActiveImage] = useState(0);
   const [previewing, setPreviewing] = useState(false);
@@ -93,7 +96,7 @@ export function ProductCard({ product }: { product: Product }) {
         {outOfStock ? (
           <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-background/90 px-3 py-2 text-sm font-semibold text-foreground backdrop-blur-sm">
             <PackageX className="size-4 text-muted-foreground" />
-            Out of stock
+            No stock
           </div>
         ) : null}
       </div>
@@ -107,10 +110,12 @@ export function ProductCard({ product }: { product: Product }) {
         <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
         <div className="mt-auto flex items-end justify-between pt-2">
           <div>
-            <p className="text-xl font-semibold text-primary">From {peso(minimumPrice)}</p>
+            <p className="text-xl font-semibold text-primary">
+              {outOfStock ? "No stock" : `From ${peso(minimumPrice)}`}
+            </p>
             <p className="text-xs text-muted-foreground">
               {outOfStock
-                ? "Sold out — restocking soon"
+                ? "No stock available"
                 : `${offers.length} quality option${offers.length === 1 ? "" : "s"} · ${formatSellingQuantity(availableQuantity, product.sellingUnit)} available`}
             </p>
           </div>

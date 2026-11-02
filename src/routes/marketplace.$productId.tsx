@@ -87,10 +87,12 @@ function ProductDetail() {
           bundleMinimumKg: product.bundleMinimumKg,
           quantityKg: product.quantityKg,
           image: product.image,
+          priceConfigured: true,
         },
       ];
   const [selectedOfferId, setSelectedOfferId] = useState(offers[0]?.id ?? product.id);
   const selectedOffer = offers.find((offer) => offer.id === selectedOfferId) ?? offers[0]!;
+  const selectedOfferHasPrice = selectedOffer.priceConfigured !== false;
   const [quantityInput, setQuantityInput] = useState("1");
   const [isBuyer, setIsBuyer] = useState(false);
   const [cartQuantityKg, setCartQuantityKg] = useState(0);
@@ -302,7 +304,7 @@ function ProductDetail() {
                 {offer.classification} ·{" "}
                 {offer.quantityKg > 0
                   ? formatSellingQuantity(offer.quantityKg, product.sellingUnit)
-                  : "Sold out"}
+                  : "No stock"}
               </button>
             ))}
           </div>
@@ -317,10 +319,12 @@ function ProductDetail() {
           </p>
 
           <p className="mt-5 font-display text-3xl font-semibold text-primary sm:mt-6 sm:text-4xl">
-            {peso(currentPricePerKg)}
-            <span className="ml-2 text-base font-normal text-muted-foreground">
-              / {sellingUnitLabel(product.sellingUnit)}
-            </span>
+            {selectedOfferHasPrice ? peso(currentPricePerKg) : "No price yet"}
+            {selectedOfferHasPrice ? (
+              <span className="ml-2 text-base font-normal text-muted-foreground">
+                / {sellingUnitLabel(product.sellingUnit)}
+              </span>
+            ) : null}
           </p>
           {selectedOffer.bundlePricePerKg && selectedOffer.bundleMinimumKg ? (
             <p className="mt-2 text-sm text-muted-foreground">
@@ -350,7 +354,7 @@ function ProductDetail() {
                 }`}
               >
                 <PackageCheck className="size-5" />
-                {isAvailable ? "Available" : "Unavailable"}
+                {isAvailable ? "Available" : "No stock"}
               </dd>
             </div>
           </dl>
@@ -439,7 +443,7 @@ function ProductDetail() {
               ? cartQuantityKg > 0
                 ? `Cart total for ${formatSellingQuantity(pricedQuantityKg, product.sellingUnit)}: ${peso(pricedQuantityKg * currentPricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
                 : `Subtotal for ${formatSellingQuantity(qty, product.sellingUnit)}: ${peso(qty * currentPricePerKg)} · Sold by PROCY, supplied by AgriLink farmer members.`
-              : "This listing is currently unavailable."}
+              : "No stock is currently available for this quality."}
           </p>
           {isBuyer && cartQuantityKg > 0 ? (
             <p className="mt-2 text-xs text-muted-foreground">
