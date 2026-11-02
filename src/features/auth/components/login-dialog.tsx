@@ -105,7 +105,7 @@ export function LoginDialog({
         <div className="h-2 bg-primary" />
         <div className="min-h-0 overflow-y-auto px-5 pb-6 pt-3 sm:px-9 sm:pb-9 sm:pt-4">
           <DialogHeader
-            className={`text-center sm:text-center ${
+            className={`text-center lg:items-center lg:pt-2 lg:text-center ${
               formFocused ? "items-start pt-0 text-left" : "items-center pt-2"
             }`}
           >
@@ -119,7 +119,9 @@ export function LoginDialog({
             >
               AgriLink
             </p>
-            <DialogTitle className={`${formFocused ? "text-xl" : "pt-1 text-2xl"}`}>
+            <DialogTitle
+              className={`${formFocused ? "text-xl" : "pt-1 text-2xl"} lg:pt-1 lg:text-2xl`}
+            >
               Welcome back
             </DialogTitle>
             <DialogDescription
