@@ -116,7 +116,7 @@ export function SiteHeader({
             <span className="flex size-9 items-center justify-center rounded-full surface-sprout">
               <ProcyLogo className="size-8" />
             </span>
-            <span className="hidden font-display text-lg font-semibold tracking-tight min-[390px]:inline">
+            <span className="font-display text-base font-semibold tracking-tight sm:text-lg">
               AgriLink
             </span>
           </Link>

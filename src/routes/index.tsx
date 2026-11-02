@@ -255,24 +255,24 @@ function Index() {
         onRegister={() => setRegisterOpen(true)}
       />
 
-      <main>
-        <section className="border-b border-border/70 bg-cream py-8 dark:bg-forest sm:py-12">
+      <main className="overflow-x-clip">
+        <section className="border-b border-border/70 bg-cream py-5 dark:bg-forest sm:py-12">
           <div className="grid w-full items-center gap-8 px-4 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12 lg:px-8">
-            <div className="py-4 text-foreground dark:text-forest-foreground sm:py-8">
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary dark:border-white/20 dark:bg-white/10 dark:text-forest-foreground">
+            <div className="min-w-0 py-2 text-foreground dark:text-forest-foreground sm:py-8">
+              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary dark:border-white/20 dark:bg-white/10 dark:text-forest-foreground sm:px-4 sm:text-xs sm:tracking-[0.14em]">
                 <Sprout className="size-3.5" /> Fresh from PROCY farmer members
               </span>
-              <h1 className="mt-6 max-w-3xl font-display text-4xl font-semibold leading-[1.03] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
+              <h1 className="mt-5 max-w-3xl font-display text-[2.35rem] font-semibold leading-[1.04] tracking-tight sm:mt-6 sm:text-5xl md:text-6xl lg:text-7xl">
                 Fresh local produce, ready for pickup.
               </h1>
-              <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground dark:text-forest-foreground/75 md:text-lg">
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground dark:text-forest-foreground/75 sm:mt-5 sm:text-base md:text-lg">
                 Compare Good, Semi, and Reject options, check live stock, and place your order with
                 PROCY.
               </p>
 
               <form
                 onSubmit={submitSearch}
-                className="mt-7 flex max-w-2xl flex-col gap-2 sm:flex-row"
+                className="mt-6 flex max-w-2xl flex-col gap-2 sm:mt-7 sm:flex-row"
               >
                 <div className="relative flex-1">
                   <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
@@ -281,16 +281,20 @@ function Index() {
                     onChange={(event) => setHeroQuery(event.target.value)}
                     placeholder="Search vegetables, fruits, eggs…"
                     aria-label="Search marketplace products"
-                    className="h-14 rounded-full bg-card pl-12 pr-5 text-base shadow-card"
+                    className="h-12 rounded-full bg-card pl-11 pr-4 text-sm shadow-card sm:h-14 sm:pl-12 sm:pr-5 sm:text-base"
                   />
                 </div>
-                <Button type="submit" size="lg" className="h-14 rounded-full px-7">
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="h-12 w-full rounded-full px-7 sm:h-14 sm:w-auto"
+                >
                   Search products
                 </Button>
               </form>
 
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Button asChild size="lg" className="rounded-full px-6">
+              <div className="mt-3 grid grid-cols-1 gap-2 min-[390px]:grid-cols-2 sm:mt-4 sm:flex sm:flex-wrap sm:gap-3">
+                <Button asChild size="lg" className="w-full rounded-full px-4 sm:w-auto sm:px-6">
                   <Link to="/marketplace" search={{ available: true }}>
                     Shop available products <ArrowRight className="size-4" />
                   </Link>
@@ -299,13 +303,13 @@ function Index() {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="rounded-full border-border/80 bg-card/80 px-6"
+                  className="w-full rounded-full border-border/80 bg-card/80 px-4 sm:w-auto sm:px-6"
                 >
                   <Link to="/daily-prices">View daily prices</Link>
                 </Button>
               </div>
 
-              <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground dark:text-forest-foreground/65">
+              <div className="mt-5 grid grid-cols-1 gap-2 text-xs text-muted-foreground dark:text-forest-foreground/65 min-[390px]:grid-cols-3 sm:mt-6 sm:flex sm:flex-wrap sm:gap-x-5">
                 <span className="inline-flex items-center gap-1.5">
                   <ShieldCheck className="size-4 text-primary" /> Quality classified
                 </span>
@@ -318,16 +322,21 @@ function Index() {
               </div>
 
               {isBuyer ? (
-                <div className="mt-7 flex max-w-2xl flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-card/90 p-4 text-card-foreground shadow-card">
+                <div className="mt-6 flex max-w-2xl flex-col items-stretch justify-between gap-4 rounded-2xl border border-primary/20 bg-card/90 p-4 text-card-foreground shadow-card sm:mt-7 sm:flex-row sm:items-center">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-primary">Welcome back</p>
                     <p className="mt-1 font-semibold">{buyerName}, continue your Buyer journey.</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm" className="rounded-full">
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                    <Button asChild size="sm" className="w-full rounded-full sm:w-auto">
                       <Link to="/buyer/cart">My cart</Link>
                     </Button>
-                    <Button asChild size="sm" variant="outline" className="rounded-full">
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      className="w-full rounded-full sm:w-auto"
+                    >
                       <Link to="/buyer/orders">Track orders</Link>
                     </Button>
                   </div>
@@ -335,30 +344,30 @@ function Index() {
               ) : null}
             </div>
 
-            <div className="relative overflow-hidden rounded-[2rem] border border-primary/15 bg-card shadow-field sm:rounded-[2.5rem]">
+            <div className="relative min-w-0 overflow-hidden rounded-3xl border border-primary/15 bg-card shadow-field sm:rounded-[2.5rem]">
               <img
                 src={landingPlaceholder}
                 alt="Replaceable AgriLink landing page photo placeholder"
                 width={960}
                 height={800}
                 fetchPriority="high"
-                className="aspect-[6/5] w-full object-cover"
+                className="aspect-[4/3] w-full object-cover sm:aspect-[6/5]"
               />
-              <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-background/90 px-3 py-2 text-xs font-medium text-foreground shadow-card backdrop-blur">
+              <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1.5 text-[10px] font-medium text-foreground shadow-card backdrop-blur sm:left-4 sm:top-4 sm:gap-2 sm:px-3 sm:py-2 sm:text-xs">
                 <ImageIcon className="size-4 text-primary" /> Replaceable landing photo
               </div>
-              <div className="absolute inset-x-4 bottom-4 rounded-2xl border border-white/25 bg-forest/90 p-4 text-forest-foreground shadow-field backdrop-blur sm:p-5">
+              <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/25 bg-forest/90 p-3 text-forest-foreground shadow-field backdrop-blur sm:inset-x-4 sm:bottom-4 sm:p-5">
                 <p className="text-xs uppercase tracking-[0.14em] opacity-70">Live marketplace</p>
                 <div className="mt-2 flex items-end justify-between gap-4">
                   <div>
-                    <p className="text-xl font-semibold">
+                    <p className="text-base font-semibold sm:text-xl">
                       {featuredLoading
                         ? "Loading products…"
                         : `${availableFeatured} featured products available`}
                     </p>
                     <p className="mt-1 text-xs opacity-70">Stock refreshes automatically.</p>
                   </div>
-                  <PackageCheck className="size-7 text-lime" />
+                  <PackageCheck className="size-5 shrink-0 text-lime sm:size-7" />
                 </div>
               </div>
             </div>
@@ -366,31 +375,31 @@ function Index() {
         </section>
 
         <section
-          className="w-full px-4 pt-8 sm:px-6 sm:pt-10 lg:px-8"
+          className="w-full px-4 pt-6 sm:px-6 sm:pt-10 lg:px-8"
           aria-label="Shop by category"
         >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
             {categories.map((category, index) => (
               <Link
                 key={category.label}
                 to="/marketplace"
                 search={category.search}
-                className={`group flex min-h-24 items-center gap-3 rounded-2xl border p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-field ${
+                className={`group flex min-h-20 items-center gap-2.5 rounded-2xl border p-3 shadow-card transition hover:-translate-y-0.5 hover:shadow-field sm:min-h-24 sm:gap-3 sm:p-4 ${
                   index === 0
                     ? "col-span-2 border-primary/25 bg-primary/10 sm:col-span-1"
                     : "border-border bg-card"
                 }`}
               >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                  <category.icon className="size-5" />
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground sm:size-10">
+                  <category.icon className="size-4.5 sm:size-5" />
                 </span>
-                <span className="text-sm font-semibold">{category.label}</span>
+                <span className="text-xs font-semibold sm:text-sm">{category.label}</span>
               </Link>
             ))}
           </div>
         </section>
 
-        <section className="mt-16 w-full px-4 sm:mt-20 sm:px-6 lg:px-8">
+        <section className="mt-12 w-full px-4 sm:mt-20 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
@@ -404,7 +413,7 @@ function Index() {
                 Products glide continuously. Pause by hovering or swipe to explore.
               </p>
             </div>
-            <Button asChild variant="outline" className="w-fit rounded-full">
+            <Button asChild variant="outline" className="w-full rounded-full sm:w-fit">
               <Link to="/marketplace" search={{ available: true }}>
                 Explore full marketplace <ArrowRight className="size-4" />
               </Link>
@@ -413,7 +422,7 @@ function Index() {
 
           {featuredLoading ? (
             <div
-              className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+              className="mt-6 grid gap-5 sm:mt-8 sm:grid-cols-2 lg:grid-cols-3"
               role="status"
               aria-label="Loading featured products"
             >
@@ -424,7 +433,7 @@ function Index() {
           ) : featured.length > 0 ? (
             <div
               ref={featuredCarouselRef}
-              className="mt-8 cursor-grab overflow-hidden active:cursor-grabbing"
+              className="mt-6 cursor-grab overflow-hidden active:cursor-grabbing sm:mt-8"
               role="region"
               aria-label="Featured produce carousel"
               aria-roledescription="carousel"
@@ -433,7 +442,7 @@ function Index() {
                 {featured.map((product, index) => (
                   <div
                     key={product.id}
-                    className="flex shrink-0 basis-[86%] snap-start sm:basis-[54%] lg:basis-[31%] xl:basis-[24%] [&>a]:w-full"
+                    className="flex shrink-0 basis-[92%] snap-start min-[430px]:basis-[82%] sm:basis-[54%] lg:basis-[31%] xl:basis-[24%] [&>a]:w-full"
                     role="group"
                     aria-roledescription="slide"
                     aria-label={`${index + 1} of ${featured.length}`}
@@ -453,16 +462,18 @@ function Index() {
           )}
         </section>
 
-        <section className="mt-20 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
+        <section className="mt-14 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
             · Simple ordering
           </p>
-          <h2 className="mt-3 text-3xl font-semibold md:text-4xl">From product to pickup</h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <h2 className="mt-3 text-2xl font-semibold sm:text-3xl md:text-4xl">
+            From product to pickup
+          </h2>
+          <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
             {orderSteps.map((step, index) => (
               <div
                 key={step.title}
-                className="relative rounded-3xl border border-border bg-card p-6 shadow-card"
+                className="relative rounded-2xl border border-border bg-card p-5 shadow-card sm:rounded-3xl sm:p-6"
               >
                 <span className="absolute right-5 top-5 text-xs font-semibold text-muted-foreground">
                   0{index + 1}
@@ -477,20 +488,24 @@ function Index() {
           </div>
         </section>
 
-        <section className="mt-20 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
-          <div className="grid gap-8 overflow-hidden rounded-[2rem] surface-field p-7 md:grid-cols-[0.9fr_1.1fr] md:p-12">
+        <section className="mt-14 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
+          <div className="grid gap-6 overflow-hidden rounded-3xl surface-field p-5 sm:gap-8 sm:rounded-[2rem] sm:p-7 md:grid-cols-[0.9fr_1.1fr] md:p-12">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-70">
                 · Clear quality choices
               </p>
-              <h2 className="mt-4 text-3xl font-semibold md:text-4xl">
+              <h2 className="mt-4 text-2xl font-semibold sm:text-3xl md:text-4xl">
                 One product, selectable quality options
               </h2>
               <p className="mt-4 max-w-md text-sm leading-relaxed opacity-80">
                 Each permanent product listing may offer Good, Semi, and Reject. Buyers compare the
                 photo, price, and available stock before adding their preferred quality to cart.
               </p>
-              <Button asChild variant="secondary" className="mt-7 rounded-full">
+              <Button
+                asChild
+                variant="secondary"
+                className="mt-6 w-full rounded-full sm:mt-7 sm:w-auto"
+              >
                 <Link to="/marketplace" search={{}}>
                   Compare live products <ArrowRight className="size-4" />
                 </Link>
@@ -516,7 +531,7 @@ function Index() {
               ].map((item) => (
                 <div
                   key={item.grade}
-                  className={`flex items-center justify-between gap-4 rounded-2xl border border-white/15 p-5 ${item.tone}`}
+                  className={`flex items-center justify-between gap-3 rounded-2xl border border-white/15 p-4 sm:gap-4 sm:p-5 ${item.tone}`}
                 >
                   <div>
                     <p className="font-semibold">{item.grade} quality</p>
@@ -531,12 +546,12 @@ function Index() {
           </div>
         </section>
 
-        <section className="mt-20 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
+        <section className="mt-14 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
           <div className="grid gap-4 md:grid-cols-3">
             {trustPoints.map((point) => (
               <div
                 key={point.title}
-                className="flex gap-4 rounded-3xl border border-border bg-card p-6 shadow-card"
+                className="flex gap-3 rounded-2xl border border-border bg-card p-5 shadow-card sm:gap-4 sm:rounded-3xl sm:p-6"
               >
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <point.icon className="size-5" />
@@ -548,7 +563,7 @@ function Index() {
               </div>
             ))}
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 rounded-2xl bg-muted/60 px-5 py-4 text-xs text-muted-foreground">
+          <div className="mt-4 grid gap-2 rounded-2xl bg-muted/60 px-4 py-4 text-xs text-muted-foreground sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-6 sm:px-5">
             <span className="inline-flex items-center gap-2">
               <Clock3 className="size-4" /> Stock refreshed from receiving records
             </span>
@@ -558,9 +573,9 @@ function Index() {
           </div>
         </section>
 
-        <section className="mt-20 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
-          <div className="rounded-[2rem] border border-border bg-cream p-8 text-center dark:bg-card md:p-14">
-            <h2 className="text-3xl font-semibold md:text-4xl">
+        <section className="mt-14 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
+          <div className="rounded-3xl border border-border bg-cream p-6 text-center dark:bg-card sm:rounded-[2rem] sm:p-8 md:p-14">
+            <h2 className="text-2xl font-semibold sm:text-3xl md:text-4xl">
               {isBuyer ? "Continue your AgriLink order" : "Ready to buy from PROCY?"}
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
@@ -568,13 +583,18 @@ function Index() {
                 ? "Review your reserved products or track the latest status of your submitted orders."
                 : "Browse freely, then register as a Buyer when you are ready to reserve stock and submit an order."}
             </p>
-            <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <div className="mt-6 grid gap-2 sm:mt-7 sm:flex sm:flex-wrap sm:justify-center sm:gap-3">
               {isBuyer ? (
                 <>
-                  <Button asChild size="lg" className="rounded-full">
+                  <Button asChild size="lg" className="w-full rounded-full sm:w-auto">
                     <Link to="/buyer/cart">My cart</Link>
                   </Button>
-                  <Button asChild size="lg" variant="outline" className="rounded-full">
+                  <Button
+                    asChild
+                    size="lg"
+                    variant="outline"
+                    className="w-full rounded-full sm:w-auto"
+                  >
                     <Link to="/buyer/orders">My orders</Link>
                   </Button>
                 </>
@@ -583,7 +603,7 @@ function Index() {
                   <Button
                     type="button"
                     size="lg"
-                    className="rounded-full"
+                    className="w-full rounded-full sm:w-auto"
                     onClick={() => setRegisterOpen(true)}
                   >
                     Register
@@ -592,7 +612,7 @@ function Index() {
                     type="button"
                     size="lg"
                     variant="outline"
-                    className="rounded-full"
+                    className="w-full rounded-full sm:w-auto"
                     onClick={() => setLoginOpen(true)}
                   >
                     I already have an account

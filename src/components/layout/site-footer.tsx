@@ -17,8 +17,8 @@ export function SiteFooter({ sessionSignedIn }: { sessionSignedIn?: boolean | nu
   }, [sessionSignedIn]);
 
   return (
-    <footer className="mt-24 surface-field">
-      <div className="grid w-full gap-10 px-4 py-16 sm:px-6 md:grid-cols-4 lg:px-8">
+    <footer className="mt-16 surface-field sm:mt-24">
+      <div className="grid w-full gap-8 px-4 py-10 sm:gap-10 sm:px-6 sm:py-16 md:grid-cols-4 lg:px-8">
         <div className="md:col-span-2">
           <div className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-full bg-lime text-forest">
@@ -73,7 +73,7 @@ export function SiteFooter({ sessionSignedIn }: { sessionSignedIn?: boolean | nu
         </div>
       </div>
       <div className="border-t border-white/10">
-        <p className="w-full px-4 py-6 text-xs opacity-70 sm:px-6 lg:px-8">
+        <p className="w-full px-4 py-5 text-xs leading-relaxed opacity-70 sm:px-6 sm:py-6 lg:px-8">
           © {new Date().getFullYear()} AgriLink. Products are supplied by farmer members and sold by
           PROCY.{" "}
           <Link to="/privacy" className="hover:underline">
