@@ -579,6 +579,9 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.match(marketerPage, /deleteCatalogProduct/);
   assert.match(marketerPage, /Delete crop/);
   assert.match(marketerPage, /Only unused crops can be deleted/);
+  assert.match(marketerPage, /selected && \(!showCreate \|\| selected\.id === newProductId\)/);
+  assert.match(marketerPage, /setNewProductId\(id\)/);
+  assert.match(marketerPage, /setTab\("details"\)/);
   assert.match(receivingPage, /Live quality distribution/);
   assert.match(receivingPage, /marketplace totals updated/);
   assert.match(receivingPage, /name="farmerId"[\s\S]*searchable/);

@@ -65,6 +65,7 @@ function ProductCatalogPage() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<EditorTab>("details");
   const [showCreate, setShowCreate] = useState(false);
+  const [newProductId, setNewProductId] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const latestLoad = useRef(0);
@@ -124,7 +125,10 @@ function ProductCatalogPage() {
                 <Button
                   size="sm"
                   className="rounded-full"
-                  onClick={() => setShowCreate((value) => !value)}
+                  onClick={() => {
+                    setShowCreate((value) => !value);
+                    setNewProductId("");
+                  }}
                 >
                   <PackagePlus className="size-4" /> Add
                 </Button>
@@ -144,7 +148,11 @@ function ProductCatalogPage() {
                   return (
                     <button
                       key={product.id}
-                      onClick={() => setSelectedId(product.id)}
+                      onClick={() => {
+                        setSelectedId(product.id);
+                        setShowCreate(false);
+                        setNewProductId("");
+                      }}
                       className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left ${product.id === selectedId ? "border-primary bg-accent" : "border-transparent hover:bg-muted/60"}`}
                     >
                       <img
@@ -169,11 +177,12 @@ function ProductCatalogPage() {
                   onSaved={async (id) => {
                     await load();
                     setSelectedId(id);
-                    setShowCreate(false);
+                    setNewProductId(id);
+                    setTab("details");
                   }}
                 />
               ) : null}
-              {selected ? (
+              {selected && (!showCreate || selected.id === newProductId) ? (
                 <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
                   <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border p-5 md:p-6">
                     <div className="flex min-w-0 items-center gap-4">
@@ -239,6 +248,7 @@ function ProductCatalogPage() {
                           try {
                             await deleteCatalogProduct({ data: { productId: selected.id } });
                             toast.success("Crop deleted permanently");
+                            setNewProductId("");
                             await load();
                           } catch (error) {
                             toast.error("Crop could not be deleted", {
@@ -267,11 +277,11 @@ function ProductCatalogPage() {
                     {tab === "history" ? <ProductHistory product={selected} /> : null}
                   </div>
                 </section>
-              ) : (
+              ) : !showCreate ? (
                 <div className="rounded-3xl border border-dashed p-12 text-center text-muted-foreground">
                   Add or select a permanent product.
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         ) : null}
