@@ -329,14 +329,14 @@ function BuyerOrdersPage() {
             }
           }}
         >
-          <DialogContent className="h-[100dvh] max-h-[100dvh] w-full max-w-none overflow-y-auto border-0 p-4 sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100%-2rem)] sm:max-w-6xl sm:rounded-3xl sm:border sm:p-6">
+          <DialogContent className="h-[100dvh] max-h-[100dvh] w-full max-w-none overflow-hidden border-0 p-0 sm:h-[calc(100dvh-2rem)] sm:w-[calc(100%-2rem)] sm:max-w-6xl sm:rounded-3xl sm:border">
             <DialogTitle className="sr-only">Order details</DialogTitle>
             <DialogDescription className="sr-only">
               Review the selected order without leaving the order history.
             </DialogDescription>
             {detailsLoading ? (
               <div
-                className="flex min-h-[50dvh] flex-col items-center justify-center gap-3 text-center"
+                className="flex h-full min-h-0 flex-col items-center justify-center gap-3 overflow-y-auto p-4 text-center sm:p-6"
                 role="status"
                 aria-live="polite"
               >
@@ -347,7 +347,7 @@ function BuyerOrdersPage() {
                 </div>
               </div>
             ) : selectedOrder ? (
-              <div className="pt-10 sm:pt-4">
+              <div className="h-full min-h-0 overflow-y-auto p-4 pt-14 sm:p-6 sm:pt-10">
                 <div className="mb-4 flex flex-wrap justify-end gap-2 pr-12">
                   {selectedOrder.status === "Pending" && (
                     <Button
