@@ -2,6 +2,8 @@ import {
   LoaderCircle,
   MessageCircle,
   Pencil,
+  Pin,
+  PinOff,
   Radio,
   RefreshCw,
   Reply,
@@ -25,6 +27,7 @@ import {
   removeCommunityCommentReaction,
   removeCommunityReaction,
   setCommunityCommentReaction,
+  setCommunityPostPinned,
   setCommunityReaction,
   updateCommunityMessage,
 } from "@/services/messaging/community-server-functions";
@@ -217,6 +220,7 @@ export function CommunityFeed({
   const [editDraft, setEditDraft] = useState("");
   const [busyEditId, setBusyEditId] = useState<string | null>(null);
   const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
+  const [busyPinId, setBusyPinId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [hasMore, setHasMore] = useState(false);
@@ -532,11 +536,19 @@ export function CommunityFeed({
             const editing = editingPostId === message.id;
             const editingBusy = busyEditId === message.id;
             const deleting = busyDeleteId === message.id;
+            const pinning = busyPinId === message.id;
             return (
               <article
                 key={message.id}
-                className="rounded-3xl border border-border bg-card p-5 shadow-card"
+                className={`rounded-3xl border bg-card p-5 shadow-card ${
+                  message.isPinned ? "border-primary/40 ring-1 ring-primary/10" : "border-border"
+                }`}
               >
+                {message.isPinned && (
+                  <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
+                    <Pin className="size-4 fill-current" /> Pinned official announcement
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <CommunityAvatar name={message.author} avatarUrl={message.authorAvatarUrl} />
@@ -625,7 +637,7 @@ export function CommunityFeed({
                     {message.message}
                   </p>
                 )}
-                {(message.isOwner || message.canDelete) && !editing && (
+                {(message.isOwner || message.canDelete || message.canPin) && !editing && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {message.isOwner && (
                       <Button
@@ -691,6 +703,47 @@ export function CommunityFeed({
                         Delete post
                       </Button>
                     )}
+                    {message.canPin &&
+                      (message.category === "announcement" || message.isPinned) && (
+                        <Button
+                          type="button"
+                          variant={message.isPinned ? "secondary" : "ghost"}
+                          size="sm"
+                          className="rounded-full"
+                          disabled={pinning || deleting}
+                          onClick={async () => {
+                            setBusyPinId(message.id);
+                            try {
+                              await setCommunityPostPinned({
+                                data: { messageId: message.id, pinned: !message.isPinned },
+                              });
+                              await load();
+                              toast.success(
+                                message.isPinned
+                                  ? "Official announcement unpinned."
+                                  : "Announcement pinned to the top of Community.",
+                              );
+                            } catch (error) {
+                              toast.error(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Could not update this pinned announcement.",
+                              );
+                            } finally {
+                              setBusyPinId(null);
+                            }
+                          }}
+                        >
+                          {pinning ? (
+                            <LoaderCircle className="size-4 animate-spin" />
+                          ) : message.isPinned ? (
+                            <PinOff className="size-4" />
+                          ) : (
+                            <Pin className="size-4" />
+                          )}
+                          {message.isPinned ? "Unpin announcement" : "Pin announcement"}
+                        </Button>
+                      )}
                   </div>
                 )}
                 <div className="mt-5 flex flex-wrap items-center gap-2 border-y border-border/70 py-2">

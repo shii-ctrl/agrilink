@@ -33,6 +33,7 @@ const postUpdateInput = z.object({
   message: z.string().trim().min(1).max(4_000),
 });
 const postRemovalInput = z.object({ messageId: z.string().uuid() });
+const postPinInput = z.object({ messageId: z.string().uuid(), pinned: z.boolean() });
 const communityRoles = ["Management", "Marketer", "Accounting", "Farmer"];
 
 async function assertCommunityMessageExists(messageId: string) {
@@ -97,6 +98,8 @@ async function communityMessagesForViewer(
     .select({
       id: communityMessages.id,
       category: communityMessages.category,
+      isPinned: communityMessages.isPinned,
+      pinnedAt: communityMessages.pinnedAt,
       message: communityMessages.message,
       createdAt: communityMessages.createdAt,
       authorId: communityMessages.authorId,
@@ -107,7 +110,11 @@ async function communityMessagesForViewer(
     .from(communityMessages)
     .innerJoin(users, eq(communityMessages.authorId, users.id))
     .where(where)
-    .orderBy(desc(communityMessages.createdAt))
+    .orderBy(
+      desc(communityMessages.isPinned),
+      desc(communityMessages.pinnedAt),
+      desc(communityMessages.createdAt),
+    )
     .limit(pageSize + 1)
     .offset(options.offset ?? 0);
 
@@ -238,8 +245,11 @@ async function communityMessagesForViewer(
     messages: pageRows.map((message) => ({
       id: message.id,
       category: message.category,
+      isPinned: message.isPinned,
+      pinnedAt: message.pinnedAt?.toISOString() ?? null,
       isOwner: message.authorId === viewer.id,
       canDelete: message.authorId === viewer.id || viewer.roles.includes("Management"),
+      canPin: viewer.roles.includes("Management") || viewer.roles.includes("Marketer"),
       message: message.message,
       author: message.author,
       authorAvatarUrl:
@@ -367,6 +377,56 @@ export const deleteCommunityMessage = createServerFn({ method: "POST" })
       deletingAsManagement ? { postAuthorId: post.authorId } : undefined,
     );
     return { id: data.messageId };
+  });
+
+export const setCommunityPostPinned = createServerFn({ method: "POST" })
+  .validator(postPinInput)
+  .handler(async ({ data }) => {
+    const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const moderator = await requireAnyRole(["Management", "Marketer"]);
+    const post = await assertCommunityMessageExists(data.messageId);
+    const { db } = await import("@/db/client.server");
+    const { communityMessages } = await import("@/db/schema");
+    const [postDetails] = await db
+      .select({ category: communityMessages.category })
+      .from(communityMessages)
+      .where(eq(communityMessages.id, data.messageId));
+    if (!postDetails) throw new Error("This community post is no longer available.");
+    if (data.pinned && postDetails.category !== "announcement") {
+      throw new Error("Only Announcement posts can be pinned as official updates.");
+    }
+
+    await db
+      .update(communityMessages)
+      .set({
+        isPinned: data.pinned,
+        pinnedAt: data.pinned ? new Date() : null,
+        pinnedById: data.pinned ? moderator.id : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(communityMessages.id, data.messageId));
+
+    if (post.authorId !== moderator.id) {
+      const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");
+      await notifyCommunityUsers(
+        {
+          title: data.pinned ? "Community announcement pinned" : "Community announcement unpinned",
+          message: data.pinned
+            ? `${moderator.displayName} pinned your announcement as an official Community update.`
+            : `${moderator.displayName} unpinned your Community announcement.`,
+        },
+        { userIds: [post.authorId] },
+      );
+    }
+
+    await writeAuditLog(
+      moderator.id,
+      data.pinned ? "community.pin" : "community.unpin",
+      "community_message",
+      data.messageId,
+      { postAuthorId: post.authorId },
+    );
+    return { id: data.messageId, pinned: data.pinned };
   });
 
 export const setCommunityReaction = createServerFn({ method: "POST" })

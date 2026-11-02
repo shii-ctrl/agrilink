@@ -341,11 +341,21 @@ export const communityMessages = mysqlTable(
     ])
       .default("general_discussion")
       .notNull(),
+    isPinned: boolean("is_pinned").default(false).notNull(),
+    pinnedAt: datetime("pinned_at"),
+    pinnedById: varchar("pinned_by_id", { length: 36 }),
     message: text("message").notNull(),
     createdAt,
     updatedAt,
   },
-  (table) => [index("community_messages_category_created_idx").on(table.category, table.createdAt)],
+  (table) => [
+    index("community_messages_category_created_idx").on(table.category, table.createdAt),
+    index("community_messages_pinned_created_idx").on(
+      table.isPinned,
+      table.pinnedAt,
+      table.createdAt,
+    ),
+  ],
 );
 export const communityReactions = mysqlTable(
   "community_reactions",

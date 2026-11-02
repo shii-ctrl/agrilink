@@ -162,3 +162,14 @@ test("Community post categories preserve existing posts as general discussions",
   assert.match(migration, /community_messages_category_created_idx/);
   assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
 });
+
+test("pinned Community announcements preserve all existing post history", async () => {
+  const migration = await readFile("drizzle/0033_pinned_community_announcements.sql", "utf8");
+
+  assert.match(migration, /ALTER TABLE community_messages/);
+  assert.match(migration, /ADD COLUMN is_pinned BOOLEAN NOT NULL DEFAULT FALSE/);
+  assert.match(migration, /ADD COLUMN pinned_at DATETIME NULL/);
+  assert.match(migration, /ADD COLUMN pinned_by_id VARCHAR\(36\) NULL/);
+  assert.match(migration, /community_messages_pinned_created_idx/);
+  assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
+});
