@@ -296,8 +296,11 @@ test("Accounting prints buyer payment receipts after payment is recorded", async
 test("order details use a responsive real-workflow stepper and clear summaries", async () => {
   const source = await readFile("src/features/marketplace/components/order-details.tsx", "utf8");
 
-  assert.match(source, /const steps = \["Pending", "Confirmed", "Sold", "Paid"\]/);
-  assert.doesNotMatch(source, /const steps = \[[^\]]*"Ready for pickup"/);
+  assert.match(source, /const isDelivery = order\.fulfillmentMethod === "delivery"/);
+  assert.match(source, /\["ready_for_pickup", "Ready for pickup"\]/);
+  assert.match(source, /\["rider_assigned", "Rider assigned"\]/);
+  assert.match(source, /\["out_for_delivery", "Out for delivery"\]/);
+  assert.match(source, /\["delivered", "Delivered"\]/);
   assert.match(source, /const currentStep =/);
   assert.match(source, /aria-label="Order status steps"/);
   assert.match(source, /aria-current=\{current \? "step"/);
@@ -1169,6 +1172,34 @@ test("delivery checkout collects a complete recipient and delivery address", asy
   assert.match(cart, /Delivery recipient:/);
   assert.match(cart, /Delivery address/);
   assert.match(marketplace, /pickupNote: z\.string\(\)\.trim\(\)\.min\(3\)\.max\(2000\)/);
+});
+
+test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilities separate", async () => {
+  const [schema, migration, marketplace, marketer, management, rider, accounting] =
+    await Promise.all([
+      readFile("src/db/schema.ts", "utf8"),
+      readFile("drizzle/0035_delivery_fulfillment_flow.sql", "utf8"),
+      readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+      readFile("src/routes/marketer.orders.tsx", "utf8"),
+      readFile("src/routes/management.index.tsx", "utf8"),
+      readFile("src/routes/rider.index.tsx", "utf8"),
+      readFile("src/routes/accounting.payments.tsx", "utf8"),
+    ]);
+
+  assert.match(schema, /fulfillmentMethod: mysqlEnum/);
+  assert.match(schema, /orderFulfillmentHistory/);
+  assert.match(migration, /ready_for_dispatch/);
+  assert.match(migration, /assigned_rider_id/);
+  assert.match(marketplace, /export const assignDeliveryRider/);
+  assert.match(marketplace, /export const updateOrderFulfillment/);
+  assert.match(marketplace, /Cash on Delivery can only be recorded for a Delivery order/);
+  assert.match(marketer, /Start preparing/);
+  assert.match(marketer, /Ready for dispatch/);
+  assert.match(management, /Delivery dispatch/);
+  assert.match(rider, /Start delivery/);
+  assert.match(rider, /Mark delivered/);
+  assert.match(accounting, /Accounting scope/);
+  assert.match(accounting, /verify the order total/);
 });
 
 test("Egg products use tray units throughout catalog, receiving, marketplace, and orders", async () => {

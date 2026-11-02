@@ -44,7 +44,7 @@ function AccountingPaymentReceipt({ order }: { order: DemoOrder }) {
     units.size === 1
       ? formatSellingQuantity(totalQuantity, items[0]?.sellingUnit ?? "kg")
       : `${items.length} classified items`;
-  const fulfillment = order.pickupNote?.startsWith("Delivery:") ? "Delivery" : "Pickup";
+  const fulfillment = order.fulfillmentMethod === "delivery" ? "Delivery" : "Pickup";
   const itemTotal = items.reduce((total, item) => total + item.quantityKg * item.pricePerKg, 0);
 
   return (
@@ -202,9 +202,10 @@ function AccountingPaymentsPage() {
           <div className="mb-6 flex gap-3 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
             <Clock3 className="mt-0.5 size-5 shrink-0" />
             <p>
-              <span className="font-semibold">Payment queue:</span> only Sold PROCY orders are ready
-              for payment recording. Buyer payment status updates immediately; Farmer stock status
-              updates when sales are fulfilled.
+              <span className="font-semibold">Accounting scope:</span> verify the order total and
+              delivery fee, record Cash or COD only after money is received, then issue the receipt.
+              Preparing orders, assigning Riders, and changing delivery progress stay with
+              Operations.
             </p>
           </div>
           <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
@@ -229,7 +230,10 @@ function AccountingPaymentsPage() {
                     <AppSelect
                       id="transaction"
                       value={selectedOrderId}
-                      onValueChange={setSelectedOrderId}
+                      onValueChange={(value) => {
+                        setSelectedOrderId(value);
+                        setMethod("");
+                      }}
                       placeholder="Select a Sold order"
                       options={awaitingPayment.map((order) => ({
                         value: order.id,
@@ -255,7 +259,9 @@ function AccountingPaymentsPage() {
                       onValueChange={setMethod}
                       placeholder="Select a method"
                       options={[
-                        { value: "cash_on_delivery", label: "Cash on Delivery (COD)" },
+                        ...(selectedOrder?.fulfillmentMethod === "delivery"
+                          ? [{ value: "cash_on_delivery", label: "Cash on Delivery (COD)" }]
+                          : []),
                         { value: "cash", label: "Cash" },
                       ]}
                     />

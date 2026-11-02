@@ -20,11 +20,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { AppSelect } from "@/components/ui/app-select";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { toast } from "sonner";
 import {
   getManagementDashboard,
+  getManagementDeliveryOperations,
   getManagementDeliveryFee,
+  assignDeliveryRider,
   updateManagementDeliveryAvailability,
   updateManagementDeliveryFee,
 } from "@/services/marketplace/marketplace-server-functions";
@@ -78,6 +81,10 @@ function ManagementDashboard() {
   const [deliveryEnabled, setDeliveryEnabled] = useState(true);
   const [savingDeliveryFee, setSavingDeliveryFee] = useState(false);
   const [savingDeliveryAvailability, setSavingDeliveryAvailability] = useState(false);
+  const [deliveryOperations, setDeliveryOperations] = useState<
+    Awaited<ReturnType<typeof getManagementDeliveryOperations>> | undefined
+  >();
+  const [assigningOrder, setAssigningOrder] = useState<string | null>(null);
   const isMonthly = range === "month";
   const isAllTime = range === "all";
   const request = useCallback(
@@ -112,6 +119,32 @@ function ManagementDashboard() {
       })
       .catch(() => undefined);
   }, []);
+
+  const loadDeliveryOperations = useCallback(() => {
+    void getManagementDeliveryOperations()
+      .then(setDeliveryOperations)
+      .catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    loadDeliveryOperations();
+    const interval = window.setInterval(loadDeliveryOperations, 30_000);
+    return () => window.clearInterval(interval);
+  }, [loadDeliveryOperations]);
+
+  async function assignRider(orderNumber: string, riderId: string) {
+    setAssigningOrder(orderNumber);
+    try {
+      await assignDeliveryRider({ data: { orderNumber, riderId } });
+      loadDeliveryOperations();
+      toast.success("Rider assigned", { description: `${orderNumber} is now in the Rider queue.` });
+    } catch (cause) {
+      toast.error("Could not assign Rider", {
+        description: cause instanceof Error ? cause.message : "Please try again.",
+      });
+    } finally {
+      setAssigningOrder(null);
+    }
+  }
 
   async function saveDeliveryFee() {
     const nextFee = Number(deliveryFee);
@@ -331,6 +364,71 @@ function ManagementDashboard() {
               <p id="delivery-fee-help" className="mt-3 text-xs text-muted-foreground">
                 Default fee: ₱59.00. Orders already placed keep the fee they were created with.
               </p>
+            </section>
+
+            <section className="mt-6 rounded-3xl border border-border bg-card p-5 shadow-card">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold">Delivery dispatch</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Assign only orders prepared by the Marketer. Riders update trip progress from
+                    their mobile workspace.
+                  </p>
+                </div>
+                <span className="rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
+                  {deliveryOperations?.deliveries.length ?? 0} active
+                </span>
+              </div>
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                {deliveryOperations?.deliveries.map((delivery) => (
+                  <article
+                    key={delivery.orderNumber}
+                    className="rounded-2xl border border-border p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                          {delivery.orderNumber}
+                        </p>
+                        <h3 className="mt-1 font-semibold">
+                          {delivery.recipientName || delivery.buyer}
+                        </h3>
+                      </div>
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+                        {delivery.fulfillmentStatus.replaceAll("_", " ")}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      {delivery.deliveryAddress || "No structured address saved"}
+                    </p>
+                    <div className="mt-4">
+                      <AppSelect
+                        value={delivery.assignedRiderId ?? ""}
+                        onValueChange={(riderId) => void assignRider(delivery.orderNumber, riderId)}
+                        options={(deliveryOperations?.riders ?? []).map((rider) => ({
+                          value: rider.id,
+                          label: rider.name,
+                        }))}
+                        placeholder={
+                          deliveryOperations?.riders.length ? "Assign a Rider" : "No active Riders"
+                        }
+                        disabled={
+                          assigningOrder !== null ||
+                          !["ready_for_dispatch", "rider_assigned"].includes(
+                            delivery.fulfillmentStatus,
+                          )
+                        }
+                        className="w-full justify-between"
+                      />
+                    </div>
+                  </article>
+                ))}
+                {deliveryOperations && !deliveryOperations.deliveries.length ? (
+                  <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground lg:col-span-2">
+                    No delivery orders are ready for dispatch yet.
+                  </div>
+                ) : null}
+              </div>
             </section>
 
             <section className="mt-8">

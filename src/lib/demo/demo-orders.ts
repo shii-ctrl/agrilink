@@ -2,6 +2,19 @@ import type { SellingUnit } from "@/features/marketplace/selling-units";
 
 export type DemoOrderStatus = "Pending" | "Confirmed" | "Sold" | "Cancelled" | "Rejected";
 export type DemoPaymentStatus = "Unpaid" | "Paid";
+export type FulfillmentMethod = "pickup" | "delivery";
+export type FulfillmentStatus =
+  | "pending"
+  | "confirmed"
+  | "preparing"
+  | "ready_for_pickup"
+  | "ready_for_dispatch"
+  | "rider_assigned"
+  | "out_for_delivery"
+  | "picked_up"
+  | "delivered"
+  | "cancelled"
+  | "rejected";
 
 export type DemoOrderItem = {
   listingId: string;
@@ -41,6 +54,14 @@ export type DemoOrder = {
   paidAt?: string;
   contact?: string;
   pickupNote?: string;
+  fulfillmentMethod?: FulfillmentMethod;
+  fulfillmentStatus?: FulfillmentStatus;
+  recipientName?: string | null;
+  deliveryAddress?: string | null;
+  preferredSchedule?: string | null;
+  deliveryInstructions?: string | null;
+  assignedRiderName?: string | null;
+  fulfilledAt?: string;
   confirmedAt?: string;
   soldAt?: string;
   items?: DemoOrderItem[];
@@ -120,6 +141,8 @@ function normalizeOrder(order: Partial<DemoOrder>): DemoOrder {
     ...(order.paidAt ? { paidAt: order.paidAt } : {}),
     contact: order.contact ?? "Not yet provided",
     pickupNote: order.pickupNote ?? "No pickup or delivery note provided",
+    fulfillmentMethod: order.fulfillmentMethod ?? "pickup",
+    fulfillmentStatus: order.fulfillmentStatus ?? "pending",
     ...(order.confirmedAt ? { confirmedAt: order.confirmedAt } : {}),
     ...(order.soldAt ? { soldAt: order.soldAt } : {}),
     ...(order.items ? { items: order.items } : {}),

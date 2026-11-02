@@ -199,14 +199,38 @@ export const orders = mysqlTable(
     status: mysqlEnum("status", ["pending", "confirmed", "sold", "cancelled", "rejected"])
       .default("pending")
       .notNull(),
+    fulfillmentMethod: mysqlEnum("fulfillment_method", ["pickup", "delivery"])
+      .default("pickup")
+      .notNull(),
+    fulfillmentStatus: mysqlEnum("fulfillment_status", [
+      "pending",
+      "confirmed",
+      "preparing",
+      "ready_for_pickup",
+      "ready_for_dispatch",
+      "rider_assigned",
+      "out_for_delivery",
+      "picked_up",
+      "delivered",
+      "cancelled",
+      "rejected",
+    ])
+      .default("pending")
+      .notNull(),
     contact: varchar("contact", { length: 80 }).notNull(),
     pickupNote: text("pickup_note").notNull(),
+    recipientName: varchar("recipient_name", { length: 160 }),
+    deliveryAddress: text("delivery_address"),
+    preferredSchedule: varchar("preferred_schedule", { length: 255 }),
+    deliveryInstructions: text("delivery_instructions"),
+    assignedRiderId: varchar("assigned_rider_id", { length: 36 }),
     // The delivery fee is fixed at checkout so later Management changes do not
     // alter the amount a buyer agreed to pay for an existing order.
     deliveryFee: decimal("delivery_fee", { precision: 12, scale: 2 }).default("0.00").notNull(),
     totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
     confirmedAt: datetime("confirmed_at"),
     soldAt: datetime("sold_at"),
+    fulfilledAt: datetime("fulfilled_at"),
     createdAt,
     updatedAt,
   },
@@ -214,6 +238,30 @@ export const orders = mysqlTable(
     uniqueIndex("orders_number_unique").on(table.orderNumber),
     index("orders_buyer_idx").on(table.buyerId),
   ],
+);
+export const orderFulfillmentHistory = mysqlTable(
+  "order_fulfillment_history",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    orderId: varchar("order_id", { length: 36 }).notNull(),
+    status: mysqlEnum("status", [
+      "pending",
+      "confirmed",
+      "preparing",
+      "ready_for_pickup",
+      "ready_for_dispatch",
+      "rider_assigned",
+      "out_for_delivery",
+      "picked_up",
+      "delivered",
+      "cancelled",
+      "rejected",
+    ]).notNull(),
+    changedById: varchar("changed_by_id", { length: 36 }),
+    note: text("note"),
+    changedAt: datetime("changed_at").notNull(),
+  },
+  (table) => [index("order_fulfillment_history_order_idx").on(table.orderId, table.changedAt)],
 );
 export const deliverySettings = mysqlTable("delivery_settings", {
   // A singleton row (id 1) keeps the delivery fee in the database instead of

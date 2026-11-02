@@ -28,6 +28,10 @@ const checkoutInput = z.object({
   contact: z.string().trim().min(5).max(80),
   pickupNote: z.string().trim().min(3).max(2000),
   fulfillment: z.enum(["pickup", "delivery"]),
+  recipientName: z.string().trim().max(160).optional(),
+  deliveryAddress: z.string().trim().max(2000).optional(),
+  preferredSchedule: z.string().trim().max(255).optional(),
+  deliveryInstructions: z.string().trim().max(2000).optional(),
   items: z
     .array(z.object({ listingId: z.string().uuid(), quantityKg: z.number().positive().max(10000) }))
     .min(1)
@@ -56,6 +60,17 @@ function nextCartReservationExpiry(now = new Date()) {
 const workflowActionInput = z.object({
   orderNumber: z.string().trim().min(3).max(40),
 });
+const fulfillmentStatusInput = workflowActionInput.extend({
+  status: z.enum([
+    "preparing",
+    "ready_for_pickup",
+    "ready_for_dispatch",
+    "out_for_delivery",
+    "picked_up",
+    "delivered",
+  ]),
+});
+const assignRiderInput = workflowActionInput.extend({ riderId: z.string().uuid() });
 const paymentInput = workflowActionInput.extend({
   method: z.enum(["cash", "cash_on_delivery"]),
 });
@@ -2045,8 +2060,14 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         orderNumber,
         buyerId: buyer.id,
         status: "pending",
+        fulfillmentMethod: data.fulfillment,
+        fulfillmentStatus: "pending",
         contact: data.contact,
         pickupNote: data.pickupNote,
+        recipientName: data.recipientName || null,
+        deliveryAddress: data.deliveryAddress || null,
+        preferredSchedule: data.preferredSchedule || null,
+        deliveryInstructions: data.deliveryInstructions || null,
         deliveryFee: deliveryFee.toFixed(2),
         totalAmount: totalAmount.toFixed(2),
       });
@@ -2073,6 +2094,18 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         status: "pending",
         changedById: buyer.id,
         note: "Buyer submitted the order.",
+        changedAt: new Date(),
+      });
+      const { orderFulfillmentHistory } = await import("@/db/schema");
+      await tx.insert(orderFulfillmentHistory).values({
+        id: crypto.randomUUID(),
+        orderId,
+        status: "pending",
+        changedById: buyer.id,
+        note:
+          data.fulfillment === "delivery"
+            ? "Buyer requested delivery."
+            : "Buyer selected pickup at PROCY.",
         changedAt: new Date(),
       });
 
@@ -2124,22 +2157,259 @@ export const getBuyerDeliveryFee = createServerFn({ method: "GET" }).handler(asy
 /** The Rider workspace may view delivery availability but cannot change checkout settings. */
 export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
-  await requireRole("Rider");
+  const rider = await requireRole("Rider");
   const { db } = await import("@/db/client.server");
-  const { deliverySettings } = await import("@/db/schema");
-  const [settings] = await db
-    .select({
-      flatFee: deliverySettings.flatFee,
-      deliveryEnabled: deliverySettings.deliveryEnabled,
-    })
-    .from(deliverySettings)
-    .where(eq(deliverySettings.id, 1))
-    .limit(1);
+  const { deliverySettings, orders, users } = await import("@/db/schema");
+  const [[settings], assignments] = await Promise.all([
+    db
+      .select({
+        flatFee: deliverySettings.flatFee,
+        deliveryEnabled: deliverySettings.deliveryEnabled,
+      })
+      .from(deliverySettings)
+      .where(eq(deliverySettings.id, 1))
+      .limit(1),
+    db
+      .select({
+        orderNumber: orders.orderNumber,
+        buyer: users.displayName,
+        contact: orders.contact,
+        recipientName: orders.recipientName,
+        deliveryAddress: orders.deliveryAddress,
+        preferredSchedule: orders.preferredSchedule,
+        deliveryInstructions: orders.deliveryInstructions,
+        fulfillmentStatus: orders.fulfillmentStatus,
+        totalAmount: orders.totalAmount,
+      })
+      .from(orders)
+      .innerJoin(users, eq(orders.buyerId, users.id))
+      .where(
+        and(
+          eq(orders.assignedRiderId, rider.id),
+          eq(orders.fulfillmentMethod, "delivery"),
+          inArray(orders.fulfillmentStatus, ["rider_assigned", "out_for_delivery", "delivered"]),
+        ),
+      )
+      .orderBy(asc(orders.createdAt)),
+  ]);
   return {
     deliveryFee: Number(settings?.flatFee ?? 59),
     deliveryEnabled: settings?.deliveryEnabled ?? true,
+    assignments: assignments.map((order) => ({
+      ...order,
+      totalAmount: Number(order.totalAmount),
+    })),
   };
 });
+
+export const getManagementDeliveryOperations = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireRole } = await import("@/services/auth/auth-server");
+    await requireRole("Management");
+    const { db } = await import("@/db/client.server");
+    const { orders, roles, userRoles, users } = await import("@/db/schema");
+    const [riders, deliveries] = await Promise.all([
+      db
+        .select({ id: users.id, name: users.displayName })
+        .from(users)
+        .innerJoin(userRoles, eq(userRoles.userId, users.id))
+        .innerJoin(roles, eq(userRoles.roleId, roles.id))
+        .where(and(eq(roles.name, "Rider"), eq(users.active, true)))
+        .orderBy(asc(users.displayName)),
+      db
+        .select({
+          orderNumber: orders.orderNumber,
+          buyer: users.displayName,
+          contact: orders.contact,
+          recipientName: orders.recipientName,
+          deliveryAddress: orders.deliveryAddress,
+          preferredSchedule: orders.preferredSchedule,
+          fulfillmentStatus: orders.fulfillmentStatus,
+          assignedRiderId: orders.assignedRiderId,
+          totalAmount: orders.totalAmount,
+          createdAt: orders.createdAt,
+        })
+        .from(orders)
+        .innerJoin(users, eq(orders.buyerId, users.id))
+        .where(
+          and(
+            eq(orders.fulfillmentMethod, "delivery"),
+            inArray(orders.fulfillmentStatus, [
+              "ready_for_dispatch",
+              "rider_assigned",
+              "out_for_delivery",
+              "delivered",
+            ]),
+          ),
+        )
+        .orderBy(desc(orders.createdAt)),
+    ]);
+    return {
+      riders,
+      deliveries: deliveries.map((order) => ({
+        ...order,
+        totalAmount: Number(order.totalAmount),
+        createdAt: order.createdAt.toISOString(),
+        assignedRiderName: riders.find((rider) => rider.id === order.assignedRiderId)?.name ?? null,
+      })),
+    };
+  },
+);
+
+export const assignDeliveryRider = createServerFn({ method: "POST" })
+  .validator(assignRiderInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const manager = await requireRole("Management");
+    const { db } = await import("@/db/client.server");
+    const { orderFulfillmentHistory, orders, roles, userRoles, users } =
+      await import("@/db/schema");
+    const assignment = await db.transaction(async (tx) => {
+      const [rider] = await tx
+        .select({ id: users.id, name: users.displayName })
+        .from(users)
+        .innerJoin(userRoles, eq(userRoles.userId, users.id))
+        .innerJoin(roles, eq(userRoles.roleId, roles.id))
+        .where(and(eq(users.id, data.riderId), eq(users.active, true), eq(roles.name, "Rider")));
+      if (!rider) throw new Error("Choose an active Rider account.");
+      const [order] = await tx
+        .select()
+        .from(orders)
+        .where(eq(orders.orderNumber, data.orderNumber));
+      if (!order || order.fulfillmentMethod !== "delivery") {
+        throw new Error("This delivery order could not be found.");
+      }
+      const [updated] = await tx
+        .update(orders)
+        .set({ assignedRiderId: rider.id, fulfillmentStatus: "rider_assigned" })
+        .where(
+          and(
+            eq(orders.id, order.id),
+            inArray(orders.fulfillmentStatus, ["ready_for_dispatch", "rider_assigned"]),
+          ),
+        );
+      if (updated.affectedRows !== 1) {
+        throw new Error("The order must be Ready for dispatch before assigning a Rider.");
+      }
+      await tx.insert(orderFulfillmentHistory).values({
+        id: crypto.randomUUID(),
+        orderId: order.id,
+        status: "rider_assigned",
+        changedById: manager.id,
+        note: `${rider.name} was assigned to this delivery.`,
+        changedAt: new Date(),
+      });
+      await writeAuditLog(manager.id, "delivery.assign_rider", "order", order.id, {
+        orderNumber: order.orderNumber,
+        riderId: rider.id,
+      });
+      return { buyerId: order.buyerId, orderNumber: order.orderNumber, rider };
+    });
+    const { notifyUser } = await import("@/services/messaging/notification-server");
+    await Promise.all([
+      notifyUser(assignment.rider.id, {
+        title: "New delivery assignment",
+        message: `${assignment.orderNumber} is ready for you to deliver.`,
+        target: "/rider",
+      }),
+      notifyUser(assignment.buyerId, {
+        title: "Rider assigned",
+        message: `${assignment.rider.name} was assigned to ${assignment.orderNumber}.`,
+        target: "/buyer/orders",
+      }),
+    ]);
+    return assignment;
+  });
+
+export const updateOrderFulfillment = createServerFn({ method: "POST" })
+  .validator(fulfillmentStatusInput)
+  .handler(async ({ data }) => {
+    const { requireUser, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireUser();
+    const { db } = await import("@/db/client.server");
+    const { orderFulfillmentHistory, orders } = await import("@/db/schema");
+    const result = await db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(orders)
+        .where(eq(orders.orderNumber, data.orderNumber));
+      if (!order) throw new Error("The requested order could not be found.");
+      const marketer = actor.roles.includes("Marketer");
+      const rider = actor.roles.includes("Rider") && order.assignedRiderId === actor.id;
+      const expected: Record<typeof data.status, string[]> = {
+        preparing: ["confirmed"],
+        ready_for_pickup: ["preparing"],
+        ready_for_dispatch: ["preparing"],
+        out_for_delivery: ["rider_assigned"],
+        picked_up: ["ready_for_pickup"],
+        delivered: ["out_for_delivery"],
+      };
+      const marketerStatus = ["preparing", "ready_for_pickup", "ready_for_dispatch", "picked_up"];
+      const riderStatus = ["out_for_delivery", "delivered"];
+      if (
+        (!marketer || !marketerStatus.includes(data.status)) &&
+        (!rider || !riderStatus.includes(data.status))
+      ) {
+        throw new Error("You do not have permission for this fulfillment step.");
+      }
+      if (data.status === "ready_for_pickup" && order.fulfillmentMethod !== "pickup") {
+        throw new Error("Delivery orders must be marked Ready for dispatch.");
+      }
+      if (data.status === "ready_for_dispatch" && order.fulfillmentMethod !== "delivery") {
+        throw new Error("Pickup orders must be marked Ready for pickup.");
+      }
+      const now = new Date();
+      const [updated] = await tx
+        .update(orders)
+        .set({
+          fulfillmentStatus: data.status,
+          ...(data.status === "picked_up" || data.status === "delivered"
+            ? { fulfilledAt: now }
+            : {}),
+        })
+        .where(
+          and(
+            eq(orders.id, order.id),
+            inArray(orders.fulfillmentStatus, expected[data.status] as never[]),
+          ),
+        );
+      if (updated.affectedRows !== 1) throw new Error("This step is no longer available.");
+      const labels: Record<typeof data.status, string> = {
+        preparing: "PROCY started preparing the order.",
+        ready_for_pickup: "The order is ready for pickup.",
+        ready_for_dispatch: "The order is ready for Rider assignment.",
+        out_for_delivery: "The Rider started the delivery.",
+        picked_up: "The Buyer received the pickup order.",
+        delivered: "The Rider marked the order delivered.",
+      };
+      await tx.insert(orderFulfillmentHistory).values({
+        id: crypto.randomUUID(),
+        orderId: order.id,
+        status: data.status,
+        changedById: actor.id,
+        note: labels[data.status],
+        changedAt: now,
+      });
+      await writeAuditLog(actor.id, `fulfillment.${data.status}`, "order", order.id, {
+        orderNumber: order.orderNumber,
+      });
+      return { buyerId: order.buyerId, orderNumber: order.orderNumber, status: data.status };
+    });
+    const { notifyUser, notifyRole } = await import("@/services/messaging/notification-server");
+    await notifyUser(result.buyerId, {
+      title: result.status.replaceAll("_", " ").replace(/^./, (value) => value.toUpperCase()),
+      message: `${result.orderNumber} fulfillment was updated.`,
+      target: "/buyer/orders",
+    });
+    if (result.status === "delivered") {
+      await notifyRole("Marketer", {
+        title: "Delivery completed",
+        message: `${result.orderNumber} was delivered and can now be finalized as Sold.`,
+        target: "/marketer/orders",
+      });
+    }
+    return result;
+  });
 
 export const getManagementDeliveryFee = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
@@ -2215,10 +2485,17 @@ export const getBuyerOrders = createServerFn({ method: "GET" }).handler(async ()
       id: orders.id,
       orderNumber: orders.orderNumber,
       status: orders.status,
+      fulfillmentMethod: orders.fulfillmentMethod,
+      fulfillmentStatus: orders.fulfillmentStatus,
       totalAmount: orders.totalAmount,
       deliveryFee: orders.deliveryFee,
       contact: orders.contact,
       pickupNote: orders.pickupNote,
+      recipientName: orders.recipientName,
+      deliveryAddress: orders.deliveryAddress,
+      preferredSchedule: orders.preferredSchedule,
+      deliveryInstructions: orders.deliveryInstructions,
+      fulfilledAt: orders.fulfilledAt,
       createdAt: orders.createdAt,
       paymentId: payments.paymentNumber,
     })
@@ -2340,6 +2617,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       inventory,
       listings,
       orderItems,
+      orderFulfillmentHistory,
       orderStatusHistory,
       orders,
       payments,
@@ -2353,8 +2631,16 @@ export const getOrderDetails = createServerFn({ method: "GET" })
         buyerId: orders.buyerId,
         buyerName: users.displayName,
         status: orders.status,
+        fulfillmentMethod: orders.fulfillmentMethod,
+        fulfillmentStatus: orders.fulfillmentStatus,
         contact: orders.contact,
         pickupNote: orders.pickupNote,
+        recipientName: orders.recipientName,
+        deliveryAddress: orders.deliveryAddress,
+        preferredSchedule: orders.preferredSchedule,
+        deliveryInstructions: orders.deliveryInstructions,
+        assignedRiderId: orders.assignedRiderId,
+        fulfilledAt: orders.fulfilledAt,
         totalAmount: orders.totalAmount,
         deliveryFee: orders.deliveryFee,
         createdAt: orders.createdAt,
@@ -2393,21 +2679,28 @@ export const getOrderDetails = createServerFn({ method: "GET" })
         .where(eq(orderItems.orderId, order.id)),
       db
         .select({
-          status: orderStatusHistory.status,
-          note: orderStatusHistory.note,
-          changedAt: orderStatusHistory.changedAt,
+          status: orderFulfillmentHistory.status,
+          note: orderFulfillmentHistory.note,
+          changedAt: orderFulfillmentHistory.changedAt,
         })
-        .from(orderStatusHistory)
-        .where(eq(orderStatusHistory.orderId, order.id))
-        .orderBy(asc(orderStatusHistory.changedAt)),
+        .from(orderFulfillmentHistory)
+        .where(eq(orderFulfillmentHistory.orderId, order.id))
+        .orderBy(asc(orderFulfillmentHistory.changedAt)),
     ]);
 
     return {
       orderNumber: order.orderNumber,
       buyer: order.buyerId === viewer.id ? "You" : order.buyerName,
       status: order.status,
+      fulfillmentMethod: order.fulfillmentMethod,
+      fulfillmentStatus: order.fulfillmentStatus,
       contact: order.contact,
       pickupNote: order.pickupNote,
+      recipientName: order.recipientName,
+      deliveryAddress: order.deliveryAddress,
+      preferredSchedule: order.preferredSchedule,
+      deliveryInstructions: order.deliveryInstructions,
+      fulfilledAt: order.fulfilledAt?.toISOString(),
       totalAmount: Number(order.totalAmount),
       deliveryFee: Number(order.deliveryFee),
       createdAt: order.createdAt.toISOString(),
@@ -2453,10 +2746,18 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       id: orders.id,
       orderNumber: orders.orderNumber,
       status: orders.status,
+      fulfillmentMethod: orders.fulfillmentMethod,
+      fulfillmentStatus: orders.fulfillmentStatus,
       totalAmount: orders.totalAmount,
       deliveryFee: orders.deliveryFee,
       contact: orders.contact,
       pickupNote: orders.pickupNote,
+      recipientName: orders.recipientName,
+      deliveryAddress: orders.deliveryAddress,
+      preferredSchedule: orders.preferredSchedule,
+      deliveryInstructions: orders.deliveryInstructions,
+      assignedRiderId: orders.assignedRiderId,
+      fulfilledAt: orders.fulfilledAt,
       createdAt: orders.createdAt,
       confirmedAt: orders.confirmedAt,
       soldAt: orders.soldAt,
@@ -2546,6 +2847,14 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       ...(order.paidAt ? { paidAt: order.paidAt.toISOString() } : {}),
       contact: order.contact,
       pickupNote: order.pickupNote,
+      fulfillmentMethod: order.fulfillmentMethod,
+      fulfillmentStatus: order.fulfillmentStatus,
+      recipientName: order.recipientName,
+      deliveryAddress: order.deliveryAddress,
+      preferredSchedule: order.preferredSchedule,
+      deliveryInstructions: order.deliveryInstructions,
+      assignedRiderName: null,
+      ...(order.fulfilledAt ? { fulfilledAt: order.fulfilledAt.toISOString() } : {}),
       items: lines,
       allocations: allocations
         .filter((allocation) => allocation.orderId === order.id)
@@ -3292,7 +3601,7 @@ export const confirmDatabaseOrder = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { orderStatusHistory, orders } = await import("@/db/schema");
+    const { orderFulfillmentHistory, orderStatusHistory, orders } = await import("@/db/schema");
     const confirmedOrder = await db.transaction(async (tx) => {
       const [order] = await tx
         .select()
@@ -3302,7 +3611,7 @@ export const confirmDatabaseOrder = createServerFn({ method: "POST" })
       const now = new Date();
       const [transition] = await tx
         .update(orders)
-        .set({ status: "confirmed", confirmedAt: now })
+        .set({ status: "confirmed", fulfillmentStatus: "confirmed", confirmedAt: now })
         .where(and(eq(orders.id, order.id), eq(orders.status, "pending")));
       if (transition.affectedRows !== 1) {
         throw new Error("Only an unchanged Pending order can be confirmed.");
@@ -3313,6 +3622,14 @@ export const confirmDatabaseOrder = createServerFn({ method: "POST" })
         status: "confirmed",
         changedById: actor.id,
         note: "Marketer confirmed the reserved classified stock.",
+        changedAt: now,
+      });
+      await tx.insert(orderFulfillmentHistory).values({
+        id: crypto.randomUUID(),
+        orderId: order.id,
+        status: "confirmed",
+        changedById: actor.id,
+        note: "Marketer confirmed the order and reserved stock.",
         changedAt: now,
       });
       await writeAuditLog(actor.id, "order.confirm", "order", order.id, {
@@ -3335,14 +3652,28 @@ export const markDatabaseOrderSold = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { inventory, inventoryMovements, listings, orderItems, orderStatusHistory, orders } =
-      await import("@/db/schema");
+    const {
+      inventory,
+      inventoryMovements,
+      listings,
+      orderItems,
+      orderFulfillmentHistory,
+      orderStatusHistory,
+      orders,
+    } = await import("@/db/schema");
     const soldOrder = await db.transaction(async (tx) => {
       const [order] = await tx
         .select()
         .from(orders)
         .where(eq(orders.orderNumber, data.orderNumber));
       if (!order) throw new Error("The requested order could not be found.");
+      if (!["picked_up", "delivered"].includes(order.fulfillmentStatus)) {
+        throw new Error(
+          order.fulfillmentMethod === "delivery"
+            ? "The Rider must mark this order Delivered before it can be finalized as Sold."
+            : "Mark this order Picked up before finalizing it as Sold.",
+        );
+      }
       const now = new Date();
       const [transition] = await tx
         .update(orders)
@@ -3448,8 +3779,15 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
     const { requireUser, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireUser();
     const { db } = await import("@/db/client.server");
-    const { inventory, inventoryMovements, listings, orderItems, orderStatusHistory, orders } =
-      await import("@/db/schema");
+    const {
+      inventory,
+      inventoryMovements,
+      listings,
+      orderItems,
+      orderFulfillmentHistory,
+      orderStatusHistory,
+      orders,
+    } = await import("@/db/schema");
 
     const releasedOrder = await db.transaction(async (tx) => {
       const [order] = await tx
@@ -3475,7 +3813,7 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
 
       const [transition] = await tx
         .update(orders)
-        .set({ status: data.outcome })
+        .set({ status: data.outcome, fulfillmentStatus: data.outcome })
         .where(
           and(
             eq(orders.id, order.id),
@@ -3559,6 +3897,14 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
         note: data.reason ?? `Order ${data.outcome}. Reserved stock released.`,
         changedAt: new Date(),
       });
+      await tx.insert(orderFulfillmentHistory).values({
+        id: crypto.randomUUID(),
+        orderId: order.id,
+        status: data.outcome,
+        changedById: actor.id,
+        note: data.reason ?? `Order ${data.outcome}. Fulfillment stopped.`,
+        changedAt: new Date(),
+      });
       await writeAuditLog(actor.id, `order.${data.outcome}`, "order", order.id, {
         orderNumber: order.orderNumber,
       });
@@ -3602,6 +3948,9 @@ export const recordDatabasePayment = createServerFn({ method: "POST" })
       if (!order) throw new Error("The requested order could not be found.");
       if (order.status !== "sold")
         throw new Error("Only Sold orders can receive a payment record.");
+      if (data.method === "cash_on_delivery" && order.fulfillmentMethod !== "delivery") {
+        throw new Error("Cash on Delivery can only be recorded for a Delivery order.");
+      }
       const existing = await tx
         .select({ id: payments.id })
         .from(payments)

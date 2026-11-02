@@ -18,6 +18,7 @@ import {
   getDatabaseOrders,
   markDatabaseOrderSold,
   releaseDatabaseOrder,
+  updateOrderFulfillment,
 } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketer/orders")({
@@ -105,6 +106,23 @@ function MarketerOrdersPage() {
       });
     } catch (error) {
       toast.error("Order could not be marked Sold", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    }
+  }
+
+  async function advanceFulfillment(
+    id: string,
+    status: "preparing" | "ready_for_pickup" | "ready_for_dispatch" | "picked_up",
+  ) {
+    try {
+      await updateOrderFulfillment({ data: { orderNumber: id, status } });
+      await load();
+      toast.success("Fulfillment updated", {
+        description: status.replaceAll("_", " ").replace(/^./, (value) => value.toUpperCase()),
+      });
+    } catch (error) {
+      toast.error("Could not update fulfillment", {
         description: error instanceof Error ? error.message : "Please try again.",
       });
     }
@@ -275,7 +293,79 @@ function MarketerOrdersPage() {
                   </Button>
                 )}
               </div>
-              <div className="overflow-x-auto">
+              <div className="grid gap-3 p-4 md:hidden">
+                {ordersPage.pageItems.map((order) => (
+                  <article key={order.id} className="rounded-2xl border border-border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                          {order.id}
+                        </p>
+                        <h3 className="mt-1 truncate font-semibold">{order.buyer}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {order.product} · {order.quantity}
+                        </p>
+                      </div>
+                      <StatusBadge status={order.status} />
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+                      <span className="capitalize text-muted-foreground">
+                        {(order.fulfillmentStatus ?? "pending").replaceAll("_", " ")}
+                      </span>
+                      <span className="font-semibold">{order.total}</span>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setSelectedId(order.id)}>
+                        Details
+                      </Button>
+                      {order.status === "Pending" ? (
+                        <Button size="sm" onClick={() => void confirmOrder(order.id)}>
+                          Confirm
+                        </Button>
+                      ) : order.status === "Confirmed" &&
+                        order.fulfillmentStatus === "confirmed" ? (
+                        <Button
+                          size="sm"
+                          onClick={() => void advanceFulfillment(order.id, "preparing")}
+                        >
+                          Start preparing
+                        </Button>
+                      ) : order.status === "Confirmed" &&
+                        order.fulfillmentStatus === "preparing" ? (
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            void advanceFulfillment(
+                              order.id,
+                              order.fulfillmentMethod === "delivery"
+                                ? "ready_for_dispatch"
+                                : "ready_for_pickup",
+                            )
+                          }
+                        >
+                          {order.fulfillmentMethod === "delivery"
+                            ? "Ready for dispatch"
+                            : "Ready for pickup"}
+                        </Button>
+                      ) : order.status === "Confirmed" &&
+                        order.fulfillmentStatus === "ready_for_pickup" ? (
+                        <Button
+                          size="sm"
+                          onClick={() => void advanceFulfillment(order.id, "picked_up")}
+                        >
+                          Confirm pickup
+                        </Button>
+                      ) : order.status === "Confirmed" &&
+                        ["picked_up", "delivered"].includes(order.fulfillmentStatus ?? "") ? (
+                        <Button size="sm" onClick={() => void markSold(order.id)}>
+                          Finalize sold
+                        </Button>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[980px] text-left text-sm">
                   <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
@@ -332,14 +422,15 @@ function MarketerOrdersPage() {
                                   Reject
                                 </Button>
                               </>
-                            ) : order.status === "Confirmed" ? (
+                            ) : order.status === "Confirmed" &&
+                              order.fulfillmentStatus === "confirmed" ? (
                               <>
                                 <Button
                                   size="sm"
                                   className="rounded-full"
-                                  onClick={() => markSold(order.id)}
+                                  onClick={() => void advanceFulfillment(order.id, "preparing")}
                                 >
-                                  Mark sold
+                                  Start preparing
                                 </Button>
                                 <Button
                                   size="sm"
@@ -350,6 +441,46 @@ function MarketerOrdersPage() {
                                   Cancel order
                                 </Button>
                               </>
+                            ) : order.status === "Confirmed" &&
+                              order.fulfillmentStatus === "preparing" ? (
+                              <Button
+                                size="sm"
+                                className="rounded-full"
+                                onClick={() =>
+                                  void advanceFulfillment(
+                                    order.id,
+                                    order.fulfillmentMethod === "delivery"
+                                      ? "ready_for_dispatch"
+                                      : "ready_for_pickup",
+                                  )
+                                }
+                              >
+                                {order.fulfillmentMethod === "delivery"
+                                  ? "Ready for dispatch"
+                                  : "Ready for pickup"}
+                              </Button>
+                            ) : order.status === "Confirmed" &&
+                              order.fulfillmentStatus === "ready_for_pickup" ? (
+                              <Button
+                                size="sm"
+                                className="rounded-full"
+                                onClick={() => void advanceFulfillment(order.id, "picked_up")}
+                              >
+                                Confirm pickup
+                              </Button>
+                            ) : order.status === "Confirmed" &&
+                              ["picked_up", "delivered"].includes(order.fulfillmentStatus ?? "") ? (
+                              <Button
+                                size="sm"
+                                className="rounded-full"
+                                onClick={() => void markSold(order.id)}
+                              >
+                                Finalize sold
+                              </Button>
+                            ) : order.status === "Confirmed" ? (
+                              <span className="capitalize text-muted-foreground">
+                                {(order.fulfillmentStatus ?? "confirmed").replaceAll("_", " ")}
+                              </span>
                             ) : (
                               <span className="text-muted-foreground">Completed</span>
                             )}

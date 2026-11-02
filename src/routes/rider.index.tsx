@@ -1,18 +1,38 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bike, CircleDollarSign, ShieldCheck } from "lucide-react";
-import { useCallback } from "react";
+import { Bike, CircleDollarSign, MapPin, Phone, ShieldCheck } from "lucide-react";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { RiderLayout, RiderPageHeader } from "@/components/workspaces/rider-layout";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
-import { getRiderDeliveryStatus } from "@/services/marketplace/marketplace-server-functions";
+import {
+  getRiderDeliveryStatus,
+  updateOrderFulfillment,
+} from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/rider/")({ component: RiderDashboard });
 
 function RiderDashboard() {
   const request = useCallback(() => getRiderDeliveryStatus(), []);
   const { data, loading, error, reload } = useWorkspaceData(request);
+  const [updating, setUpdating] = useState<string | null>(null);
+  async function updateDelivery(orderNumber: string, status: "out_for_delivery" | "delivered") {
+    setUpdating(orderNumber);
+    try {
+      await updateOrderFulfillment({ data: { orderNumber, status } });
+      await reload();
+      toast.success(status === "delivered" ? "Delivery completed" : "Delivery started");
+    } catch (cause) {
+      toast.error("Could not update delivery", {
+        description: cause instanceof Error ? cause.message : "Please try again.",
+      });
+    } finally {
+      setUpdating(null);
+    }
+  }
 
   return (
     <RiderLayout>
@@ -65,12 +85,90 @@ function RiderDashboard() {
                 </CardContent>
               </Card>
             </section>
-            <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card">
-              <h2 className="text-lg font-semibold">No delivery assignments yet</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                This workspace is ready for delivery assignments and proof-of-delivery tracking.
-                Management can turn delivery off whenever no Rider is available.
-              </p>
+            <section className="mt-6">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold">My delivery assignments</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Start a trip only when the order is in your possession. Mark Delivered after the
+                  Buyer receives it.
+                </p>
+              </div>
+              {data.assignments.length ? (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {data.assignments.map((order) => (
+                    <article
+                      key={order.orderNumber}
+                      className="rounded-3xl border border-border bg-card p-5 shadow-card"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                            {order.orderNumber}
+                          </p>
+                          <h3 className="mt-1 text-lg font-semibold">
+                            {order.recipientName || order.buyer}
+                          </h3>
+                        </div>
+                        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                          {order.fulfillmentStatus.replaceAll("_", " ")}
+                        </span>
+                      </div>
+                      <div className="mt-4 space-y-3 rounded-2xl bg-muted/50 p-4 text-sm">
+                        <p className="flex items-start gap-2">
+                          <MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
+                          <span>{order.deliveryAddress || "Address unavailable"}</span>
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <Phone className="size-4 text-primary" /> {order.contact}
+                        </p>
+                        {order.preferredSchedule ? (
+                          <p className="text-muted-foreground">
+                            Preferred: {order.preferredSchedule}
+                          </p>
+                        ) : null}
+                        {order.deliveryInstructions ? (
+                          <p className="text-muted-foreground">
+                            Note: {order.deliveryInstructions}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {order.fulfillmentStatus === "rider_assigned" ? (
+                          <Button
+                            className="w-full sm:col-span-2"
+                            disabled={updating !== null}
+                            onClick={() =>
+                              void updateDelivery(order.orderNumber, "out_for_delivery")
+                            }
+                          >
+                            {updating === order.orderNumber ? "Updating…" : "Start delivery"}
+                          </Button>
+                        ) : order.fulfillmentStatus === "out_for_delivery" ? (
+                          <Button
+                            className="w-full sm:col-span-2"
+                            disabled={updating !== null}
+                            onClick={() => void updateDelivery(order.orderNumber, "delivered")}
+                          >
+                            {updating === order.orderNumber ? "Updating…" : "Mark delivered"}
+                          </Button>
+                        ) : (
+                          <p className="sm:col-span-2 text-sm font-medium text-primary">
+                            Delivered — PROCY will finalize the sale and Accounting will verify
+                            payment.
+                          </p>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-3xl border border-border bg-card p-6 shadow-card">
+                  <h3 className="font-semibold">No delivery assignments yet</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Management-assigned orders will appear here automatically.
+                  </p>
+                </div>
+              )}
             </section>
           </>
         ) : null}

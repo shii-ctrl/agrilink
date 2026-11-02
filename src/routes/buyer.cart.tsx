@@ -279,6 +279,16 @@ function BuyerCartPage() {
           contact: orderContact,
           pickupNote,
           fulfillment,
+          recipientName:
+            fulfillment === "delivery"
+              ? `${deliveryDetails.firstName.trim()} ${deliveryDetails.lastName.trim()}`
+              : pickupName.trim(),
+          deliveryAddress:
+            fulfillment === "delivery" ? deliveryAddress(deliveryDetails) : undefined,
+          preferredSchedule:
+            fulfillment === "delivery" ? deliveryDetails.schedule.trim() : arrangementNote.trim(),
+          deliveryInstructions:
+            fulfillment === "delivery" ? deliveryDetails.instructions.trim() : undefined,
           items: items.map((item) => ({
             listingId: item.id,
             quantityKg: item.quantityKg,

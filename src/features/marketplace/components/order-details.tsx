@@ -40,23 +40,37 @@ function orderItems(order: DemoOrder): DemoOrderItem[] {
   ];
 }
 
-function stepTime(order: DemoOrder, step: string) {
-  if (step === "Pending") return order.createdAt ?? order.date;
-  if (step === "Confirmed") return order.confirmedAt;
-  if (step === "Sold") return order.soldAt;
-  return order.paidAt;
-}
-
 export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
-  const steps = ["Pending", "Confirmed", "Sold", "Paid"];
-  const currentStep =
-    order.paymentStatus === "Paid"
-      ? 3
-      : order.status === "Sold"
-        ? 2
-        : order.status === "Confirmed"
-          ? 1
-          : 0;
+  const isDelivery = order.fulfillmentMethod === "delivery";
+  const steps: Array<[string, string]> = isDelivery
+    ? [
+        ["pending", "Pending"],
+        ["confirmed", "Confirmed"],
+        ["preparing", "Preparing"],
+        ["ready_for_dispatch", "Ready for dispatch"],
+        ["rider_assigned", "Rider assigned"],
+        ["out_for_delivery", "Out for delivery"],
+        ["delivered", "Delivered"],
+      ]
+    : [
+        ["pending", "Pending"],
+        ["confirmed", "Confirmed"],
+        ["preparing", "Preparing"],
+        ["ready_for_pickup", "Ready for pickup"],
+        ["picked_up", "Picked up"],
+      ];
+  const currentStatus =
+    order.fulfillmentStatus ??
+    (order.status === "Sold"
+      ? isDelivery
+        ? "delivered"
+        : "picked_up"
+      : order.status.toLowerCase());
+  const matchedStep = steps.findIndex(([status]) => status === currentStatus);
+  const currentStep = Math.max(0, matchedStep);
+  const stepTime = (status: string) =>
+    order.history?.find((entry) => entry.status.toLowerCase().replaceAll(" ", "_") === status)
+      ?.changedAt ?? (status === "pending" ? (order.createdAt ?? order.date) : undefined);
   const stepState = (index: number) => ({
     completed: index < currentStep,
     current: index === currentStep,
@@ -66,11 +80,11 @@ export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
   return (
     <div aria-label="Order progress" role="region">
       <ol className="space-y-0 sm:hidden" aria-label="Order status steps">
-        {steps.map((step, index) => {
+        {steps.map(([status, label], index) => {
           const { completed, current, reached } = stepState(index);
           return (
             <li
-              key={step}
+              key={status}
               className="relative flex min-h-16 gap-3"
               aria-current={current ? "step" : undefined}
             >
@@ -98,13 +112,13 @@ export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
                 <p
                   className={`text-sm font-semibold ${reached ? "text-foreground" : "text-muted-foreground"}`}
                 >
-                  {step}
+                  {label}
                 </p>
                 <p
                   className={`mt-0.5 text-xs ${current ? "font-medium text-primary" : "text-muted-foreground"}`}
                 >
                   {current ? "Current · " : ""}
-                  {formatOrderDate(stepTime(order, step))}
+                  {formatOrderDate(stepTime(status))}
                 </p>
               </div>
             </li>
@@ -113,11 +127,11 @@ export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
       </ol>
 
       <ol className="hidden px-2 pt-1 sm:flex" aria-label="Order status steps">
-        {steps.map((step, index) => {
+        {steps.map(([status, label], index) => {
           const { completed, current, reached } = stepState(index);
           return (
             <li
-              key={step}
+              key={status}
               className="relative flex min-w-0 flex-1 flex-col items-center text-center"
               aria-current={current ? "step" : undefined}
             >
@@ -147,13 +161,13 @@ export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
                     reached ? "text-foreground" : "text-muted-foreground"
                   }`}
                 >
-                  {step}
+                  {label}
                 </p>
                 <p
                   className={`mt-1 text-[11px] ${current ? "font-medium text-primary" : "text-muted-foreground"}`}
                 >
                   {current ? "Current · " : ""}
-                  {formatOrderDate(stepTime(order, step))}
+                  {formatOrderDate(stepTime(status))}
                 </p>
               </div>
             </li>
@@ -174,6 +188,9 @@ export function OrderDetails({
   const items = orderItems(order);
   const isPaid = order.paymentStatus === "Paid";
   const isInterrupted = order.status === "Cancelled" || order.status === "Rejected";
+  const fulfillmentLabel = (order.fulfillmentStatus ?? "pending")
+    .replaceAll("_", " ")
+    .replace(/^./, (value) => value.toUpperCase());
   const statusSummary = isInterrupted
     ? {
         title: `Order ${order.status.toLowerCase()}`,
@@ -197,9 +214,12 @@ export function OrderDetails({
           }
         : order.status === "Confirmed"
           ? {
-              title: "Order confirmed",
-              detail: "The classified stock is reserved and being prepared for fulfillment.",
-              date: order.confirmedAt,
+              title: fulfillmentLabel,
+              detail:
+                order.fulfillmentMethod === "delivery"
+                  ? "Track preparation, Rider assignment, and delivery separately from payment."
+                  : "Track preparation and pickup separately from payment.",
+              date: order.history?.at(-1)?.changedAt ?? order.confirmedAt,
               tone: "border-primary/25 bg-primary/5 text-primary",
             }
           : {
@@ -238,11 +258,26 @@ export function OrderDetails({
         )}
         <div className="rounded-2xl bg-muted/60 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Pickup or delivery arrangement
+            {order.fulfillmentMethod === "delivery" ? "Delivery arrangement" : "Pickup arrangement"}
           </p>
-          <p className="mt-2 flex gap-2 text-sm leading-relaxed text-foreground">
-            <MapPin className="mt-0.5 size-4 shrink-0 text-primary" /> {order.pickupNote}
-          </p>
+          <div className="mt-2 flex gap-2 text-sm leading-relaxed text-foreground">
+            <MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div>
+              <p className="font-medium">
+                {order.recipientName ||
+                  (order.fulfillmentMethod === "delivery" ? "Recipient" : "Pickup at PROCY")}
+              </p>
+              <p className="mt-1 whitespace-pre-line text-muted-foreground">
+                {order.deliveryAddress || order.pickupNote}
+              </p>
+              {order.preferredSchedule ? (
+                <p className="mt-1 text-muted-foreground">Preferred: {order.preferredSchedule}</p>
+              ) : null}
+              {order.deliveryInstructions ? (
+                <p className="mt-1 text-muted-foreground">Note: {order.deliveryInstructions}</p>
+              ) : null}
+            </div>
+          </div>
         </div>
         <div
           className={`rounded-2xl border p-4 ${
