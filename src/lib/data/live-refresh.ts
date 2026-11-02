@@ -1,3 +1,5 @@
+import { beginMutatingAction } from "@/lib/ui/action-lock";
+
 export const agrilinkDataChangedEvent = "agrilink:data-changed";
 const storageKey = "agrilink:last-data-change";
 
@@ -17,7 +19,6 @@ export function notifyAgrilinkDataChanged() {
 export function installMutationRefreshObserver() {
   const originalFetch = window.fetch;
   const observedFetch: typeof window.fetch = async (input, init) => {
-    const response = await originalFetch.call(window, input, init);
     const method = (
       init?.method ?? (input instanceof Request ? input.method : "GET")
     ).toUpperCase();
@@ -25,15 +26,17 @@ export function installMutationRefreshObserver() {
       input instanceof Request ? input.url : String(input),
       window.location.href,
     );
-    if (
-      response.ok &&
-      requestUrl.origin === window.location.origin &&
-      method !== "GET" &&
-      method !== "HEAD"
-    ) {
-      notifyAgrilinkDataChanged();
+    const isMutation =
+      requestUrl.origin === window.location.origin && method !== "GET" && method !== "HEAD";
+    const finishAction = isMutation ? beginMutatingAction() : null;
+
+    try {
+      const response = await originalFetch.call(window, input, init);
+      if (response.ok && isMutation) notifyAgrilinkDataChanged();
+      return response;
+    } finally {
+      finishAction?.();
     }
-    return response;
   };
 
   window.fetch = observedFetch;

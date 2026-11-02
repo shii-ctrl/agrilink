@@ -11,8 +11,10 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import { ActionLockShield } from "@/components/ui/action-lock-shield";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { installMutationRefreshObserver } from "@/lib/data/live-refresh";
+import { installActionClickGuard } from "@/lib/ui/action-lock";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -144,7 +146,14 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
 
-  useEffect(() => installMutationRefreshObserver(), []);
+  useEffect(() => {
+    const removeClickGuard = installActionClickGuard();
+    const removeMutationObserver = installMutationRefreshObserver();
+    return () => {
+      removeClickGuard();
+      removeMutationObserver();
+    };
+  }, []);
   useAutoRefresh(async () => {
     await Promise.all([router.invalidate(), queryClient.invalidateQueries()]);
   });
@@ -153,6 +162,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <ActionLockShield />
       <Toaster position="top-center" />
     </QueryClientProvider>
   );

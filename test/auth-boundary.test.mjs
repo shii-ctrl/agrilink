@@ -1395,3 +1395,21 @@ test("production workspaces use neutral session and order contracts", async () =
   assert.match(orderRecords, /export type OrderRecord/);
   assert.doesNotMatch(products, /demoPublicProducts/);
 });
+
+test("the first action blocks competing buttons until its mutation finishes", async () => {
+  const [lock, refresh, root, shield] = await Promise.all([
+    readFile("src/lib/ui/action-lock.ts", "utf8"),
+    readFile("src/lib/data/live-refresh.ts", "utf8"),
+    readFile("src/routes/__root.tsx", "utf8"),
+    readFile("src/components/ui/action-lock-shield.tsx", "utf8"),
+  ]);
+
+  assert.match(lock, /event\.stopImmediatePropagation\(\)/);
+  assert.match(lock, /beginMutatingAction/);
+  assert.match(lock, /pendingMutations/);
+  assert.match(refresh, /const finishAction = isMutation \? beginMutatingAction\(\) : null/);
+  assert.match(refresh, /finishAction\?\.\(\)/);
+  assert.match(root, /installActionClickGuard/);
+  assert.match(root, /<ActionLockShield \/>/);
+  assert.match(shield, /Processing… Please wait/);
+});
