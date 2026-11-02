@@ -185,6 +185,10 @@ test("profile photos accept secure external URLs or cropped local uploads and Ma
   assert.match(profile, /canvas\.toDataURL\("image\/jpeg", quality\)/);
   assert.match(profile, /capture="user"/);
   assert.match(profile, /Who can see your profile photo/);
+  assert.match(profile, /open={passwordOpen}/);
+  assert.match(profile, /onClick=\{\(\) => setPasswordOpen\(true\)\}/);
+  assert.match(profile, /max-h-\[calc\(100dvh-2rem\)\]/);
+  assert.match(profile, /changingPassword \? "Changing…" : "Change password"/);
   assert.doesNotMatch(profile, /Signed-in AgriLink members|Community and private messages only/);
   assert.match(avatar, /onLoadingStatusChange/);
   assert.match(avatar, /profile photo enlarged/);

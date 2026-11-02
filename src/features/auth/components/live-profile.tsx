@@ -5,6 +5,7 @@ import {
   Circle,
   Crop,
   ImagePlus,
+  KeyRound,
   RefreshCcw,
   RotateCcw,
   RotateCw,
@@ -200,11 +201,14 @@ export function LiveProfile({
   const [avatarDraft, setAvatarDraft] = useState<AvatarDraft | null>(null);
   const [cropDraft, setCropDraft] = useState<AvatarDraft | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [avatarVisibility, setAvatarVisibility] = useState("everyone");
   const [cropSize, setCropSize] = useState(croppedAvatarSize);
   const [dragging, setDragging] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const passwordFormRef = useRef<HTMLFormElement>(null);
   const cropAreaRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -364,6 +368,7 @@ export function LiveProfile({
       toast.error("New passwords do not match.");
       return;
     }
+    setChangingPassword(true);
     try {
       await changeCurrentPassword({
         data: {
@@ -372,11 +377,14 @@ export function LiveProfile({
         },
       });
       form.reset();
+      setPasswordOpen(false);
       toast.success("Password changed");
     } catch (error) {
       toast.error("Password could not be changed", {
         description: error instanceof Error ? error.message : undefined,
       });
+    } finally {
+      setChangingPassword(false);
     }
   }
   if (!account)
@@ -590,47 +598,16 @@ export function LiveProfile({
           </Button>
         </form>
       </section>
-      <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
-        <h2 className="text-lg font-semibold">Change password</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{passwordHelpText}</p>
-        <form className="mt-6 grid gap-5 sm:grid-cols-2" onSubmit={changePassword}>
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="current-password">Current password</Label>
-            <Input
-              id="current-password"
-              name="currentPassword"
-              type="password"
-              autoComplete="current-password"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="new-password">New password</Label>
-            <Input
-              id="new-password"
-              name="newPassword"
-              type="password"
-              autoComplete="new-password"
-              minLength={minimumPasswordLength}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirm new password</Label>
-            <Input
-              id="confirm-password"
-              name="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              minLength={minimumPasswordLength}
-              required
-            />
-          </div>
-          <Button type="submit" variant="outline" className="rounded-full sm:w-fit">
-            Change password
-          </Button>
-        </form>
-      </section>
+      <div className="mt-5 flex justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full rounded-full sm:w-auto"
+          onClick={() => setPasswordOpen(true)}
+        >
+          <KeyRound className="size-4" /> Change password
+        </Button>
+      </div>
       <aside className="mt-6 flex gap-3 rounded-3xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-card">
         <BadgeCheck className="mt-0.5 size-5 shrink-0 text-primary" />
         <p>
@@ -658,6 +635,75 @@ export function LiveProfile({
           </Tabs>
         </div>
       )}
+      <Dialog
+        open={passwordOpen}
+        onOpenChange={(open) => {
+          if (changingPassword) return;
+          if (!open) passwordFormRef.current?.reset();
+          setPasswordOpen(open);
+        }}
+      >
+        <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto rounded-3xl p-5 sm:max-w-lg sm:p-6">
+          <DialogHeader className="pr-10 text-left">
+            <span className="mb-2 flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <KeyRound className="size-5" />
+            </span>
+            <DialogTitle>Change password</DialogTitle>
+            <DialogDescription>{passwordHelpText}</DialogDescription>
+          </DialogHeader>
+          <form ref={passwordFormRef} className="mt-2 space-y-5" onSubmit={changePassword}>
+            <div className="space-y-2">
+              <Label htmlFor="current-password">Current password</Label>
+              <Input
+                id="current-password"
+                name="currentPassword"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New password</Label>
+              <Input
+                id="new-password"
+                name="newPassword"
+                type="password"
+                autoComplete="new-password"
+                minLength={minimumPasswordLength}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm new password</Label>
+              <Input
+                id="confirm-password"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                minLength={minimumPasswordLength}
+                required
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:space-x-0">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={changingPassword}
+                onClick={() => {
+                  passwordFormRef.current?.reset();
+                  setPasswordOpen(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="w-full sm:w-auto" disabled={changingPassword}>
+                {changingPassword ? "Changing…" : "Change password"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={cropOpen}
         onOpenChange={(open) => {
