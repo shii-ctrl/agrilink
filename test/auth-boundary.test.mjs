@@ -356,6 +356,9 @@ test("catalog photos use a safe file picker and bundle prices are enforced at ch
   assert.match(productCard, /Opening product…/);
   assert.match(productCard, /aria-busy=\{isOpening\}/);
   assert.match(productCard, /preload="intent"/);
+  assert.match(productCard, /createPortal/);
+  assert.match(productCard, /fixed inset-0 z-\[100\]/);
+  assert.match(productCard, /document\.body\.style\.overflow = "hidden"/);
   assert.match(productCard, /ClassificationBadge value=\{activeSlide\.classification\}/);
   assert.match(productCard, /outOfStock \? "No stock"/);
   assert.doesNotMatch(productCard, /offers\.map\(\(offer\) => \(\s*<ClassificationBadge/);

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, LoaderCircle, PackageX } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { peso, type Product } from "@/features/marketplace/products";
 import { ClassificationBadge } from "@/features/marketplace/components/classification-badge";
 import { formatSellingQuantity } from "@/features/marketplace/selling-units";
@@ -47,6 +48,15 @@ export function ProductCard({ product }: { product: Product }) {
     return () => window.clearInterval(timer);
   }, [previewing, slides.length]);
 
+  useEffect(() => {
+    if (!isOpening) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpening]);
+
   function stopPreview() {
     setPreviewing(false);
     setActiveImage(0);
@@ -78,22 +88,31 @@ export function ProductCard({ product }: { product: Product }) {
         isOpening ? "pointer-events-none" : ""
       } ${outOfStock ? "opacity-80" : "hover:-translate-y-1 hover:shadow-field"}`}
     >
-      {isOpening ? (
-        <div
-          className="absolute inset-0 z-30 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex flex-col items-center rounded-3xl border border-primary/20 bg-card px-6 py-5 text-center shadow-field">
-            <span className="relative flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <span className="absolute inset-0 animate-ping rounded-full bg-primary/15" />
-              <LoaderCircle className="relative size-6 animate-spin" />
-            </span>
-            <span className="mt-3 font-semibold">Opening product…</span>
-            <span className="mt-1 text-xs text-muted-foreground">Loading the latest stock</span>
-          </div>
-        </div>
-      ) : null}
+      {isOpening && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[100] flex cursor-wait items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+              role="status"
+              aria-live="assertive"
+              aria-label={`Opening ${product.name}`}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+            >
+              <div className="flex flex-col items-center rounded-3xl border border-primary/20 bg-card px-7 py-6 text-center shadow-field">
+                <span className="relative flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <span className="absolute inset-0 animate-ping rounded-full bg-primary/15" />
+                  <LoaderCircle className="relative size-7 animate-spin" />
+                </span>
+                <span className="mt-4 text-lg font-semibold">Opening product…</span>
+                <span className="mt-1 text-sm text-muted-foreground">Loading the latest stock</span>
+                <span className="mt-3 text-xs text-muted-foreground">Please wait a moment</span>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       <div className="relative aspect-[4/3] overflow-hidden">
         <div
           className="flex size-full transition-transform duration-700 ease-in-out"
