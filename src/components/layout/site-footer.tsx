@@ -3,14 +3,18 @@ import { useEffect, useState } from "react";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 
-export function SiteFooter() {
+export function SiteFooter({ sessionSignedIn }: { sessionSignedIn?: boolean | null } = {}) {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
+    if (sessionSignedIn !== undefined) {
+      setSignedIn(sessionSignedIn);
+      return;
+    }
     void getCurrentSessionUser()
       .then((account) => setSignedIn(Boolean(account)))
       .catch(() => setSignedIn(false));
-  }, []);
+  }, [sessionSignedIn]);
 
   return (
     <footer className="mt-24 surface-field">

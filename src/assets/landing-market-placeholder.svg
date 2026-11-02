@@ -1,0 +1,20 @@
+<svg width="960" height="800" viewBox="0 0 960 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="800" rx="56" fill="#EAF4E4"/>
+  <circle cx="756" cy="156" r="190" fill="#D3EBCB"/>
+  <circle cx="182" cy="668" r="245" fill="#DBEFD6"/>
+  <path d="M182 552C290 412 462 349 636 390C747 416 827 486 872 584V800H120C125 706 145 620 182 552Z" fill="#1E713A"/>
+  <path d="M248 592C346 482 485 444 620 476C706 497 774 548 819 622V800H186C191 717 211 647 248 592Z" fill="#2D914B"/>
+  <path d="M347 598C411 526 505 501 595 523C652 537 697 570 727 620V800H304C308 714 321 641 347 598Z" fill="#54AB62"/>
+  <rect x="326" y="204" width="308" height="244" rx="34" fill="white" fill-opacity="0.94"/>
+  <path d="M416 314C416 278 445 249 481 249C517 249 546 278 546 314C546 350 517 379 481 379C445 379 416 350 416 314Z" fill="#D3EBCB"/>
+  <path d="M456 330C456 306 475 287 499 287C523 287 542 306 542 330C542 354 523 373 499 373C475 373 456 354 456 330Z" fill="#248544"/>
+  <path d="M471 286C484 256 511 238 542 239C532 268 507 287 471 286Z" fill="#1A6435"/>
+  <rect x="383" y="398" width="194" height="14" rx="7" fill="#B8D5B4"/>
+  <rect x="419" y="424" width="122" height="10" rx="5" fill="#D0E3CC"/>
+  <rect x="62" y="58" width="255" height="58" rx="29" fill="white" fill-opacity="0.9"/>
+  <circle cx="95" cy="87" r="13" fill="#238745"/>
+  <rect x="120" y="75" width="159" height="10" rx="5" fill="#7DAE80"/>
+  <rect x="120" y="92" width="112" height="8" rx="4" fill="#B3D1B1"/>
+  <text x="480" y="705" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="31" font-weight="700">LANDING PHOTO PLACEHOLDER</text>
+  <text x="480" y="745" text-anchor="middle" fill="#D8F0D8" font-family="Arial, sans-serif" font-size="21">Replace this image later without changing the layout</text>
+</svg>

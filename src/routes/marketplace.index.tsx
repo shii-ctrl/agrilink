@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { z } from "zod";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { ProductCard } from "@/features/marketplace/components/product-card";
@@ -13,6 +14,13 @@ import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getMarketplaceListings } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/marketplace/")({
+  validateSearch: z.object({
+    q: z.string().optional(),
+    crop: z.string().optional(),
+    grade: z.enum(["Good", "Semi", "Reject"]).optional(),
+    available: z.boolean().optional(),
+    deals: z.boolean().optional(),
+  }),
   loader: () => getMarketplaceListings(),
   head: () => ({
     meta: [
@@ -59,6 +67,7 @@ function Chip({
 
 function MarketplacePage() {
   const router = useRouter();
+  const search = Route.useSearch();
   const listings = Route.useLoaderData() as Product[];
   useAutoRefresh(() => router.invalidate());
   const products = useMemo(
@@ -73,10 +82,11 @@ function MarketplacePage() {
     () => [...new Set(products.map((product) => product.cropType))],
     [products],
   );
-  const [query, setQuery] = useState("");
-  const [crop, setCrop] = useState<string | null>(null);
-  const [grade, setGrade] = useState<Classification | null>(null);
-  const [inStockOnly, setInStockOnly] = useState(false);
+  const [query, setQuery] = useState(search.q ?? "");
+  const [crop, setCrop] = useState<string | null>(search.crop ?? null);
+  const [grade, setGrade] = useState<Classification | null>(search.grade ?? null);
+  const [inStockOnly, setInStockOnly] = useState(search.available ?? false);
+  const [bundleDealsOnly, setBundleDealsOnly] = useState(search.deals ?? false);
   const results = useMemo(
     () =>
       products.filter((p) => {
@@ -92,9 +102,16 @@ function MarketplacePage() {
         if (grade && !(p.offers ?? []).some((offer) => offer.classification === grade))
           return false;
         if (inStockOnly && !(p.offers ?? []).some((offer) => offer.quantityKg > 0)) return false;
+        if (
+          bundleDealsOnly &&
+          !(p.offers ?? []).some(
+            (offer) => offer.bundlePricePerKg !== null && offer.bundlePricePerKg !== undefined,
+          )
+        )
+          return false;
         return true;
       }),
-    [products, query, crop, grade, inStockOnly],
+    [products, query, crop, grade, inStockOnly, bundleDealsOnly],
   );
 
   const catalog = (
@@ -160,9 +177,14 @@ function MarketplacePage() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Availability
             </p>
-            <Chip active={inStockOnly} onClick={() => setInStockOnly((v) => !v)}>
-              Available only
-            </Chip>
+            <div className="flex gap-2">
+              <Chip active={inStockOnly} onClick={() => setInStockOnly((v) => !v)}>
+                Available only
+              </Chip>
+              <Chip active={bundleDealsOnly} onClick={() => setBundleDealsOnly((v) => !v)}>
+                Bundle deals
+              </Chip>
+            </div>
           </div>
         </div>
       </div>

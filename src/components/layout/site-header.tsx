@@ -57,10 +57,12 @@ export function SiteHeader({
   dark = false,
   onLogin,
   onRegister,
+  sessionAccount,
 }: {
   dark?: boolean;
   onLogin?: () => void;
   onRegister?: () => void;
+  sessionAccount?: SessionAccount | null;
 }) {
   const [open, setOpen] = useState(false);
   const [account, setAccount] = useState<SessionAccount | null>(null);
@@ -68,6 +70,10 @@ export function SiteHeader({
   const [registerOpen, setRegisterOpen] = useState(false);
   const [passwordResetOpen, setPasswordResetOpen] = useState(false);
   useEffect(() => {
+    if (sessionAccount !== undefined) {
+      setAccount(sessionAccount);
+      return;
+    }
     let mounted = true;
     const loadAccount = () => {
       void getCurrentSessionUser()
@@ -84,7 +90,7 @@ export function SiteHeader({
       mounted = false;
       window.removeEventListener(authSessionChangedEvent, loadAccount);
     };
-  }, []);
+  }, [sessionAccount]);
   const workspace = account
     ? workspaceForRoles.find(([role]) => account.roles.includes(role))
     : undefined;
