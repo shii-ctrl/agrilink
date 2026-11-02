@@ -341,6 +341,85 @@ export const codRemittances = mysqlTable(
     index("cod_remittances_rider_idx").on(table.riderId, table.status),
   ],
 );
+export const deliveryDisputes = mysqlTable(
+  "delivery_disputes",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    disputeNumber: varchar("dispute_number", { length: 40 }).notNull(),
+    orderId: varchar("order_id", { length: 36 }).notNull(),
+    buyerId: varchar("buyer_id", { length: 36 }).notNull(),
+    category: mysqlEnum("category", [
+      "missing_quantity",
+      "wrong_product",
+      "damaged_product",
+      "incorrect_price",
+      "order_not_received",
+      "other",
+    ]).notNull(),
+    description: text("description").notNull(),
+    attachmentUrl: mediumtext("attachment_url"),
+    status: mysqlEnum("status", [
+      "submitted",
+      "under_review",
+      "waiting_response",
+      "approved",
+      "rejected",
+      "resolved",
+    ])
+      .default("submitted")
+      .notNull(),
+    resolution: mysqlEnum("resolution", [
+      "replace_product",
+      "partial_refund",
+      "full_refund",
+      "credit_next_order",
+      "no_action",
+    ]),
+    resolutionNote: text("resolution_note"),
+    refundAmount: decimal("refund_amount", { precision: 12, scale: 2 }),
+    refundStatus: mysqlEnum("refund_status", ["not_required", "pending", "processed"])
+      .default("not_required")
+      .notNull(),
+    decidedById: varchar("decided_by_id", { length: 36 }),
+    accountingProcessedById: varchar("accounting_processed_by_id", { length: 36 }),
+    accountingProcessedAt: datetime("accounting_processed_at"),
+    openedAt: datetime("opened_at").notNull(),
+    resolvedAt: datetime("resolved_at"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("delivery_disputes_number_unique").on(table.disputeNumber),
+    uniqueIndex("delivery_disputes_order_unique").on(table.orderId),
+    index("delivery_disputes_status_idx").on(table.status, table.createdAt),
+    index("delivery_disputes_buyer_idx").on(table.buyerId, table.createdAt),
+    index("delivery_disputes_refund_idx").on(table.refundStatus, table.createdAt),
+  ],
+);
+export const deliveryDisputeResponses = mysqlTable(
+  "delivery_dispute_responses",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    disputeId: varchar("dispute_id", { length: 36 }).notNull(),
+    authorId: varchar("author_id", { length: 36 }).notNull(),
+    authorRole: varchar("author_role", { length: 40 }).notNull(),
+    message: text("message").notNull(),
+    createdAt,
+  },
+  (table) => [index("delivery_dispute_responses_case_idx").on(table.disputeId, table.createdAt)],
+);
+export const deliveryDisputeEvents = mysqlTable(
+  "delivery_dispute_events",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    disputeId: varchar("dispute_id", { length: 36 }).notNull(),
+    actorId: varchar("actor_id", { length: 36 }),
+    event: varchar("event", { length: 80 }).notNull(),
+    note: text("note"),
+    createdAt,
+  },
+  (table) => [index("delivery_dispute_events_case_idx").on(table.disputeId, table.createdAt)],
+);
 export const orderStatusHistory = mysqlTable(
   "order_status_history",
   {

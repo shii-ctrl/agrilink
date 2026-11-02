@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bike, LogOut, MessageCircle, PackageCheck, UserRound } from "lucide-react";
+import { Bike, CircleAlert, LogOut, MessageCircle, PackageCheck, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { RoleGate } from "@/components/layout/role-gate";
@@ -27,6 +27,7 @@ import {
 const navigation = [
   { label: "Delivery status", to: "/rider", icon: Bike },
   { label: "Completed deliveries", to: "/rider/completed", icon: PackageCheck },
+  { label: "Delivery issues", to: "/rider/disputes", icon: CircleAlert },
   { label: "Messages", to: "/rider/community", icon: MessageCircle },
 ] as const;
 

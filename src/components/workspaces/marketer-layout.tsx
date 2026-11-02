@@ -3,6 +3,7 @@ import {
   BarChart3,
   Boxes,
   ClipboardCheck,
+  CircleAlert,
   LogOut,
   MessageCircle,
   PackageCheck,
@@ -53,6 +54,7 @@ const marketerSections = [
     title: "Operations",
     items: [
       { title: "Orders", to: "/marketer/orders", icon: ClipboardCheck },
+      { title: "Delivery Issues", to: "/marketer/disputes", icon: CircleAlert },
       { title: "Sales Monitoring", to: "/marketer/sales", icon: Boxes },
     ],
   },

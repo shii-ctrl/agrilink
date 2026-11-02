@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
+  CircleAlert,
   Boxes,
   FileBarChart,
   LineChart,
@@ -47,6 +48,7 @@ const managementSections = [
       { label: "Products", icon: Boxes, to: "/management/products" as const },
       { label: "Receiving", icon: PackageCheck, to: "/management/receiving" as const },
       { label: "Delivery Operations", icon: Truck, to: "/management/deliveries" as const },
+      { label: "Delivery Disputes", icon: CircleAlert, to: "/management/disputes" as const },
       { label: "Sales", icon: ReceiptText, to: "/management/sales" as const },
       { label: "Transactions", icon: FileBarChart, to: "/management/transactions" as const },
     ],

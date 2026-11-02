@@ -1279,6 +1279,40 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(accounting, /Collected → Submitted → Verified → Closed/);
 });
 
+test("delivery disputes enforce a 24-hour role-protected resolution workflow", async () => {
+  const [schema, migration, server, buyer, management, operational, accounting] = await Promise.all(
+    [
+      readFile("src/db/schema.ts", "utf8"),
+      readFile("drizzle/0037_delivery_dispute_resolution.sql", "utf8"),
+      readFile("src/services/marketplace/delivery-dispute-server-functions.ts", "utf8"),
+      readFile("src/routes/buyer.issues.tsx", "utf8"),
+      readFile("src/routes/management.disputes.tsx", "utf8"),
+      readFile("src/features/marketplace/components/delivery-dispute-workspace.tsx", "utf8"),
+      readFile("src/routes/accounting.refunds.tsx", "utf8"),
+    ],
+  );
+
+  assert.match(schema, /deliveryDisputes/);
+  assert.match(schema, /deliveryDisputeResponses/);
+  assert.match(schema, /deliveryDisputeEvents/);
+  assert.match(migration, /CREATE TABLE delivery_disputes/);
+  assert.match(migration, /UNIQUE KEY delivery_disputes_order_unique/);
+  assert.match(server, /export const createDeliveryDispute/);
+  assert.match(server, /24 \* 60 \* 60 \* 1000/);
+  assert.match(server, /requireRole\("Buyer"\)/);
+  assert.match(server, /requireRole\("Management"\)/);
+  assert.match(server, /requireRole\("Accounting"\)/);
+  assert.match(server, /row\.order\.assignedRiderId === actor\.id/);
+  assert.match(server, /export const processDeliveryDisputeRefund/);
+  assert.match(buyer, /Report an issue/);
+  assert.match(buyer, /Supporting photo \(optional\)/);
+  assert.match(management, /Management decision/);
+  assert.match(management, /Partial refund/);
+  assert.match(operational, /Management makes the final\s+decision/);
+  assert.match(accounting, /Approved refund queue/);
+  assert.match(accounting, /Mark processed/);
+});
+
 test("Egg products use tray units throughout catalog, receiving, marketplace, and orders", async () => {
   const [units, schema, catalog, receiving, marketplace, cart, orders] = await Promise.all([
     readFile("src/features/marketplace/selling-units.ts", "utf8"),

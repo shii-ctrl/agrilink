@@ -1,5 +1,13 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, MessageCircle, ShoppingBag, ShoppingCart, Store, UserRound } from "lucide-react";
+import {
+  CircleAlert,
+  LogOut,
+  MessageCircle,
+  ShoppingBag,
+  ShoppingCart,
+  Store,
+  UserRound,
+} from "lucide-react";
 import { type ReactNode } from "react";
 import { signOutDemoAccount } from "@/lib/demo/demo-session";
 import { RoleGate } from "@/components/layout/role-gate";
@@ -27,12 +35,14 @@ const nav = [
   { label: "Browse Products", to: "/marketplace", icon: Store },
   { label: "My Cart", to: "/buyer/cart", icon: ShoppingCart },
   { label: "My Orders", to: "/buyer/orders", icon: ShoppingBag },
+  { label: "Delivery Issues", to: "/buyer/issues", icon: CircleAlert },
   { label: "Messages", to: "/buyer/community", icon: MessageCircle },
 ] as const;
 const mobileNav = [
   { label: "Shop", to: "/marketplace", icon: Store },
   { label: "Cart", to: "/buyer/cart", icon: ShoppingCart },
   { label: "Orders", to: "/buyer/orders", icon: ShoppingBag },
+  { label: "Issues", to: "/buyer/issues", icon: CircleAlert },
   { label: "Messages", to: "/buyer/community", icon: MessageCircle },
   { label: "Profile", to: "/buyer/profile", icon: UserRound },
 ] as const;

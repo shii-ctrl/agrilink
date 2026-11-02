@@ -3,6 +3,7 @@ import {
   BarChart3,
   CircleDollarSign,
   FileBarChart,
+  HandCoins,
   LogOut,
   MessageCircle,
   ReceiptText,
@@ -36,6 +37,7 @@ const navigation = [
   { label: "Dashboard", to: "/accounting", icon: BarChart3 },
   { label: "Transactions", to: "/accounting/transactions", icon: ReceiptText },
   { label: "Record Payment", to: "/accounting/payments", icon: CircleDollarSign },
+  { label: "Delivery Refunds", to: "/accounting/refunds", icon: HandCoins },
   { label: "Reports", to: "/accounting/reports", icon: FileBarChart },
   { label: "Community", to: "/accounting/community", icon: MessageCircle },
 ] as const;

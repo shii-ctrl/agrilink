@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { LoaderCircle, PackageCheck, RotateCcw } from "lucide-react";
+import { CircleAlert, LoaderCircle, PackageCheck, RotateCcw } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
@@ -368,6 +368,18 @@ function BuyerOrdersPage() {
                       <RotateCcw className="size-4" /> Buy again
                     </Button>
                   )}
+                  {selectedOrder.fulfillmentStatus === "delivered" &&
+                  selectedOrder.fulfilledAt &&
+                  Date.now() - new Date(selectedOrder.fulfilledAt).getTime() <=
+                    24 * 60 * 60 * 1000 ? (
+                    <Button
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => navigate({ to: "/buyer/issues" })}
+                    >
+                      <CircleAlert className="size-4" /> Report delivery issue
+                    </Button>
+                  ) : null}
                 </div>
                 <OrderDetails order={selectedOrder} canMessageRider />
               </div>

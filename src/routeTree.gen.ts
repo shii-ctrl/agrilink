@@ -23,11 +23,13 @@ import { Route as AccountingIndexRouteImport } from './routes/accounting.index'
 import { Route as AccountingCommunityRouteImport } from './routes/accounting.community'
 import { Route as AccountingPaymentsRouteImport } from './routes/accounting.payments'
 import { Route as AccountingProfileRouteImport } from './routes/accounting.profile'
+import { Route as AccountingRefundsRouteImport } from './routes/accounting.refunds'
 import { Route as AccountingReportsRouteImport } from './routes/accounting.reports'
 import { Route as AccountingTransactionsRouteImport } from './routes/accounting.transactions'
 import { Route as BuyerIndexRouteImport } from './routes/buyer.index'
 import { Route as BuyerCartRouteImport } from './routes/buyer.cart'
 import { Route as BuyerCommunityRouteImport } from './routes/buyer.community'
+import { Route as BuyerIssuesRouteImport } from './routes/buyer.issues'
 import { Route as BuyerOrdersRouteImport } from './routes/buyer.orders'
 import { Route as BuyerProfileRouteImport } from './routes/buyer.profile'
 import { Route as FarmerIndexRouteImport } from './routes/farmer.index'
@@ -39,6 +41,7 @@ import { Route as ManagementIndexRouteImport } from './routes/management.index'
 import { Route as ManagementCommunityRouteImport } from './routes/management.community'
 import { Route as ManagementDecisionSupportRouteImport } from './routes/management.decision-support'
 import { Route as ManagementDeliveriesRouteImport } from './routes/management.deliveries'
+import { Route as ManagementDisputesRouteImport } from './routes/management.disputes'
 import { Route as ManagementProductsRouteImport } from './routes/management.products'
 import { Route as ManagementProfileRouteImport } from './routes/management.profile'
 import { Route as ManagementReceivingRouteImport } from './routes/management.receiving'
@@ -50,6 +53,7 @@ import { Route as MarketerIndexRouteImport } from './routes/marketer.index'
 import { Route as MarketerClassificationRouteImport } from './routes/marketer.classification'
 import { Route as MarketerCommunityRouteImport } from './routes/marketer.community'
 import { Route as MarketerDailyPricesRouteImport } from './routes/marketer.daily-prices'
+import { Route as MarketerDisputesRouteImport } from './routes/marketer.disputes'
 import { Route as MarketerOrdersRouteImport } from './routes/marketer.orders'
 import { Route as MarketerPricePublishRouteImport } from './routes/marketer.price-publish'
 import { Route as MarketerProductsRouteImport } from './routes/marketer.products'
@@ -63,6 +67,7 @@ import { Route as MarketplaceProductIdRouteImport } from './routes/marketplace.$
 import { Route as RiderIndexRouteImport } from './routes/rider.index'
 import { Route as RiderCommunityRouteImport } from './routes/rider.community'
 import { Route as RiderCompletedRouteImport } from './routes/rider.completed'
+import { Route as RiderDisputesRouteImport } from './routes/rider.disputes'
 import { Route as RiderProfileRouteImport } from './routes/rider.profile'
 
 const IndexRoute = IndexRouteImport.update({
@@ -135,6 +140,11 @@ const AccountingProfileRoute = AccountingProfileRouteImport.update({
   path: '/accounting/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountingRefundsRoute = AccountingRefundsRouteImport.update({
+  id: '/accounting/refunds',
+  path: '/accounting/refunds',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccountingReportsRoute = AccountingReportsRouteImport.update({
   id: '/accounting/reports',
   path: '/accounting/reports',
@@ -158,6 +168,11 @@ const BuyerCartRoute = BuyerCartRouteImport.update({
 const BuyerCommunityRoute = BuyerCommunityRouteImport.update({
   id: '/buyer/community',
   path: '/buyer/community',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BuyerIssuesRoute = BuyerIssuesRouteImport.update({
+  id: '/buyer/issues',
+  path: '/buyer/issues',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BuyerOrdersRoute = BuyerOrdersRouteImport.update({
@@ -216,6 +231,11 @@ const ManagementDeliveriesRoute = ManagementDeliveriesRouteImport.update({
   path: '/management/deliveries',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ManagementDisputesRoute = ManagementDisputesRouteImport.update({
+  id: '/management/disputes',
+  path: '/management/disputes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ManagementProductsRoute = ManagementProductsRouteImport.update({
   id: '/management/products',
   path: '/management/products',
@@ -269,6 +289,11 @@ const MarketerCommunityRoute = MarketerCommunityRouteImport.update({
 const MarketerDailyPricesRoute = MarketerDailyPricesRouteImport.update({
   id: '/marketer/daily-prices',
   path: '/marketer/daily-prices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketerDisputesRoute = MarketerDisputesRouteImport.update({
+  id: '/marketer/disputes',
+  path: '/marketer/disputes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MarketerOrdersRoute = MarketerOrdersRouteImport.update({
@@ -337,6 +362,11 @@ const RiderCompletedRoute = RiderCompletedRouteImport.update({
   path: '/rider/completed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RiderDisputesRoute = RiderDisputesRouteImport.update({
+  id: '/rider/disputes',
+  path: '/rider/disputes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RiderProfileRoute = RiderProfileRouteImport.update({
   id: '/rider/profile',
   path: '/rider/profile',
@@ -357,10 +387,12 @@ export interface FileRoutesByFullPath {
   '/accounting/community': typeof AccountingCommunityRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
+  '/accounting/refunds': typeof AccountingRefundsRoute
   '/accounting/reports': typeof AccountingReportsRoute
   '/accounting/transactions': typeof AccountingTransactionsRoute
   '/buyer/cart': typeof BuyerCartRoute
   '/buyer/community': typeof BuyerCommunityRoute
+  '/buyer/issues': typeof BuyerIssuesRoute
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
@@ -370,6 +402,7 @@ export interface FileRoutesByFullPath {
   '/management/community': typeof ManagementCommunityRoute
   '/management/decision-support': typeof ManagementDecisionSupportRoute
   '/management/deliveries': typeof ManagementDeliveriesRoute
+  '/management/disputes': typeof ManagementDisputesRoute
   '/management/products': typeof ManagementProductsRoute
   '/management/profile': typeof ManagementProfileRoute
   '/management/receiving': typeof ManagementReceivingRoute
@@ -380,6 +413,7 @@ export interface FileRoutesByFullPath {
   '/marketer/classification': typeof MarketerClassificationRoute
   '/marketer/community': typeof MarketerCommunityRoute
   '/marketer/daily-prices': typeof MarketerDailyPricesRoute
+  '/marketer/disputes': typeof MarketerDisputesRoute
   '/marketer/orders': typeof MarketerOrdersRoute
   '/marketer/price-publish': typeof MarketerPricePublishRoute
   '/marketer/products': typeof MarketerProductsRoute
@@ -391,6 +425,7 @@ export interface FileRoutesByFullPath {
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
   '/rider/community': typeof RiderCommunityRoute
   '/rider/completed': typeof RiderCompletedRoute
+  '/rider/disputes': typeof RiderDisputesRoute
   '/rider/profile': typeof RiderProfileRoute
   '/accounting/': typeof AccountingIndexRoute
   '/buyer/': typeof BuyerIndexRoute
@@ -414,10 +449,12 @@ export interface FileRoutesByTo {
   '/accounting/community': typeof AccountingCommunityRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
+  '/accounting/refunds': typeof AccountingRefundsRoute
   '/accounting/reports': typeof AccountingReportsRoute
   '/accounting/transactions': typeof AccountingTransactionsRoute
   '/buyer/cart': typeof BuyerCartRoute
   '/buyer/community': typeof BuyerCommunityRoute
+  '/buyer/issues': typeof BuyerIssuesRoute
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
@@ -427,6 +464,7 @@ export interface FileRoutesByTo {
   '/management/community': typeof ManagementCommunityRoute
   '/management/decision-support': typeof ManagementDecisionSupportRoute
   '/management/deliveries': typeof ManagementDeliveriesRoute
+  '/management/disputes': typeof ManagementDisputesRoute
   '/management/products': typeof ManagementProductsRoute
   '/management/profile': typeof ManagementProfileRoute
   '/management/receiving': typeof ManagementReceivingRoute
@@ -437,6 +475,7 @@ export interface FileRoutesByTo {
   '/marketer/classification': typeof MarketerClassificationRoute
   '/marketer/community': typeof MarketerCommunityRoute
   '/marketer/daily-prices': typeof MarketerDailyPricesRoute
+  '/marketer/disputes': typeof MarketerDisputesRoute
   '/marketer/orders': typeof MarketerOrdersRoute
   '/marketer/price-publish': typeof MarketerPricePublishRoute
   '/marketer/products': typeof MarketerProductsRoute
@@ -448,6 +487,7 @@ export interface FileRoutesByTo {
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
   '/rider/community': typeof RiderCommunityRoute
   '/rider/completed': typeof RiderCompletedRoute
+  '/rider/disputes': typeof RiderDisputesRoute
   '/rider/profile': typeof RiderProfileRoute
   '/accounting': typeof AccountingIndexRoute
   '/buyer': typeof BuyerIndexRoute
@@ -472,10 +512,12 @@ export interface FileRoutesById {
   '/accounting/community': typeof AccountingCommunityRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
+  '/accounting/refunds': typeof AccountingRefundsRoute
   '/accounting/reports': typeof AccountingReportsRoute
   '/accounting/transactions': typeof AccountingTransactionsRoute
   '/buyer/cart': typeof BuyerCartRoute
   '/buyer/community': typeof BuyerCommunityRoute
+  '/buyer/issues': typeof BuyerIssuesRoute
   '/buyer/orders': typeof BuyerOrdersRoute
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
@@ -485,6 +527,7 @@ export interface FileRoutesById {
   '/management/community': typeof ManagementCommunityRoute
   '/management/decision-support': typeof ManagementDecisionSupportRoute
   '/management/deliveries': typeof ManagementDeliveriesRoute
+  '/management/disputes': typeof ManagementDisputesRoute
   '/management/products': typeof ManagementProductsRoute
   '/management/profile': typeof ManagementProfileRoute
   '/management/receiving': typeof ManagementReceivingRoute
@@ -495,6 +538,7 @@ export interface FileRoutesById {
   '/marketer/classification': typeof MarketerClassificationRoute
   '/marketer/community': typeof MarketerCommunityRoute
   '/marketer/daily-prices': typeof MarketerDailyPricesRoute
+  '/marketer/disputes': typeof MarketerDisputesRoute
   '/marketer/orders': typeof MarketerOrdersRoute
   '/marketer/price-publish': typeof MarketerPricePublishRoute
   '/marketer/products': typeof MarketerProductsRoute
@@ -506,6 +550,7 @@ export interface FileRoutesById {
   '/marketplace/$productId': typeof MarketplaceProductIdRoute
   '/rider/community': typeof RiderCommunityRoute
   '/rider/completed': typeof RiderCompletedRoute
+  '/rider/disputes': typeof RiderDisputesRoute
   '/rider/profile': typeof RiderProfileRoute
   '/accounting/': typeof AccountingIndexRoute
   '/buyer/': typeof BuyerIndexRoute
@@ -531,10 +576,12 @@ export interface FileRouteTypes {
     | '/accounting/community'
     | '/accounting/payments'
     | '/accounting/profile'
+    | '/accounting/refunds'
     | '/accounting/reports'
     | '/accounting/transactions'
     | '/buyer/cart'
     | '/buyer/community'
+    | '/buyer/issues'
     | '/buyer/orders'
     | '/buyer/profile'
     | '/farmer/community'
@@ -544,6 +591,7 @@ export interface FileRouteTypes {
     | '/management/community'
     | '/management/decision-support'
     | '/management/deliveries'
+    | '/management/disputes'
     | '/management/products'
     | '/management/profile'
     | '/management/receiving'
@@ -554,6 +602,7 @@ export interface FileRouteTypes {
     | '/marketer/classification'
     | '/marketer/community'
     | '/marketer/daily-prices'
+    | '/marketer/disputes'
     | '/marketer/orders'
     | '/marketer/price-publish'
     | '/marketer/products'
@@ -565,6 +614,7 @@ export interface FileRouteTypes {
     | '/marketplace/$productId'
     | '/rider/community'
     | '/rider/completed'
+    | '/rider/disputes'
     | '/rider/profile'
     | '/accounting/'
     | '/buyer/'
@@ -588,10 +638,12 @@ export interface FileRouteTypes {
     | '/accounting/community'
     | '/accounting/payments'
     | '/accounting/profile'
+    | '/accounting/refunds'
     | '/accounting/reports'
     | '/accounting/transactions'
     | '/buyer/cart'
     | '/buyer/community'
+    | '/buyer/issues'
     | '/buyer/orders'
     | '/buyer/profile'
     | '/farmer/community'
@@ -601,6 +653,7 @@ export interface FileRouteTypes {
     | '/management/community'
     | '/management/decision-support'
     | '/management/deliveries'
+    | '/management/disputes'
     | '/management/products'
     | '/management/profile'
     | '/management/receiving'
@@ -611,6 +664,7 @@ export interface FileRouteTypes {
     | '/marketer/classification'
     | '/marketer/community'
     | '/marketer/daily-prices'
+    | '/marketer/disputes'
     | '/marketer/orders'
     | '/marketer/price-publish'
     | '/marketer/products'
@@ -622,6 +676,7 @@ export interface FileRouteTypes {
     | '/marketplace/$productId'
     | '/rider/community'
     | '/rider/completed'
+    | '/rider/disputes'
     | '/rider/profile'
     | '/accounting'
     | '/buyer'
@@ -645,10 +700,12 @@ export interface FileRouteTypes {
     | '/accounting/community'
     | '/accounting/payments'
     | '/accounting/profile'
+    | '/accounting/refunds'
     | '/accounting/reports'
     | '/accounting/transactions'
     | '/buyer/cart'
     | '/buyer/community'
+    | '/buyer/issues'
     | '/buyer/orders'
     | '/buyer/profile'
     | '/farmer/community'
@@ -658,6 +715,7 @@ export interface FileRouteTypes {
     | '/management/community'
     | '/management/decision-support'
     | '/management/deliveries'
+    | '/management/disputes'
     | '/management/products'
     | '/management/profile'
     | '/management/receiving'
@@ -668,6 +726,7 @@ export interface FileRouteTypes {
     | '/marketer/classification'
     | '/marketer/community'
     | '/marketer/daily-prices'
+    | '/marketer/disputes'
     | '/marketer/orders'
     | '/marketer/price-publish'
     | '/marketer/products'
@@ -679,6 +738,7 @@ export interface FileRouteTypes {
     | '/marketplace/$productId'
     | '/rider/community'
     | '/rider/completed'
+    | '/rider/disputes'
     | '/rider/profile'
     | '/accounting/'
     | '/buyer/'
@@ -703,10 +763,12 @@ export interface RootRouteChildren {
   AccountingCommunityRoute: typeof AccountingCommunityRoute
   AccountingPaymentsRoute: typeof AccountingPaymentsRoute
   AccountingProfileRoute: typeof AccountingProfileRoute
+  AccountingRefundsRoute: typeof AccountingRefundsRoute
   AccountingReportsRoute: typeof AccountingReportsRoute
   AccountingTransactionsRoute: typeof AccountingTransactionsRoute
   BuyerCartRoute: typeof BuyerCartRoute
   BuyerCommunityRoute: typeof BuyerCommunityRoute
+  BuyerIssuesRoute: typeof BuyerIssuesRoute
   BuyerOrdersRoute: typeof BuyerOrdersRoute
   BuyerProfileRoute: typeof BuyerProfileRoute
   FarmerCommunityRoute: typeof FarmerCommunityRoute
@@ -716,6 +778,7 @@ export interface RootRouteChildren {
   ManagementCommunityRoute: typeof ManagementCommunityRoute
   ManagementDecisionSupportRoute: typeof ManagementDecisionSupportRoute
   ManagementDeliveriesRoute: typeof ManagementDeliveriesRoute
+  ManagementDisputesRoute: typeof ManagementDisputesRoute
   ManagementProductsRoute: typeof ManagementProductsRoute
   ManagementProfileRoute: typeof ManagementProfileRoute
   ManagementReceivingRoute: typeof ManagementReceivingRoute
@@ -726,6 +789,7 @@ export interface RootRouteChildren {
   MarketerClassificationRoute: typeof MarketerClassificationRoute
   MarketerCommunityRoute: typeof MarketerCommunityRoute
   MarketerDailyPricesRoute: typeof MarketerDailyPricesRoute
+  MarketerDisputesRoute: typeof MarketerDisputesRoute
   MarketerOrdersRoute: typeof MarketerOrdersRoute
   MarketerPricePublishRoute: typeof MarketerPricePublishRoute
   MarketerProductsRoute: typeof MarketerProductsRoute
@@ -737,6 +801,7 @@ export interface RootRouteChildren {
   MarketplaceProductIdRoute: typeof MarketplaceProductIdRoute
   RiderCommunityRoute: typeof RiderCommunityRoute
   RiderCompletedRoute: typeof RiderCompletedRoute
+  RiderDisputesRoute: typeof RiderDisputesRoute
   RiderProfileRoute: typeof RiderProfileRoute
   AccountingIndexRoute: typeof AccountingIndexRoute
   BuyerIndexRoute: typeof BuyerIndexRoute
@@ -847,6 +912,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountingProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accounting/refunds': {
+      id: '/accounting/refunds'
+      path: '/accounting/refunds'
+      fullPath: '/accounting/refunds'
+      preLoaderRoute: typeof AccountingRefundsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/accounting/reports': {
       id: '/accounting/reports'
       path: '/accounting/reports'
@@ -880,6 +952,13 @@ declare module '@tanstack/react-router' {
       path: '/buyer/community'
       fullPath: '/buyer/community'
       preLoaderRoute: typeof BuyerCommunityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/buyer/issues': {
+      id: '/buyer/issues'
+      path: '/buyer/issues'
+      fullPath: '/buyer/issues'
+      preLoaderRoute: typeof BuyerIssuesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/buyer/orders': {
@@ -959,6 +1038,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ManagementDeliveriesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/management/disputes': {
+      id: '/management/disputes'
+      path: '/management/disputes'
+      fullPath: '/management/disputes'
+      preLoaderRoute: typeof ManagementDisputesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/management/products': {
       id: '/management/products'
       path: '/management/products'
@@ -1034,6 +1120,13 @@ declare module '@tanstack/react-router' {
       path: '/marketer/daily-prices'
       fullPath: '/marketer/daily-prices'
       preLoaderRoute: typeof MarketerDailyPricesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketer/disputes': {
+      id: '/marketer/disputes'
+      path: '/marketer/disputes'
+      fullPath: '/marketer/disputes'
+      preLoaderRoute: typeof MarketerDisputesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/marketer/orders': {
@@ -1127,6 +1220,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RiderCompletedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rider/disputes': {
+      id: '/rider/disputes'
+      path: '/rider/disputes'
+      fullPath: '/rider/disputes'
+      preLoaderRoute: typeof RiderDisputesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/rider/profile': {
       id: '/rider/profile'
       path: '/rider/profile'
@@ -1151,10 +1251,12 @@ const rootRouteChildren: RootRouteChildren = {
   AccountingCommunityRoute: AccountingCommunityRoute,
   AccountingPaymentsRoute: AccountingPaymentsRoute,
   AccountingProfileRoute: AccountingProfileRoute,
+  AccountingRefundsRoute: AccountingRefundsRoute,
   AccountingReportsRoute: AccountingReportsRoute,
   AccountingTransactionsRoute: AccountingTransactionsRoute,
   BuyerCartRoute: BuyerCartRoute,
   BuyerCommunityRoute: BuyerCommunityRoute,
+  BuyerIssuesRoute: BuyerIssuesRoute,
   BuyerOrdersRoute: BuyerOrdersRoute,
   BuyerProfileRoute: BuyerProfileRoute,
   FarmerCommunityRoute: FarmerCommunityRoute,
@@ -1164,6 +1266,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManagementCommunityRoute: ManagementCommunityRoute,
   ManagementDecisionSupportRoute: ManagementDecisionSupportRoute,
   ManagementDeliveriesRoute: ManagementDeliveriesRoute,
+  ManagementDisputesRoute: ManagementDisputesRoute,
   ManagementProductsRoute: ManagementProductsRoute,
   ManagementProfileRoute: ManagementProfileRoute,
   ManagementReceivingRoute: ManagementReceivingRoute,
@@ -1174,6 +1277,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketerClassificationRoute: MarketerClassificationRoute,
   MarketerCommunityRoute: MarketerCommunityRoute,
   MarketerDailyPricesRoute: MarketerDailyPricesRoute,
+  MarketerDisputesRoute: MarketerDisputesRoute,
   MarketerOrdersRoute: MarketerOrdersRoute,
   MarketerPricePublishRoute: MarketerPricePublishRoute,
   MarketerProductsRoute: MarketerProductsRoute,
@@ -1185,6 +1289,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketplaceProductIdRoute: MarketplaceProductIdRoute,
   RiderCommunityRoute: RiderCommunityRoute,
   RiderCompletedRoute: RiderCompletedRoute,
+  RiderDisputesRoute: RiderDisputesRoute,
   RiderProfileRoute: RiderProfileRoute,
   AccountingIndexRoute: AccountingIndexRoute,
   BuyerIndexRoute: BuyerIndexRoute,
