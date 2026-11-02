@@ -1205,6 +1205,8 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
     riderMessages,
     deliveryUpgrade,
     proofDialog,
+    completedDeliveries,
+    riderLayout,
   ] = await Promise.all([
     readFile("src/db/schema.ts", "utf8"),
     readFile("drizzle/0035_delivery_fulfillment_flow.sql", "utf8"),
@@ -1220,6 +1222,8 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
     readFile("src/routes/rider.community.tsx", "utf8"),
     readFile("drizzle/0036_delivery_proof_and_cod_remittance.sql", "utf8"),
     readFile("src/features/marketplace/components/delivery-proof-dialog.tsx", "utf8"),
+    readFile("src/routes/rider.completed.tsx", "utf8"),
+    readFile("src/components/workspaces/rider-layout.tsx", "utf8"),
   ]);
 
   assert.match(schema, /fulfillmentMethod: mysqlEnum/);
@@ -1245,7 +1249,14 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(layout, /\/management\/deliveries/);
   assert.match(rider, /Start delivery/);
   assert.match(rider, /Complete with proof/);
-  assert.match(rider, /Submit COD/);
+  assert.doesNotMatch(rider, /Submit COD/);
+  assert.match(marketplace, /export const getRiderCompletedDeliveries/);
+  assert.match(completedDeliveries, /Completed orders move here automatically/);
+  assert.match(completedDeliveries, /Submit COD/);
+  assert.match(completedDeliveries, /updateCodRemittance/);
+  assert.match(completedDeliveries, /PaginationControls/);
+  assert.match(riderLayout, /Completed deliveries/);
+  assert.match(riderLayout, /\/rider\/completed/);
   assert.match(accounting, /Accounting scope/);
   assert.match(accounting, /verify the order total/);
   assert.match(orderDetails, /Assigned Rider/);

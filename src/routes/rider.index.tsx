@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bike, CircleDollarSign, MapPin, Phone, ShieldCheck, WalletCards } from "lucide-react";
+import { Bike, CircleDollarSign, MapPin, Phone, ShieldCheck } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,7 +15,6 @@ import {
 import {
   getRiderDeliveryStatus,
   updateOrderFulfillment,
-  updateCodRemittance,
 } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/rider/")({ component: RiderDashboard });
@@ -34,21 +33,6 @@ function RiderDashboard() {
       toast.success("Delivery started");
     } catch (cause) {
       toast.error("Could not update delivery", {
-        description: cause instanceof Error ? cause.message : "Please try again.",
-      });
-    } finally {
-      setUpdating(null);
-    }
-  }
-
-  async function submitCash(orderNumber: string) {
-    setUpdating(orderNumber);
-    try {
-      await updateCodRemittance({ data: { orderNumber, action: "submit" } });
-      await reload();
-      toast.success("COD submitted to Accounting");
-    } catch (cause) {
-      toast.error("Could not submit COD", {
         description: cause instanceof Error ? cause.message : "Please try again.",
       });
     } finally {
@@ -121,8 +105,8 @@ function RiderDashboard() {
               <div className="mb-4">
                 <h2 className="text-lg font-semibold">My delivery assignments</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Start a trip only when the order is in your possession. Mark Delivered after the
-                  Buyer receives it.
+                  Start a trip only when the order is in your possession. Complete it with the Buyer
+                  OTP and delivery proof after handoff.
                 </p>
               </div>
               {data.assignments.length ? (
@@ -193,28 +177,11 @@ function RiderDashboard() {
                               Complete with proof
                             </Button>
                           </>
-                        ) : order.fulfillmentStatus === "delivered" &&
-                          order.codRemittanceStatus === "collected" ? (
-                          <Button
-                            className="w-full sm:col-span-2"
-                            disabled={updating !== null}
-                            onClick={() => void submitCash(order.orderNumber)}
-                          >
-                            <WalletCards className="size-4" />
-                            {updating === order.orderNumber
-                              ? "Submitting…"
-                              : `Submit COD ₱${order.totalAmount.toFixed(2)}`}
-                          </Button>
                         ) : ["delivery_failed", "rescheduled"].includes(order.fulfillmentStatus) ? (
                           <p className="sm:col-span-2 text-sm font-medium text-amber-700">
                             Waiting for Management to retry or reassign this delivery.
                           </p>
-                        ) : (
-                          <p className="sm:col-span-2 text-sm font-medium text-primary">
-                            Delivered · COD{" "}
-                            {order.codRemittanceStatus?.replaceAll("_", " ") ?? "pending"}
-                          </p>
-                        )}
+                        ) : null}
                       </div>
                     </article>
                   ))}

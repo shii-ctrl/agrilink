@@ -2183,7 +2183,7 @@ export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(
   const { requireRole } = await import("@/services/auth/auth-server");
   const rider = await requireRole("Rider");
   const { db } = await import("@/db/client.server");
-  const { codRemittances, deliverySettings, orders, users } = await import("@/db/schema");
+  const { deliverySettings, orders, users } = await import("@/db/schema");
   const [[settings], assignments] = await Promise.all([
     db
       .select({
@@ -2217,31 +2217,63 @@ export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(
             "out_for_delivery",
             "delivery_failed",
             "rescheduled",
-            "delivered",
           ]),
         ),
       )
       .orderBy(asc(orders.createdAt)),
   ]);
-  const remittances = await db
-    .select({ orderId: codRemittances.orderId, status: codRemittances.status })
-    .from(codRemittances)
-    .where(eq(codRemittances.riderId, rider.id));
   return {
     deliveryFee: Number(settings?.flatFee ?? 59),
     deliveryEnabled: settings?.deliveryEnabled ?? true,
-    assignments: assignments
-      .map((order) => ({
-        ...order,
-        totalAmount: Number(order.totalAmount),
-        codRemittanceStatus:
-          remittances.find((remittance) => remittance.orderId === order.orderId)?.status ?? null,
-      }))
-      .filter(
-        (order) =>
-          !(order.fulfillmentStatus === "delivered" && order.codRemittanceStatus === "closed"),
-      ),
+    assignments: assignments.map((order) => ({
+      ...order,
+      totalAmount: Number(order.totalAmount),
+    })),
   };
+});
+
+export const getRiderCompletedDeliveries = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/services/auth/auth-server");
+  const rider = await requireRole("Rider");
+  const { db } = await import("@/db/client.server");
+  const { codRemittances, orders, users } = await import("@/db/schema");
+  const [deliveries, remittances] = await Promise.all([
+    db
+      .select({
+        orderId: orders.id,
+        orderNumber: orders.orderNumber,
+        buyer: users.displayName,
+        contact: orders.contact,
+        recipientName: orders.recipientName,
+        deliveryAddress: orders.deliveryAddress,
+        preferredSchedule: orders.preferredSchedule,
+        deliveryInstructions: orders.deliveryInstructions,
+        totalAmount: orders.totalAmount,
+        fulfilledAt: orders.fulfilledAt,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .innerJoin(users, eq(orders.buyerId, users.id))
+      .where(
+        and(
+          eq(orders.assignedRiderId, rider.id),
+          eq(orders.fulfillmentMethod, "delivery"),
+          eq(orders.fulfillmentStatus, "delivered"),
+        ),
+      )
+      .orderBy(desc(orders.fulfilledAt), desc(orders.createdAt)),
+    db
+      .select({ orderId: codRemittances.orderId, status: codRemittances.status })
+      .from(codRemittances)
+      .where(eq(codRemittances.riderId, rider.id)),
+  ]);
+  return deliveries.map((order) => ({
+    ...order,
+    totalAmount: Number(order.totalAmount),
+    deliveredAt: (order.fulfilledAt ?? order.createdAt).toISOString(),
+    codRemittanceStatus:
+      remittances.find((remittance) => remittance.orderId === order.orderId)?.status ?? null,
+  }));
 });
 
 export const getManagementDeliveryOperations = createServerFn({ method: "GET" }).handler(
