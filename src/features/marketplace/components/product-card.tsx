@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, PackageX } from "lucide-react";
+import { ArrowUpRight, LoaderCircle, PackageX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { peso, type Product } from "@/features/marketplace/products";
 import { ClassificationBadge } from "@/features/marketplace/components/classification-badge";
@@ -24,6 +24,7 @@ export function ProductCard({ product }: { product: Product }) {
   const outOfStock = availableQuantity <= 0;
   const [activeImage, setActiveImage] = useState(0);
   const [previewing, setPreviewing] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
   const slides = offers.map((offer) => ({
     id: offer.id,
     classification: offer.classification,
@@ -55,14 +56,44 @@ export function ProductCard({ product }: { product: Product }) {
     <Link
       to="/marketplace/$productId"
       params={{ productId: product.id }}
+      preload="intent"
+      onClick={(event) => {
+        if (
+          event.button === 0 &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          !event.shiftKey &&
+          !event.altKey
+        ) {
+          setIsOpening(true);
+          setPreviewing(false);
+        }
+      }}
       onMouseEnter={() => setPreviewing(true)}
       onMouseLeave={stopPreview}
       onFocus={() => setPreviewing(true)}
       onBlur={stopPreview}
-      className={`group flex flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-card transition-all ${
-        outOfStock ? "opacity-80" : "hover:-translate-y-1 hover:shadow-field"
-      }`}
+      aria-busy={isOpening}
+      className={`group relative flex flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-card transition-all ${
+        isOpening ? "pointer-events-none" : ""
+      } ${outOfStock ? "opacity-80" : "hover:-translate-y-1 hover:shadow-field"}`}
     >
+      {isOpening ? (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex flex-col items-center rounded-3xl border border-primary/20 bg-card px-6 py-5 text-center shadow-field">
+            <span className="relative flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <span className="absolute inset-0 animate-ping rounded-full bg-primary/15" />
+              <LoaderCircle className="relative size-6 animate-spin" />
+            </span>
+            <span className="mt-3 font-semibold">Opening product…</span>
+            <span className="mt-1 text-xs text-muted-foreground">Loading the latest stock</span>
+          </div>
+        </div>
+      ) : null}
       <div className="relative aspect-[4/3] overflow-hidden">
         <div
           className="flex size-full transition-transform duration-700 ease-in-out"
@@ -122,7 +153,11 @@ export function ProductCard({ product }: { product: Product }) {
           <span
             className={`flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors ${outOfStock ? "bg-muted text-muted-foreground" : "group-hover:bg-primary group-hover:text-primary-foreground"}`}
           >
-            <ArrowUpRight className="size-4" />
+            {isOpening ? (
+              <LoaderCircle className="size-4 animate-spin" />
+            ) : (
+              <ArrowUpRight className="size-4" />
+            )}
           </span>
         </div>
       </div>
