@@ -317,18 +317,21 @@ test("order details use a responsive real-workflow stepper and clear summaries",
 });
 
 test("catalog photos use a safe file picker and bundle prices are enforced at checkout", async () => {
-  const [marketplace, productPage, productCard, marketerPage, schema, migration] =
+  const [marketplace, productPage, productCard, marketerPage, imageFallback, schema, migration] =
     await Promise.all([
       readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
       readFile("src/routes/marketplace.$productId.tsx", "utf8"),
       readFile("src/features/marketplace/components/product-card.tsx", "utf8"),
       readFile("src/routes/marketer.products.tsx", "utf8"),
+      readFile("src/features/marketplace/marketplace-images.ts", "utf8"),
       readFile("src/db/schema.ts", "utf8"),
       readFile("drizzle/0010_product_photos_and_bundle_pricing.sql", "utf8"),
     ]);
 
   assert.match(marketerPage, /type="file"/);
   assert.match(marketerPage, /prepareProductImage/);
+  assert.match(imageFallback, /product-no-image\.jpg/);
+  assert.match(imageFallback, /return noProductImage/);
   assert.doesNotMatch(marketerPage, /catalog-image-url/);
   assert.match(marketplace, /imageDataUrl/);
   assert.match(marketplace, /assertSafeProductImage/);
