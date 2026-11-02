@@ -257,7 +257,7 @@ function Index() {
 
       <main>
         <section className="border-b border-border/70 bg-cream py-8 dark:bg-forest sm:py-12">
-          <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12">
+          <div className="grid w-full items-center gap-8 px-4 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12 lg:px-8">
             <div className="py-4 text-foreground dark:text-forest-foreground sm:py-8">
               <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary dark:border-white/20 dark:bg-white/10 dark:text-forest-foreground">
                 <Sprout className="size-3.5" /> Fresh from PROCY farmer members
@@ -366,7 +366,7 @@ function Index() {
         </section>
 
         <section
-          className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 sm:pt-10"
+          className="w-full px-4 pt-8 sm:px-6 sm:pt-10 lg:px-8"
           aria-label="Shop by category"
         >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -390,7 +390,7 @@ function Index() {
           </div>
         </section>
 
-        <section className="mx-auto mt-16 max-w-6xl px-4 sm:mt-20 sm:px-6">
+        <section className="mt-16 w-full px-4 sm:mt-20 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
@@ -433,7 +433,7 @@ function Index() {
                 {featured.map((product, index) => (
                   <div
                     key={product.id}
-                    className="flex shrink-0 basis-[86%] snap-start sm:basis-[54%] lg:basis-[36%] [&>a]:w-full"
+                    className="flex shrink-0 basis-[86%] snap-start sm:basis-[54%] lg:basis-[31%] xl:basis-[24%] [&>a]:w-full"
                     role="group"
                     aria-roledescription="slide"
                     aria-label={`${index + 1} of ${featured.length}`}
@@ -453,7 +453,7 @@ function Index() {
           )}
         </section>
 
-        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24 sm:px-6">
+        <section className="mt-20 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
             · Simple ordering
           </p>
@@ -477,7 +477,7 @@ function Index() {
           </div>
         </section>
 
-        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24 sm:px-6">
+        <section className="mt-20 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
           <div className="grid gap-8 overflow-hidden rounded-[2rem] surface-field p-7 md:grid-cols-[0.9fr_1.1fr] md:p-12">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-70">
@@ -531,7 +531,7 @@ function Index() {
           </div>
         </section>
 
-        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24 sm:px-6">
+        <section className="mt-20 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
           <div className="grid gap-4 md:grid-cols-3">
             {trustPoints.map((point) => (
               <div
@@ -558,7 +558,7 @@ function Index() {
           </div>
         </section>
 
-        <section className="mx-auto mt-20 max-w-6xl px-4 sm:mt-24 sm:px-6">
+        <section className="mt-20 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
           <div className="rounded-[2rem] border border-border bg-cream p-8 text-center dark:bg-card md:p-14">
             <h2 className="text-3xl font-semibold md:text-4xl">
               {isBuyer ? "Continue your AgriLink order" : "Ready to buy from PROCY?"}
