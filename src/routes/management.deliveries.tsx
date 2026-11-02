@@ -46,6 +46,7 @@ function ManagementDeliveriesPage() {
   const [savingFee, setSavingFee] = useState(false);
   const [savingAvailability, setSavingAvailability] = useState(false);
   const [assigningOrder, setAssigningOrder] = useState<string | null>(null);
+  const [assignmentReasons, setAssignmentReasons] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<"active" | "completed">("active");
 
   const load = useCallback(async () => {
@@ -127,7 +128,16 @@ function ManagementDeliveriesPage() {
   async function assignRider(orderNumber: string, riderId: string) {
     setAssigningOrder(orderNumber);
     try {
-      await assignDeliveryRider({ data: { orderNumber, riderId } });
+      await assignDeliveryRider({
+        data: {
+          orderNumber,
+          riderId,
+          ...(assignmentReasons[orderNumber]?.trim()
+            ? { reason: assignmentReasons[orderNumber].trim() }
+            : {}),
+        },
+      });
+      setAssignmentReasons((current) => ({ ...current, [orderNumber]: "" }));
       await load();
       toast.success("Rider assigned", { description: `${orderNumber} is now in the Rider queue.` });
     } catch (cause) {
@@ -283,25 +293,77 @@ function ManagementDeliveriesPage() {
                         onValueChange={(riderId) => void assignRider(delivery.orderNumber, riderId)}
                         options={(operations?.riders ?? []).map((rider) => ({
                           value: rider.id,
-                          label: rider.name,
+                          label: `${rider.name} · ${rider.activeAssignments} active`,
                         }))}
                         placeholder={
                           operations?.riders.length ? "Assign a Rider" : "No active Riders"
                         }
                         disabled={
                           assigningOrder !== null ||
-                          !["ready_for_dispatch", "rider_assigned"].includes(
-                            delivery.fulfillmentStatus,
-                          )
+                          ![
+                            "ready_for_dispatch",
+                            "rider_assigned",
+                            "delivery_failed",
+                            "rescheduled",
+                          ].includes(delivery.fulfillmentStatus)
                         }
                         className="w-full justify-between"
                       />
                       {delivery.assignedRiderName ? (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Assigned to {delivery.assignedRiderName}
-                        </p>
+                        <div className="mt-3 space-y-2">
+                          <p className="text-xs text-muted-foreground">
+                            Assigned to {delivery.assignedRiderName}
+                          </p>
+                          <Input
+                            value={assignmentReasons[delivery.orderNumber] ?? ""}
+                            onChange={(event) =>
+                              setAssignmentReasons((current) => ({
+                                ...current,
+                                [delivery.orderNumber]: event.target.value,
+                              }))
+                            }
+                            placeholder="Reason for reassignment or retry"
+                            maxLength={500}
+                          />
+                          {["delivery_failed", "rescheduled"].includes(
+                            delivery.fulfillmentStatus,
+                          ) ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="w-full"
+                              disabled={assigningOrder !== null || !delivery.assignedRiderId}
+                              onClick={() =>
+                                void assignRider(
+                                  delivery.orderNumber,
+                                  delivery.assignedRiderId ?? "",
+                                )
+                              }
+                            >
+                              Retry with {delivery.assignedRiderName}
+                            </Button>
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
+                    {delivery.assignmentHistory.length ? (
+                      <details className="mt-4 rounded-xl border border-border bg-muted/20 p-3 text-sm">
+                        <summary className="cursor-pointer font-medium">
+                          Assignment history ({delivery.assignmentHistory.length})
+                        </summary>
+                        <div className="mt-3 space-y-3">
+                          {delivery.assignmentHistory.map((assignment) => (
+                            <div key={`${assignment.riderId}-${assignment.assignedAt}`}>
+                              <p className="font-medium">{assignment.riderName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(assignment.assignedAt).toLocaleString("en-PH")}
+                                {assignment.reason ? ` · ${assignment.reason}` : ""}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
                   </article>
                 ))}
                 {!deliveries.length ? (

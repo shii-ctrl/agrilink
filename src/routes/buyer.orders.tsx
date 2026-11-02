@@ -138,6 +138,8 @@ function BuyerOrdersPage() {
         deliveryInstructions: detail.deliveryInstructions,
         assignedRiderId: detail.assignedRiderId,
         assignedRiderName: detail.assignedRiderName,
+        deliveryOtpCode: detail.deliveryOtpCode,
+        deliveryProof: detail.deliveryProof,
         ...(detail.fulfilledAt ? { fulfilledAt: detail.fulfilledAt } : {}),
         items: detail.items,
         history: detail.history.map((entry) => ({

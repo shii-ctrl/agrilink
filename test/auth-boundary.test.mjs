@@ -1199,6 +1199,8 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
     orderDetails,
     buyerOrders,
     riderMessages,
+    deliveryUpgrade,
+    proofDialog,
   ] = await Promise.all([
     readFile("src/db/schema.ts", "utf8"),
     readFile("drizzle/0035_delivery_fulfillment_flow.sql", "utf8"),
@@ -1212,6 +1214,8 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
     readFile("src/features/marketplace/components/order-details.tsx", "utf8"),
     readFile("src/routes/buyer.orders.tsx", "utf8"),
     readFile("src/routes/rider.community.tsx", "utf8"),
+    readFile("drizzle/0036_delivery_proof_and_cod_remittance.sql", "utf8"),
+    readFile("src/features/marketplace/components/delivery-proof-dialog.tsx", "utf8"),
   ]);
 
   assert.match(schema, /fulfillmentMethod: mysqlEnum/);
@@ -1221,7 +1225,11 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(marketplace, /export const assignDeliveryRider/);
   assert.match(marketplace, /export const updateOrderFulfillment/);
   assert.match(marketplace, /title: "Rider assigned"/);
-  assert.match(marketplace, /\/buyer\/community\?contact=\$\{assignment\.rider\.id\}/);
+  assert.match(marketplace, /Delivery OTP:/);
+  assert.match(marketplace, /export const submitDeliveryProof/);
+  assert.match(marketplace, /export const reportDeliveryIssue/);
+  assert.match(marketplace, /export const updateCodRemittance/);
+  assert.match(marketplace, /export const getAccountingCodRemittances/);
   assert.match(marketplace, /Cash on Delivery can only be recorded for a Delivery order/);
   assert.match(marketer, /Start preparing/);
   assert.match(marketer, /Ready for dispatch/);
@@ -1232,14 +1240,26 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(layout, /Delivery Operations/);
   assert.match(layout, /\/management\/deliveries/);
   assert.match(rider, /Start delivery/);
-  assert.match(rider, /Mark delivered/);
+  assert.match(rider, /Complete with proof/);
+  assert.match(rider, /Submit COD/);
   assert.match(accounting, /Accounting scope/);
   assert.match(accounting, /verify the order total/);
   assert.match(orderDetails, /Assigned Rider/);
   assert.match(orderDetails, /Message Rider/);
+  assert.match(orderDetails, /Delivery OTP/);
+  assert.match(orderDetails, /Verified delivery proof/);
   assert.match(buyerOrders, /assignedRiderId: detail\.assignedRiderId/);
   assert.match(buyerOrders, /canMessageRider/);
   assert.match(riderMessages, /Coordinate securely with Buyers assigned to your deliveries/);
+  assert.match(deliveryUpgrade, /CREATE TABLE delivery_assignments/);
+  assert.match(deliveryUpgrade, /CREATE TABLE delivery_attempts/);
+  assert.match(deliveryUpgrade, /CREATE TABLE cod_remittances/);
+  assert.match(proofDialog, /Buyer delivery OTP/);
+  assert.match(proofDialog, /Recipient signature pad/);
+  assert.match(proofDialog, /Add current location \(optional\)/);
+  assert.match(management, /Assignment history/);
+  assert.match(management, /activeAssignments/);
+  assert.match(accounting, /Collected → Submitted → Verified → Closed/);
 });
 
 test("Egg products use tray units throughout catalog, receiving, marketplace, and orders", async () => {

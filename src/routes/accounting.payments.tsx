@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CircleDollarSign, Clock3, Printer } from "lucide-react";
+import { CheckCircle2, CircleDollarSign, Clock3, Printer, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -11,8 +11,10 @@ import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { type DemoOrder } from "@/lib/demo/demo-orders";
 import { formatSellingQuantity, sellingUnitLabel } from "@/features/marketplace/selling-units";
 import {
+  getAccountingCodRemittances,
   getDatabaseOrders,
   recordDatabasePayment,
+  updateCodRemittance,
 } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/accounting/payments")({ component: AccountingPaymentsPage });
@@ -140,20 +142,33 @@ function AccountingPaymentsPage() {
   const [selectedOrderId, setSelectedOrderId] = useState("");
   const [method, setMethod] = useState("");
   const [receiptOrder, setReceiptOrder] = useState<DemoOrder | null>(null);
+  const [remittances, setRemittances] = useState<
+    Awaited<ReturnType<typeof getAccountingCodRemittances>>
+  >([]);
+  const [updatingRemittance, setUpdatingRemittance] = useState<string | null>(null);
+
+  async function loadPaymentData() {
+    const [nextOrders, nextRemittances] = await Promise.all([
+      getDatabaseOrders(),
+      getAccountingCodRemittances(),
+    ]);
+    setOrders(nextOrders);
+    setRemittances(nextRemittances);
+  }
 
   useEffect(() => {
-    void getDatabaseOrders()
-      .then(setOrders)
-      .catch(() => toast.error("Could not load payments."));
+    void loadPaymentData().catch(() => toast.error("Could not load payments."));
   }, []);
-  useAutoRefresh(() =>
-    getDatabaseOrders()
-      .then(setOrders)
-      .catch(() => undefined),
-  );
+  useAutoRefresh(() => loadPaymentData().catch(() => undefined));
 
   const awaitingPayment = useMemo(
-    () => orders.filter((order) => order.status === "Sold" && order.paymentStatus === "Unpaid"),
+    () =>
+      orders.filter(
+        (order) =>
+          order.status === "Sold" &&
+          order.paymentStatus === "Unpaid" &&
+          order.fulfillmentMethod !== "delivery",
+      ),
     [orders],
   );
   const recordedPayments = useMemo(
@@ -191,6 +206,21 @@ function AccountingPaymentsPage() {
     window.requestAnimationFrame(() => window.print());
   }
 
+  async function advanceRemittance(orderNumber: string, action: "verify" | "close") {
+    setUpdatingRemittance(orderNumber);
+    try {
+      await updateCodRemittance({ data: { orderNumber, action } });
+      await loadPaymentData();
+      toast.success(action === "verify" ? "COD cash verified" : "COD remittance closed");
+    } catch (cause) {
+      toast.error("Could not update COD remittance", {
+        description: cause instanceof Error ? cause.message : "Please try again.",
+      });
+    } finally {
+      setUpdatingRemittance(null);
+    }
+  }
+
   return (
     <AccountingLayout>
       <div className="accounting-payment-screen print:hidden">
@@ -208,6 +238,80 @@ function AccountingPaymentsPage() {
               Operations.
             </p>
           </div>
+          <section className="mb-6 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+            <div className="flex items-start gap-3 border-b border-border px-5 py-5 sm:px-6">
+              <WalletCards className="mt-0.5 size-5 text-primary" />
+              <div>
+                <h2 className="font-semibold">Rider COD remittances</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Collected → Submitted → Verified → Closed. Closing automatically records the COD
+                  payment.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-4 p-4 lg:grid-cols-2 lg:p-6">
+              {remittances.map((remittance) => (
+                <article key={remittance.id} className="rounded-2xl border border-border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                        {remittance.orderNumber}
+                      </p>
+                      <p className="mt-1 font-semibold">{remittance.riderName}</p>
+                      <p className="text-sm text-muted-foreground">Buyer: {remittance.buyer}</p>
+                    </div>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold capitalize text-primary">
+                      {remittance.status}
+                    </span>
+                  </div>
+                  <p className="mt-4 text-2xl font-semibold">₱{remittance.amount.toFixed(2)}</p>
+                  <div className="mt-4 grid grid-cols-4 gap-1 text-center text-[10px] text-muted-foreground">
+                    {(["collected", "submitted", "verified", "closed"] as const).map(
+                      (step, index) => {
+                        const current = ["collected", "submitted", "verified", "closed"].indexOf(
+                          remittance.status,
+                        );
+                        return (
+                          <div key={step}>
+                            <span
+                              className={`mx-auto flex size-7 items-center justify-center rounded-full border ${index <= current ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}
+                            >
+                              {index < current ? <CheckCircle2 className="size-4" /> : index + 1}
+                            </span>
+                            <span className="mt-1 block capitalize">{step}</span>
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
+                  {remittance.status === "submitted" ? (
+                    <Button
+                      className="mt-4 w-full"
+                      disabled={updatingRemittance !== null}
+                      onClick={() => void advanceRemittance(remittance.orderNumber, "verify")}
+                    >
+                      Verify cash received
+                    </Button>
+                  ) : remittance.status === "verified" ? (
+                    <Button
+                      className="mt-4 w-full"
+                      disabled={updatingRemittance !== null || remittance.orderStatus !== "sold"}
+                      onClick={() => void advanceRemittance(remittance.orderNumber, "close")}
+                    >
+                      {remittance.orderStatus === "sold"
+                        ? "Close and record COD payment"
+                        : "Waiting for Marketer to finalize Sold"}
+                    </Button>
+                  ) : null}
+                </article>
+              ))}
+              {!remittances.length ? (
+                <p className="rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground lg:col-span-2">
+                  No Rider COD remittances yet.
+                </p>
+              ) : null}
+            </div>
+          </section>
           <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
             <section className="rounded-3xl border border-border bg-card p-6 shadow-card">
               <div className="flex gap-3">
@@ -258,12 +362,7 @@ function AccountingPaymentsPage() {
                       value={method}
                       onValueChange={setMethod}
                       placeholder="Select a method"
-                      options={[
-                        ...(selectedOrder?.fulfillmentMethod === "delivery"
-                          ? [{ value: "cash_on_delivery", label: "Cash on Delivery (COD)" }]
-                          : []),
-                        { value: "cash", label: "Cash" },
-                      ]}
+                      options={[{ value: "cash", label: "Cash" }]}
                     />
                   </div>
                   <Button type="submit" className="rounded-full">

@@ -11,6 +11,8 @@ export type FulfillmentStatus =
   | "ready_for_dispatch"
   | "rider_assigned"
   | "out_for_delivery"
+  | "delivery_failed"
+  | "rescheduled"
   | "picked_up"
   | "delivered"
   | "cancelled"
@@ -62,6 +64,15 @@ export type DemoOrder = {
   deliveryInstructions?: string | null;
   assignedRiderId?: string | null;
   assignedRiderName?: string | null;
+  deliveryOtpCode?: string | null;
+  deliveryProof?: {
+    recipientName: string | null;
+    proofPhotoUrl: string | null;
+    signatureUrl: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    attemptedAt: string;
+  } | null;
   fulfilledAt?: string;
   confirmedAt?: string;
   soldAt?: string;

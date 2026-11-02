@@ -67,13 +67,37 @@ const fulfillmentStatusInput = workflowActionInput.extend({
     "ready_for_dispatch",
     "out_for_delivery",
     "picked_up",
-    "delivered",
   ]),
 });
-const assignRiderInput = workflowActionInput.extend({ riderId: z.string().uuid() });
+const assignRiderInput = workflowActionInput.extend({
+  riderId: z.string().uuid(),
+  reason: z.string().trim().min(3).max(500).optional(),
+});
+const deliveryProofInput = workflowActionInput.extend({
+  otp: z.string().regex(/^\d{6}$/),
+  recipientName: z.string().trim().min(2).max(160),
+  proofPhotoUrl: z.string().startsWith("data:image/").max(2_400_000),
+  signatureUrl: z.string().startsWith("data:image/").max(500_000),
+  latitude: z.number().min(-90).max(90).nullable(),
+  longitude: z.number().min(-180).max(180).nullable(),
+});
+const deliveryIssueInput = workflowActionInput.extend({
+  outcome: z.enum(["buyer_unavailable", "wrong_address", "refused", "rescheduled"]),
+  reasonNote: z.string().trim().min(3).max(1_000),
+  nextSchedule: z.string().trim().max(255).optional(),
+});
+const codRemittanceInput = workflowActionInput.extend({
+  action: z.enum(["submit", "verify", "close"]),
+  notes: z.string().trim().max(1_000).optional(),
+});
 const paymentInput = workflowActionInput.extend({
   method: z.enum(["cash", "cash_on_delivery"]),
 });
+
+function createDeliveryOtp() {
+  const value = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
+  return String(value % 1_000_000).padStart(6, "0");
+}
 const releaseOrderInput = workflowActionInput.extend({
   outcome: z.enum(["cancelled", "rejected"]),
   reason: z.string().trim().min(3).max(500).optional(),
@@ -2159,7 +2183,7 @@ export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(
   const { requireRole } = await import("@/services/auth/auth-server");
   const rider = await requireRole("Rider");
   const { db } = await import("@/db/client.server");
-  const { deliverySettings, orders, users } = await import("@/db/schema");
+  const { codRemittances, deliverySettings, orders, users } = await import("@/db/schema");
   const [[settings], assignments] = await Promise.all([
     db
       .select({
@@ -2171,6 +2195,7 @@ export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(
       .limit(1),
     db
       .select({
+        orderId: orders.id,
         orderNumber: orders.orderNumber,
         buyer: users.displayName,
         contact: orders.contact,
@@ -2187,18 +2212,35 @@ export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(
         and(
           eq(orders.assignedRiderId, rider.id),
           eq(orders.fulfillmentMethod, "delivery"),
-          inArray(orders.fulfillmentStatus, ["rider_assigned", "out_for_delivery", "delivered"]),
+          inArray(orders.fulfillmentStatus, [
+            "rider_assigned",
+            "out_for_delivery",
+            "delivery_failed",
+            "rescheduled",
+            "delivered",
+          ]),
         ),
       )
       .orderBy(asc(orders.createdAt)),
   ]);
+  const remittances = await db
+    .select({ orderId: codRemittances.orderId, status: codRemittances.status })
+    .from(codRemittances)
+    .where(eq(codRemittances.riderId, rider.id));
   return {
     deliveryFee: Number(settings?.flatFee ?? 59),
     deliveryEnabled: settings?.deliveryEnabled ?? true,
-    assignments: assignments.map((order) => ({
-      ...order,
-      totalAmount: Number(order.totalAmount),
-    })),
+    assignments: assignments
+      .map((order) => ({
+        ...order,
+        totalAmount: Number(order.totalAmount),
+        codRemittanceStatus:
+          remittances.find((remittance) => remittance.orderId === order.orderId)?.status ?? null,
+      }))
+      .filter(
+        (order) =>
+          !(order.fulfillmentStatus === "delivered" && order.codRemittanceStatus === "closed"),
+      ),
   };
 });
 
@@ -2207,8 +2249,8 @@ export const getManagementDeliveryOperations = createServerFn({ method: "GET" })
     const { requireRole } = await import("@/services/auth/auth-server");
     await requireRole("Management");
     const { db } = await import("@/db/client.server");
-    const { orders, roles, userRoles, users } = await import("@/db/schema");
-    const [riders, deliveries] = await Promise.all([
+    const { deliveryAssignments, orders, roles, userRoles, users } = await import("@/db/schema");
+    const [riders, deliveries, assignmentRows] = await Promise.all([
       db
         .select({ id: users.id, name: users.displayName })
         .from(users)
@@ -2218,6 +2260,7 @@ export const getManagementDeliveryOperations = createServerFn({ method: "GET" })
         .orderBy(asc(users.displayName)),
       db
         .select({
+          orderId: orders.id,
           orderNumber: orders.orderNumber,
           buyer: users.displayName,
           contact: orders.contact,
@@ -2238,19 +2281,45 @@ export const getManagementDeliveryOperations = createServerFn({ method: "GET" })
               "ready_for_dispatch",
               "rider_assigned",
               "out_for_delivery",
+              "delivery_failed",
+              "rescheduled",
               "delivered",
             ]),
           ),
         )
         .orderBy(desc(orders.createdAt)),
+      db
+        .select({
+          orderId: deliveryAssignments.orderId,
+          riderId: deliveryAssignments.riderId,
+          reason: deliveryAssignments.reason,
+          assignedAt: deliveryAssignments.assignedAt,
+        })
+        .from(deliveryAssignments)
+        .orderBy(desc(deliveryAssignments.assignedAt)),
     ]);
     return {
-      riders,
+      riders: riders.map((rider) => ({
+        ...rider,
+        activeAssignments: deliveries.filter(
+          (delivery) =>
+            delivery.assignedRiderId === rider.id &&
+            !["delivered", "delivery_failed"].includes(delivery.fulfillmentStatus),
+        ).length,
+      })),
       deliveries: deliveries.map((order) => ({
         ...order,
         totalAmount: Number(order.totalAmount),
         createdAt: order.createdAt.toISOString(),
         assignedRiderName: riders.find((rider) => rider.id === order.assignedRiderId)?.name ?? null,
+        assignmentHistory: assignmentRows
+          .filter((assignment) => assignment.orderId === order.orderId)
+          .map((assignment) => ({
+            ...assignment,
+            riderName:
+              riders.find((rider) => rider.id === assignment.riderId)?.name ?? "Inactive Rider",
+            assignedAt: assignment.assignedAt.toISOString(),
+          })),
       })),
     };
   },
@@ -2262,7 +2331,7 @@ export const assignDeliveryRider = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const manager = await requireRole("Management");
     const { db } = await import("@/db/client.server");
-    const { orderFulfillmentHistory, orders, roles, userRoles, users } =
+    const { deliveryAssignments, orderFulfillmentHistory, orders, roles, userRoles, users } =
       await import("@/db/schema");
     const assignment = await db.transaction(async (tx) => {
       const [rider] = await tx
@@ -2279,34 +2348,64 @@ export const assignDeliveryRider = createServerFn({ method: "POST" })
       if (!order || order.fulfillmentMethod !== "delivery") {
         throw new Error("This delivery order could not be found.");
       }
+      const isReassignment = Boolean(order.assignedRiderId && order.assignedRiderId !== rider.id);
+      if (isReassignment && !data.reason) {
+        throw new Error("Enter a reason before assigning a different Rider.");
+      }
+      const deliveryOtpCode = createDeliveryOtp();
       const [updated] = await tx
         .update(orders)
-        .set({ assignedRiderId: rider.id, fulfillmentStatus: "rider_assigned" })
+        .set({
+          assignedRiderId: rider.id,
+          fulfillmentStatus: "rider_assigned",
+          deliveryOtpCode,
+        })
         .where(
           and(
             eq(orders.id, order.id),
-            inArray(orders.fulfillmentStatus, ["ready_for_dispatch", "rider_assigned"]),
+            inArray(orders.fulfillmentStatus, [
+              "ready_for_dispatch",
+              "rider_assigned",
+              "delivery_failed",
+              "rescheduled",
+            ]),
           ),
         );
       if (updated.affectedRows !== 1) {
         throw new Error("The order must be Ready for dispatch before assigning a Rider.");
       }
+      await tx.insert(deliveryAssignments).values({
+        id: crypto.randomUUID(),
+        orderId: order.id,
+        riderId: rider.id,
+        assignedById: manager.id,
+        reason: data.reason ?? (order.assignedRiderId ? "Delivery retry" : "Initial assignment"),
+        assignedAt: new Date(),
+      });
       await tx.insert(orderFulfillmentHistory).values({
         id: crypto.randomUUID(),
         orderId: order.id,
         status: "rider_assigned",
         changedById: manager.id,
-        note: `${rider.name} was assigned to this delivery.`,
+        note: `${rider.name} was assigned to this delivery.${data.reason ? ` Reason: ${data.reason}` : ""}`,
         changedAt: new Date(),
       });
       await writeAuditLog(manager.id, "delivery.assign_rider", "order", order.id, {
         orderNumber: order.orderNumber,
         riderId: rider.id,
+        previousRiderId: order.assignedRiderId,
+        reason: data.reason,
       });
-      return { buyerId: order.buyerId, orderNumber: order.orderNumber, rider };
+      return {
+        buyerId: order.buyerId,
+        orderNumber: order.orderNumber,
+        previousRiderId: order.assignedRiderId,
+        rider,
+        deliveryOtpCode,
+      };
     });
     const { notifyUser } = await import("@/services/messaging/notification-server");
-    await Promise.all([
+    const notifications = [
       notifyUser(assignment.rider.id, {
         title: "New delivery assignment",
         message: `${assignment.orderNumber} is ready for you to deliver.`,
@@ -2314,10 +2413,20 @@ export const assignDeliveryRider = createServerFn({ method: "POST" })
       }),
       notifyUser(assignment.buyerId, {
         title: "Rider assigned",
-        message: `${assignment.rider.name} was assigned to ${assignment.orderNumber}.`,
-        target: `/buyer/community?contact=${assignment.rider.id}`,
+        message: `${assignment.rider.name} was assigned to ${assignment.orderNumber}. Delivery OTP: ${assignment.deliveryOtpCode}. Give this code only after receiving your order.`,
+        target: "/buyer/orders",
       }),
-    ]);
+    ];
+    if (assignment.previousRiderId && assignment.previousRiderId !== assignment.rider.id) {
+      notifications.push(
+        notifyUser(assignment.previousRiderId, {
+          title: "Delivery reassigned",
+          message: `${assignment.orderNumber} was moved to another Rider.${data.reason ? ` Reason: ${data.reason}` : ""}`,
+          target: "/rider",
+        }),
+      );
+    }
+    await Promise.all(notifications);
     return assignment;
   });
 
@@ -2342,10 +2451,9 @@ export const updateOrderFulfillment = createServerFn({ method: "POST" })
         ready_for_dispatch: ["preparing"],
         out_for_delivery: ["rider_assigned"],
         picked_up: ["ready_for_pickup"],
-        delivered: ["out_for_delivery"],
       };
       const marketerStatus = ["preparing", "ready_for_pickup", "ready_for_dispatch", "picked_up"];
-      const riderStatus = ["out_for_delivery", "delivered"];
+      const riderStatus = ["out_for_delivery"];
       if (
         (!marketer || !marketerStatus.includes(data.status)) &&
         (!rider || !riderStatus.includes(data.status))
@@ -2363,9 +2471,7 @@ export const updateOrderFulfillment = createServerFn({ method: "POST" })
         .update(orders)
         .set({
           fulfillmentStatus: data.status,
-          ...(data.status === "picked_up" || data.status === "delivered"
-            ? { fulfilledAt: now }
-            : {}),
+          ...(data.status === "picked_up" ? { fulfilledAt: now } : {}),
         })
         .where(
           and(
@@ -2380,7 +2486,6 @@ export const updateOrderFulfillment = createServerFn({ method: "POST" })
         ready_for_dispatch: "The order is ready for Rider assignment.",
         out_for_delivery: "The Rider started the delivery.",
         picked_up: "The Buyer received the pickup order.",
-        delivered: "The Rider marked the order delivered.",
       };
       await tx.insert(orderFulfillmentHistory).values({
         id: crypto.randomUUID(),
@@ -2395,21 +2500,331 @@ export const updateOrderFulfillment = createServerFn({ method: "POST" })
       });
       return { buyerId: order.buyerId, orderNumber: order.orderNumber, status: data.status };
     });
-    const { notifyUser, notifyRole } = await import("@/services/messaging/notification-server");
+    const { notifyUser } = await import("@/services/messaging/notification-server");
     await notifyUser(result.buyerId, {
       title: result.status.replaceAll("_", " ").replace(/^./, (value) => value.toUpperCase()),
       message: `${result.orderNumber} fulfillment was updated.`,
       target: "/buyer/orders",
     });
-    if (result.status === "delivered") {
-      await notifyRole("Marketer", {
+    return result;
+  });
+
+export const submitDeliveryProof = createServerFn({ method: "POST" })
+  .validator(deliveryProofInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const rider = await requireRole("Rider");
+    const { db } = await import("@/db/client.server");
+    const { codRemittances, deliveryAttempts, orderFulfillmentHistory, orders } =
+      await import("@/db/schema");
+    const result = await db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(orders)
+        .where(eq(orders.orderNumber, data.orderNumber));
+      if (!order || order.assignedRiderId !== rider.id || order.fulfillmentMethod !== "delivery") {
+        throw new Error("This delivery is not assigned to your Rider account.");
+      }
+      if (order.fulfillmentStatus !== "out_for_delivery") {
+        throw new Error("Start the delivery before submitting proof.");
+      }
+      if (!order.deliveryOtpCode || order.deliveryOtpCode !== data.otp) {
+        throw new Error("The delivery OTP is incorrect.");
+      }
+      const now = new Date();
+      const [updated] = await tx
+        .update(orders)
+        .set({ fulfillmentStatus: "delivered", fulfilledAt: now, deliveryOtpCode: null })
+        .where(
+          and(
+            eq(orders.id, order.id),
+            eq(orders.assignedRiderId, rider.id),
+            eq(orders.fulfillmentStatus, "out_for_delivery"),
+          ),
+        );
+      if (updated.affectedRows !== 1) throw new Error("This delivery was already updated.");
+      await tx.insert(deliveryAttempts).values({
+        id: crypto.randomUUID(),
+        orderId: order.id,
+        riderId: rider.id,
+        outcome: "delivered",
+        recipientName: data.recipientName,
+        proofPhotoUrl: data.proofPhotoUrl,
+        signatureUrl: data.signatureUrl,
+        latitude: data.latitude?.toFixed(7) ?? null,
+        longitude: data.longitude?.toFixed(7) ?? null,
+        attemptedAt: now,
+      });
+      await tx.insert(orderFulfillmentHistory).values({
+        id: crypto.randomUUID(),
+        orderId: order.id,
+        status: "delivered",
+        changedById: rider.id,
+        note: `Delivered to ${data.recipientName}. OTP and proof were verified.`,
+        changedAt: now,
+      });
+      await tx
+        .insert(codRemittances)
+        .values({
+          id: crypto.randomUUID(),
+          orderId: order.id,
+          riderId: rider.id,
+          amount: order.totalAmount,
+          status: "collected",
+          collectedAt: now,
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            riderId: rider.id,
+            amount: order.totalAmount,
+            status: "collected",
+            collectedAt: now,
+            submittedAt: null,
+            verifiedAt: null,
+            verifiedById: null,
+            closedAt: null,
+          },
+        });
+      await writeAuditLog(rider.id, "delivery.proof.submit", "order", order.id, {
+        orderNumber: order.orderNumber,
+        recipientName: data.recipientName,
+        locationCaptured: data.latitude !== null && data.longitude !== null,
+      });
+      return { buyerId: order.buyerId, orderNumber: order.orderNumber };
+    });
+    const { notifyRole, notifyUser } = await import("@/services/messaging/notification-server");
+    await Promise.all([
+      notifyUser(result.buyerId, {
+        title: "Order delivered",
+        message: `${result.orderNumber} was delivered with verified proof.`,
+        target: "/buyer/orders",
+      }),
+      notifyRole("Marketer", {
         title: "Delivery completed",
         message: `${result.orderNumber} was delivered and can now be finalized as Sold.`,
         target: "/marketer/orders",
+      }),
+      notifyRole("Accounting", {
+        title: "COD collected",
+        message: `${result.orderNumber} is waiting for Rider cash submission.`,
+        target: "/accounting/payments",
+      }),
+    ]);
+    return result;
+  });
+
+export const reportDeliveryIssue = createServerFn({ method: "POST" })
+  .validator(deliveryIssueInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const rider = await requireRole("Rider");
+    if (data.outcome === "rescheduled" && !data.nextSchedule) {
+      throw new Error("Enter the new delivery schedule.");
+    }
+    const { db } = await import("@/db/client.server");
+    const { deliveryAttempts, orderFulfillmentHistory, orders } = await import("@/db/schema");
+    const result = await db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(orders)
+        .where(eq(orders.orderNumber, data.orderNumber));
+      if (!order || order.assignedRiderId !== rider.id) {
+        throw new Error("This delivery is not assigned to your Rider account.");
+      }
+      if (order.fulfillmentStatus !== "out_for_delivery") {
+        throw new Error("Only an active delivery can be reported as unsuccessful.");
+      }
+      const now = new Date();
+      const status = data.outcome === "rescheduled" ? "rescheduled" : "delivery_failed";
+      await tx
+        .update(orders)
+        .set({ fulfillmentStatus: status })
+        .where(and(eq(orders.id, order.id), eq(orders.fulfillmentStatus, "out_for_delivery")));
+      await tx.insert(deliveryAttempts).values({
+        id: crypto.randomUUID(),
+        orderId: order.id,
+        riderId: rider.id,
+        outcome: data.outcome,
+        reasonNote: data.reasonNote,
+        nextSchedule: data.nextSchedule ?? null,
+        attemptedAt: now,
       });
+      await tx.insert(orderFulfillmentHistory).values({
+        id: crypto.randomUUID(),
+        orderId: order.id,
+        status,
+        changedById: rider.id,
+        note: `${data.outcome.replaceAll("_", " ")}: ${data.reasonNote}${data.nextSchedule ? ` Next schedule: ${data.nextSchedule}` : ""}`,
+        changedAt: now,
+      });
+      await writeAuditLog(rider.id, "delivery.attempt.failed", "order", order.id, {
+        orderNumber: order.orderNumber,
+        outcome: data.outcome,
+        nextSchedule: data.nextSchedule,
+      });
+      return { buyerId: order.buyerId, orderNumber: order.orderNumber, status };
+    });
+    const { notifyRole, notifyUser } = await import("@/services/messaging/notification-server");
+    await Promise.all([
+      notifyUser(result.buyerId, {
+        title: result.status === "rescheduled" ? "Delivery rescheduled" : "Delivery unsuccessful",
+        message: `${result.orderNumber}: ${data.reasonNote}`,
+        target: "/buyer/orders",
+      }),
+      notifyRole("Management", {
+        title:
+          result.status === "rescheduled" ? "Delivery rescheduled" : "Delivery needs attention",
+        message: `${result.orderNumber}: ${data.reasonNote}`,
+        target: "/management/deliveries",
+      }),
+    ]);
+    return result;
+  });
+
+export const updateCodRemittance = createServerFn({ method: "POST" })
+  .validator(codRemittanceInput)
+  .handler(async ({ data }) => {
+    const { requireUser, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireUser();
+    const { db } = await import("@/db/client.server");
+    const { codRemittances, orders, payments } = await import("@/db/schema");
+    const result = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({ remittance: codRemittances, order: orders })
+        .from(codRemittances)
+        .innerJoin(orders, eq(codRemittances.orderId, orders.id))
+        .where(eq(orders.orderNumber, data.orderNumber));
+      if (!row) throw new Error("The COD remittance could not be found.");
+      const now = new Date();
+      if (data.action === "submit") {
+        if (!actor.roles.includes("Rider") || row.remittance.riderId !== actor.id) {
+          throw new Error("Only the assigned Rider can submit this COD collection.");
+        }
+        if (row.remittance.status !== "collected")
+          throw new Error("This cash was already submitted.");
+        await tx
+          .update(codRemittances)
+          .set({ status: "submitted", submittedAt: now, notes: data.notes ?? null })
+          .where(eq(codRemittances.id, row.remittance.id));
+      } else {
+        if (!actor.roles.includes("Accounting")) {
+          throw new Error("Only Accounting can verify or close COD remittances.");
+        }
+        if (data.action === "verify") {
+          if (row.remittance.status !== "submitted")
+            throw new Error("The Rider must submit the cash first.");
+          await tx
+            .update(codRemittances)
+            .set({
+              status: "verified",
+              verifiedAt: now,
+              verifiedById: actor.id,
+              notes: data.notes ?? row.remittance.notes,
+            })
+            .where(eq(codRemittances.id, row.remittance.id));
+        } else {
+          if (row.remittance.status !== "verified")
+            throw new Error("Verify the remittance before closing it.");
+          if (row.order.status !== "sold")
+            throw new Error("The Marketer must finalize the delivered order as Sold first.");
+          const existing = await tx
+            .select({ id: payments.id })
+            .from(payments)
+            .where(eq(payments.orderId, row.order.id));
+          if (!existing.length) {
+            const paymentNumber = `PAY-${now.getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+            await tx.insert(payments).values({
+              id: crypto.randomUUID(),
+              paymentNumber,
+              orderId: row.order.id,
+              method: "cash_on_delivery",
+              amount: row.order.totalAmount,
+              recordedById: actor.id,
+              paidAt: now,
+            });
+          }
+          await tx
+            .update(codRemittances)
+            .set({ status: "closed", closedAt: now, notes: data.notes ?? row.remittance.notes })
+            .where(eq(codRemittances.id, row.remittance.id));
+        }
+      }
+      await writeAuditLog(actor.id, `cod_remittance.${data.action}`, "order", row.order.id, {
+        orderNumber: row.order.orderNumber,
+        amount: Number(row.remittance.amount),
+      });
+      return {
+        buyerId: row.order.buyerId,
+        riderId: row.remittance.riderId,
+        orderNumber: row.order.orderNumber,
+        action: data.action,
+      };
+    });
+    const { notifyUser } = await import("@/services/messaging/notification-server");
+    if (result.action === "verify") {
+      await notifyUser(result.riderId, {
+        title: "COD cash verified",
+        message: `Accounting verified your cash submission for ${result.orderNumber}.`,
+        target: "/rider",
+      });
+    } else if (result.action === "close") {
+      await Promise.all([
+        notifyUser(result.buyerId, {
+          title: "COD payment verified",
+          message: `${result.orderNumber} payment and Rider remittance are now closed.`,
+          target: "/buyer/orders",
+        }),
+        notifyUser(result.riderId, {
+          title: "COD remittance closed",
+          message: `${result.orderNumber} cash handoff was completed by Accounting.`,
+          target: "/rider",
+        }),
+      ]);
     }
     return result;
   });
+
+export const getAccountingCodRemittances = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/services/auth/auth-server");
+  await requireRole("Accounting");
+  const { db } = await import("@/db/client.server");
+  const { codRemittances, orders, users } = await import("@/db/schema");
+  const rows = await db
+    .select({
+      id: codRemittances.id,
+      orderNumber: orders.orderNumber,
+      buyer: users.displayName,
+      riderId: codRemittances.riderId,
+      amount: codRemittances.amount,
+      status: codRemittances.status,
+      collectedAt: codRemittances.collectedAt,
+      submittedAt: codRemittances.submittedAt,
+      verifiedAt: codRemittances.verifiedAt,
+      closedAt: codRemittances.closedAt,
+      notes: codRemittances.notes,
+      orderStatus: orders.status,
+    })
+    .from(codRemittances)
+    .innerJoin(orders, eq(codRemittances.orderId, orders.id))
+    .innerJoin(users, eq(orders.buyerId, users.id))
+    .orderBy(desc(codRemittances.createdAt));
+  const riderIds = [...new Set(rows.map((row) => row.riderId))];
+  const riders = riderIds.length
+    ? await db
+        .select({ id: users.id, name: users.displayName })
+        .from(users)
+        .where(inArray(users.id, riderIds))
+    : [];
+  return rows.map((row) => ({
+    ...row,
+    amount: Number(row.amount),
+    riderName: riders.find((rider) => rider.id === row.riderId)?.name ?? "Rider",
+    collectedAt: row.collectedAt.toISOString(),
+    submittedAt: row.submittedAt?.toISOString() ?? null,
+    verifiedAt: row.verifiedAt?.toISOString() ?? null,
+    closedAt: row.closedAt?.toISOString() ?? null,
+  }));
+});
 
 export const getManagementDeliveryFee = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
@@ -2614,6 +3029,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
     const { db } = await import("@/db/client.server");
     const {
       classifications,
+      deliveryAttempts,
       inventory,
       listings,
       orderItems,
@@ -2640,6 +3056,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
         preferredSchedule: orders.preferredSchedule,
         deliveryInstructions: orders.deliveryInstructions,
         assignedRiderId: orders.assignedRiderId,
+        deliveryOtpCode: orders.deliveryOtpCode,
         fulfilledAt: orders.fulfilledAt,
         totalAmount: orders.totalAmount,
         deliveryFee: orders.deliveryFee,
@@ -2669,7 +3086,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
           .limit(1)
       : [];
 
-    const [items, history] = await Promise.all([
+    const [items, history, [deliveryProof]] = await Promise.all([
       db
         .select({
           listingId: orderItems.listingId,
@@ -2694,6 +3111,21 @@ export const getOrderDetails = createServerFn({ method: "GET" })
         .from(orderFulfillmentHistory)
         .where(eq(orderFulfillmentHistory.orderId, order.id))
         .orderBy(asc(orderFulfillmentHistory.changedAt)),
+      db
+        .select({
+          recipientName: deliveryAttempts.recipientName,
+          proofPhotoUrl: deliveryAttempts.proofPhotoUrl,
+          signatureUrl: deliveryAttempts.signatureUrl,
+          latitude: deliveryAttempts.latitude,
+          longitude: deliveryAttempts.longitude,
+          attemptedAt: deliveryAttempts.attemptedAt,
+        })
+        .from(deliveryAttempts)
+        .where(
+          and(eq(deliveryAttempts.orderId, order.id), eq(deliveryAttempts.outcome, "delivered")),
+        )
+        .orderBy(desc(deliveryAttempts.attemptedAt))
+        .limit(1),
     ]);
 
     return {
@@ -2710,6 +3142,15 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       deliveryInstructions: order.deliveryInstructions,
       assignedRiderId: assignedRider?.id ?? null,
       assignedRiderName: assignedRider?.name ?? null,
+      deliveryOtpCode: order.buyerId === viewer.id ? order.deliveryOtpCode : null,
+      deliveryProof: deliveryProof
+        ? {
+            ...deliveryProof,
+            latitude: deliveryProof.latitude ? Number(deliveryProof.latitude) : null,
+            longitude: deliveryProof.longitude ? Number(deliveryProof.longitude) : null,
+            attemptedAt: deliveryProof.attemptedAt.toISOString(),
+          }
+        : null,
       fulfilledAt: order.fulfilledAt?.toISOString(),
       totalAmount: Number(order.totalAmount),
       deliveryFee: Number(order.deliveryFee),
@@ -3978,6 +4419,9 @@ export const recordDatabasePayment = createServerFn({ method: "POST" })
         throw new Error("Only Sold orders can receive a payment record.");
       if (data.method === "cash_on_delivery" && order.fulfillmentMethod !== "delivery") {
         throw new Error("Cash on Delivery can only be recorded for a Delivery order.");
+      }
+      if (data.method === "cash_on_delivery") {
+        throw new Error("Use the Rider COD remittance queue to verify and close this payment.");
       }
       const existing = await tx
         .select({ id: payments.id })

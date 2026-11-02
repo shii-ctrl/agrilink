@@ -1,10 +1,12 @@
 import {
   Check,
+  Camera,
   CircleCheck,
   ClipboardList,
   Clock3,
   MapPin,
   Phone,
+  ShieldCheck,
   WalletCards,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -67,7 +69,10 @@ export function OrderProgressTimeline({ order }: { order: DemoOrder }) {
         ? "delivered"
         : "picked_up"
       : order.status.toLowerCase());
-  const matchedStep = steps.findIndex(([status]) => status === currentStatus);
+  const timelineStatus = ["delivery_failed", "rescheduled"].includes(currentStatus)
+    ? "out_for_delivery"
+    : currentStatus;
+  const matchedStep = steps.findIndex(([status]) => status === timelineStatus);
   const currentStep = Math.max(0, matchedStep);
   const stepTime = (status: string) =>
     order.history?.find((entry) => entry.status.toLowerCase().replaceAll(" ", "_") === status)
@@ -226,22 +231,34 @@ export function OrderDetails({
             date: order.soldAt,
             tone: "border-amber-300 bg-amber-50 text-amber-900",
           }
-        : order.status === "Confirmed"
+        : ["delivery_failed", "rescheduled"].includes(order.fulfillmentStatus ?? "")
           ? {
-              title: fulfillmentLabel,
+              title:
+                order.fulfillmentStatus === "rescheduled"
+                  ? "Delivery rescheduled"
+                  : "Delivery needs attention",
               detail:
-                order.fulfillmentMethod === "delivery"
-                  ? "Track preparation, Rider assignment, and delivery separately from payment."
-                  : "Track preparation and pickup separately from payment.",
-              date: order.history?.at(-1)?.changedAt ?? order.confirmedAt,
-              tone: "border-primary/25 bg-primary/5 text-primary",
+                order.history?.at(-1)?.note ??
+                "PROCY is reviewing the latest delivery attempt and will arrange the next step.",
+              date: order.history?.at(-1)?.changedAt,
+              tone: "border-amber-300 bg-amber-50 text-amber-900",
             }
-          : {
-              title: "Order received",
-              detail: "PROCY is reviewing the order and available classified stock.",
-              date: order.createdAt ?? order.date,
-              tone: "border-primary/25 bg-primary/5 text-primary",
-            };
+          : order.status === "Confirmed"
+            ? {
+                title: fulfillmentLabel,
+                detail:
+                  order.fulfillmentMethod === "delivery"
+                    ? "Track preparation, Rider assignment, and delivery separately from payment."
+                    : "Track preparation and pickup separately from payment.",
+                date: order.history?.at(-1)?.changedAt ?? order.confirmedAt,
+                tone: "border-primary/25 bg-primary/5 text-primary",
+              }
+            : {
+                title: "Order received",
+                detail: "PROCY is reviewing the order and available classified stock.",
+                date: order.createdAt ?? order.date,
+                tone: "border-primary/25 bg-primary/5 text-primary",
+              };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -313,6 +330,19 @@ export function OrderDetails({
             <p className="mt-1 text-sm text-muted-foreground">
               This Rider is assigned to deliver your order.
             </p>
+            {canMessageRider && order.deliveryOtpCode ? (
+              <div className="mt-3 rounded-xl border border-primary/20 bg-background p-3">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+                  <ShieldCheck className="size-4" /> Delivery OTP
+                </p>
+                <p className="mt-1 font-mono text-2xl font-bold tracking-[0.25em]">
+                  {order.deliveryOtpCode}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Give this code to the Rider only after you receive the complete order.
+                </p>
+              </div>
+            ) : null}
           </div>
         ) : null}
         <div
@@ -344,6 +374,46 @@ export function OrderDetails({
           </div>
         </div>
       </div>
+
+      {order.deliveryProof ? (
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-center gap-2">
+            <Camera className="size-5 text-primary" />
+            <h3 className="font-semibold">Verified delivery proof</h3>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Received by {order.deliveryProof.recipientName ?? "recipient"} on{" "}
+            {formatOrderDate(order.deliveryProof.attemptedAt, true)}.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {order.deliveryProof.proofPhotoUrl ? (
+              <img
+                src={order.deliveryProof.proofPhotoUrl}
+                alt="Delivery proof"
+                className="h-48 w-full rounded-xl border border-border bg-background object-cover"
+              />
+            ) : null}
+            {order.deliveryProof.signatureUrl ? (
+              <div className="rounded-xl border border-border bg-white p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  Recipient signature
+                </p>
+                <img
+                  src={order.deliveryProof.signatureUrl}
+                  alt="Recipient signature"
+                  className="h-32 w-full object-contain"
+                />
+              </div>
+            ) : null}
+          </div>
+          {order.deliveryProof.latitude !== null && order.deliveryProof.longitude !== null ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Location captured: {order.deliveryProof.latitude.toFixed(5)},{" "}
+              {order.deliveryProof.longitude.toFixed(5)}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-border">
         <div className="flex items-center gap-2 border-b border-border bg-muted/50 px-4 py-3">

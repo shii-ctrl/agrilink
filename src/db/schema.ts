@@ -210,6 +210,8 @@ export const orders = mysqlTable(
       "ready_for_dispatch",
       "rider_assigned",
       "out_for_delivery",
+      "delivery_failed",
+      "rescheduled",
       "picked_up",
       "delivered",
       "cancelled",
@@ -224,6 +226,7 @@ export const orders = mysqlTable(
     preferredSchedule: varchar("preferred_schedule", { length: 255 }),
     deliveryInstructions: text("delivery_instructions"),
     assignedRiderId: varchar("assigned_rider_id", { length: 36 }),
+    deliveryOtpCode: varchar("delivery_otp_code", { length: 6 }),
     // The delivery fee is fixed at checkout so later Management changes do not
     // alter the amount a buyer agreed to pay for an existing order.
     deliveryFee: decimal("delivery_fee", { precision: 12, scale: 2 }).default("0.00").notNull(),
@@ -252,6 +255,8 @@ export const orderFulfillmentHistory = mysqlTable(
       "ready_for_dispatch",
       "rider_assigned",
       "out_for_delivery",
+      "delivery_failed",
+      "rescheduled",
       "picked_up",
       "delivered",
       "cancelled",
@@ -275,6 +280,67 @@ export const deliverySettings = mysqlTable("delivery_settings", {
   createdAt,
   updatedAt,
 });
+export const deliveryAssignments = mysqlTable(
+  "delivery_assignments",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    orderId: varchar("order_id", { length: 36 }).notNull(),
+    riderId: varchar("rider_id", { length: 36 }).notNull(),
+    assignedById: varchar("assigned_by_id", { length: 36 }),
+    reason: text("reason"),
+    assignedAt: datetime("assigned_at").notNull(),
+  },
+  (table) => [index("delivery_assignments_order_idx").on(table.orderId, table.assignedAt)],
+);
+export const deliveryAttempts = mysqlTable(
+  "delivery_attempts",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    orderId: varchar("order_id", { length: 36 }).notNull(),
+    riderId: varchar("rider_id", { length: 36 }).notNull(),
+    outcome: mysqlEnum("outcome", [
+      "delivered",
+      "buyer_unavailable",
+      "wrong_address",
+      "refused",
+      "rescheduled",
+    ]).notNull(),
+    reasonNote: text("reason_note"),
+    recipientName: varchar("recipient_name", { length: 160 }),
+    proofPhotoUrl: mediumtext("proof_photo_url"),
+    signatureUrl: mediumtext("signature_url"),
+    latitude: decimal("latitude", { precision: 10, scale: 7 }),
+    longitude: decimal("longitude", { precision: 10, scale: 7 }),
+    nextSchedule: varchar("next_schedule", { length: 255 }),
+    attemptedAt: datetime("attempted_at").notNull(),
+  },
+  (table) => [index("delivery_attempts_order_idx").on(table.orderId, table.attemptedAt)],
+);
+export const codRemittances = mysqlTable(
+  "cod_remittances",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    orderId: varchar("order_id", { length: 36 }).notNull(),
+    riderId: varchar("rider_id", { length: 36 }).notNull(),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    status: mysqlEnum("status", ["collected", "submitted", "verified", "closed"])
+      .default("collected")
+      .notNull(),
+    collectedAt: datetime("collected_at").notNull(),
+    submittedAt: datetime("submitted_at"),
+    verifiedAt: datetime("verified_at"),
+    verifiedById: varchar("verified_by_id", { length: 36 }),
+    closedAt: datetime("closed_at"),
+    notes: text("notes"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("cod_remittances_order_unique").on(table.orderId),
+    index("cod_remittances_status_idx").on(table.status, table.createdAt),
+    index("cod_remittances_rider_idx").on(table.riderId, table.status),
+  ],
+);
 export const orderStatusHistory = mysqlTable(
   "order_status_history",
   {

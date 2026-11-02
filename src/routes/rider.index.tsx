@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bike, CircleDollarSign, MapPin, Phone, ShieldCheck } from "lucide-react";
+import { Bike, CircleDollarSign, MapPin, Phone, ShieldCheck, WalletCards } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
@@ -9,8 +9,13 @@ import { Button } from "@/components/ui/button";
 import { RiderLayout, RiderPageHeader } from "@/components/workspaces/rider-layout";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import {
+  DeliveryCompletionDialog,
+  DeliveryIssueDialog,
+} from "@/features/marketplace/components/delivery-proof-dialog";
+import {
   getRiderDeliveryStatus,
   updateOrderFulfillment,
+  updateCodRemittance,
 } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/rider/")({ component: RiderDashboard });
@@ -19,12 +24,14 @@ function RiderDashboard() {
   const request = useCallback(() => getRiderDeliveryStatus(), []);
   const { data, loading, error, reload } = useWorkspaceData(request);
   const [updating, setUpdating] = useState<string | null>(null);
-  async function updateDelivery(orderNumber: string, status: "out_for_delivery" | "delivered") {
+  const [completingOrder, setCompletingOrder] = useState<string | null>(null);
+  const [issueOrder, setIssueOrder] = useState<string | null>(null);
+  async function updateDelivery(orderNumber: string, status: "out_for_delivery") {
     setUpdating(orderNumber);
     try {
       await updateOrderFulfillment({ data: { orderNumber, status } });
       await reload();
-      toast.success(status === "delivered" ? "Delivery completed" : "Delivery started");
+      toast.success("Delivery started");
     } catch (cause) {
       toast.error("Could not update delivery", {
         description: cause instanceof Error ? cause.message : "Please try again.",
@@ -34,8 +41,33 @@ function RiderDashboard() {
     }
   }
 
+  async function submitCash(orderNumber: string) {
+    setUpdating(orderNumber);
+    try {
+      await updateCodRemittance({ data: { orderNumber, action: "submit" } });
+      await reload();
+      toast.success("COD submitted to Accounting");
+    } catch (cause) {
+      toast.error("Could not submit COD", {
+        description: cause instanceof Error ? cause.message : "Please try again.",
+      });
+    } finally {
+      setUpdating(null);
+    }
+  }
+
   return (
     <RiderLayout>
+      <DeliveryCompletionDialog
+        orderNumber={completingOrder}
+        onClose={() => setCompletingOrder(null)}
+        onSaved={reload}
+      />
+      <DeliveryIssueDialog
+        orderNumber={issueOrder}
+        onClose={() => setIssueOrder(null)}
+        onSaved={reload}
+      />
       <RiderPageHeader
         title="Rider Workspace"
         description="Check delivery availability. Delivery assignments will appear here when Management sends them to you."
@@ -144,17 +176,43 @@ function RiderDashboard() {
                             {updating === order.orderNumber ? "Updating…" : "Start delivery"}
                           </Button>
                         ) : order.fulfillmentStatus === "out_for_delivery" ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              className="w-full"
+                              disabled={updating !== null}
+                              onClick={() => setIssueOrder(order.orderNumber)}
+                            >
+                              Report issue
+                            </Button>
+                            <Button
+                              className="w-full"
+                              disabled={updating !== null}
+                              onClick={() => setCompletingOrder(order.orderNumber)}
+                            >
+                              Complete with proof
+                            </Button>
+                          </>
+                        ) : order.fulfillmentStatus === "delivered" &&
+                          order.codRemittanceStatus === "collected" ? (
                           <Button
                             className="w-full sm:col-span-2"
                             disabled={updating !== null}
-                            onClick={() => void updateDelivery(order.orderNumber, "delivered")}
+                            onClick={() => void submitCash(order.orderNumber)}
                           >
-                            {updating === order.orderNumber ? "Updating…" : "Mark delivered"}
+                            <WalletCards className="size-4" />
+                            {updating === order.orderNumber
+                              ? "Submitting…"
+                              : `Submit COD ₱${order.totalAmount.toFixed(2)}`}
                           </Button>
+                        ) : ["delivery_failed", "rescheduled"].includes(order.fulfillmentStatus) ? (
+                          <p className="sm:col-span-2 text-sm font-medium text-amber-700">
+                            Waiting for Management to retry or reassign this delivery.
+                          </p>
                         ) : (
                           <p className="sm:col-span-2 text-sm font-medium text-primary">
-                            Delivered — PROCY will finalize the sale and Accounting will verify
-                            payment.
+                            Delivered · COD{" "}
+                            {order.codRemittanceStatus?.replaceAll("_", " ") ?? "pending"}
                           </p>
                         )}
                       </div>
