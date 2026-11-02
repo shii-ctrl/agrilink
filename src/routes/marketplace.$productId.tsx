@@ -513,29 +513,31 @@ function ProductDetail() {
                 </button>
               </div>
 
-              <Button
-                size="lg"
-                variant="outline"
-                className="w-full rounded-full sm:w-auto"
-                disabled={
-                  !hasValidQuantity || isAdding || isBuyingNow || remainingCartableQuantity <= 0
-                }
-                onClick={handleAddToCart}
-              >
-                <ShoppingCart className="size-4" />
-                {isAdding ? "Adding…" : hasCartReservation ? "Add more" : "Add to cart"}
-              </Button>
-              <Button
-                size="lg"
-                className="w-full rounded-full sm:w-auto"
-                disabled={
-                  !hasValidQuantity || isAdding || isBuyingNow || remainingCartableQuantity <= 0
-                }
-                onClick={handleBuyNow}
-              >
-                <Zap className="size-4" />
-                {isBuyingNow ? "Preparing checkout…" : "Buy now"}
-              </Button>
+              <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="min-w-0 flex-1 whitespace-nowrap rounded-full px-4"
+                  disabled={
+                    !hasValidQuantity || isAdding || isBuyingNow || remainingCartableQuantity <= 0
+                  }
+                  onClick={handleAddToCart}
+                >
+                  <ShoppingCart className="size-4" />
+                  {isAdding ? "Adding…" : hasCartReservation ? "Add more" : "Add to cart"}
+                </Button>
+                <Button
+                  size="lg"
+                  className="min-w-0 flex-1 whitespace-nowrap rounded-full px-4"
+                  disabled={
+                    !hasValidQuantity || isAdding || isBuyingNow || remainingCartableQuantity <= 0
+                  }
+                  onClick={handleBuyNow}
+                >
+                  <Zap className="size-4" />
+                  {isBuyingNow ? "Preparing checkout…" : "Buy now"}
+                </Button>
+              </div>
               {hasCartReservation ? (
                 <Link
                   to="/buyer/cart"
