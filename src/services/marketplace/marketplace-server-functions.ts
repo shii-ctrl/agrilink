@@ -107,6 +107,10 @@ const dailyPriceStatusInput = z.object({
   id: z.string().uuid(),
   published: z.boolean(),
 });
+const dailyPriceAlertInput = z.object({
+  listingId: z.string().uuid(),
+  targetPrice: z.number().positive().max(100_000),
+});
 const managementDashboardInput = z.object({
   range: z.enum(["day", "month", "all"]),
   date: z
@@ -1277,13 +1281,23 @@ async function fetchDailyPrices(publicOnly: boolean) {
     .select({
       id: dailyPrices.id,
       listingId: dailyPrices.listingId,
+      productId: listings.productId,
       date: sql<string>`DATE(${dailyPrices.priceDate})`,
       product: products.name,
       cropType: products.cropType,
       sellingUnit: products.sellingUnit,
+      description: products.description,
+      imageUrl: products.imageUrl,
       classification: classifications.name,
       price: dailyPrices.price,
       published: dailyPrices.published,
+      availableQuantity: sql<string>`(
+        SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
+        FROM inventory AS stock
+        WHERE stock.product_id = ${listings.productId}
+          AND stock.classification_id = ${listings.classificationId}
+      )`,
+      createdAt: dailyPrices.createdAt,
     })
     .from(dailyPrices)
     .innerJoin(listings, eq(dailyPrices.listingId, listings.id))
@@ -1311,6 +1325,8 @@ async function fetchDailyPrices(publicOnly: boolean) {
     ...row,
     classification: row.classification as Classification,
     price: Number(row.price),
+    availableQuantity: Number(row.availableQuantity),
+    createdAt: row.createdAt.toISOString(),
     status: row.published ? ("Published" as const) : ("Hidden" as const),
   }));
 }
@@ -1318,6 +1334,101 @@ async function fetchDailyPrices(publicOnly: boolean) {
 export const getPublicDailyPrices = createServerFn({ method: "GET" }).handler(async () =>
   fetchDailyPrices(true),
 );
+
+export const getMyDailyPriceAlerts = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/services/auth/auth-server");
+  const buyer = await requireRole("Buyer");
+  const { db } = await import("@/db/client.server");
+  const { dailyPriceAlerts } = await import("@/db/schema");
+  const rows = await db
+    .select()
+    .from(dailyPriceAlerts)
+    .where(eq(dailyPriceAlerts.buyerId, buyer.id));
+  return rows.map((row) => ({
+    ...row,
+    targetPrice: Number(row.targetPrice),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    lastNotifiedAt: row.lastNotifiedAt?.toISOString() ?? null,
+  }));
+});
+
+export const saveDailyPriceAlert = createServerFn({ method: "POST" })
+  .validator(dailyPriceAlertInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const buyer = await requireRole("Buyer");
+    const { db } = await import("@/db/client.server");
+    const { dailyPriceAlerts, listings } = await import("@/db/schema");
+    const [listing] = await db
+      .select({ id: listings.id })
+      .from(listings)
+      .where(and(eq(listings.id, data.listingId), eq(listings.status, "published")));
+    if (!listing) throw new Error("This marketplace quality is no longer available.");
+    const id = crypto.randomUUID();
+    await db
+      .insert(dailyPriceAlerts)
+      .values({
+        id,
+        buyerId: buyer.id,
+        listingId: data.listingId,
+        targetPrice: data.targetPrice.toFixed(2),
+        active: true,
+        lastNotifiedAt: null,
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          targetPrice: data.targetPrice.toFixed(2),
+          active: true,
+          lastNotifiedAt: null,
+          updatedAt: new Date(),
+        },
+      });
+    await writeAuditLog(buyer.id, "daily_price_alert.save", "listing", data.listingId, {
+      targetPrice: data.targetPrice,
+    });
+    return { listingId: data.listingId, targetPrice: data.targetPrice, active: true };
+  });
+
+async function notifyMatchingDailyPriceAlerts(
+  listingId: string,
+  productName: string,
+  price: number,
+  unit: SellingUnit,
+) {
+  const { db } = await import("@/db/client.server");
+  const { dailyPriceAlerts } = await import("@/db/schema");
+  const alerts = await db
+    .select()
+    .from(dailyPriceAlerts)
+    .where(
+      and(
+        eq(dailyPriceAlerts.listingId, listingId),
+        eq(dailyPriceAlerts.active, true),
+        sql`${dailyPriceAlerts.targetPrice} >= ${price}`,
+      ),
+    );
+  if (!alerts.length) return;
+  const { notifyUser } = await import("@/services/messaging/notification-server");
+  await Promise.all(
+    alerts.map((alert) =>
+      notifyUser(alert.buyerId, {
+        title: `${productName} reached your target price`,
+        message: `Now ₱${price.toFixed(2)} per ${sellingUnitLabel(unit)}.`,
+        target: "/daily-prices",
+      }),
+    ),
+  );
+  await db
+    .update(dailyPriceAlerts)
+    .set({ active: false, lastNotifiedAt: new Date() })
+    .where(
+      inArray(
+        dailyPriceAlerts.id,
+        alerts.map((alert) => alert.id),
+      ),
+    );
+}
 
 export const getMarketerDailyPrices = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
@@ -1357,7 +1468,12 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
     if (existing) {
       await db
         .update(dailyPrices)
-        .set({ price: data.price.toFixed(2), published: true, createdById: actor.id })
+        .set({
+          price: data.price.toFixed(2),
+          published: true,
+          createdById: actor.id,
+          createdAt: new Date(),
+        })
         .where(eq(dailyPrices.id, existing.id));
       await writeAuditLog(actor.id, "daily_price.update", "daily_price", existing.id, data);
       const { notifyRole } = await import("@/services/messaging/notification-server");
@@ -1366,6 +1482,12 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
         message: `${listing.productName} is now ₱${data.price.toFixed(2)} per ${sellingUnitLabel(listing.sellingUnit)} for ${data.date}.`,
         target: "/daily-prices",
       });
+      await notifyMatchingDailyPriceAlerts(
+        data.listingId,
+        listing.productName,
+        data.price,
+        listing.sellingUnit,
+      );
       return { id: existing.id, updated: true };
     }
     const id = crypto.randomUUID();
@@ -1384,6 +1506,12 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
       message: `${listing.productName} is ₱${data.price.toFixed(2)} per ${sellingUnitLabel(listing.sellingUnit)} for ${data.date}.`,
       target: "/daily-prices",
     });
+    await notifyMatchingDailyPriceAlerts(
+      data.listingId,
+      listing.productName,
+      data.price,
+      listing.sellingUnit,
+    );
     return { id, updated: false };
   });
 

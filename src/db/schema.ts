@@ -520,6 +520,23 @@ export const dailyPrices = mysqlTable(
   },
   (table) => [index("daily_prices_listing_date_idx").on(table.listingId, table.priceDate)],
 );
+export const dailyPriceAlerts = mysqlTable(
+  "daily_price_alerts",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    buyerId: varchar("buyer_id", { length: 36 }).notNull(),
+    listingId: varchar("listing_id", { length: 36 }).notNull(),
+    targetPrice: decimal("target_price", { precision: 12, scale: 2 }).notNull(),
+    active: boolean("active").default(true).notNull(),
+    lastNotifiedAt: datetime("last_notified_at"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("daily_price_alerts_buyer_listing_unique").on(table.buyerId, table.listingId),
+    index("daily_price_alerts_listing_active_idx").on(table.listingId, table.active),
+  ],
+);
 export const communityMessages = mysqlTable(
   "community_messages",
   {

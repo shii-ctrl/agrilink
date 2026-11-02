@@ -421,6 +421,29 @@ test("public daily prices require an active, combined in-stock listing for every
   assert.doesNotMatch(marketplace, /classifications\.name\} <> 'Reject'/);
 });
 
+test("public daily prices provide responsive discovery, details, history, and Buyer alerts", async () => {
+  const [page, marketplace, schema, migration] = await Promise.all([
+    readFile("src/routes/daily-prices.tsx", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0038_daily_price_alerts.sql", "utf8"),
+  ]);
+
+  assert.doesNotMatch(page, /Invalid Date/);
+  assert.match(page, /Latest available prices/);
+  assert.match(page, /Available products only/);
+  assert.match(page, /PriceMobileCard/);
+  assert.match(page, /View in marketplace/);
+  assert.match(page, /3 months/);
+  assert.match(page, /Set alert/);
+  assert.match(marketplace, /export const saveDailyPriceAlert/);
+  assert.match(marketplace, /requireRole\("Buyer"\)/);
+  assert.match(marketplace, /notifyMatchingDailyPriceAlerts/);
+  assert.match(schema, /dailyPriceAlerts/);
+  assert.match(migration, /CREATE TABLE daily_price_alerts/);
+  assert.match(migration, /daily_price_alerts_buyer_listing_unique/);
+});
+
 test("marketplace publishing protects combined stock and supports every quality in older carts", async () => {
   const marketplace = await readFile(
     "src/services/marketplace/marketplace-server-functions.ts",
