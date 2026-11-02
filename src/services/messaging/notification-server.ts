@@ -2,12 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 type NotificationDetails = { title: string; message: string; target?: string };
 
-const communityRoles = [
-  "Management",
-  "Marketer",
-  "Accounting",
-  "Farmer",
-] as const;
+const communityRoles = ["Management", "Marketer", "Accounting", "Farmer"] as const;
 
 const communityTargetByRole: Record<(typeof communityRoles)[number], string> = {
   Management: "/management/community",
@@ -68,7 +63,7 @@ export async function notifyCartHoldersForListing(listingId: string, details: No
  */
 export async function notifyCommunityUsers(
   details: Omit<NotificationDetails, "target">,
-  options: { excludeUserId?: string; userIds?: string[] } = {},
+  options: { excludeUserId?: string; userIds?: string[]; targetSuffix?: string } = {},
 ) {
   if (options.userIds?.length === 0) return;
 
@@ -100,7 +95,7 @@ export async function notifyCommunityUsers(
       id: crypto.randomUUID(),
       userId,
       ...details,
-      target: communityTargetByRole[role],
+      target: `${communityTargetByRole[role]}${options.targetSuffix ?? ""}`,
     })),
   );
 }

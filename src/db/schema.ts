@@ -344,6 +344,16 @@ export const communityMessages = mysqlTable(
     isPinned: boolean("is_pinned").default(false).notNull(),
     pinnedAt: datetime("pinned_at"),
     pinnedById: varchar("pinned_by_id", { length: 36 }),
+    questionStatus: mysqlEnum("question_status", ["open", "answered", "resolved"])
+      .default("open")
+      .notNull(),
+    helpfulCommentId: varchar("helpful_comment_id", { length: 36 }),
+    moderationStatus: mysqlEnum("moderation_status", ["visible", "hidden"])
+      .default("visible")
+      .notNull(),
+    moderatedAt: datetime("moderated_at"),
+    moderatedById: varchar("moderated_by_id", { length: 36 }),
+    moderationReason: varchar("moderation_reason", { length: 500 }),
     message: text("message").notNull(),
     createdAt,
     updatedAt,
@@ -355,6 +365,51 @@ export const communityMessages = mysqlTable(
       table.pinnedAt,
       table.createdAt,
     ),
+  ],
+);
+export const communityAttachments = mysqlTable(
+  "community_attachments",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    messageId: varchar("message_id", { length: 36 }).notNull(),
+    imageUrl: mediumtext("image_url").notNull(),
+    position: int("position").default(0).notNull(),
+    createdAt,
+  },
+  (table) => [
+    index("community_attachments_message_position_idx").on(table.messageId, table.position),
+  ],
+);
+export const communityBookmarks = mysqlTable(
+  "community_bookmarks",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    messageId: varchar("message_id", { length: 36 }).notNull(),
+    userId: varchar("user_id", { length: 36 }).notNull(),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex("community_bookmarks_message_user_unique").on(table.messageId, table.userId),
+    index("community_bookmarks_user_created_idx").on(table.userId, table.createdAt),
+  ],
+);
+export const communityReports = mysqlTable(
+  "community_reports",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    messageId: varchar("message_id", { length: 36 }).notNull(),
+    reporterId: varchar("reporter_id", { length: 36 }).notNull(),
+    reason: varchar("reason", { length: 500 }).notNull(),
+    status: mysqlEnum("status", ["pending", "reviewed", "dismissed", "removed"])
+      .default("pending")
+      .notNull(),
+    reviewedById: varchar("reviewed_by_id", { length: 36 }),
+    reviewedAt: datetime("reviewed_at"),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex("community_reports_message_reporter_unique").on(table.messageId, table.reporterId),
+    index("community_reports_status_created_idx").on(table.status, table.createdAt),
   ],
 );
 export const communityReactions = mysqlTable(

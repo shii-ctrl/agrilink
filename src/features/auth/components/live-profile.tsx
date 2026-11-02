@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   changeCurrentPassword,
   getCurrentSessionUser,
@@ -639,7 +640,22 @@ export function LiveProfile({
       </aside>
       {showCommunityPosts && (
         <div className="mt-6">
-          <CommunityFeed title="My Community posts" scope="mine" showComposer={false} />
+          <Tabs defaultValue="mine">
+            <TabsList className="h-auto rounded-2xl p-1">
+              <TabsTrigger value="mine" className="rounded-xl px-4 py-2">
+                My posts
+              </TabsTrigger>
+              <TabsTrigger value="saved" className="rounded-xl px-4 py-2">
+                Saved posts
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="mine" className="mt-4">
+              <CommunityFeed title="My Community posts" scope="mine" showComposer={false} />
+            </TabsContent>
+            <TabsContent value="saved" className="mt-4">
+              <CommunityFeed title="Saved Community posts" scope="saved" showComposer={false} />
+            </TabsContent>
+          </Tabs>
         </div>
       )}
       <Dialog

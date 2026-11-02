@@ -173,3 +173,15 @@ test("pinned Community announcements preserve all existing post history", async 
   assert.match(migration, /community_messages_pinned_created_idx/);
   assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
 });
+
+test("Community engagement migration preserves posts while adding media and moderation records", async () => {
+  const migration = await readFile("drizzle/0034_community_engagement_and_moderation.sql", "utf8");
+
+  assert.match(migration, /ADD COLUMN question_status ENUM\('open', 'answered', 'resolved'\)/);
+  assert.match(migration, /CREATE TABLE community_attachments/);
+  assert.match(migration, /image_url MEDIUMTEXT NOT NULL/);
+  assert.match(migration, /CREATE TABLE community_bookmarks/);
+  assert.match(migration, /CREATE TABLE community_reports/);
+  assert.match(migration, /community_reports_message_reporter_unique/);
+  assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
+});

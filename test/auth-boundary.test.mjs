@@ -802,8 +802,8 @@ test("Community search, owner controls, and Management moderation are available 
   assert.match(feed, /Pinned official announcement/);
   assert.match(feed, /Pin announcement/);
   assert.match(feed, /setCommunityPostPinned/);
-  assert.match(feed, /Edit post/);
-  assert.match(feed, /Delete post/);
+  assert.match(feed, /Post options/);
+  assert.match(feed, /<MoreHorizontal/);
   assert.match(feed, /deleteCommunityMessage/);
   assert.match(feed, /updateCommunityMessage/);
 });
@@ -824,6 +824,32 @@ test("Community users can view only their own saved posts from their profile", a
   for (const source of [farmerProfile, marketerProfile, managementProfile]) {
     assert.match(source, /showCommunityPosts/);
   }
+});
+
+test("Community advanced engagement features enforce server-side permissions and safety", async () => {
+  const [feed, community, profile, notifications] = await Promise.all([
+    readFile("src/features/messaging/components/community-feed.tsx", "utf8"),
+    readFile("src/services/messaging/community-server-functions.ts", "utf8"),
+    readFile("src/features/auth/components/live-profile.tsx", "utf8"),
+    readFile("src/services/messaging/notification-server.ts", "utf8"),
+  ]);
+
+  assert.match(feed, /compressCommunityImage/);
+  assert.match(feed, /Photo attachments/);
+  assert.match(feed, /Most discussed/);
+  assert.match(feed, /Unanswered questions/);
+  assert.match(feed, /setCommunityPostSaved/);
+  assert.match(feed, /reportCommunityPost/);
+  assert.match(feed, /setCommunityQuestionStatus/);
+  assert.match(feed, /Mark helpful/);
+  assert.match(feed, /Management moderation/);
+  assert.match(profile, /Saved Community posts/);
+  assert.match(community, /Please wait 30 seconds/);
+  assert.match(community, /duplicate of a post/);
+  assert.match(community, /recently posted the same comment/);
+  assert.match(community, /requireRole\("Management"\)/);
+  assert.match(community, /notifyMentionedUsers/);
+  assert.match(notifications, /targetSuffix/);
 });
 
 test("new messages and Community activity create timely recipient notifications", async () => {

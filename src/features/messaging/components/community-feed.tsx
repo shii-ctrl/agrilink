@@ -1,6 +1,14 @@
 import {
+  Bookmark,
+  BookmarkCheck,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Flag,
+  ImagePlus,
   LoaderCircle,
   MessageCircle,
+  MoreHorizontal,
   Pencil,
   Pin,
   PinOff,
@@ -20,14 +28,19 @@ import { toast } from "sonner";
 import {
   getCommunityMessages,
   getMyCommunityMessages,
+  getSavedCommunityMessages,
   deleteCommunityComment,
   deleteCommunityMessage,
   postCommunityComment,
   postCommunityMessage,
+  moderateCommunityPost,
+  reportCommunityPost,
   removeCommunityCommentReaction,
   removeCommunityReaction,
   setCommunityCommentReaction,
   setCommunityPostPinned,
+  setCommunityPostSaved,
+  setCommunityQuestionStatus,
   setCommunityReaction,
   updateCommunityMessage,
 } from "@/services/messaging/community-server-functions";
@@ -50,15 +63,60 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type CommunityFeedProps = {
   title: string;
   placeholder?: string;
-  scope?: "all" | "mine";
+  scope?: "all" | "mine" | "saved";
   showComposer?: boolean;
 };
 
 const COMMUNITY_PAGE_SIZE = 25;
+type CommunitySort = "latest" | "discussed" | "liked" | "unanswered";
+const communitySortOptions = [
+  { value: "latest", label: "Latest" },
+  { value: "discussed", label: "Most discussed" },
+  { value: "liked", label: "Most liked" },
+  { value: "unanswered", label: "Unanswered questions" },
+];
+
+async function compressCommunityImage(file: File) {
+  if (!file.type.startsWith("image/")) throw new Error("Choose an image file.");
+  if (file.size > 10 * 1024 * 1024) throw new Error("Each image must be smaller than 10 MB.");
+  const source = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("The image could not be opened."));
+    reader.readAsDataURL(file);
+  });
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error("The image could not be opened."));
+    element.src = source;
+  });
+  const scale = Math.min(1, 1400 / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
+  let quality = 0.82;
+  let result = canvas.toDataURL("image/webp", quality);
+  while (result.length > 450_000 && quality > 0.45) {
+    quality -= 0.08;
+    result = canvas.toDataURL("image/webp", quality);
+  }
+  if (result.length > 500_000)
+    throw new Error("This image is too detailed. Choose a smaller image.");
+  return result;
+}
 const categoryBadgeTone: Record<CommunityPostCategory, string> = {
   announcement: "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300",
   question: "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300",
@@ -78,6 +136,8 @@ type CommunityCommentCardProps = {
   onDelete?: (() => void) | undefined;
   onReply?: (() => void) | undefined;
   onToggleReplies?: (() => void) | undefined;
+  isHelpful?: boolean;
+  onHelpful?: (() => void) | undefined;
   children?: ReactNode;
 };
 
@@ -102,10 +162,15 @@ function CommunityCommentCard({
   onDelete,
   onReply,
   onToggleReplies,
+  isHelpful = false,
+  onHelpful,
   children,
 }: CommunityCommentCardProps) {
   return (
-    <div className="rounded-2xl bg-muted/60 px-4 py-3">
+    <div
+      id={`community-comment-${comment.id}`}
+      className={`rounded-2xl px-4 py-3 ${isHelpful ? "border border-emerald-500/30 bg-emerald-500/10" : "bg-muted/60"}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <CommunityAvatar
@@ -123,6 +188,11 @@ function CommunityCommentCard({
         </p>
       </div>
       <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{comment.message}</p>
+      {isHelpful && (
+        <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+          <CheckCircle2 className="size-3.5" /> Helpful answer
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-1">
         <Button
           type="button"
@@ -190,6 +260,18 @@ function CommunityCommentCard({
             <span className="sr-only">Delete your comment</span>
           </Button>
         )}
+        {onHelpful && (
+          <Button
+            type="button"
+            variant={isHelpful ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 rounded-full px-2 text-xs"
+            disabled={busy}
+            onClick={onHelpful}
+          >
+            <CheckCircle2 className="size-3.5" /> {isHelpful ? "Helpful" : "Mark helpful"}
+          </Button>
+        )}
       </div>
       {children}
     </div>
@@ -206,6 +288,8 @@ export function CommunityFeed({
   const [messages, setMessages] = useState<CommunityPost[]>([]);
   const [postMessage, setPostMessage] = useState("");
   const [postCategory, setPostCategory] = useState<CommunityPostCategory>("general_discussion");
+  const [postImages, setPostImages] = useState<string[]>([]);
+  const [processingImages, setProcessingImages] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [replyTargets, setReplyTargets] = useState<Record<string, string | null>>({});
@@ -221,8 +305,12 @@ export function CommunityFeed({
   const [busyEditId, setBusyEditId] = useState<string | null>(null);
   const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
   const [busyPinId, setBusyPinId] = useState<string | null>(null);
+  const [busyMenuId, setBusyMenuId] = useState<string | null>(null);
+  const [reportingPost, setReportingPost] = useState<CommunityPost | null>(null);
+  const [reportReason, setReportReason] = useState("");
   const [search, setSearch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sort, setSort] = useState<CommunitySort>("latest");
   const [hasMore, setHasMore] = useState(false);
   const [, setNextOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -254,10 +342,13 @@ export function CommunityFeed({
           query: searchQuery,
           offset: append ? (nextOffsetRef.current ?? messagesRef.current.length) : 0,
           pageSize: COMMUNITY_PAGE_SIZE,
+          sort,
         };
         const result = await (scope === "mine"
           ? getMyCommunityMessages({ data })
-          : getCommunityMessages({ data }));
+          : scope === "saved"
+            ? getSavedCommunityMessages({ data })
+            : getCommunityMessages({ data }));
         const nextMessages = append
           ? [
               ...messagesRef.current,
@@ -295,8 +386,19 @@ export function CommunityFeed({
         refreshing.current = false;
       }
     },
-    [scope, searchQuery],
+    [scope, searchQuery, sort],
   );
+
+  useEffect(() => {
+    const postId = new URLSearchParams(window.location.search).get("post");
+    if (!postId || loading) return;
+    window.setTimeout(() => {
+      document.getElementById(`community-post-${postId}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 100);
+  }, [loading, messages]);
 
   useEffect(() => {
     void load();
@@ -367,9 +469,12 @@ export function CommunityFeed({
     if (!message) return;
     setBusyPost(true);
     try {
-      await postCommunityMessage({ data: { category: postCategory, message } });
+      await postCommunityMessage({
+        data: { category: postCategory, message, attachments: postImages },
+      });
       setPostMessage("");
       setPostCategory("general_discussion");
+      setPostImages([]);
       setComposerOpen(false);
       await load();
       toast.success("Your post is now visible in Community.");
@@ -438,6 +543,73 @@ export function CommunityFeed({
                 <p className="text-right text-xs text-muted-foreground">
                   {postMessage.length}/4000 characters
                 </p>
+                {postImages.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {postImages.map((imageUrl, index) => (
+                      <div key={`${imageUrl.slice(-20)}-${index}`} className="group relative">
+                        <img
+                          src={imageUrl}
+                          alt={`Attachment preview ${index + 1}`}
+                          className="aspect-square w-full rounded-2xl border object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="icon"
+                          className="absolute right-1.5 top-1.5 size-8 rounded-full"
+                          aria-label={`Remove attachment ${index + 1}`}
+                          onClick={() =>
+                            setPostImages((current) => current.filter((_, item) => item !== index))
+                          }
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-dashed bg-muted/30 p-3">
+                  <div>
+                    <p className="text-sm font-semibold">Photo attachments</p>
+                    <p className="text-xs text-muted-foreground">
+                      Up to 4 images. Photos are compressed before posting.
+                    </p>
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm font-semibold hover:bg-muted">
+                    {processingImages ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <ImagePlus className="size-4 text-primary" />
+                    )}
+                    Add photos
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      className="sr-only"
+                      disabled={processingImages || busyPost || postImages.length >= 4}
+                      onChange={async (event) => {
+                        const files = Array.from(event.target.files ?? []).slice(
+                          0,
+                          4 - postImages.length,
+                        );
+                        event.target.value = "";
+                        if (!files.length) return;
+                        setProcessingImages(true);
+                        try {
+                          const compressed = await Promise.all(files.map(compressCommunityImage));
+                          setPostImages((current) => [...current, ...compressed].slice(0, 4));
+                        } catch (error) {
+                          toast.error(
+                            error instanceof Error ? error.message : "Could not prepare the image.",
+                          );
+                        } finally {
+                          setProcessingImages(false);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
 
               <DialogFooter className="border-t border-border px-5 py-4 sm:px-6">
@@ -453,7 +625,7 @@ export function CommunityFeed({
                 <Button
                   type="submit"
                   className="w-full rounded-full sm:w-auto"
-                  disabled={busyPost || !postMessage.trim()}
+                  disabled={busyPost || processingImages || !postMessage.trim()}
                 >
                   {busyPost ? (
                     <LoaderCircle className="size-4 animate-spin" />
@@ -467,6 +639,59 @@ export function CommunityFeed({
           </DialogContent>
         </Dialog>
       )}
+      <Dialog
+        open={Boolean(reportingPost)}
+        onOpenChange={(open) => {
+          if (!open && !busyMenuId) {
+            setReportingPost(null);
+            setReportReason("");
+          }
+        }}
+      >
+        <DialogContent className="rounded-3xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Report Community post</DialogTitle>
+            <DialogDescription>
+              Tell Management why this post may be inappropriate, spam, or misleading.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={reportReason}
+            onChange={(event) => setReportReason(event.target.value)}
+            placeholder="Describe the concern..."
+            maxLength={500}
+            rows={4}
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setReportingPost(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!reportingPost || reportReason.trim().length < 5 || Boolean(busyMenuId)}
+              onClick={async () => {
+                if (!reportingPost) return;
+                setBusyMenuId(reportingPost.id);
+                try {
+                  await reportCommunityPost({
+                    data: { messageId: reportingPost.id, reason: reportReason.trim() },
+                  });
+                  setReportingPost(null);
+                  setReportReason("");
+                  await load();
+                  toast.success("Report sent to Management for review.");
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Could not send report.");
+                } finally {
+                  setBusyMenuId(null);
+                }
+              }}
+            >
+              <Flag className="size-4" /> Submit report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <section className="rounded-3xl border border-border bg-card p-4 shadow-card sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -478,7 +703,9 @@ export function CommunityFeed({
             </div>
             <p className="mt-2 flex items-start gap-1.5 pl-0 text-xs font-medium leading-5 text-primary sm:pl-11">
               <Radio className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              <span>Live updates are on. New posts, comments, and reactions appear automatically.</span>
+              <span>
+                Live updates are on. New posts, comments, and reactions appear automatically.
+              </span>
             </p>
           </div>
           {showComposer && (
@@ -494,8 +721,8 @@ export function CommunityFeed({
             </Button>
           )}
         </div>
-        {scope === "all" && (
-          <div className="relative mt-4">
+        <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+          <div className="relative">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
@@ -506,7 +733,15 @@ export function CommunityFeed({
               maxLength={120}
             />
           </div>
-        )}
+          <AppSelect
+            value={sort}
+            onValueChange={(value) => setSort(value as CommunitySort)}
+            options={communitySortOptions}
+            ariaLabel="Sort Community posts"
+            searchable={false}
+            className="min-h-11 rounded-2xl"
+          />
+        </div>
       </section>
       <section className="mt-6 space-y-4" aria-live="polite">
         {loading && (
@@ -545,10 +780,21 @@ export function CommunityFeed({
             return (
               <article
                 key={message.id}
+                id={`community-post-${message.id}`}
                 className={`rounded-3xl border bg-card p-5 shadow-card ${
-                  message.isPinned ? "border-primary/40 ring-1 ring-primary/10" : "border-border"
+                  message.moderationStatus === "hidden"
+                    ? "border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/10"
+                    : message.isPinned
+                      ? "border-primary/40 ring-1 ring-primary/10"
+                      : "border-border"
                 }`}
               >
+                {message.moderationStatus === "hidden" && (
+                  <div className="mb-4 flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
+                    <EyeOff className="size-4" /> Hidden from Community
+                    {message.moderationReason ? ` — ${message.moderationReason}` : ""}
+                  </div>
+                )}
                 {message.isPinned && (
                   <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
                     <Pin className="size-4 fill-current" /> Pinned official announcement
@@ -562,18 +808,132 @@ export function CommunityFeed({
                       <p className="text-xs text-primary">{message.role}</p>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(message.time).toLocaleString("en-PH", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </p>
+                  <div className="flex shrink-0 items-start gap-1">
+                    <p className="hidden pt-2 text-xs text-muted-foreground sm:block">
+                      {new Date(message.time).toLocaleString("en-PH", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </p>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-9 rounded-full"
+                        >
+                          <MoreHorizontal className="size-5" />
+                          <span className="sr-only">Post options</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        {message.isOwner && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditingPostId(message.id);
+                              setEditDraft(message.message);
+                            }}
+                          >
+                            <Pencil className="size-4" /> Edit
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            setBusyMenuId(message.id);
+                            try {
+                              await setCommunityPostSaved({
+                                data: { messageId: message.id, saved: !message.isSaved },
+                              });
+                              await load();
+                              toast.success(
+                                message.isSaved ? "Removed from saved posts." : "Post saved.",
+                              );
+                            } catch (error) {
+                              toast.error(
+                                error instanceof Error ? error.message : "Could not save post.",
+                              );
+                            } finally {
+                              setBusyMenuId(null);
+                            }
+                          }}
+                        >
+                          {message.isSaved ? (
+                            <BookmarkCheck className="size-4" />
+                          ) : (
+                            <Bookmark className="size-4" />
+                          )}
+                          {message.isSaved ? "Unsave" : "Save"}
+                        </DropdownMenuItem>
+                        {!message.isOwner && (
+                          <DropdownMenuItem
+                            disabled={message.reports.viewerReported}
+                            onClick={() => {
+                              setReportingPost(message);
+                              setReportReason("");
+                            }}
+                          >
+                            <Flag className="size-4" />
+                            {message.reports.viewerReported ? "Reported" : "Report"}
+                          </DropdownMenuItem>
+                        )}
+                        {message.canDelete && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={async () => {
+                                const confirmed = await requestConfirmation({
+                                  title: message.isOwner
+                                    ? "Delete this post?"
+                                    : "Remove this Community post?",
+                                  description:
+                                    "This permanently removes the post, attachments, comments, and reactions. Management actions are audited.",
+                                  confirmLabel: "Delete post",
+                                  destructive: true,
+                                });
+                                if (!confirmed) return;
+                                setBusyDeleteId(message.id);
+                                try {
+                                  await deleteCommunityMessage({ data: { messageId: message.id } });
+                                  await load();
+                                  toast.success("Community post deleted.");
+                                } catch (error) {
+                                  toast.error(
+                                    error instanceof Error
+                                      ? error.message
+                                      : "Could not delete post.",
+                                  );
+                                } finally {
+                                  setBusyDeleteId(null);
+                                }
+                              }}
+                            >
+                              <Trash2 className="size-4" /> Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
-                <span
-                  className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${categoryBadgeTone[message.category]}`}
-                >
-                  {communityPostCategoryLabels[message.category]}
-                </span>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${categoryBadgeTone[message.category]}`}
+                  >
+                    {communityPostCategoryLabels[message.category]}
+                  </span>
+                  {message.category === "question" && (
+                    <span className="inline-flex rounded-full border border-violet-500/25 bg-violet-500/5 px-3 py-1 text-xs font-semibold capitalize text-violet-700 dark:text-violet-300">
+                      {message.questionStatus}
+                    </span>
+                  )}
+                  {message.reports.count > 0 && message.canModerate && (
+                    <span className="inline-flex rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-300">
+                      {message.reports.count} {message.reports.count === 1 ? "report" : "reports"}
+                    </span>
+                  )}
+                </div>
                 {editing ? (
                   <form
                     className="mt-4 space-y-3"
@@ -642,72 +1002,156 @@ export function CommunityFeed({
                     {message.message}
                   </p>
                 )}
-                {(message.isOwner || message.canDelete || message.canPin) && !editing && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {message.isOwner && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-full"
-                        disabled={deleting}
-                        onClick={() => {
-                          setEditingPostId(message.id);
-                          setEditDraft(message.message);
-                        }}
+                {message.attachments.length > 0 && !editing && (
+                  <div
+                    className={`mt-4 grid gap-2 ${message.attachments.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
+                  >
+                    {message.attachments.map((attachment, index) => (
+                      <a
+                        key={attachment.id}
+                        href={attachment.imageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={
+                          message.attachments.length === 3 && index === 0 ? "col-span-2" : ""
+                        }
                       >
-                        <Pencil className="size-4" /> Edit post
-                      </Button>
-                    )}
-                    {message.canDelete && (
+                        <img
+                          src={attachment.imageUrl}
+                          alt={`Photo attached to ${message.author}'s post`}
+                          className="max-h-96 w-full rounded-2xl border bg-muted object-cover"
+                          loading="lazy"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {message.category === "question" && message.isOwner && !editing && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-violet-500/5 p-3">
+                    <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
+                      Question status
+                    </span>
+                    {(["open", "answered", "resolved"] as const).map((status) => (
                       <Button
+                        key={status}
                         type="button"
-                        variant="ghost"
                         size="sm"
-                        className="rounded-full text-destructive hover:text-destructive"
-                        disabled={deleting}
+                        variant={message.questionStatus === status ? "secondary" : "ghost"}
+                        className="h-8 rounded-full capitalize"
+                        disabled={busyMenuId === message.id}
                         onClick={async () => {
-                          if (
-                            !(await requestConfirmation({
-                              title: message.isOwner
-                                ? "Delete this post?"
-                                : "Remove this Community post?",
-                              description: message.isOwner
-                                ? "This permanently removes the post, its comments, and its reactions."
-                                : "Management moderation will permanently remove this post, its comments, and its reactions. This action is recorded in the audit log.",
-                              confirmLabel: "Delete post",
-                              destructive: true,
-                            }))
-                          )
-                            return;
-                          setBusyDeleteId(message.id);
+                          setBusyMenuId(message.id);
                           try {
-                            await deleteCommunityMessage({ data: { messageId: message.id } });
+                            await setCommunityQuestionStatus({
+                              data: { messageId: message.id, status },
+                            });
                             await load();
-                            toast.success(
-                              message.isOwner
-                                ? "Community post deleted."
-                                : "Community post removed by Management.",
-                            );
+                            toast.success(`Question marked ${status}.`);
                           } catch (error) {
                             toast.error(
-                              error instanceof Error
-                                ? error.message
-                                : "Could not delete this Community post.",
+                              error instanceof Error ? error.message : "Could not update question.",
                             );
                           } finally {
-                            setBusyDeleteId(null);
+                            setBusyMenuId(null);
                           }
                         }}
                       >
-                        {deleting ? (
-                          <LoaderCircle className="size-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="size-4" />
-                        )}
-                        Delete post
+                        {status}
                       </Button>
-                    )}
+                    ))}
+                  </div>
+                )}
+                {message.canModerate &&
+                  (message.reports.count > 0 || message.moderationStatus === "hidden") && (
+                    <div className="mt-4 flex flex-wrap gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3">
+                      <span className="w-full text-xs font-semibold text-amber-800 dark:text-amber-300">
+                        Management moderation
+                      </span>
+                      {message.reports.reasons.length > 0 && (
+                        <div className="w-full space-y-1 rounded-xl bg-background/80 p-3 text-sm">
+                          {message.reports.reasons.map((report, index) => (
+                            <p key={`${report.time}-${index}`} className="text-muted-foreground">
+                              <Flag className="mr-1 inline size-3.5 text-red-500" /> {report.reason}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={async () => {
+                          setBusyMenuId(message.id);
+                          try {
+                            await moderateCommunityPost({
+                              data: {
+                                messageId: message.id,
+                                action: message.moderationStatus === "hidden" ? "restore" : "hide",
+                                reason:
+                                  message.moderationStatus === "hidden"
+                                    ? ""
+                                    : "Hidden after report review",
+                              },
+                            });
+                            await load();
+                            toast.success(
+                              message.moderationStatus === "hidden"
+                                ? "Post restored."
+                                : "Post hidden.",
+                            );
+                          } catch (error) {
+                            toast.error(
+                              error instanceof Error ? error.message : "Could not moderate post.",
+                            );
+                          } finally {
+                            setBusyMenuId(null);
+                          }
+                        }}
+                      >
+                        {message.moderationStatus === "hidden" ? (
+                          <Eye className="size-4" />
+                        ) : (
+                          <EyeOff className="size-4" />
+                        )}
+                        {message.moderationStatus === "hidden" ? "Restore" : "Hide"}
+                      </Button>
+                      {message.reports.count > 0 && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="rounded-full"
+                          onClick={async () => {
+                            setBusyMenuId(message.id);
+                            try {
+                              await moderateCommunityPost({
+                                data: {
+                                  messageId: message.id,
+                                  action: "dismiss",
+                                  reason: "Reviewed and dismissed",
+                                },
+                              });
+                              await load();
+                              toast.success("Reports reviewed and dismissed.");
+                            } catch (error) {
+                              toast.error(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Could not review reports.",
+                              );
+                            } finally {
+                              setBusyMenuId(null);
+                            }
+                          }}
+                        >
+                          <CheckCircle2 className="size-4" /> Dismiss reports
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                {message.canPin && !editing && (
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {message.canPin &&
                       (message.category === "announcement" || message.isPinned) && (
                         <Button
@@ -832,6 +1276,23 @@ export function CommunityFeed({
                     {message.comments.length === 1 ? "comment" : "comments"}
                   </Button>
                 </div>
+                {!commentsOpen && message.comments.length > 0 && (
+                  <button
+                    type="button"
+                    className="mt-3 w-full rounded-2xl bg-muted/50 px-4 py-3 text-left hover:bg-muted"
+                    onClick={() =>
+                      setExpandedComments((current) => ({ ...current, [message.id]: true }))
+                    }
+                  >
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      Latest comment
+                    </span>
+                    <p className="mt-1 line-clamp-2 text-sm">
+                      <span className="font-semibold">{message.comments.at(-1)?.author}: </span>
+                      {message.comments.at(-1)?.message}
+                    </p>
+                  </button>
+                )}
                 {commentsOpen && (
                   <div className="mt-4 space-y-4">
                     {message.comments.length > 0 && (
@@ -877,6 +1338,38 @@ export function CommunityFeed({
                                       }))
                                   : undefined
                               }
+                              isHelpful={message.helpfulCommentId === comment.id}
+                              onHelpful={
+                                message.category === "question" && message.isOwner
+                                  ? async () => {
+                                      setBusyMenuId(message.id);
+                                      try {
+                                        const helpful = message.helpfulCommentId === comment.id;
+                                        await setCommunityQuestionStatus({
+                                          data: {
+                                            messageId: message.id,
+                                            status: helpful ? "open" : "answered",
+                                            helpfulCommentId: helpful ? null : comment.id,
+                                          },
+                                        });
+                                        await load();
+                                        toast.success(
+                                          helpful
+                                            ? "Helpful answer removed."
+                                            : "Helpful answer selected.",
+                                        );
+                                      } catch (error) {
+                                        toast.error(
+                                          error instanceof Error
+                                            ? error.message
+                                            : "Could not update helpful answer.",
+                                        );
+                                      } finally {
+                                        setBusyMenuId(null);
+                                      }
+                                    }
+                                  : undefined
+                              }
                             >
                               {repliesOpen && replies.length > 0 && (
                                 <div className="mt-3 ml-4 space-y-3 border-l-2 border-primary/30 pl-3 sm:ml-6">
@@ -891,6 +1384,33 @@ export function CommunityFeed({
                                       onReaction={reactToComment}
                                       onDelete={
                                         reply.isOwner ? () => void deleteComment(reply) : undefined
+                                      }
+                                      isHelpful={message.helpfulCommentId === reply.id}
+                                      onHelpful={
+                                        message.category === "question" && message.isOwner
+                                          ? async () => {
+                                              setBusyMenuId(message.id);
+                                              try {
+                                                await setCommunityQuestionStatus({
+                                                  data: {
+                                                    messageId: message.id,
+                                                    status: "answered",
+                                                    helpfulCommentId: reply.id,
+                                                  },
+                                                });
+                                                await load();
+                                                toast.success("Helpful answer selected.");
+                                              } catch (error) {
+                                                toast.error(
+                                                  error instanceof Error
+                                                    ? error.message
+                                                    : "Could not update helpful answer.",
+                                                );
+                                              } finally {
+                                                setBusyMenuId(null);
+                                              }
+                                            }
+                                          : undefined
                                       }
                                     />
                                   ))}
