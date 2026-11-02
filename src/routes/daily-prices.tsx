@@ -9,9 +9,11 @@ import {
   ChevronDown,
   CircleMinus,
   Clock3,
+  Leaf,
   PackageCheck,
   Search,
   ShoppingBag,
+  SlidersHorizontal,
   TrendingUp,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -41,6 +43,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import {
   procyCategoryOrder,
@@ -316,67 +319,97 @@ function DailyPricesPage() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
-        <div className="flex flex-wrap items-start justify-between gap-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-              Market information
-            </p>
-            <h1 className="mt-3 text-4xl font-semibold md:text-5xl">Daily Vegetable Prices</h1>
-            <p className="mt-3 max-w-2xl text-muted-foreground">
-              Compare published PROCY prices by quality, selling unit, and date before you buy.
-            </p>
-          </div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">
-            <Clock3 className="size-4" />
-            {date === latestDate ? relativeUpdated(selectedUpdatedAt ?? null) : "Historical prices"}
-          </span>
-        </div>
-
-        <section className="mt-7 rounded-3xl border border-border bg-card p-4 shadow-card sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Button
-              variant="outline"
-              className="rounded-full"
-              disabled={selectedDateIndex <= 0}
-              onClick={() => setDate(availableDates[selectedDateIndex - 1] ?? date)}
-            >
-              <ArrowLeft className="size-4" /> Previous
-            </Button>
-            <div className="flex flex-col items-center gap-2 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Prices for
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:py-12">
+        <section className="relative overflow-hidden rounded-[2rem] border border-primary/15 bg-gradient-to-br from-primary/10 via-card to-accent/40 shadow-card">
+          <div className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-primary/10 blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-24 left-1/3 size-56 rounded-full bg-accent/60 blur-3xl" />
+          <div className="relative grid gap-7 px-5 pb-7 pt-6 sm:px-8 sm:pb-8 sm:pt-8 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                <Leaf className="size-4" /> Market information
               </p>
-              <DatePicker
-                ariaLabel="Select price date"
-                value={date}
-                onValueChange={setDate}
-                {...(availableDates[0] ? { min: availableDates[0] } : {})}
-                max={todayValue()}
-                className="h-11 w-auto min-w-48 rounded-full px-4"
-              />
+              <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
+                Daily Vegetable Prices
+              </h1>
+              <p className="mt-3 max-w-2xl text-muted-foreground">
+                Compare PROCY prices across Good, Semi, and Reject qualities before you buy.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2 text-xs font-medium">
+                <span className="rounded-full bg-background/80 px-3 py-1.5 shadow-sm">
+                  {visibleProductRows.length} priced products
+                </span>
+                <span className="rounded-full bg-background/80 px-3 py-1.5 shadow-sm">
+                  {procyMarketCategories.length} market categories
+                </span>
+                <span className="rounded-full bg-background/80 px-3 py-1.5 shadow-sm">
+                  Live marketplace stock
+                </span>
+              </div>
             </div>
-            <Button
-              variant="outline"
-              className="rounded-full"
-              disabled={selectedDateIndex < 0 || selectedDateIndex >= availableDates.length - 1}
-              onClick={() => setDate(availableDates[selectedDateIndex + 1] ?? date)}
-            >
-              Next <ArrowRight className="size-4" />
-            </Button>
-          </div>
-          <div className="mt-3 flex justify-center">
-            <button
-              type="button"
-              className="text-sm font-medium text-primary hover:underline"
-              onClick={() => setDate(todayValue())}
-            >
-              View today
-            </button>
+            <div className="w-full rounded-3xl border border-white/70 bg-background/90 p-4 shadow-sm backdrop-blur lg:w-[25rem]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Selected price date
+                  </p>
+                  <p className="mt-1 font-semibold">{dateLabel(date)}</p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                  <Clock3 className="size-3.5" />
+                  {date === todayValue() ? "Today" : date === latestDate ? "Latest" : "Historical"}
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-[auto_1fr_auto] items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full"
+                  aria-label="Previous available price date"
+                  disabled={selectedDateIndex <= 0}
+                  onClick={() => setDate(availableDates[selectedDateIndex - 1] ?? date)}
+                >
+                  <ArrowLeft className="size-4" />
+                </Button>
+                <DatePicker
+                  ariaLabel="Select price date"
+                  value={date}
+                  onValueChange={setDate}
+                  {...(availableDates[0] ? { min: availableDates[0] } : {})}
+                  max={todayValue()}
+                  className="h-11 w-full rounded-full px-4"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full"
+                  aria-label="Next available price date"
+                  disabled={selectedDateIndex < 0 || selectedDateIndex >= availableDates.length - 1}
+                  onClick={() => setDate(availableDates[selectedDateIndex + 1] ?? date)}
+                >
+                  <ArrowRight className="size-4" />
+                </Button>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                <span className="text-muted-foreground">
+                  {date === latestDate
+                    ? relativeUpdated(selectedUpdatedAt ?? null)
+                    : "Viewing saved price history"}
+                </span>
+                {date !== latestDate && latestDate ? (
+                  <button
+                    type="button"
+                    className="font-semibold text-primary hover:underline"
+                    onClick={() => setDate(latestDate)}
+                  >
+                    Jump to latest
+                  </button>
+                ) : null}
+              </div>
+            </div>
           </div>
         </section>
 
-        <details className="group mt-4 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-sm">
+        <details className="group mt-4 rounded-2xl border border-primary/15 bg-primary/[0.04] px-5 py-3.5 text-sm">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold">
             <span className="flex items-center gap-2">
               <BarChart3 className="size-5 text-primary" /> How PROCY pricing works
@@ -392,11 +425,14 @@ function DailyPricesPage() {
           </div>
         </details>
 
-        <section className="mt-7 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-          <div className="border-b border-border p-5 sm:p-6">
+        <section className="mt-6 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+          <div className="border-b border-border bg-muted/15 p-5 sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold">Price guide</h2>
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-primary">
+                  <SlidersHorizontal className="size-4" /> Browse prices
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold">Price guide</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {loading
                     ? "Loading the latest published prices…"
@@ -409,56 +445,63 @@ function DailyPricesPage() {
                 </Button>
               ) : null}
             </div>
-            <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-              <label className="relative lg:col-span-2">
-                <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted-foreground" />
+            <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-12">
+              <label className="relative lg:col-span-5">
+                <span className="sr-only">Search products</span>
+                <Search className="pointer-events-none absolute left-3.5 top-3.5 size-4 text-muted-foreground" />
                 <Input
                   aria-label="Search daily prices"
-                  className="pl-10"
+                  className="h-11 rounded-xl bg-background pl-10"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search product or crop type"
                 />
               </label>
-              <AppSelect
-                ariaLabel="Filter daily prices by PROCY market category"
-                value={marketCategory}
-                onValueChange={setMarketCategory}
-                options={[
-                  { value: "", label: "All categories" },
-                  ...procyMarketCategories.map((category) => ({
-                    value: category,
-                    label: category,
-                  })),
-                ]}
-              />
-              <AppSelect
-                ariaLabel="Filter by quality"
-                value={classification}
-                onValueChange={setClassification}
-                options={[
-                  { value: "", label: "All qualities" },
-                  ...classifications.map((quality) => ({ value: quality, label: quality })),
-                ]}
-              />
-              <AppSelect
-                ariaLabel="Filter by selling unit"
-                value={sellingUnit}
-                onValueChange={setSellingUnit}
-                options={[
-                  { value: "", label: "All selling units" },
-                  ...sellingUnits.map((unit) => ({ value: unit, label: sellingUnitLabel(unit) })),
-                ]}
-              />
+              <div className="lg:col-span-3">
+                <AppSelect
+                  ariaLabel="Filter daily prices by PROCY market category"
+                  value={marketCategory}
+                  onValueChange={setMarketCategory}
+                  options={[
+                    { value: "", label: "All categories" },
+                    ...procyMarketCategories.map((category) => ({
+                      value: category,
+                      label: category,
+                    })),
+                  ]}
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <AppSelect
+                  ariaLabel="Filter by quality"
+                  value={classification}
+                  onValueChange={setClassification}
+                  options={[
+                    { value: "", label: "All qualities" },
+                    ...classifications.map((quality) => ({ value: quality, label: quality })),
+                  ]}
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <AppSelect
+                  ariaLabel="Filter by selling unit"
+                  value={sellingUnit}
+                  onValueChange={setSellingUnit}
+                  options={[
+                    { value: "", label: "All units" },
+                    ...sellingUnits.map((unit) => ({ value: unit, label: sellingUnitLabel(unit) })),
+                  ]}
+                />
+              </div>
             </div>
-            <label className="mt-4 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-border px-4 text-sm font-medium">
-              <input
-                type="checkbox"
-                checked={availableOnly}
-                onChange={(event) => setAvailableOnly(event.target.checked)}
-                className="size-4 accent-primary"
-              />{" "}
-              Available products only
+            <label className="mt-4 inline-flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium shadow-sm">
+              <Switch checked={availableOnly} onCheckedChange={setAvailableOnly} />
+              <span>
+                Available products only
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  Hide sold-out items
+                </span>
+              </span>
             </label>
           </div>
 
