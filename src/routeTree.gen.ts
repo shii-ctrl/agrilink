@@ -21,6 +21,7 @@ import { Route as SetupManagementRouteImport } from './routes/setup-management'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AccountingIndexRouteImport } from './routes/accounting.index'
 import { Route as AccountingCommunityRouteImport } from './routes/accounting.community'
+import { Route as AccountingFarmerPayoutsRouteImport } from './routes/accounting.farmer-payouts'
 import { Route as AccountingPaymentsRouteImport } from './routes/accounting.payments'
 import { Route as AccountingProfileRouteImport } from './routes/accounting.profile'
 import { Route as AccountingRefundsRouteImport } from './routes/accounting.refunds'
@@ -35,6 +36,7 @@ import { Route as BuyerProfileRouteImport } from './routes/buyer.profile'
 import { Route as FarmerIndexRouteImport } from './routes/farmer.index'
 import { Route as FarmerCommunityRouteImport } from './routes/farmer.community'
 import { Route as FarmerCropAiRouteImport } from './routes/farmer.crop-ai'
+import { Route as FarmerEarningsRouteImport } from './routes/farmer.earnings'
 import { Route as FarmerProfileRouteImport } from './routes/farmer.profile'
 import { Route as FarmerReceivingRouteImport } from './routes/farmer.receiving'
 import { Route as ManagementIndexRouteImport } from './routes/management.index'
@@ -130,6 +132,11 @@ const AccountingCommunityRoute = AccountingCommunityRouteImport.update({
   path: '/accounting/community',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountingFarmerPayoutsRoute = AccountingFarmerPayoutsRouteImport.update({
+  id: '/accounting/farmer-payouts',
+  path: '/accounting/farmer-payouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccountingPaymentsRoute = AccountingPaymentsRouteImport.update({
   id: '/accounting/payments',
   path: '/accounting/payments',
@@ -198,6 +205,11 @@ const FarmerCommunityRoute = FarmerCommunityRouteImport.update({
 const FarmerCropAiRoute = FarmerCropAiRouteImport.update({
   id: '/farmer/crop-ai',
   path: '/farmer/crop-ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FarmerEarningsRoute = FarmerEarningsRouteImport.update({
+  id: '/farmer/earnings',
+  path: '/farmer/earnings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerProfileRoute = FarmerProfileRouteImport.update({
@@ -385,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/setup-management': typeof SetupManagementRoute
   '/terms': typeof TermsRoute
   '/accounting/community': typeof AccountingCommunityRoute
+  '/accounting/farmer-payouts': typeof AccountingFarmerPayoutsRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
   '/accounting/refunds': typeof AccountingRefundsRoute
@@ -397,6 +410,7 @@ export interface FileRoutesByFullPath {
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
   '/farmer/crop-ai': typeof FarmerCropAiRoute
+  '/farmer/earnings': typeof FarmerEarningsRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
@@ -447,6 +461,7 @@ export interface FileRoutesByTo {
   '/setup-management': typeof SetupManagementRoute
   '/terms': typeof TermsRoute
   '/accounting/community': typeof AccountingCommunityRoute
+  '/accounting/farmer-payouts': typeof AccountingFarmerPayoutsRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
   '/accounting/refunds': typeof AccountingRefundsRoute
@@ -459,6 +474,7 @@ export interface FileRoutesByTo {
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
   '/farmer/crop-ai': typeof FarmerCropAiRoute
+  '/farmer/earnings': typeof FarmerEarningsRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
@@ -510,6 +526,7 @@ export interface FileRoutesById {
   '/setup-management': typeof SetupManagementRoute
   '/terms': typeof TermsRoute
   '/accounting/community': typeof AccountingCommunityRoute
+  '/accounting/farmer-payouts': typeof AccountingFarmerPayoutsRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
   '/accounting/refunds': typeof AccountingRefundsRoute
@@ -522,6 +539,7 @@ export interface FileRoutesById {
   '/buyer/profile': typeof BuyerProfileRoute
   '/farmer/community': typeof FarmerCommunityRoute
   '/farmer/crop-ai': typeof FarmerCropAiRoute
+  '/farmer/earnings': typeof FarmerEarningsRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
@@ -574,6 +592,7 @@ export interface FileRouteTypes {
     | '/setup-management'
     | '/terms'
     | '/accounting/community'
+    | '/accounting/farmer-payouts'
     | '/accounting/payments'
     | '/accounting/profile'
     | '/accounting/refunds'
@@ -586,6 +605,7 @@ export interface FileRouteTypes {
     | '/buyer/profile'
     | '/farmer/community'
     | '/farmer/crop-ai'
+    | '/farmer/earnings'
     | '/farmer/profile'
     | '/farmer/receiving'
     | '/management/community'
@@ -636,6 +656,7 @@ export interface FileRouteTypes {
     | '/setup-management'
     | '/terms'
     | '/accounting/community'
+    | '/accounting/farmer-payouts'
     | '/accounting/payments'
     | '/accounting/profile'
     | '/accounting/refunds'
@@ -648,6 +669,7 @@ export interface FileRouteTypes {
     | '/buyer/profile'
     | '/farmer/community'
     | '/farmer/crop-ai'
+    | '/farmer/earnings'
     | '/farmer/profile'
     | '/farmer/receiving'
     | '/management/community'
@@ -698,6 +720,7 @@ export interface FileRouteTypes {
     | '/setup-management'
     | '/terms'
     | '/accounting/community'
+    | '/accounting/farmer-payouts'
     | '/accounting/payments'
     | '/accounting/profile'
     | '/accounting/refunds'
@@ -710,6 +733,7 @@ export interface FileRouteTypes {
     | '/buyer/profile'
     | '/farmer/community'
     | '/farmer/crop-ai'
+    | '/farmer/earnings'
     | '/farmer/profile'
     | '/farmer/receiving'
     | '/management/community'
@@ -761,6 +785,7 @@ export interface RootRouteChildren {
   SetupManagementRoute: typeof SetupManagementRoute
   TermsRoute: typeof TermsRoute
   AccountingCommunityRoute: typeof AccountingCommunityRoute
+  AccountingFarmerPayoutsRoute: typeof AccountingFarmerPayoutsRoute
   AccountingPaymentsRoute: typeof AccountingPaymentsRoute
   AccountingProfileRoute: typeof AccountingProfileRoute
   AccountingRefundsRoute: typeof AccountingRefundsRoute
@@ -773,6 +798,7 @@ export interface RootRouteChildren {
   BuyerProfileRoute: typeof BuyerProfileRoute
   FarmerCommunityRoute: typeof FarmerCommunityRoute
   FarmerCropAiRoute: typeof FarmerCropAiRoute
+  FarmerEarningsRoute: typeof FarmerEarningsRoute
   FarmerProfileRoute: typeof FarmerProfileRoute
   FarmerReceivingRoute: typeof FarmerReceivingRoute
   ManagementCommunityRoute: typeof ManagementCommunityRoute
@@ -898,6 +924,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountingCommunityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accounting/farmer-payouts': {
+      id: '/accounting/farmer-payouts'
+      path: '/accounting/farmer-payouts'
+      fullPath: '/accounting/farmer-payouts'
+      preLoaderRoute: typeof AccountingFarmerPayoutsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/accounting/payments': {
       id: '/accounting/payments'
       path: '/accounting/payments'
@@ -994,6 +1027,13 @@ declare module '@tanstack/react-router' {
       path: '/farmer/crop-ai'
       fullPath: '/farmer/crop-ai'
       preLoaderRoute: typeof FarmerCropAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/farmer/earnings': {
+      id: '/farmer/earnings'
+      path: '/farmer/earnings'
+      fullPath: '/farmer/earnings'
+      preLoaderRoute: typeof FarmerEarningsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/farmer/profile': {
@@ -1249,6 +1289,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupManagementRoute: SetupManagementRoute,
   TermsRoute: TermsRoute,
   AccountingCommunityRoute: AccountingCommunityRoute,
+  AccountingFarmerPayoutsRoute: AccountingFarmerPayoutsRoute,
   AccountingPaymentsRoute: AccountingPaymentsRoute,
   AccountingProfileRoute: AccountingProfileRoute,
   AccountingRefundsRoute: AccountingRefundsRoute,
@@ -1261,6 +1302,7 @@ const rootRouteChildren: RootRouteChildren = {
   BuyerProfileRoute: BuyerProfileRoute,
   FarmerCommunityRoute: FarmerCommunityRoute,
   FarmerCropAiRoute: FarmerCropAiRoute,
+  FarmerEarningsRoute: FarmerEarningsRoute,
   FarmerProfileRoute: FarmerProfileRoute,
   FarmerReceivingRoute: FarmerReceivingRoute,
   ManagementCommunityRoute: ManagementCommunityRoute,

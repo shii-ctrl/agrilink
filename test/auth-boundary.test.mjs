@@ -1426,3 +1426,31 @@ test("public landing and marketplace pages share responsive page gutters", async
   assert.match(home, /items-start/);
   assert.doesNotMatch(marketplace, /max-w-6xl px-4 pb-24 pt-8/);
 });
+
+test("Farmer earnings use fixed deductions and Accounting-only cash releases", async () => {
+  const [policy, settlements, accounting, farmer, management, marketplace] = await Promise.all([
+    readFile("src/features/settlements/policy.ts", "utf8"),
+    readFile("src/services/settlements/farmer-settlement-server-functions.ts", "utf8"),
+    readFile("src/routes/accounting.farmer-payouts.tsx", "utf8"),
+    readFile("src/routes/farmer.earnings.tsx", "utf8"),
+    readFile("src/routes/management.index.tsx", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+  ]);
+
+  assert.match(policy, /FARMER_SERVICE_FEE_PER_KILOGRAM = 1\.25/);
+  assert.match(policy, /FARMER_IPON_PER_KILOGRAM = 0\.5/);
+  assert.match(policy, /FARMER_TOTAL_DEDUCTION_PER_KILOGRAM = 1\.75/);
+  assert.match(marketplace, /owner\.sellingUnit === "kg"/);
+  assert.match(settlements, /export const releaseFarmerCashPayout/);
+  assert.match(settlements, /export const releaseFarmerIpon/);
+  assert.match(settlements, /requireRole\("Accounting"\)/);
+  assert.doesNotMatch(settlements, /requireRole\("Management"\)[\s\S]{0,500}releaseFarmer/);
+  assert.match(accounting, /Confirm cash released/);
+  assert.match(accounting, /Accounting is the only release authority/);
+  assert.match(farmer, /Available earnings/);
+  assert.match(farmer, /Current IPON/);
+  assert.doesNotMatch(farmer, /Confirm cash released/);
+  assert.match(management, /Monitoring only/);
+  assert.match(marketplace, /status: "pending_payment"/);
+  assert.match(marketplace, /status: "available", eligibleAt: new Date\(\)/);
+});

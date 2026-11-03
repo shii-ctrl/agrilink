@@ -1,17 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PackageCheck } from "lucide-react";
+import { PackageCheck, PiggyBank, WalletCards } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
 import { Button } from "@/components/ui/button";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { getFarmerProductStatuses } from "@/services/operations/receiving-server-functions";
+import { getFarmerSettlementWorkspace } from "@/services/settlements/farmer-settlement-server-functions";
+import { settlementMoney } from "@/features/settlements/policy";
 export const Route = createFileRoute("/farmer/")({ component: FarmerDashboard });
 const emptyStatuses: Awaited<ReturnType<typeof getFarmerProductStatuses>> = [];
 function FarmerDashboard() {
   const request = useCallback(async () => {
-    const statuses = await getFarmerProductStatuses();
-    return { statuses };
+    const [statuses, settlement] = await Promise.all([
+      getFarmerProductStatuses(),
+      getFarmerSettlementWorkspace(),
+    ]);
+    return { statuses, settlement };
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(request);
   const statuses = data?.statuses ?? emptyStatuses;
@@ -35,12 +40,24 @@ function FarmerDashboard() {
         />
         {!loading && !error && (
           <>
-            <section className="grid max-w-xl gap-4">
+            <section className="grid gap-4 sm:grid-cols-3">
               <Tile
                 icon={PackageCheck}
                 title="Receiving History"
                 text={`${availableKg} kg of your classified product stock is currently available.`}
                 to="/farmer/receiving"
+              />
+              <Tile
+                icon={WalletCards}
+                title="Available earnings"
+                text={`${settlementMoney(data?.settlement.availableTotal ?? 0)} remains available until Accounting gives you the cash.`}
+                to="/farmer/earnings"
+              />
+              <Tile
+                icon={PiggyBank}
+                title="IPON"
+                text={`${settlementMoney(data?.settlement.iponBalance ?? 0)} is currently saved for your December release.`}
+                to="/farmer/earnings"
               />
             </section>
             <section className="mt-6 rounded-3xl border border-primary/20 bg-accent p-6 text-sm text-accent-foreground">
@@ -76,7 +93,7 @@ function Tile({
   icon: typeof PackageCheck;
   title: string;
   text: string;
-  to: "/farmer/receiving";
+  to: "/farmer/receiving" | "/farmer/earnings";
 }) {
   return (
     <article className="rounded-3xl border border-border bg-card p-6 shadow-card">

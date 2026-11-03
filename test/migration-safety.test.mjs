@@ -185,3 +185,16 @@ test("Community engagement migration preserves posts while adding media and mode
   assert.match(migration, /community_reports_message_reporter_unique/);
   assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
 });
+
+test("Farmer settlement migration starts with new sales and preserves existing orders", async () => {
+  const migration = await readFile("drizzle/0039_farmer_earnings_and_ipon.sql", "utf8");
+
+  assert.match(migration, /farmer_settlement_eligible BOOLEAN NOT NULL DEFAULT FALSE/);
+  assert.match(migration, /ALTER COLUMN farmer_settlement_eligible SET DEFAULT TRUE/);
+  assert.match(migration, /CREATE TABLE farmer_earnings/);
+  assert.match(migration, /CREATE TABLE farmer_payouts/);
+  assert.match(migration, /CREATE TABLE farmer_ipon_releases/);
+  assert.match(migration, /method ENUM\('cash'\)/);
+  assert.doesNotMatch(migration, /UPDATE orders SET farmer_settlement_eligible = TRUE/);
+  assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
+});

@@ -319,3 +319,21 @@ input[type="number"] {
   appearance: textfield;
   -moz-appearance: textfield;
 }
+@media print {
+  body:has([data-settlement-receipt]) * {
+    visibility: hidden !important;
+  }
+
+  body:has([data-settlement-receipt]) [data-settlement-receipt],
+  body:has([data-settlement-receipt]) [data-settlement-receipt] * {
+    visibility: visible !important;
+  }
+
+  body:has([data-settlement-receipt]) [data-settlement-receipt] {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    padding: 2rem;
+    background: white;
+  }
+}

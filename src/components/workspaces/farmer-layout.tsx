@@ -1,5 +1,13 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bot, LogOut, MessageCircle, PackageCheck, Sprout, UserRound } from "lucide-react";
+import {
+  Bot,
+  LogOut,
+  MessageCircle,
+  PackageCheck,
+  PiggyBank,
+  Sprout,
+  UserRound,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { signOutCurrentAccount } from "@/lib/auth/session-view";
 import { RoleGate } from "@/components/layout/role-gate";
@@ -25,6 +33,7 @@ import {
 const nav = [
   { label: "Dashboard", to: "/farmer", icon: Sprout },
   { label: "Receiving History", to: "/farmer/receiving", icon: PackageCheck },
+  { label: "Earnings & IPON", to: "/farmer/earnings", icon: PiggyBank },
   { label: "Ask Crop AI", to: "/farmer/crop-ai", icon: Bot },
   { label: "Community", to: "/farmer/community", icon: MessageCircle },
 ] as const;

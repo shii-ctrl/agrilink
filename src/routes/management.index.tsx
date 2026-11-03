@@ -19,6 +19,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { getManagementDashboard } from "@/services/marketplace/marketplace-server-functions";
+import { getManagementFarmerSettlementSummary } from "@/services/settlements/farmer-settlement-server-functions";
+import { settlementMoney } from "@/features/settlements/policy";
 
 export const Route = createFileRoute("/management/")({
   head: () => ({
@@ -67,8 +69,8 @@ function ManagementDashboard() {
   const [range, setRange] = useState<"day" | "month" | "all">("day");
   const isMonthly = range === "month";
   const isAllTime = range === "all";
-  const request = useCallback(
-    () =>
+  const request = useCallback(async () => {
+    const [report, settlement] = await Promise.all([
       getManagementDashboard({
         data:
           range === "all"
@@ -77,8 +79,10 @@ function ManagementDashboard() {
               ? { range: "month" }
               : { range: "day", date: selectedDate },
       }),
-    [range, selectedDate, selectedYear],
-  );
+      getManagementFarmerSettlementSummary(),
+    ]);
+    return { report, settlement };
+  }, [range, selectedDate, selectedYear]);
 
   useEffect(() => {
     const keepTodayCurrent = () => {
@@ -89,7 +93,9 @@ function ManagementDashboard() {
     const interval = window.setInterval(keepTodayCurrent, 60_000);
     return () => window.clearInterval(interval);
   }, [today]);
-  const { data: report, loading, error, reload } = useWorkspaceData(request);
+  const { data, loading, error, reload } = useWorkspaceData(request);
+  const report = data?.report;
+  const settlement = data?.settlement;
 
   const summaryByLabel = useMemo(
     () => new Map((report?.summaries ?? []).map((item) => [item.label, item])),
@@ -243,6 +249,34 @@ function ManagementDashboard() {
                     <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
                   </article>
                 ))}
+              </div>
+            </section>
+
+            <section className="mt-8 rounded-3xl border border-border bg-card p-6 shadow-card">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold">Farmer settlement monitoring</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Read-only overview. Accounting alone confirms all earnings and IPON releases.
+                  </p>
+                </div>
+                <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                  Monitoring only
+                </span>
+              </div>
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                <SettlementMetric
+                  label="Available Farmer earnings"
+                  value={settlementMoney(settlement?.availableEarnings ?? 0)}
+                />
+                <SettlementMetric
+                  label="Outstanding IPON"
+                  value={settlementMoney(settlement?.iponLiability ?? 0)}
+                />
+                <SettlementMetric
+                  label="Released Farmer earnings"
+                  value={settlementMoney(settlement?.releasedEarnings ?? 0)}
+                />
               </div>
             </section>
 
@@ -461,5 +495,14 @@ function ManagementDashboard() {
         )}
       </main>
     </ManagementLayout>
+  );
+}
+
+function SettlementMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-muted/30 p-4">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-2 font-display text-2xl font-semibold text-primary">{value}</p>
+    </div>
   );
 }

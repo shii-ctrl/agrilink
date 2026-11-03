@@ -227,6 +227,7 @@ export const orders = mysqlTable(
     deliveryInstructions: text("delivery_instructions"),
     assignedRiderId: varchar("assigned_rider_id", { length: 36 }),
     deliveryOtpCode: varchar("delivery_otp_code", { length: 6 }),
+    farmerSettlementEligible: boolean("farmer_settlement_eligible").default(true).notNull(),
     // The delivery fee is fixed at checkout so later Management changes do not
     // alter the amount a buyer agreed to pay for an existing order.
     deliveryFee: decimal("delivery_fee", { precision: 12, scale: 2 }).default("0.00").notNull(),
@@ -478,6 +479,81 @@ export const payments = mysqlTable(
   (table) => [
     uniqueIndex("payments_number_unique").on(table.paymentNumber),
     uniqueIndex("payments_order_unique").on(table.orderId),
+  ],
+);
+export const farmerEarnings = mysqlTable(
+  "farmer_earnings",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    orderId: varchar("order_id", { length: 36 }).notNull(),
+    inventoryId: varchar("inventory_id", { length: 36 }).notNull(),
+    receivingId: varchar("receiving_id", { length: 36 }).notNull(),
+    farmerId: varchar("farmer_id", { length: 36 }).notNull(),
+    productId: varchar("product_id", { length: 36 }).notNull(),
+    classificationId: int("classification_id").notNull(),
+    sellingUnit: mysqlEnum("selling_unit", ["kg", "piece", "bundle", "pack", "tray", "sack"])
+      .default("kg")
+      .notNull(),
+    quantity: decimal("quantity", { precision: 12, scale: 2 }).notNull(),
+    pricePerUnit: decimal("price_per_unit", { precision: 12, scale: 2 }).notNull(),
+    grossAmount: decimal("gross_amount", { precision: 12, scale: 2 }).notNull(),
+    serviceFee: decimal("service_fee", { precision: 12, scale: 2 }).notNull(),
+    iponContribution: decimal("ipon_contribution", { precision: 12, scale: 2 }).notNull(),
+    netAmount: decimal("net_amount", { precision: 12, scale: 2 }).notNull(),
+    status: mysqlEnum("status", ["pending_payment", "available", "paid"])
+      .default("pending_payment")
+      .notNull(),
+    payoutId: varchar("payout_id", { length: 36 }),
+    iponReleaseId: varchar("ipon_release_id", { length: 36 }),
+    eligibleAt: datetime("eligible_at"),
+    paidAt: datetime("paid_at"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("farmer_earnings_order_inventory_unique").on(table.orderId, table.inventoryId),
+    index("farmer_earnings_farmer_status_idx").on(table.farmerId, table.status, table.createdAt),
+    index("farmer_earnings_receiving_idx").on(table.receivingId, table.status),
+    index("farmer_earnings_ipon_idx").on(table.farmerId, table.iponReleaseId, table.status),
+  ],
+);
+export const farmerPayouts = mysqlTable(
+  "farmer_payouts",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    payoutNumber: varchar("payout_number", { length: 40 }).notNull(),
+    farmerId: varchar("farmer_id", { length: 36 }).notNull(),
+    receivingId: varchar("receiving_id", { length: 36 }).notNull(),
+    grossAmount: decimal("gross_amount", { precision: 12, scale: 2 }).notNull(),
+    serviceFee: decimal("service_fee", { precision: 12, scale: 2 }).notNull(),
+    iponContribution: decimal("ipon_contribution", { precision: 12, scale: 2 }).notNull(),
+    netAmount: decimal("net_amount", { precision: 12, scale: 2 }).notNull(),
+    method: mysqlEnum("method", ["cash"]).default("cash").notNull(),
+    releasedById: varchar("released_by_id", { length: 36 }).notNull(),
+    releasedAt: datetime("released_at").notNull(),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex("farmer_payouts_number_unique").on(table.payoutNumber),
+    index("farmer_payouts_farmer_idx").on(table.farmerId, table.releasedAt),
+    index("farmer_payouts_receiving_idx").on(table.receivingId, table.releasedAt),
+  ],
+);
+export const farmerIponReleases = mysqlTable(
+  "farmer_ipon_releases",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    releaseNumber: varchar("release_number", { length: 40 }).notNull(),
+    farmerId: varchar("farmer_id", { length: 36 }).notNull(),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    method: mysqlEnum("method", ["cash"]).default("cash").notNull(),
+    releasedById: varchar("released_by_id", { length: 36 }).notNull(),
+    releasedAt: datetime("released_at").notNull(),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex("farmer_ipon_releases_number_unique").on(table.releaseNumber),
+    index("farmer_ipon_releases_farmer_idx").on(table.farmerId, table.releasedAt),
   ],
 );
 export const inventoryMovements = mysqlTable(

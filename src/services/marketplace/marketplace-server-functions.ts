@@ -12,10 +12,84 @@ import {
   type SellingUnit,
 } from "@/features/marketplace/selling-units";
 import type { OrderRecord } from "@/features/marketplace/order-records";
+import {
+  FARMER_IPON_PER_KILOGRAM,
+  FARMER_SERVICE_FEE_PER_KILOGRAM,
+} from "@/features/settlements/policy";
 
 type MarketplaceDatabase = (typeof import("@/db/client.server"))["db"];
 type MarketplaceTransaction = Parameters<Parameters<MarketplaceDatabase["transaction"]>[0]>[0];
 const marketplaceQualityOrder: Classification[] = ["Good", "Semi", "Reject"];
+
+const moneyValue = (value: number) => Number(value.toFixed(2));
+
+async function createFarmerEarningsForSale(
+  tx: MarketplaceTransaction,
+  orderId: string,
+  settlementEligible: boolean,
+  lines: { inventoryId: string; quantityKg: string }[],
+) {
+  if (!settlementEligible) return;
+  const { farmerEarnings, inventory, listings, orderItems, products } = await import("@/db/schema");
+
+  for (const line of lines) {
+    const [owner] = await tx
+      .select({
+        farmerId: inventory.farmerId,
+        receivingId: inventory.receivingId,
+        productId: inventory.productId,
+        classificationId: inventory.classificationId,
+        sellingUnit: products.sellingUnit,
+      })
+      .from(inventory)
+      .innerJoin(products, eq(inventory.productId, products.id))
+      .where(eq(inventory.id, line.inventoryId));
+    if (!owner?.farmerId || !owner.receivingId) continue;
+
+    const [soldItem] = await tx
+      .select({ pricePerUnit: orderItems.pricePerKg })
+      .from(orderItems)
+      .innerJoin(listings, eq(orderItems.listingId, listings.id))
+      .where(
+        and(
+          eq(orderItems.orderId, orderId),
+          eq(listings.productId, owner.productId),
+          eq(listings.classificationId, owner.classificationId),
+        ),
+      );
+    if (!soldItem) continue;
+
+    const quantity = Number(line.quantityKg);
+    const pricePerUnit = Number(soldItem.pricePerUnit);
+    const grossAmount = moneyValue(quantity * pricePerUnit);
+    const usesKilogramDeduction = owner.sellingUnit === "kg";
+    const serviceFee = usesKilogramDeduction
+      ? moneyValue(quantity * FARMER_SERVICE_FEE_PER_KILOGRAM)
+      : 0;
+    const iponContribution = usesKilogramDeduction
+      ? moneyValue(quantity * FARMER_IPON_PER_KILOGRAM)
+      : 0;
+    const netAmount = moneyValue(grossAmount - serviceFee - iponContribution);
+
+    await tx.insert(farmerEarnings).values({
+      id: crypto.randomUUID(),
+      orderId,
+      inventoryId: line.inventoryId,
+      receivingId: owner.receivingId,
+      farmerId: owner.farmerId,
+      productId: owner.productId,
+      classificationId: owner.classificationId,
+      sellingUnit: owner.sellingUnit,
+      quantity: quantity.toFixed(2),
+      pricePerUnit: pricePerUnit.toFixed(2),
+      grossAmount: grossAmount.toFixed(2),
+      serviceFee: serviceFee.toFixed(2),
+      iponContribution: iponContribution.toFixed(2),
+      netAmount: netAmount.toFixed(2),
+      status: "pending_payment",
+    });
+  }
+}
 
 function marketplaceQualityRank(classification: string) {
   const rank = marketplaceQualityOrder.indexOf(classification as Classification);
@@ -2838,7 +2912,7 @@ export const updateCodRemittance = createServerFn({ method: "POST" })
     const { requireUser, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireUser();
     const { db } = await import("@/db/client.server");
-    const { codRemittances, orders, payments } = await import("@/db/schema");
+    const { codRemittances, farmerEarnings, orders, payments } = await import("@/db/schema");
     const result = await db.transaction(async (tx) => {
       const [row] = await tx
         .select({ remittance: codRemittances, order: orders })
@@ -2894,6 +2968,15 @@ export const updateCodRemittance = createServerFn({ method: "POST" })
               paidAt: now,
             });
           }
+          await tx
+            .update(farmerEarnings)
+            .set({ status: "available", eligibleAt: now })
+            .where(
+              and(
+                eq(farmerEarnings.orderId, row.order.id),
+                eq(farmerEarnings.status, "pending_payment"),
+              ),
+            );
           await tx
             .update(codRemittances)
             .set({ status: "closed", closedAt: now, notes: data.notes ?? row.remittance.notes })
@@ -4366,6 +4449,7 @@ export const markDatabaseOrderSold = createServerFn({ method: "POST" })
           note: `Sold for ${order.orderNumber}.`,
         });
       }
+      await createFarmerEarningsForSale(tx, order.id, order.farmerSettlementEligible, lines);
       await tx.insert(orderStatusHistory).values({
         id: crypto.randomUUID(),
         orderId: order.id,
@@ -4559,7 +4643,7 @@ export const recordDatabasePayment = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Accounting");
     const { db } = await import("@/db/client.server");
-    const { orders, payments } = await import("@/db/schema");
+    const { farmerEarnings, orders, payments } = await import("@/db/schema");
     const payment = await db.transaction(async (tx) => {
       const [order] = await tx
         .select()
@@ -4589,6 +4673,12 @@ export const recordDatabasePayment = createServerFn({ method: "POST" })
         recordedById: actor.id,
         paidAt: new Date(),
       });
+      await tx
+        .update(farmerEarnings)
+        .set({ status: "available", eligibleAt: new Date() })
+        .where(
+          and(eq(farmerEarnings.orderId, order.id), eq(farmerEarnings.status, "pending_payment")),
+        );
       await writeAuditLog(actor.id, "payment.record", "payment", paymentNumber, {
         orderNumber: order.orderNumber,
       });
