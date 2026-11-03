@@ -1413,3 +1413,16 @@ test("the first action blocks competing buttons until its mutation finishes", as
   assert.match(root, /<ActionLockShield \/>/);
   assert.match(shield, /Processing… Please wait/);
 });
+
+test("public landing and marketplace pages share responsive page gutters", async () => {
+  const [home, marketplace] = await Promise.all([
+    readFile("src/routes/index.tsx", "utf8"),
+    readFile("src/routes/marketplace.index.tsx", "utf8"),
+  ]);
+
+  const sharedGutters = /px-4[^"\n]*sm:px-6[^"\n]*lg:px-8/;
+  assert.match(home, sharedGutters);
+  assert.match(marketplace, sharedGutters);
+  assert.match(home, /items-start/);
+  assert.doesNotMatch(marketplace, /max-w-6xl px-4 pb-24 pt-8/);
+});

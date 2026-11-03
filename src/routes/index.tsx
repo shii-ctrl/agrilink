@@ -256,9 +256,9 @@ function Index() {
       />
 
       <main className="overflow-x-clip">
-        <section className="border-b border-border/70 bg-cream py-5 dark:bg-forest sm:py-12">
-          <div className="grid w-full items-center gap-8 px-4 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12 lg:px-8">
-            <div className="min-w-0 py-2 text-foreground dark:text-forest-foreground sm:py-8">
+        <section className="border-b border-border/70 bg-cream py-8 dark:bg-forest sm:py-12">
+          <div className="grid w-full items-start gap-8 px-4 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12 lg:px-8">
+            <div className="min-w-0 text-foreground dark:text-forest-foreground">
               <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary dark:border-white/20 dark:bg-white/10 dark:text-forest-foreground sm:px-4 sm:text-xs sm:tracking-[0.14em]">
                 <Sprout className="size-3.5" /> Fresh from PROCY farmer members
               </span>

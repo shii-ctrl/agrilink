@@ -115,7 +115,7 @@ function MarketplacePage() {
   );
 
   const catalog = (
-    <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8 sm:pb-0 sm:pt-12">
+    <main className="w-full px-4 pb-24 pt-8 sm:px-6 sm:pb-0 sm:pt-12 lg:px-8">
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
         · Public marketplace
       </p>
