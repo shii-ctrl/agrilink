@@ -33,10 +33,10 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh_-_0.75rem)] overflow-y-auto rounded-[2rem] border-primary/25 p-0 shadow-field sm:max-w-md">
+      <DialogContent className="w-[calc(100%_-_0.75rem)] max-h-[calc(100dvh_-_0.75rem)] overflow-hidden overscroll-contain rounded-[1.5rem] border-primary/25 bg-card p-0 text-card-foreground shadow-field sm:max-w-md sm:rounded-[2rem]">
         <div className="h-2 bg-primary" />
-        <div className="px-6 pb-7 pt-4 sm:px-9 sm:pb-9">
-          <DialogHeader className="items-center pt-2 text-center sm:text-center">
+        <div className="min-h-0 touch-pan-y overflow-y-auto px-6 pb-7 pt-4 [scrollbar-width:none] sm:px-9 sm:pb-9 [&::-webkit-scrollbar]:hidden">
+          <DialogHeader className="items-center bg-card/95 pr-0 pt-2 text-center sm:pr-0 sm:text-center">
             <span className="flex size-14 items-center justify-center rounded-2xl surface-sprout shadow-sm">
               <ProcyLogo className="size-12" />
             </span>
@@ -103,7 +103,7 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
                   pattern="[A-Za-z0-9][A-Za-z0-9._-]*"
                   placeholder="Choose a username"
                   required
-                  className="h-12 pl-10"
+                  className="auth-login-field h-12 border-border bg-background pl-10 text-foreground placeholder:text-muted-foreground"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -127,7 +127,7 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
                 minLength={minimumPasswordLength}
                 placeholder="Re-enter your password"
                 required
-                className="h-12"
+                className="auth-login-field h-12 border-border bg-background text-foreground placeholder:text-muted-foreground"
               />
               <p className="text-xs text-muted-foreground">{passwordHelpText}</p>
             </div>
@@ -189,7 +189,7 @@ function PasswordField({
           minLength={minimumPasswordLength}
           placeholder="At least 8 characters"
           required
-          className="h-12 px-10"
+          className="auth-login-field h-12 border-border bg-background px-10 text-foreground placeholder:text-muted-foreground"
         />
         <button
           type="button"
