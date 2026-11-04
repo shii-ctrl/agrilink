@@ -156,7 +156,7 @@ function RootComponent() {
   }, []);
   useAutoRefresh(async () => {
     await Promise.all([router.invalidate(), queryClient.invalidateQueries()]);
-  });
+  }, 0);
 
   return (
     <QueryClientProvider client={queryClient}>

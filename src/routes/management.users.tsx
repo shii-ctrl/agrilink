@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { History, ImageOff, Power, Search, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { Button } from "@/components/ui/button";
 import { ProfileAvatar } from "@/components/profile-avatar";

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Bike, MapPin, Phone, RefreshCw, Truck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
 
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";

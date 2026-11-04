@@ -40,7 +40,7 @@ export function useWorkspaceUser(role: string) {
       window.removeEventListener("agrilink:profile-updated", onProfileUpdated);
     };
   }, [loadUser, role]);
-  useAutoRefresh(() => loadUser().catch(() => undefined));
+  useAutoRefresh(() => loadUser().catch(() => undefined), 60_000);
 
   const initials = useMemo(
     () =>

@@ -23,7 +23,8 @@ import {
   X,
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
+import { userFacingErrorMessage } from "@/lib/ui/user-facing-error";
 
 import {
   getCommunityMessages,
@@ -414,7 +415,7 @@ export function CommunityFeed({
       if (document.visibilityState === "visible") {
         void load({ preservePages: true, silent: true });
       }
-    }, 4_000);
+    }, 15_000);
     const refreshOnFocus = () => void load({ preservePages: true, silent: true });
     const refreshOnVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -765,7 +766,9 @@ export function CommunityFeed({
         {loadError && !loading && (
           <div className="rounded-3xl border border-destructive/30 bg-destructive/5 p-6 text-center shadow-card">
             <p className="font-semibold">Could not load Community posts</p>
-            <p className="mt-2 text-sm text-muted-foreground">{loadError}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {userFacingErrorMessage(loadError)}
+            </p>
             <Button
               type="button"
               variant="outline"

@@ -1,6 +1,6 @@
 import { Bell, CheckCheck, ExternalLink, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -46,7 +46,7 @@ export function NotificationCenter({ role }: { role: string }) {
     void refresh();
     const polling = window.setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
-    }, 4_000);
+    }, 12_000);
     const refreshOnFocus = () => void refresh();
     const refreshOnVisibility = () => {
       if (document.visibilityState === "visible") void refresh();

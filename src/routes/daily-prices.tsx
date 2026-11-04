@@ -27,7 +27,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
+import { userFacingErrorMessage } from "@/lib/ui/user-facing-error";
 
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
@@ -526,7 +527,9 @@ function DailyPricesPage() {
           ) : loadError ? (
             <div className="p-10 text-center">
               <h3 className="font-semibold">Prices could not be loaded</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{loadError}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {userFacingErrorMessage(loadError)}
+              </p>
               <Button className="mt-4 rounded-full" onClick={() => void loadPrices()}>
                 Try again
               </Button>

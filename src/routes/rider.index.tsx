@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Bike, CircleDollarSign, MapPin, Phone, ShieldCheck } from "lucide-react";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
 
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Card, CardContent } from "@/components/ui/card";

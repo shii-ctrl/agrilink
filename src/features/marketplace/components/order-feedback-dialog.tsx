@@ -1,6 +1,6 @@
 import { LoaderCircle, MessageSquareText, Star } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "@/lib/ui/toast";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -63,6 +63,8 @@ export function OrderFeedbackDialog({
   const [riderRating, setRiderRating] = useState(0);
   const [itemRatings, setItemRatings] = useState<Record<string, number>>({});
   const [comment, setComment] = useState("");
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
 
   useEffect(() => {
     if (!open || !orderNumber) return;
@@ -85,7 +87,7 @@ export function OrderFeedbackDialog({
         toast.error("Could not load order feedback", {
           description: error instanceof Error ? error.message : "Please try again.",
         });
-        onOpenChange(false);
+        onOpenChangeRef.current(false);
       })
       .finally(() => {
         if (active) setLoading(false);

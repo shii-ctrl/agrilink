@@ -4,16 +4,16 @@ AgriLink is one full-stack TanStack Start application. The browser interface and
 server functions are deployed together, so this structure keeps one reliable
 deployment while separating responsibilities clearly.
 
-| Folder | Purpose |
-| --- | --- |
-| `routes/` | URL entry points. These remain flat because TanStack generates routes from file names. |
-| `features/` | Business features and their feature-specific UI: authentication, marketplace, messaging, and operations. |
-| `services/` | Protected server functions, grouped by authentication, marketplace, messaging, and operations. |
-| `components/` | Reusable application UI: shared layouts, workspace shells, data controls, and the generated UI kit. |
-| `db/` | Database connection, schema, and development seed data. |
-| `hooks/` | Shared React hooks. |
-| `lib/` | Small shared helpers, error handling, and prototype/demo helpers. |
-| `assets/` | Static images used by the application. |
+| Folder        | Purpose                                                                                                  |
+| ------------- | -------------------------------------------------------------------------------------------------------- |
+| `routes/`     | URL entry points. These remain flat because TanStack generates routes from file names.                   |
+| `features/`   | Business features and their feature-specific UI: authentication, marketplace, messaging, and operations. |
+| `services/`   | Protected server functions, grouped by authentication, marketplace, messaging, and operations.           |
+| `components/` | Reusable application UI: shared layouts, workspace shells, data controls, and the generated UI kit.      |
+| `db/`         | Database connection, schema, and development seed data.                                                  |
+| `hooks/`      | Shared React hooks.                                                                                      |
+| `lib/`        | Small shared helpers, error handling, and prototype/demo helpers.                                        |
+| `assets/`     | Static images used by the application.                                                                   |
 
 ## Adding a feature
 

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Eye, EyeOff, Pencil, RefreshCw, Tag, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
 
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";

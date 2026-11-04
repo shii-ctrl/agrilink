@@ -75,10 +75,7 @@ async function questionsRemaining(farmerId: string) {
   const [result] = await db
     .select({ total: count() })
     .from(farmerAiMessages)
-    .innerJoin(
-      farmerAiConversations,
-      eq(farmerAiMessages.conversationId, farmerAiConversations.id),
-    )
+    .innerJoin(farmerAiConversations, eq(farmerAiMessages.conversationId, farmerAiConversations.id))
     .where(
       and(
         eq(farmerAiConversations.farmerId, farmerId),
@@ -95,7 +92,12 @@ async function conversationForFarmer(farmerId: string, conversationId: string) {
   const [conversation] = await db
     .select()
     .from(farmerAiConversations)
-    .where(and(eq(farmerAiConversations.id, conversationId), eq(farmerAiConversations.farmerId, farmerId)));
+    .where(
+      and(
+        eq(farmerAiConversations.id, conversationId),
+        eq(farmerAiConversations.farmerId, farmerId),
+      ),
+    );
   if (!conversation) throw new Error("This crop conversation is not available to you.");
   return conversation;
 }
@@ -165,9 +167,7 @@ export const deleteFarmerCropAiConversation = createServerFn({ method: "POST" })
     const { farmerAiConversations, farmerAiMessages } = await import("@/db/schema");
 
     await db.transaction(async (tx) => {
-      await tx
-        .delete(farmerAiMessages)
-        .where(eq(farmerAiMessages.conversationId, conversation.id));
+      await tx.delete(farmerAiMessages).where(eq(farmerAiMessages.conversationId, conversation.id));
       await tx
         .delete(farmerAiConversations)
         .where(
@@ -179,24 +179,31 @@ export const deleteFarmerCropAiConversation = createServerFn({ method: "POST" })
     });
 
     const { writeAuditLog } = await import("@/services/auth/auth-server");
-    await writeAuditLog(farmer.id, "farmer_crop_ai.delete", "farmer_ai_conversation", conversation.id, {
-      cropName: conversation.cropName,
-    });
+    await writeAuditLog(
+      farmer.id,
+      "farmer_crop_ai.delete",
+      "farmer_ai_conversation",
+      conversation.id,
+      {
+        cropName: conversation.cropName,
+      },
+    );
 
     return { deletedConversationId: conversation.id };
   });
 
-async function askGemini(context: CropContext, history: Array<{ sender: "farmer" | "assistant"; message: string }>, question: string) {
+async function askGemini(
+  context: CropContext,
+  history: Array<{ sender: "farmer" | "assistant"; message: string }>,
+  question: string,
+) {
   const apiKey = process.env["GEMINI_API_KEY"]?.trim();
   if (!apiKey) {
     throw new Error("Crop AI is not configured yet. Please contact Management.");
   }
   const configuredModel = process.env["GEMINI_MODEL"]?.trim();
   const models = Array.from(
-    new Set([
-      ...(configuredModel ? [configuredModel] : []),
-      ...defaultGeminiModels,
-    ]),
+    new Set([...(configuredModel ? [configuredModel] : []), ...defaultGeminiModels]),
   );
   const contents = [
     ...history.map((entry) => ({
@@ -244,10 +251,16 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
     }
 
     const providerError = (await response.json().catch(() => null)) as GeminiErrorResponse | null;
-    const providerCode = typeof providerError?.error?.code === "number" ? providerError.error.code : response.status;
-    const providerStatus = typeof providerError?.error?.status === "string" ? providerError.error.status : "UNKNOWN";
+    const providerCode =
+      typeof providerError?.error?.code === "number" ? providerError.error.code : response.status;
+    const providerStatus =
+      typeof providerError?.error?.status === "string" ? providerError.error.status : "UNKNOWN";
     // Never log the API key, question, crop name, or provider error body.
-    console.error("Crop AI provider request failed", { model, status: providerCode, providerStatus });
+    console.error("Crop AI provider request failed", {
+      model,
+      status: providerCode,
+      providerStatus,
+    });
     if ([404, 500, 503].includes(response.status) && index < models.length - 1) {
       console.warn("Crop AI retrying fallback model", { failedModel: model });
       continue;
@@ -256,13 +269,19 @@ async function askGemini(context: CropContext, history: Array<{ sender: "farmer"
       throw new Error("Crop AI is busy right now. Please wait a minute, then try again.");
     }
     if ([401, 403].includes(response.status)) {
-      throw new Error("Crop AI key was rejected. Management should check the Gemini API key in Vercel and redeploy.");
+      throw new Error(
+        "Crop AI key was rejected. Management should check the Gemini API key in Vercel and redeploy.",
+      );
     }
     if (response.status === 404) {
-      throw new Error("Crop AI model was not found. Management should check the Gemini model setting in Vercel.");
+      throw new Error(
+        "Crop AI model was not found. Management should check the Gemini model setting in Vercel.",
+      );
     }
     if (response.status === 400) {
-      throw new Error("Crop AI setup needs attention. Management should check the Gemini configuration in Vercel.");
+      throw new Error(
+        "Crop AI setup needs attention. Management should check the Gemini configuration in Vercel.",
+      );
     }
     throw new Error("Crop AI is temporarily unavailable. Please try again in a few minutes.");
   }
@@ -280,7 +299,9 @@ export const askFarmerCropAi = createServerFn({ method: "POST" })
     }
     const remaining = await questionsRemaining(farmer.id);
     if (remaining <= 0) {
-      throw new Error("You have reached the 20-question limit for the last 24 hours. Please try again later.");
+      throw new Error(
+        "You have reached the 20-question limit for the last 24 hours. Please try again later.",
+      );
     }
     const { db } = await import("@/db/client.server");
     const { farmerAiConversations, farmerAiMessages } = await import("@/db/schema");
@@ -336,7 +357,10 @@ export const askFarmerCropAi = createServerFn({ method: "POST" })
         await tx.insert(farmerAiMessages).values([farmerMessage, assistantMessage]);
         await tx
           .update(farmerAiConversations)
-          .set({ cropName: context.cropName, plantingDate: normalizedPlantingDate(context.plantingDate) })
+          .set({
+            cropName: context.cropName,
+            plantingDate: normalizedPlantingDate(context.plantingDate),
+          })
           .where(eq(farmerAiConversations.id, conversationId));
       });
     } catch {

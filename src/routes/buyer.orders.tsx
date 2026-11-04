@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CircleAlert, LoaderCircle, PackageCheck, RotateCcw, Star } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
 import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
 import { OrderDetails } from "@/features/marketplace/components/order-details";
 import { OrderFeedbackDialog } from "@/features/marketplace/components/order-feedback-dialog";

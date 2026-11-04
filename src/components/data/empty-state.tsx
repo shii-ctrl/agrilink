@@ -20,7 +20,13 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center px-5 text-center", compact ? "py-7" : "py-12", className)}>
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center px-5 text-center",
+        compact ? "py-7" : "py-12",
+        className,
+      )}
+    >
       <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
         <Icon className="size-5" />
       </span>

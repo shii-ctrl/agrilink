@@ -1,6 +1,7 @@
 import { LoaderCircle, MessageCircle, Search, Send, ShieldCheck, UserRound } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
+import { userFacingErrorMessage } from "@/lib/ui/user-facing-error";
 
 import { Button } from "@/components/ui/button";
 import { ProfileAvatar } from "@/components/profile-avatar";
@@ -139,7 +140,9 @@ export function DirectMessagesPanel({
       ) : error && !workspace ? (
         <div className="p-6">
           <p className="font-medium">Could not load private messages</p>
-          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {userFacingErrorMessage(error, "Could not load this conversation. Please try again.")}
+          </p>
           <Button
             className="mt-4 rounded-full"
             variant="outline"

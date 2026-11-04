@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CircleDollarSign, ReceiptText, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
 
 import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
 import { Card, CardContent } from "@/components/ui/card";

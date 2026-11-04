@@ -152,6 +152,21 @@ test("public login errors never expose database queries", async () => {
   assert.doesNotMatch(loginDialog, /description:\s*error instanceof Error\s*\?\s*error\.message/);
 });
 
+test("user-facing errors redact database queries across workspace messages and toasts", async () => {
+  const [errorHelper, toastFacade, loadState] = await Promise.all([
+    readFile("src/lib/ui/user-facing-error.ts", "utf8"),
+    readFile("src/lib/ui/toast.ts", "utf8"),
+    readFile("src/components/data/workspace-load-state.tsx", "utf8"),
+  ]);
+
+  assert.match(errorHelper, /failed query/i);
+  assert.match(errorHelper, /sqlstate/i);
+  assert.match(errorHelper, /genericActionError/);
+  assert.match(toastFacade, /new Proxy\(sonnerToast/);
+  assert.match(toastFacade, /userFacingErrorMessage/);
+  assert.match(loadState, /userFacingErrorMessage\(error\)/);
+});
+
 test("production responses set browser security headers", async () => {
   const server = await readFile("src/server.ts", "utf8");
 
@@ -258,6 +273,11 @@ test("marketplace browsing keeps the public layout with Buyer mobile shopping to
   }
   assert.doesNotMatch(buyerLayout, /pathname\.startsWith\("\/marketplace"\)/);
   assert.match(buyerLayout, /Buyer mobile navigation/);
+  assert.match(buyerLayout, /grid-cols-5/);
+  assert.doesNotMatch(
+    buyerLayout.match(/const mobileNav = \[[\s\S]*?\] as const;/)?.[0] ?? "",
+    /label: "Profile"/,
+  );
   assert.match(buyerLayout, /fixed inset-x-0 bottom-0/);
   assert.match(buyerLayout, /md:hidden/);
   assert.match(marketplace, /overflow-x-auto/);
@@ -517,7 +537,8 @@ test("role workspaces refresh saved operational data while users are active", as
   ]);
 
   assert.match(hook, /window\.addEventListener\("focus", refreshWhenVisible\)/);
-  assert.match(hook, /intervalMs = 5_000/);
+  assert.match(hook, /intervalMs = 20_000/);
+  assert.match(hook, /intervalMs > 0/);
   assert.match(hook, /agrilinkDataChangedEvent/);
   assert.match(hook, /window\.addEventListener\("storage", refreshFromStorage\)/);
   assert.match(hook, /refreshing\.current/);
@@ -531,6 +552,12 @@ test("role workspaces refresh saved operational data while users are active", as
   }
 });
 
+test("Marketer order queue uses cards through tablet widths", async () => {
+  const orders = await readFile("src/routes/marketer.orders.tsx", "utf8");
+  assert.match(orders, /grid gap-3 p-4 lg:hidden/);
+  assert.match(orders, /hidden overflow-x-auto lg:block/);
+});
+
 test("successful system actions trigger immediate and cross-tab soft refreshes", async () => {
   const [root, liveRefresh, home, workspaceUser] = await Promise.all([
     readFile("src/routes/__root.tsx", "utf8"),
@@ -542,6 +569,7 @@ test("successful system actions trigger immediate and cross-tab soft refreshes",
   assert.match(root, /installMutationRefreshObserver/);
   assert.match(root, /router\.invalidate\(\)/);
   assert.match(root, /queryClient\.invalidateQueries\(\)/);
+  assert.match(root, /}, 0\);/);
   assert.match(liveRefresh, /method !== "GET"/);
   assert.match(liveRefresh, /method !== "HEAD"/);
   assert.match(liveRefresh, /requestUrl\.origin === window\.location\.origin/);
@@ -966,10 +994,11 @@ test("new messages and Community activity create timely recipient notifications"
   assert.match(notifications, /communityTargetByRole/);
   assert.match(notifications, /excludeUserId/);
   assert.match(notificationCenter, /window\.setInterval/);
-  assert.match(notificationCenter, /4_000/);
+  assert.match(notificationCenter, /12_000/);
   assert.match(notificationCenter, /toast\(notification\.title/);
   assert.match(communityFeed, /Live updates are on/);
   assert.match(communityFeed, /window\.setInterval/);
+  assert.match(communityFeed, /15_000/);
   assert.match(communityFeed, /document\.visibilityState === "visible"/);
   assert.match(communityFeed, /Load more posts/);
   assert.match(communityFeed, /COMMUNITY_PAGE_SIZE = 25/);

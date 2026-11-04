@@ -44,7 +44,6 @@ const mobileNav = [
   { label: "Orders", to: "/buyer/orders", icon: ShoppingBag },
   { label: "Issues", to: "/buyer/issues", icon: CircleAlert },
   { label: "Messages", to: "/buyer/community", icon: MessageCircle },
-  { label: "Profile", to: "/buyer/profile", icon: UserRound },
 ] as const;
 
 function buyerNavIsActive(pathname: string, destination: string) {

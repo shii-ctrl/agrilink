@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Banknote, CheckCircle2, LoaderCircle, PiggyBank } from "lucide-react";
 import { useCallback, useState } from "react";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
 
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Button } from "@/components/ui/button";

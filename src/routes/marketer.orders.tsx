@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ClipboardCheck, PackageCheck, RefreshCw, Search, ShoppingCart } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/ui/toast";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { OrderDetails } from "@/features/marketplace/components/order-details";
@@ -301,7 +301,7 @@ function MarketerOrdersPage() {
                   </Button>
                 )}
               </ResponsiveFilterPanel>
-              <div className="grid gap-3 p-4 md:hidden">
+              <div className="grid gap-3 p-4 lg:hidden">
                 {ordersPage.pageItems.map((order) => (
                   <article key={order.id} className="rounded-2xl border border-border p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -373,7 +373,7 @@ function MarketerOrdersPage() {
                   </article>
                 ))}
               </div>
-              <div className="hidden overflow-x-auto md:block">
+              <div className="hidden overflow-x-auto lg:block">
                 <table className="w-full min-w-[980px] text-left text-sm">
                   <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
