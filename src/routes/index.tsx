@@ -274,11 +274,11 @@ function Index() {
                 <Sprout className="size-3.5" /> Fresh from PROCY farmer members
               </span>
               <h1 className="mt-4 max-w-3xl font-display text-[2rem] font-semibold leading-[1.06] tracking-tight min-[430px]:text-[2.25rem] sm:mt-6 sm:text-5xl md:text-6xl lg:text-7xl">
-                Fresh local produce, ready for pickup.
+                Fresh local produce, ready when you are.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground/70 dark:text-forest-foreground/80 sm:mt-5 sm:text-base md:text-lg">
-                Compare Good, Semi, and Reject options, check live stock, and place your order with
-                PROCY.
+                Compare Good, Semi, and Reject quality options, check live stock, and order for
+                pickup or delivery from PROCY.
               </p>
 
               <form
@@ -290,7 +290,7 @@ function Index() {
                   <Input
                     value={heroQuery}
                     onChange={(event) => setHeroQuery(event.target.value)}
-                    placeholder="Search vegetables, fruits, eggs…"
+                    placeholder="Search vegetables, fruits, eggs, and more…"
                     aria-label="Search marketplace products"
                     className="h-12 rounded-full border-white/70 bg-card/90 pl-11 pr-4 text-sm shadow-card backdrop-blur-md sm:h-14 sm:pl-12 sm:pr-5 sm:text-base"
                   />
@@ -307,7 +307,7 @@ function Index() {
               <div className="mt-3 grid grid-cols-1 gap-2 sm:mt-4 sm:flex sm:flex-wrap sm:gap-3">
                 <Button asChild size="lg" className="w-full rounded-full px-4 sm:w-auto sm:px-6">
                   <Link to="/marketplace" search={{ available: true }}>
-                    Shop available products <ArrowRight className="size-4" />
+                    Browse available products <ArrowRight className="size-4" />
                   </Link>
                 </Button>
                 <Button
@@ -316,7 +316,7 @@ function Index() {
                   variant="outline"
                   className="w-full rounded-full border-white/70 bg-card/85 px-4 backdrop-blur-md sm:w-auto sm:px-6"
                 >
-                  <Link to="/daily-prices">View daily prices</Link>
+                  <Link to="/daily-prices">View today&apos;s prices</Link>
                 </Button>
               </div>
 
