@@ -13,7 +13,7 @@ import { signOutCurrentAccount } from "@/lib/auth/session-view";
 import { RoleGate } from "@/components/layout/role-gate";
 import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
-import { NotificationCenter } from "@/features/messaging/components/notification-center";
+import { WorkspaceHeaderActions } from "@/components/workspaces/workspace-header-actions";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -187,9 +187,7 @@ export function BuyerPageHeader({ title, description }: { title: string; descrip
           {description}
         </p>
       </div>
-      <div className="shrink-0">
-        <NotificationCenter role="Buyer" />
-      </div>
+      <WorkspaceHeaderActions role="Buyer" />
     </header>
   );
 }

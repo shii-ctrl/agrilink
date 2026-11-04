@@ -18,7 +18,7 @@ import { signOutCurrentAccount } from "@/lib/auth/session-view";
 import { RoleGate } from "@/components/layout/role-gate";
 import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
-import { NotificationCenter } from "@/features/messaging/components/notification-center";
+import { WorkspaceHeaderActions } from "@/components/workspaces/workspace-header-actions";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -184,9 +184,7 @@ export function MarketerPageHeader({ title, description }: { title: string; desc
           <h1 className="mt-1 text-2xl font-semibold text-foreground sm:text-3xl">{title}</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>
         </div>
-        <div className="ml-auto">
-          <NotificationCenter role="Marketer" />
-        </div>
+        <WorkspaceHeaderActions role="Marketer" />
       </div>
     </header>
   );

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { RoleGate } from "@/components/layout/role-gate";
 import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
-import { NotificationCenter } from "@/features/messaging/components/notification-center";
+import { WorkspaceHeaderActions } from "@/components/workspaces/workspace-header-actions";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { signOutCurrentAccount } from "@/lib/auth/session-view";
@@ -137,9 +137,7 @@ export function RiderPageHeader({ title, description }: { title: string; descrip
         <h1 className="mt-1 text-2xl font-semibold md:text-3xl">{title}</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
       </div>
-      <div className="ml-auto">
-        <NotificationCenter role="Rider" />
-      </div>
+      <WorkspaceHeaderActions role="Rider" />
     </header>
   );
 }
