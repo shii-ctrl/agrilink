@@ -92,7 +92,7 @@ export function LoginDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[calc(100%_-_0.75rem)] max-h-[calc(100dvh_-_0.75rem)] overflow-hidden overscroll-contain rounded-[1.5rem] border-primary/25 p-0 shadow-field sm:max-w-md sm:rounded-[2rem]"
+        className="w-[calc(100%_-_0.75rem)] max-h-[calc(100dvh_-_0.75rem)] overflow-hidden overscroll-contain rounded-[1.5rem] border-primary/25 bg-card p-0 text-card-foreground shadow-field sm:max-w-md sm:rounded-[2rem]"
         style={
           visibleViewport
             ? {
@@ -105,7 +105,7 @@ export function LoginDialog({
         <div className="h-2 bg-primary" />
         <div className="min-h-0 overflow-y-auto px-5 pb-6 pt-3 sm:px-9 sm:pb-9 sm:pt-4">
           <DialogHeader
-            className={`text-center lg:items-center lg:pt-2 lg:text-center ${
+            className={`bg-card/95 text-center lg:items-center lg:pt-2 lg:text-center ${
               formFocused ? "items-start pt-0 text-left" : "items-center pt-2"
             }`}
           >
@@ -199,7 +199,7 @@ export function LoginDialog({
                   autoComplete="username"
                   placeholder="Username or email"
                   required
-                  className="h-12 pl-10"
+                  className="auth-login-field h-12 border-border bg-background pl-10 text-foreground placeholder:text-muted-foreground"
                 />
               </div>
             </div>
@@ -214,7 +214,7 @@ export function LoginDialog({
                   autoComplete="current-password"
                   placeholder="••••••••"
                   required
-                  className="h-12 px-10"
+                  className="auth-login-field h-12 border-border bg-background px-10 text-foreground placeholder:text-muted-foreground"
                 />
                 <button
                   type="button"

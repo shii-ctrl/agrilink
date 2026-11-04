@@ -195,6 +195,27 @@
     box-shadow: 0 0 0 1000px var(--background) inset;
     transition: background-color 9999s ease-out 0s;
   }
+
+  /* Chrome paints saved credentials with its own light surface. Keep login
+     fields aligned with the active AgriLink theme and preserve contrast. */
+  .auth-login-field {
+    color-scheme: light;
+  }
+
+  .dark .auth-login-field {
+    color-scheme: dark;
+  }
+
+  .auth-login-field:-webkit-autofill,
+  .auth-login-field:-webkit-autofill:hover,
+  .auth-login-field:-webkit-autofill:focus,
+  .auth-login-field:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--foreground) !important;
+    caret-color: var(--foreground) !important;
+    -webkit-box-shadow: 0 0 0 1000px var(--background) inset !important;
+    box-shadow: 0 0 0 1000px var(--background) inset !important;
+    border-color: var(--border) !important;
+  }
 }
 
 @media (max-width: 640px) {
