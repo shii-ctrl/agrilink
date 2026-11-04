@@ -190,7 +190,7 @@ function ProductDetail() {
     return Math.min(maximumSelectableQuantity, Math.max(quantityStep, rounded));
   }
 
-  function showBuyerAccessPrompt(action: "cart" | "checkout") {
+  function showBuyerAccessPrompt() {
     toast.custom(
       (id) => (
         <div className="relative w-[min(92vw,440px)] overflow-hidden rounded-3xl border border-primary/25 bg-card p-5 shadow-field">
@@ -210,15 +210,10 @@ function ProductDetail() {
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
                 Buyer access
               </p>
-              <h3 className="mt-1 text-lg font-semibold">
-                {action === "checkout"
-                  ? "Ready to place your order?"
-                  : "Ready to build your order?"}
-              </h3>
+              <h3 className="mt-1 text-lg font-semibold">Sign in to continue</h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Sign in or create a Buyer account to {action === "checkout" ? "buy" : "add"}{" "}
-                <span className="font-medium text-foreground">{product.name}</span>
-                {action === "checkout" ? " now." : " to your cart."}
+                Sign in or create a Buyer account to continue with{" "}
+                <span className="font-medium text-foreground">{product.name}</span>.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
@@ -250,7 +245,7 @@ function ProductDetail() {
 
   function handleAddToCart() {
     if (!isBuyer) {
-      showBuyerAccessPrompt("cart");
+      showBuyerAccessPrompt();
       return;
     }
 
@@ -274,7 +269,7 @@ function ProductDetail() {
 
   function handleBuyNow() {
     if (!isBuyer) {
-      showBuyerAccessPrompt("checkout");
+      showBuyerAccessPrompt();
       return;
     }
 
