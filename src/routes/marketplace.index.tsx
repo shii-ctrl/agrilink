@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Check, Grid2X2, List, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -42,6 +42,7 @@ export const Route = createFileRoute("/marketplace/")({
 });
 
 const classifications: Classification[] = ["Good", "Semi", "Reject"];
+type MobileCatalogView = "grid" | "list";
 
 function Chip({
   active,
@@ -88,6 +89,17 @@ function MarketplacePage() {
   const [grade, setGrade] = useState<Classification | null>(search.grade ?? null);
   const [inStockOnly, setInStockOnly] = useState(search.available ?? false);
   const [bundleDealsOnly, setBundleDealsOnly] = useState(search.deals ?? false);
+  const [mobileView, setMobileView] = useState<MobileCatalogView>("grid");
+
+  useEffect(() => {
+    const savedView = window.localStorage.getItem("agrilink-marketplace-mobile-view");
+    if (savedView === "grid" || savedView === "list") setMobileView(savedView);
+  }, []);
+
+  const selectMobileView = (view: MobileCatalogView) => {
+    setMobileView(view);
+    window.localStorage.setItem("agrilink-marketplace-mobile-view", view);
+  };
   const results = useMemo(
     () =>
       products.filter((p) => {
@@ -202,12 +214,45 @@ function MarketplacePage() {
 
       {results.length > 0 ? (
         <>
-          <p className="mt-8 text-sm text-muted-foreground">
-            {results.length} listing{results.length === 1 ? "" : "s"}
-          </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+          <div className="mt-8 flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              {results.length} listing{results.length === 1 ? "" : "s"}
+            </p>
+            <div
+              className="inline-flex items-center rounded-xl border border-border bg-card p-1 shadow-sm sm:hidden"
+              role="group"
+              aria-label="Marketplace view"
+            >
+              {(["grid", "list"] as const).map((view) => {
+                const active = mobileView === view;
+                const Icon = view === "grid" ? Grid2X2 : List;
+                return (
+                  <button
+                    key={view}
+                    type="button"
+                    onClick={() => selectMobileView(view)}
+                    aria-pressed={active}
+                    aria-label={`${view === "grid" ? "Grid" : "List"} view`}
+                    className={`flex min-h-9 min-w-11 items-center justify-center gap-1 rounded-lg px-2 text-sm transition-colors ${
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    }`}
+                  >
+                    {active ? <Check className="size-3.5" /> : null}
+                    <Icon className="size-4" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div
+            className={`mt-4 grid gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 ${
+              mobileView === "grid" ? "grid-cols-2" : "grid-cols-1"
+            }`}
+          >
             {results.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} mobileView={mobileView} />
             ))}
           </div>
         </>

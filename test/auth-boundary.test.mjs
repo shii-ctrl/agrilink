@@ -251,6 +251,22 @@ test("marketplace browsing keeps the public layout with Buyer mobile shopping to
   assert.match(productDetail, /pb-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\]/);
 });
 
+test("mobile marketplace supports remembered grid and list views", async () => {
+  const [marketplace, productCard] = await Promise.all([
+    readFile("src/routes/marketplace.index.tsx", "utf8"),
+    readFile("src/features/marketplace/components/product-card.tsx", "utf8"),
+  ]);
+
+  assert.match(marketplace, /type MobileCatalogView = "grid" \| "list"/);
+  assert.match(marketplace, /agrilink-marketplace-mobile-view/);
+  assert.match(marketplace, /aria-label="Marketplace view"/);
+  assert.match(marketplace, /aria-pressed=\{active\}/);
+  assert.match(marketplace, /mobileView === "grid" \? "grid-cols-2" : "grid-cols-1"/);
+  assert.match(productCard, /mobileView\?: "grid" \| "list"/);
+  assert.match(productCard, /mobileView === "list"/);
+  assert.match(productCard, /sm:aspect-\[4\/3\] sm:w-full/);
+});
+
 test("marketplace cart controls prevent duplicate additions beyond available stock", async () => {
   const source = await readFile("src/routes/marketplace.$productId.tsx", "utf8");
   assert.match(source, /const \[isAdding, setIsAdding\] = useState\(false\)/);

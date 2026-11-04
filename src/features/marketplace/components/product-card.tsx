@@ -6,7 +6,13 @@ import { peso, type Product } from "@/features/marketplace/products";
 import { ClassificationBadge } from "@/features/marketplace/components/classification-badge";
 import { formatSellingQuantity } from "@/features/marketplace/selling-units";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  mobileView = "grid",
+}: {
+  product: Product;
+  mobileView?: "grid" | "list";
+}) {
   const offers = product.offers?.length
     ? product.offers
     : [
@@ -84,7 +90,9 @@ export function ProductCard({ product }: { product: Product }) {
       onFocus={() => setPreviewing(true)}
       onBlur={stopPreview}
       aria-busy={isOpening}
-      className={`group relative flex flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-card transition-all ${
+      className={`group relative overflow-hidden border border-border bg-card shadow-card transition-all sm:flex sm:flex-col sm:rounded-3xl ${
+        mobileView === "list" ? "flex flex-row rounded-2xl" : "flex flex-col rounded-2xl"
+      } ${
         isOpening ? "pointer-events-none" : ""
       } ${outOfStock ? "opacity-80" : "hover:-translate-y-1 hover:shadow-field"}`}
     >
@@ -113,7 +121,11 @@ export function ProductCard({ product }: { product: Product }) {
             document.body,
           )
         : null}
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div
+        className={`relative shrink-0 overflow-hidden sm:aspect-[4/3] sm:w-full ${
+          mobileView === "list" ? "aspect-square w-28" : "aspect-square w-full"
+        }`}
+      >
         <div
           className="flex size-full transition-transform duration-700 ease-in-out"
           style={{ transform: `translateX(-${activeImage * 100}%)` }}
@@ -130,11 +142,11 @@ export function ProductCard({ product }: { product: Product }) {
             />
           ))}
         </div>
-        <div className="absolute left-3 top-3 flex gap-1.5">
+        <div className="absolute left-2 top-2 flex gap-1.5 sm:left-3 sm:top-3">
           {activeSlide ? <ClassificationBadge value={activeSlide.classification} /> : null}
         </div>
         {slides.length > 1 ? (
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-background/80 px-2.5 py-1.5 backdrop-blur-sm">
+          <div className="absolute bottom-2 left-1/2 hidden -translate-x-1/2 items-center gap-1.5 rounded-full bg-background/80 px-2.5 py-1.5 backdrop-blur-sm sm:flex">
             {slides.map((slide, index) => (
               <span
                 key={slide.id}
@@ -150,27 +162,35 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
         ) : null}
       </div>
-      <div className="flex flex-1 flex-col gap-3 p-5">
+      <div
+        className={`flex min-w-0 flex-1 flex-col sm:gap-3 sm:p-5 ${
+          mobileView === "list" ? "gap-1.5 p-3" : "gap-2 p-3"
+        }`}
+      >
         <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          <p className="truncate text-[0.65rem] uppercase tracking-wide text-muted-foreground sm:text-xs">
             {product.cropType}
           </p>
-          <h3 className="mt-1 text-lg font-semibold capitalize">{product.name}</h3>
+          <h3 className="mt-0.5 truncate text-sm font-semibold capitalize sm:mt-1 sm:text-lg">
+            {product.name}
+          </h3>
         </div>
-        <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
-        <div className="mt-auto flex items-end justify-between pt-2">
-          <div>
-            <p className="text-xl font-semibold text-primary">
+        <p className="hidden line-clamp-2 text-sm text-muted-foreground sm:block">
+          {product.description}
+        </p>
+        <div className="mt-auto flex min-w-0 items-end justify-between gap-1 pt-1 sm:pt-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-primary sm:text-xl">
               {outOfStock ? "No stock" : `From ${peso(minimumPrice)}`}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="truncate text-[0.65rem] text-muted-foreground sm:text-xs">
               {outOfStock
                 ? "No stock available"
                 : `${offers.length} quality option${offers.length === 1 ? "" : "s"} · ${formatSellingQuantity(availableQuantity, product.sellingUnit)} available`}
             </p>
           </div>
           <span
-            className={`flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors ${outOfStock ? "bg-muted text-muted-foreground" : "group-hover:bg-primary group-hover:text-primary-foreground"}`}
+            className={`hidden size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-colors sm:flex ${outOfStock ? "bg-muted text-muted-foreground" : "group-hover:bg-primary group-hover:text-primary-foreground"}`}
           >
             {isOpening ? (
               <LoaderCircle className="size-4 animate-spin" />
