@@ -1100,6 +1100,7 @@ test("action confirmations use the shared branded dialog instead of browser prom
   ];
   const sources = await Promise.all(files.map((file) => readFile(file, "utf8")));
   const dialog = await readFile("src/components/ui/confirm-action-dialog.tsx", "utf8");
+  const alertDialog = await readFile("src/components/ui/alert-dialog.tsx", "utf8");
 
   for (const source of sources) {
     assert.match(source, /useConfirmAction/);
@@ -1107,6 +1108,9 @@ test("action confirmations use the shared branded dialog instead of browser prom
   }
   assert.match(dialog, /AlertDialog/);
   assert.match(dialog, /requestConfirmation/);
+  assert.doesNotMatch(alertDialog, /sticky top-0/);
+  assert.doesNotMatch(alertDialog, /sticky bottom-0/);
+  assert.match(alertDialog, /overflow-y-auto/);
 });
 
 test("all logout actions ask for confirmation before ending the session", async () => {

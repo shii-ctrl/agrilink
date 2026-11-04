@@ -46,7 +46,7 @@ AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName;
 const AlertDialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "sticky top-0 z-10 -mx-5 -mt-5 flex flex-col space-y-2 border-b border-border/70 bg-card/95 px-5 pb-3 pt-6 text-left backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6 sm:pb-4 sm:pt-7",
+      "-mx-5 -mt-5 flex flex-col space-y-2 border-b border-border/70 bg-card px-5 pb-3 pt-6 text-left sm:-mx-6 sm:-mt-6 sm:px-6 sm:pb-4 sm:pt-7",
       className,
     )}
     {...props}
@@ -57,7 +57,7 @@ AlertDialogHeader.displayName = "AlertDialogHeader";
 const AlertDialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "sticky bottom-0 z-10 -mx-5 -mb-5 flex flex-col-reverse gap-2 border-t border-border/70 bg-card/95 px-5 pb-5 pt-3 backdrop-blur [&>*]:w-full sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:px-6 sm:pb-6 sm:[&>*]:w-auto",
+      "-mx-5 -mb-5 flex flex-col-reverse gap-2 border-t border-border/70 bg-card px-5 pb-5 pt-3 [&>*]:w-full sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:px-6 sm:pb-6 sm:[&>*]:w-auto",
       className,
     )}
     {...props}
