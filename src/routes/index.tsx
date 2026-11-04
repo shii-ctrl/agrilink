@@ -403,11 +403,13 @@ function Index() {
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                · Available now
+                · Current market availability
               </p>
-              <h2 className="mt-3 text-3xl font-semibold md:text-4xl">Fresh products today</h2>
+              <h2 className="mt-3 text-3xl font-semibold md:text-4xl">
+                Available agricultural products
+              </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                In-stock products appear first. Prices and quantities update automatically.
+                Prices and stock quantities reflect the latest records published by PROCY.
               </p>
             </div>
             <Button asChild variant="outline" className="w-full rounded-full sm:w-fit">
