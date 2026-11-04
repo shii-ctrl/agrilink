@@ -21,6 +21,7 @@ import { Route as SetupManagementRouteImport } from './routes/setup-management'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AccountingIndexRouteImport } from './routes/accounting.index'
 import { Route as AccountingCommunityRouteImport } from './routes/accounting.community'
+import { Route as AccountingDailyClosingRouteImport } from './routes/accounting.daily-closing'
 import { Route as AccountingFarmerPayoutsRouteImport } from './routes/accounting.farmer-payouts'
 import { Route as AccountingPaymentsRouteImport } from './routes/accounting.payments'
 import { Route as AccountingProfileRouteImport } from './routes/accounting.profile'
@@ -130,6 +131,11 @@ const AccountingIndexRoute = AccountingIndexRouteImport.update({
 const AccountingCommunityRoute = AccountingCommunityRouteImport.update({
   id: '/accounting/community',
   path: '/accounting/community',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountingDailyClosingRoute = AccountingDailyClosingRouteImport.update({
+  id: '/accounting/daily-closing',
+  path: '/accounting/daily-closing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountingFarmerPayoutsRoute = AccountingFarmerPayoutsRouteImport.update({
@@ -397,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/setup-management': typeof SetupManagementRoute
   '/terms': typeof TermsRoute
   '/accounting/community': typeof AccountingCommunityRoute
+  '/accounting/daily-closing': typeof AccountingDailyClosingRoute
   '/accounting/farmer-payouts': typeof AccountingFarmerPayoutsRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
@@ -461,6 +468,7 @@ export interface FileRoutesByTo {
   '/setup-management': typeof SetupManagementRoute
   '/terms': typeof TermsRoute
   '/accounting/community': typeof AccountingCommunityRoute
+  '/accounting/daily-closing': typeof AccountingDailyClosingRoute
   '/accounting/farmer-payouts': typeof AccountingFarmerPayoutsRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
@@ -526,6 +534,7 @@ export interface FileRoutesById {
   '/setup-management': typeof SetupManagementRoute
   '/terms': typeof TermsRoute
   '/accounting/community': typeof AccountingCommunityRoute
+  '/accounting/daily-closing': typeof AccountingDailyClosingRoute
   '/accounting/farmer-payouts': typeof AccountingFarmerPayoutsRoute
   '/accounting/payments': typeof AccountingPaymentsRoute
   '/accounting/profile': typeof AccountingProfileRoute
@@ -592,6 +601,7 @@ export interface FileRouteTypes {
     | '/setup-management'
     | '/terms'
     | '/accounting/community'
+    | '/accounting/daily-closing'
     | '/accounting/farmer-payouts'
     | '/accounting/payments'
     | '/accounting/profile'
@@ -656,6 +666,7 @@ export interface FileRouteTypes {
     | '/setup-management'
     | '/terms'
     | '/accounting/community'
+    | '/accounting/daily-closing'
     | '/accounting/farmer-payouts'
     | '/accounting/payments'
     | '/accounting/profile'
@@ -720,6 +731,7 @@ export interface FileRouteTypes {
     | '/setup-management'
     | '/terms'
     | '/accounting/community'
+    | '/accounting/daily-closing'
     | '/accounting/farmer-payouts'
     | '/accounting/payments'
     | '/accounting/profile'
@@ -785,6 +797,7 @@ export interface RootRouteChildren {
   SetupManagementRoute: typeof SetupManagementRoute
   TermsRoute: typeof TermsRoute
   AccountingCommunityRoute: typeof AccountingCommunityRoute
+  AccountingDailyClosingRoute: typeof AccountingDailyClosingRoute
   AccountingFarmerPayoutsRoute: typeof AccountingFarmerPayoutsRoute
   AccountingPaymentsRoute: typeof AccountingPaymentsRoute
   AccountingProfileRoute: typeof AccountingProfileRoute
@@ -922,6 +935,13 @@ declare module '@tanstack/react-router' {
       path: '/accounting/community'
       fullPath: '/accounting/community'
       preLoaderRoute: typeof AccountingCommunityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accounting/daily-closing': {
+      id: '/accounting/daily-closing'
+      path: '/accounting/daily-closing'
+      fullPath: '/accounting/daily-closing'
+      preLoaderRoute: typeof AccountingDailyClosingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accounting/farmer-payouts': {
@@ -1289,6 +1309,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupManagementRoute: SetupManagementRoute,
   TermsRoute: TermsRoute,
   AccountingCommunityRoute: AccountingCommunityRoute,
+  AccountingDailyClosingRoute: AccountingDailyClosingRoute,
   AccountingFarmerPayoutsRoute: AccountingFarmerPayoutsRoute,
   AccountingPaymentsRoute: AccountingPaymentsRoute,
   AccountingProfileRoute: AccountingProfileRoute,

@@ -1479,3 +1479,26 @@ test("completed-order feedback is Buyer-owned and measurable by Management", asy
   assert.match(reports, /Completed-order ratings/);
   assert.match(reports, /Rider performance/);
 });
+
+test("daily cash closing is Accounting-owned, immutable, and visible to Management", async () => {
+  const [schema, migration, service, accounting, management] = await Promise.all([
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0041_daily_cash_closing.sql", "utf8"),
+    readFile("src/services/accounting/daily-closing-server-functions.ts", "utf8"),
+    readFile("src/routes/accounting.daily-closing.tsx", "utf8"),
+    readFile("src/routes/management.reports.tsx", "utf8"),
+  ]);
+
+  assert.match(schema, /export const dailyCashClosings = mysqlTable/);
+  assert.match(schema, /export const dailyCashAdjustments = mysqlTable/);
+  assert.match(migration, /daily_cash_closings_date_unique/);
+  assert.match(service, /requireRole\("Accounting"\)/);
+  assert.match(service, /requireAnyRole\(\["Accounting", "Management"\]\)/);
+  assert.match(service, /openingCash \+ grossSales - refunds - farmerPayoutTotal - iponReleases/);
+  assert.doesNotMatch(service, /openingCash \+ grossSales \+ deliveryFees/);
+  assert.match(service, /already closed and locked/);
+  assert.match(service, /daily_cash\.adjust/);
+  assert.match(accounting, /IPON contributions/);
+  assert.match(accounting, /Delivery fees are already included/);
+  assert.match(management, /Monitoring only\. Accounting counts, closes/);
+});

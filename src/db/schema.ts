@@ -590,6 +590,48 @@ export const farmerIponReleases = mysqlTable(
     index("farmer_ipon_releases_farmer_idx").on(table.farmerId, table.releasedAt),
   ],
 );
+export const dailyCashClosings = mysqlTable(
+  "daily_cash_closings",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    businessDate: varchar("business_date", { length: 10 }).notNull(),
+    openingCash: decimal("opening_cash", { precision: 12, scale: 2 }).notNull(),
+    grossSales: decimal("gross_sales", { precision: 12, scale: 2 }).notNull(),
+    pickupCollections: decimal("pickup_collections", { precision: 12, scale: 2 }).notNull(),
+    codCollections: decimal("cod_collections", { precision: 12, scale: 2 }).notNull(),
+    pendingCod: decimal("pending_cod", { precision: 12, scale: 2 }).notNull(),
+    deliveryFees: decimal("delivery_fees", { precision: 12, scale: 2 }).notNull(),
+    refunds: decimal("refunds", { precision: 12, scale: 2 }).notNull(),
+    farmerPayable: decimal("farmer_payable", { precision: 12, scale: 2 }).notNull(),
+    farmerPayouts: decimal("farmer_payouts", { precision: 12, scale: 2 }).notNull(),
+    serviceFeeIncome: decimal("service_fee_income", { precision: 12, scale: 2 }).notNull(),
+    iponContributions: decimal("ipon_contributions", { precision: 12, scale: 2 }).notNull(),
+    iponReleases: decimal("ipon_releases", { precision: 12, scale: 2 }).notNull(),
+    expectedCash: decimal("expected_cash", { precision: 12, scale: 2 }).notNull(),
+    actualCash: decimal("actual_cash", { precision: 12, scale: 2 }).notNull(),
+    variance: decimal("variance", { precision: 12, scale: 2 }).notNull(),
+    notes: text("notes"),
+    closedById: varchar("closed_by_id", { length: 36 }).notNull(),
+    closedAt: datetime("closed_at").notNull(),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex("daily_cash_closings_date_unique").on(table.businessDate),
+    index("daily_cash_closings_closed_idx").on(table.closedAt),
+  ],
+);
+export const dailyCashAdjustments = mysqlTable(
+  "daily_cash_adjustments",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    closingId: varchar("closing_id", { length: 36 }).notNull(),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    reason: text("reason").notNull(),
+    recordedById: varchar("recorded_by_id", { length: 36 }).notNull(),
+    createdAt,
+  },
+  (table) => [index("daily_cash_adjustments_closing_idx").on(table.closingId, table.createdAt)],
+);
 export const inventoryMovements = mysqlTable(
   "inventory_movements",
   {

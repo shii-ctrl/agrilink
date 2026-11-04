@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BarChart3, Download, FileBarChart, MessageSquareText, Star } from "lucide-react";
+import { BarChart3, Download, FileBarChart, LockKeyhole, MessageSquareText, Star } from "lucide-react";
 import { useCallback } from "react";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { getManagementReport } from "@/services/marketplace/marketplace-server-functions";
 import { getManagementFeedbackSummary } from "@/services/marketplace/order-feedback-server-functions";
+import { getDailyCashClosingHistory } from "@/services/accounting/daily-closing-server-functions";
 
 export const Route = createFileRoute("/management/reports")({
   head: () => ({
@@ -23,15 +24,17 @@ export const Route = createFileRoute("/management/reports")({
 
 function ManagementReportsPage() {
   const loadReport = useCallback(async () => {
-    const [report, feedback] = await Promise.all([
+    const [report, feedback, closings] = await Promise.all([
       getManagementReport(),
       getManagementFeedbackSummary(),
+      getDailyCashClosingHistory(),
     ]);
-    return { report, feedback };
+    return { report, feedback, closings };
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(loadReport);
   const report = data?.report;
   const feedback = data?.feedback;
+  const closings = data?.closings ?? [];
   const highestAvailability = Math.max(
     ...(report?.availability ?? []).map((item) => item.value),
     1,
@@ -47,6 +50,10 @@ function ManagementReportsPage() {
       ...(feedback?.products ?? []).map(
         (item) =>
           `Product rating: ${item.productName},${item.averageRating},${item.ratingCount} response${item.ratingCount === 1 ? "" : "s"}`,
+      ),
+      ...closings.map(
+        (item) =>
+          `Daily closing ${item.businessDate},${item.actualCash},Expected ${item.adjustedExpectedCash}; variance ${item.adjustedVariance}`,
       ),
     ].join("\n");
     const link = document.createElement("a");
@@ -99,6 +106,48 @@ function ManagementReportsPage() {
                   <p className="mt-1 text-sm text-muted-foreground">{report.detail}</p>
                 </article>
               ))}
+            </section>
+
+            <section className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+              <div className="flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
+                <div>
+                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                    <LockKeyhole className="size-4" /> Daily cash closing
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold">Accounting reconciliation</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Monitoring only. Accounting counts, closes, and records audited corrections.
+                  </p>
+                </div>
+                <span className="rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
+                  {closings.length} closed day{closings.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              {closings.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-left text-sm">
+                    <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr><th className="px-5 py-3">Date</th><th className="px-5 py-3">Gross sales</th><th className="px-5 py-3">Service fee</th><th className="px-5 py-3">Pending COD</th><th className="px-5 py-3">Expected / actual</th><th className="px-5 py-3">Variance</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {closings.slice(0, 10).map((item) => (
+                        <tr key={item.id}>
+                          <td className="px-5 py-4 font-medium">{item.businessDate}</td>
+                          <td className="px-5 py-4">₱{item.grossSales.toFixed(2)}</td>
+                          <td className="px-5 py-4">₱{item.serviceFeeIncome.toFixed(2)}</td>
+                          <td className="px-5 py-4">₱{item.pendingCod.toFixed(2)}</td>
+                          <td className="px-5 py-4">₱{item.adjustedExpectedCash.toFixed(2)} / ₱{item.actualCash.toFixed(2)}</td>
+                          <td className={`px-5 py-4 font-semibold ${item.adjustedVariance === 0 ? "text-primary" : "text-amber-700"}`}>₱{item.adjustedVariance.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="border-t border-border px-5 py-10 text-center text-sm text-muted-foreground">
+                  No day has been closed by Accounting yet.
+                </p>
+              )}
             </section>
 
             <section className="mt-8 rounded-3xl border border-border bg-card p-6 shadow-card">

@@ -5,6 +5,7 @@ import {
   FileBarChart,
   HandCoins,
   Landmark,
+  LockKeyhole,
   LogOut,
   MessageCircle,
   ReceiptText,
@@ -40,6 +41,7 @@ const navigation = [
   { label: "Record Payment", to: "/accounting/payments", icon: CircleDollarSign },
   { label: "Farmer Payouts", to: "/accounting/farmer-payouts", icon: Landmark },
   { label: "Delivery Refunds", to: "/accounting/refunds", icon: HandCoins },
+  { label: "Daily Closing", to: "/accounting/daily-closing", icon: LockKeyhole },
   { label: "Reports", to: "/accounting/reports", icon: FileBarChart },
   { label: "Community", to: "/accounting/community", icon: MessageCircle },
 ] as const;
