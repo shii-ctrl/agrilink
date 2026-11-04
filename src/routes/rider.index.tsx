@@ -44,6 +44,11 @@ function RiderDashboard() {
     <RiderLayout>
       <DeliveryCompletionDialog
         orderNumber={completingOrder}
+        expectedRecipientName={
+          data?.assignments.find((order) => order.orderNumber === completingOrder)?.recipientName ??
+          data?.assignments.find((order) => order.orderNumber === completingOrder)?.buyer ??
+          null
+        }
         onClose={() => setCompletingOrder(null)}
         onSaved={reload}
       />

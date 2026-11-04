@@ -1331,6 +1331,14 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(deliveryUpgrade, /CREATE TABLE cod_remittances/);
   assert.match(proofDialog, /Buyer delivery OTP/);
   assert.match(proofDialog, /Actual recipient name/);
+  assert.match(proofDialog, /Recipient name does not match/);
+  assert.match(proofDialog, /Must match the delivery recipient/);
+  assert.match(marketplace, /normalizeRecipientName/);
+  assert.match(marketplace, /Recipient name does not match the name saved by the Buyer/);
+  assert.doesNotMatch(marketplace, /proofPhotoUrl: deliveryAttempts\.proofPhotoUrl/);
+  assert.match(buyerOrders, /detailsRequestRef/);
+  assert.match(buyerOrders, /buyer-order-details-error/);
+  assert.doesNotMatch(buyerOrders, /description: error instanceof Error \? error\.message/);
   assert.doesNotMatch(proofDialog, /Proof photo/);
   assert.doesNotMatch(proofDialog, /Recipient signature pad/);
   assert.doesNotMatch(proofDialog, /Add current location \(optional\)/);

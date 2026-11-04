@@ -22,11 +22,17 @@ import {
 
 type DialogProps = {
   orderNumber: string | null;
+  expectedRecipientName?: string | null;
   onClose: () => void;
   onSaved: () => Promise<unknown>;
 };
 
-export function DeliveryCompletionDialog({ orderNumber, onClose, onSaved }: DialogProps) {
+export function DeliveryCompletionDialog({
+  orderNumber,
+  expectedRecipientName,
+  onClose,
+  onSaved,
+}: DialogProps) {
   const [recipientName, setRecipientName] = useState("");
   const [otp, setOtp] = useState("");
   const [saving, setSaving] = useState(false);
@@ -39,6 +45,21 @@ export function DeliveryCompletionDialog({ orderNumber, onClose, onSaved }: Dial
   async function save() {
     if (!orderNumber || recipientName.trim().length < 2 || otp.length !== 6) {
       toast.error("Enter the 6-digit OTP and recipient name.");
+      return;
+    }
+    const normalizeName = (value: string) =>
+      value
+        .normalize("NFKC")
+        .toLocaleLowerCase("en-PH")
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .trim();
+    if (
+      expectedRecipientName &&
+      normalizeName(recipientName) !== normalizeName(expectedRecipientName)
+    ) {
+      toast.error("Recipient name does not match", {
+        description: "Enter the delivery recipient name shown on this assignment.",
+      });
       return;
     }
     setSaving(true);
@@ -106,6 +127,11 @@ export function DeliveryCompletionDialog({ orderNumber, onClose, onSaved }: Dial
               placeholder="Name of person who received the order"
               maxLength={160}
             />
+            {expectedRecipientName ? (
+              <p className="text-xs text-muted-foreground">
+                Must match the delivery recipient: {expectedRecipientName}
+              </p>
+            ) : null}
           </div>
         </div>
         <DialogFooter className="gap-2 sm:space-x-0">

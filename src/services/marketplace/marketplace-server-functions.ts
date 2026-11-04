@@ -168,6 +168,14 @@ function createDeliveryOtp() {
   const value = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
   return String(value % 1_000_000).padStart(6, "0");
 }
+
+function normalizeRecipientName(value: string) {
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase("en-PH")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
 const releaseOrderInput = workflowActionInput.extend({
   outcome: z.enum(["cancelled", "rejected"]),
   reason: z.string().trim().min(3).max(500).optional(),
@@ -2761,6 +2769,13 @@ export const submitDeliveryProof = createServerFn({ method: "POST" })
       if (!order.deliveryOtpCode || order.deliveryOtpCode !== data.otp) {
         throw new Error("The delivery OTP is incorrect.");
       }
+      const expectedRecipientName = order.recipientName?.trim();
+      if (
+        !expectedRecipientName ||
+        normalizeRecipientName(data.recipientName) !== normalizeRecipientName(expectedRecipientName)
+      ) {
+        throw new Error("Recipient name does not match the name saved by the Buyer.");
+      }
       const now = new Date();
       const [updated] = await tx
         .update(orders)
@@ -3348,10 +3363,6 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       db
         .select({
           recipientName: deliveryAttempts.recipientName,
-          proofPhotoUrl: deliveryAttempts.proofPhotoUrl,
-          signatureUrl: deliveryAttempts.signatureUrl,
-          latitude: deliveryAttempts.latitude,
-          longitude: deliveryAttempts.longitude,
           attemptedAt: deliveryAttempts.attemptedAt,
         })
         .from(deliveryAttempts)
@@ -3380,8 +3391,6 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       deliveryProof: deliveryProof
         ? {
             ...deliveryProof,
-            latitude: deliveryProof.latitude ? Number(deliveryProof.latitude) : null,
-            longitude: deliveryProof.longitude ? Number(deliveryProof.longitude) : null,
             attemptedAt: deliveryProof.attemptedAt.toISOString(),
           }
         : null,

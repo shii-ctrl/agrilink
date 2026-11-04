@@ -102,6 +102,16 @@ test("Vercel applies checked migrations before building production code", async 
   assert.equal(config.buildCommand, "npm run db:migrate && npm run build");
 });
 
+test("delivery receipt repair restores required fields without deleting history", async () => {
+  const migration = await readFile("drizzle/0042_repair_delivery_receipts.sql", "utf8");
+
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS recipient_name/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS attempted_at/);
+  assert.match(migration, /buyer_order\.recipient_name/);
+  assert.match(migration, /MODIFY COLUMN attempted_at DATETIME NOT NULL/);
+  assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
+});
+
 test("retired profile-photo visibility choices normalize to Everyone", async () => {
   const migration = await readFile("drizzle/0026_simplify_profile_photo_privacy.sql", "utf8");
   assert.match(migration, /NOT IN \('everyone', 'hidden'\)/);

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CircleAlert, LoaderCircle, PackageCheck, RotateCcw, Star } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
 import { OrderDetails } from "@/features/marketplace/components/order-details";
@@ -33,6 +33,7 @@ function BuyerOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [feedbackOrderNumber, setFeedbackOrderNumber] = useState<string | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const detailsRequestRef = useRef<string | null>(null);
   const [query, setQuery] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
@@ -99,13 +100,15 @@ function BuyerOrdersPage() {
       await reload();
       setSelectedId(null);
       toast.success("Order cancelled", { description: "Reserved stock has been returned." });
-    } catch (error) {
+    } catch {
       toast.error("Order could not be cancelled", {
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: "Please try again. If the problem continues, contact PROCY support.",
       });
     }
   };
   const openDetails = async (orderNumber: string) => {
+    if (detailsRequestRef.current) return;
+    detailsRequestRef.current = orderNumber;
     setSelectedId(orderNumber);
     setSelectedOrder(null);
     setDetailsLoading(true);
@@ -158,12 +161,14 @@ function BuyerOrdersPage() {
         })),
         stockReserved: detail.status === "pending" || detail.status === "confirmed",
       });
-    } catch (error) {
+    } catch {
       setSelectedId(null);
       toast.error("Could not load order details", {
-        description: error instanceof Error ? error.message : "Please try again.",
+        id: "buyer-order-details-error",
+        description: "Please try again. If the problem continues, contact PROCY support.",
       });
     } finally {
+      detailsRequestRef.current = null;
       setDetailsLoading(false);
     }
   };
@@ -174,12 +179,9 @@ function BuyerOrdersPage() {
         description: "The available quantities are reserved for your next checkout.",
       });
       navigate({ to: "/buyer/cart" });
-    } catch (error) {
+    } catch {
       toast.error("Could not rebuild this order", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "The available stock may have changed. Please try again.",
+        description: "The available stock may have changed. Please try again.",
       });
     }
   };
@@ -308,6 +310,7 @@ function BuyerOrdersPage() {
                       <Button
                         variant="outline"
                         className="mt-4 w-full"
+                        disabled={detailsLoading}
                         onClick={() => void openDetails(order.id)}
                       >
                         View order details
@@ -370,6 +373,7 @@ function BuyerOrdersPage() {
                               variant="outline"
                               size="sm"
                               className="rounded-full"
+                              disabled={detailsLoading}
                               onClick={() => void openDetails(order.id)}
                             >
                               Details

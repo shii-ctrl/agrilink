@@ -384,33 +384,6 @@ export function OrderDetails({
             Received by {order.deliveryProof.recipientName ?? "recipient"} on{" "}
             {formatOrderDate(order.deliveryProof.attemptedAt, true)}.
           </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {order.deliveryProof.proofPhotoUrl ? (
-              <img
-                src={order.deliveryProof.proofPhotoUrl}
-                alt="Delivery proof"
-                className="h-48 w-full rounded-xl border border-border bg-background object-cover"
-              />
-            ) : null}
-            {order.deliveryProof.signatureUrl ? (
-              <div className="rounded-xl border border-border bg-card p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Recipient signature
-                </p>
-                <img
-                  src={order.deliveryProof.signatureUrl}
-                  alt="Recipient signature"
-                  className="h-32 w-full object-contain"
-                />
-              </div>
-            ) : null}
-          </div>
-          {order.deliveryProof.latitude !== null && order.deliveryProof.longitude !== null ? (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Location captured: {order.deliveryProof.latitude.toFixed(5)},{" "}
-              {order.deliveryProof.longitude.toFixed(5)}
-            </p>
-          ) : null}
         </div>
       ) : null}
 

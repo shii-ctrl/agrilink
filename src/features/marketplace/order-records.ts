@@ -68,10 +68,6 @@ export type OrderRecord = {
   deliveryOtpCode?: string | null;
   deliveryProof?: {
     recipientName: string | null;
-    proofPhotoUrl: string | null;
-    signatureUrl: string | null;
-    latitude: number | null;
-    longitude: number | null;
     attemptedAt: string;
   } | null;
   fulfilledAt?: string;
