@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { UserRound } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,6 +37,9 @@ export function ProfileAvatar({
   const [status, setStatus] = useState<"idle" | "loading" | "loaded" | "error">(
     avatarUrl ? "loading" : "idle",
   );
+  useEffect(() => {
+    setStatus(avatarUrl ? "loading" : "idle");
+  }, [avatarUrl]);
   const canView = Boolean(avatarUrl && status !== "error" && viewable);
   const avatar = (
     <Avatar className={`relative shrink-0 ${className}`}>

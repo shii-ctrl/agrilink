@@ -165,16 +165,25 @@ test("production responses set browser security headers", async () => {
 });
 
 test("profile photos accept secure external URLs or cropped local uploads and Management controls are audited", async () => {
-  const [authFunctions, adminFunctions, schema, migration, privacyMigration, profile, avatar] =
-    await Promise.all([
-      readFile("src/services/auth/auth-functions.ts", "utf8"),
-      readFile("src/services/auth/admin-server-functions.ts", "utf8"),
-      readFile("src/db/schema.ts", "utf8"),
-      readFile("drizzle/0009_user_profile_photos.sql", "utf8"),
-      readFile("drizzle/0025_profile_photo_privacy.sql", "utf8"),
-      readFile("src/features/auth/components/live-profile.tsx", "utf8"),
-      readFile("src/components/profile-avatar.tsx", "utf8"),
-    ]);
+  const [
+    authFunctions,
+    adminFunctions,
+    schema,
+    migration,
+    privacyMigration,
+    profile,
+    avatar,
+    siteHeader,
+  ] = await Promise.all([
+    readFile("src/services/auth/auth-functions.ts", "utf8"),
+    readFile("src/services/auth/admin-server-functions.ts", "utf8"),
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0009_user_profile_photos.sql", "utf8"),
+    readFile("drizzle/0025_profile_photo_privacy.sql", "utf8"),
+    readFile("src/features/auth/components/live-profile.tsx", "utf8"),
+    readFile("src/components/profile-avatar.tsx", "utf8"),
+    readFile("src/components/layout/site-header.tsx", "utf8"),
+  ]);
 
   assert.match(authFunctions, /const profileImage/);
   assert.match(authFunctions, /protocol === "https:"/);
@@ -201,6 +210,9 @@ test("profile photos accept secure external URLs or cropped local uploads and Ma
   assert.doesNotMatch(profile, /Signed-in AgriLink members|Community and private messages only/);
   assert.match(avatar, /onLoadingStatusChange/);
   assert.match(avatar, /profile photo enlarged/);
+  assert.match(siteHeader, /avatarUrl: string \| null/);
+  assert.match(siteHeader, /<ProfileAvatar/);
+  assert.match(siteHeader, /agrilink:profile-updated/);
   assert.match(adminFunctions, /export const setManagedUserActive/);
   assert.match(adminFunctions, /Keep at least one active Management account/);
   assert.match(adminFunctions, /user\.deactivate/);

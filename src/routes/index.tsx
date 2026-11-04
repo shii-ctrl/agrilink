@@ -62,6 +62,7 @@ type SessionAccount = {
   username: string;
   displayName: string;
   roles: string[];
+  avatarUrl: string | null;
 };
 
 const categories = [

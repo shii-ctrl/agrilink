@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import { LoginDialog } from "@/features/auth/components/login-dialog";
 import { PasswordResetDialog } from "@/features/auth/components/password-reset-dialog";
 import { RegisterDialog } from "@/features/auth/components/register-dialog";
@@ -43,6 +44,7 @@ type SessionAccount = {
   username: string;
   displayName: string;
   roles: string[];
+  avatarUrl: string | null;
 };
 
 const workspaceForRoles = [
@@ -91,6 +93,28 @@ export function SiteHeader({
       window.removeEventListener(authSessionChangedEvent, loadAccount);
     };
   }, [sessionAccount]);
+  useEffect(() => {
+    const onProfileUpdated = (
+      event: CustomEvent<{ displayName?: string; avatarUrl?: string | null }>,
+    ) => {
+      setAccount((current) =>
+        current
+          ? {
+              ...current,
+              displayName: event.detail?.displayName ?? current.displayName,
+              avatarUrl:
+                typeof event.detail?.avatarUrl === "string" || event.detail?.avatarUrl === null
+                  ? event.detail.avatarUrl
+                  : current.avatarUrl,
+            }
+          : current,
+      );
+    };
+    window.addEventListener("agrilink:profile-updated", onProfileUpdated as EventListener);
+    return () => {
+      window.removeEventListener("agrilink:profile-updated", onProfileUpdated as EventListener);
+    };
+  }, []);
   const workspace = account
     ? workspaceForRoles.find(([role]) => account.roles.includes(role))
     : undefined;
@@ -371,14 +395,23 @@ function BuyerDrawer({
           className="rounded-full"
           aria-label={compact ? "Open Buyer account menu" : undefined}
         >
-          <UserRound className="size-4" /> {compact ? null : name}
+          <ProfileAvatar
+            name={name}
+            avatarUrl={account.avatarUrl}
+            className={compact ? "size-6" : "size-5"}
+            viewable={false}
+          />
+          {compact ? null : name}
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="flex w-[min(86vw,22rem)] flex-col p-5">
         <SheetHeader>
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-primary text-lg font-bold text-primary-foreground">
-            {name.slice(0, 2).toUpperCase()}
-          </div>
+          <ProfileAvatar
+            name={name}
+            avatarUrl={account.avatarUrl}
+            className="size-14"
+            viewable={false}
+          />
           <SheetTitle className="mt-4">{name}</SheetTitle>
           <SheetDescription>Buyer account · signed in</SheetDescription>
         </SheetHeader>
