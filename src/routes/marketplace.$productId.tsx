@@ -190,7 +190,7 @@ function ProductDetail() {
     return Math.min(maximumSelectableQuantity, Math.max(quantityStep, rounded));
   }
 
-  function showBuyerAccessPrompt() {
+  function showBuyerAccessPrompt(action: "cart" | "checkout") {
     toast.custom(
       (id) => (
         <div className="relative w-[min(92vw,440px)] overflow-hidden rounded-3xl border border-primary/25 bg-card p-5 shadow-field">
@@ -210,10 +210,23 @@ function ProductDetail() {
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
                 Buyer access
               </p>
-              <h3 className="mt-1 text-lg font-semibold">Sign in to continue</h3>
+              <h3 className="mt-1 text-lg font-semibold">
+                {action === "cart" ? "Add this product to your cart" : "Buy this product now"}
+              </h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Sign in or create a Buyer account to continue with{" "}
-                <span className="font-medium text-foreground">{product.name}</span>.
+                {action === "cart" ? (
+                  <>
+                    Sign in or create a Buyer account to save{" "}
+                    <span className="font-medium text-foreground">{product.name}</span> in your
+                    cart.
+                  </>
+                ) : (
+                  <>
+                    Sign in or create a Buyer account to purchase{" "}
+                    <span className="font-medium text-foreground">{product.name}</span> and continue
+                    directly to checkout.
+                  </>
+                )}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
@@ -245,7 +258,7 @@ function ProductDetail() {
 
   function handleAddToCart() {
     if (!isBuyer) {
-      showBuyerAccessPrompt();
+      showBuyerAccessPrompt("cart");
       return;
     }
 
@@ -269,7 +282,7 @@ function ProductDetail() {
 
   function handleBuyNow() {
     if (!isBuyer) {
-      showBuyerAccessPrompt();
+      showBuyerAccessPrompt("checkout");
       return;
     }
 
