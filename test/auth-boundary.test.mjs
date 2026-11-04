@@ -143,6 +143,15 @@ test("authentication abuse controls persist beyond a single server process", asy
   assert.match(migration, /CREATE TABLE IF NOT EXISTS security_rate_limits/);
 });
 
+test("public login errors never expose database queries", async () => {
+  const loginDialog = await readFile("src/features/auth/components/login-dialog.tsx", "utf8");
+
+  assert.match(loginDialog, /function safeLoginError/);
+  assert.match(loginDialog, /Sign-in is temporarily unavailable/);
+  assert.match(loginDialog, /id: "login-error"/);
+  assert.doesNotMatch(loginDialog, /description:\s*error instanceof Error\s*\?\s*error\.message/);
+});
+
 test("production responses set browser security headers", async () => {
   const server = await readFile("src/server.ts", "utf8");
 

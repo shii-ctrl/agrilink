@@ -112,6 +112,14 @@ test("delivery receipt repair restores required fields without deleting history"
   assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
 });
 
+test("security rate-limit repair restores login throttling without deleting users or attempts", async () => {
+  const migration = await readFile("drizzle/0043_repair_security_rate_limits.sql", "utf8");
+
+  assert.match(migration, /ALTER TABLE security_rate_limits/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS locked_until DATETIME NULL/);
+  assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
+});
+
 test("retired profile-photo visibility choices normalize to Everyone", async () => {
   const migration = await readFile("drizzle/0026_simplify_profile_photo_privacy.sql", "utf8");
   assert.match(migration, /NOT IN \('everyone', 'hidden'\)/);

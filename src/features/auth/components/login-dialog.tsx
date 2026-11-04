@@ -41,6 +41,13 @@ function destinationForRoles(roles: string[]) {
             : "/";
 }
 
+function safeLoginError(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("Too many sign-in attempts")) return message;
+  if (message.includes("Invalid username/email or password")) return message;
+  return "Sign-in is temporarily unavailable. Please try again in a moment.";
+}
+
 export function LoginDialog({
   open,
   onOpenChange,
@@ -178,12 +185,16 @@ export function LoginDialog({
                 });
                 navigate({ to: destinationForRoles(signedIn.roles), replace: true });
               } catch (error) {
-                toast.error("Invalid credentials", {
-                  description:
-                    error instanceof Error
-                      ? error.message
-                      : "Please check your account information and try again.",
-                });
+                const description = safeLoginError(error);
+                toast.error(
+                  description.includes("Invalid username/email or password")
+                    ? "Invalid credentials"
+                    : "Could not sign in",
+                  {
+                    description,
+                    id: "login-error",
+                  },
+                );
               } finally {
                 setIsSigningIn(false);
               }
