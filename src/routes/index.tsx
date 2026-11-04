@@ -20,7 +20,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import AutoScroll from "embla-carousel-auto-scroll";
 import { z } from "zod";
-import procyHero from "@/assets/procy-hero-sign-corrected.jpg";
+import procyHero from "@/assets/procy-market-hero-cover.jpg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -255,16 +255,27 @@ function Index() {
       />
 
       <main className="overflow-x-clip">
-        <section className="border-b border-border/70 bg-cream py-8 dark:bg-forest sm:py-12">
-          <div className="grid w-full items-start gap-8 px-4 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12 lg:px-8">
-            <div className="min-w-0 text-foreground dark:text-forest-foreground">
-              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary dark:border-white/20 dark:bg-white/10 dark:text-forest-foreground sm:px-4 sm:text-xs sm:tracking-[0.14em]">
+        <section className="relative isolate min-h-[640px] overflow-hidden border-b border-border/70 bg-cream dark:bg-forest sm:min-h-[680px]">
+          <img
+            src={procyHero}
+            alt="Sentrong Pamilihan ng Produktong Agrikultura sa Quezon"
+            width={1920}
+            height={1080}
+            fetchPriority="high"
+            className="absolute inset-0 -z-30 h-full w-full object-cover object-[62%_center] sm:object-center"
+          />
+          <div className="absolute inset-0 -z-20 bg-[linear-gradient(90deg,rgba(250,250,242,0.98)_0%,rgba(250,250,242,0.94)_38%,rgba(250,250,242,0.62)_58%,rgba(250,250,242,0.14)_82%,rgba(250,250,242,0.05)_100%)] dark:bg-[linear-gradient(90deg,rgba(7,45,26,0.98)_0%,rgba(7,45,26,0.94)_38%,rgba(7,45,26,0.7)_60%,rgba(7,45,26,0.18)_88%,rgba(7,45,26,0.08)_100%)]" />
+          <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-b from-transparent to-background/95" />
+
+          <div className="grid min-h-[640px] w-full items-center gap-8 px-4 py-10 sm:min-h-[680px] sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)] lg:gap-12 lg:px-8">
+            <div className="min-w-0 max-w-3xl text-foreground dark:text-forest-foreground">
+              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/25 bg-card/85 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary shadow-sm backdrop-blur-md dark:border-white/20 dark:bg-forest/70 dark:text-forest-foreground sm:px-4 sm:text-xs sm:tracking-[0.14em]">
                 <Sprout className="size-3.5" /> Fresh from PROCY farmer members
               </span>
               <h1 className="mt-5 max-w-3xl font-display text-[2.35rem] font-semibold leading-[1.04] tracking-tight sm:mt-6 sm:text-5xl md:text-6xl lg:text-7xl">
                 Fresh local produce, ready for pickup.
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground dark:text-forest-foreground/75 sm:mt-5 sm:text-base md:text-lg">
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground/70 dark:text-forest-foreground/80 sm:mt-5 sm:text-base md:text-lg">
                 Compare Good, Semi, and Reject options, check live stock, and place your order with
                 PROCY.
               </p>
@@ -280,7 +291,7 @@ function Index() {
                     onChange={(event) => setHeroQuery(event.target.value)}
                     placeholder="Search vegetables, fruits, eggs…"
                     aria-label="Search marketplace products"
-                    className="h-12 rounded-full bg-card pl-11 pr-4 text-sm shadow-card sm:h-14 sm:pl-12 sm:pr-5 sm:text-base"
+                    className="h-12 rounded-full border-white/70 bg-card/90 pl-11 pr-4 text-sm shadow-card backdrop-blur-md sm:h-14 sm:pl-12 sm:pr-5 sm:text-base"
                   />
                 </div>
                 <Button
@@ -302,13 +313,13 @@ function Index() {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="w-full rounded-full border-border/80 bg-card/80 px-4 sm:w-auto sm:px-6"
+                  className="w-full rounded-full border-white/70 bg-card/85 px-4 backdrop-blur-md sm:w-auto sm:px-6"
                 >
                   <Link to="/daily-prices">View daily prices</Link>
                 </Button>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-2 text-xs text-muted-foreground dark:text-forest-foreground/65 min-[390px]:grid-cols-3 sm:mt-6 sm:flex sm:flex-wrap sm:gap-x-5">
+              <div className="mt-5 grid grid-cols-1 gap-2 text-xs text-foreground/70 dark:text-forest-foreground/75 min-[390px]:grid-cols-3 sm:mt-6 sm:flex sm:flex-wrap sm:gap-x-5">
                 <span className="inline-flex items-center gap-1.5">
                   <ShieldCheck className="size-4 text-primary" /> Quality classified
                 </span>
@@ -343,16 +354,8 @@ function Index() {
               ) : null}
             </div>
 
-            <div className="relative min-w-0 overflow-hidden rounded-3xl border border-primary/15 bg-card shadow-field sm:rounded-[2.5rem]">
-              <img
-                src={procyHero}
-                alt="PROCY building and community market in Candelaria, Quezon"
-                width={960}
-                height={800}
-                fetchPriority="high"
-                className="aspect-[4/3] w-full object-cover object-center sm:aspect-[6/5]"
-              />
-              <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/25 bg-forest/90 p-3 text-forest-foreground shadow-field backdrop-blur sm:inset-x-4 sm:bottom-4 sm:p-5">
+            <div className="min-w-0 self-end pb-2 lg:justify-self-end lg:pb-8">
+              <div className="w-full rounded-2xl border border-white/25 bg-forest/90 p-4 text-forest-foreground shadow-field backdrop-blur-md sm:max-w-md sm:p-5 lg:min-w-[360px]">
                 <p className="text-xs uppercase tracking-[0.14em] opacity-70">Live marketplace</p>
                 <div className="mt-2 flex items-end justify-between gap-4">
                   <div>
