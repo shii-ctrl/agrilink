@@ -20,7 +20,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import AutoScroll from "embla-carousel-auto-scroll";
 import { z } from "zod";
-import procyHero from "@/assets/procy-hero-enhanced.jpg";
+import procyHero from "@/assets/procy-hero-sign-corrected.jpg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SiteHeader } from "@/components/layout/site-header";
