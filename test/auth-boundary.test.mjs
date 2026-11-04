@@ -676,7 +676,7 @@ test("home featured produce supports continuous horizontal movement", async () =
   assert.doesNotMatch(home, /Next featured products/);
   assert.doesNotMatch(home, /View all products/);
   assert.match(home, /Featured produce carousel/);
-  assert.match(home, /Products glide continuously/);
+  assert.doesNotMatch(home, /Products glide continuously/);
   assert.match(home, /cursor-grab overflow-hidden active:cursor-grabbing/);
   assert.match(home, /\.slice\(0, 8\)/);
 });

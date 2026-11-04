@@ -409,9 +409,6 @@ function Index() {
               <p className="mt-2 text-sm text-muted-foreground">
                 In-stock products appear first. Prices and quantities update automatically.
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Products glide continuously. Pause by hovering or swipe to explore.
-              </p>
             </div>
             <Button asChild variant="outline" className="w-full rounded-full sm:w-fit">
               <Link to="/marketplace" search={{ available: true }}>
