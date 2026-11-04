@@ -105,7 +105,7 @@ export function LoginDialog({
         <div className="h-2 bg-primary" />
         <div className="min-h-0 overflow-y-auto px-5 pb-6 pt-3 sm:px-9 sm:pb-9 sm:pt-4">
           <DialogHeader
-            className={`bg-card/95 text-center lg:items-center lg:pt-2 lg:text-center ${
+            className={`bg-card/95 pr-0 text-center sm:pr-0 lg:items-center lg:pt-2 lg:text-center ${
               formFocused ? "items-start pt-0 text-left" : "items-center pt-2"
             }`}
           >

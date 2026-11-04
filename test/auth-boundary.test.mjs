@@ -565,6 +565,7 @@ test("public authentication uses the floating dialog system", async () => {
   assert.match(loginDialog, /}, 250\)/);
   assert.match(loginDialog, /overflow-hidden overscroll-contain/);
   assert.match(loginDialog, /bg-card p-0 text-card-foreground/);
+  assert.match(loginDialog, /bg-card\/95 pr-0 text-center sm:pr-0/);
   assert.match(loginDialog, /auth-login-field/);
   assert.match(styles, /\.dark \.auth-login-field/);
   assert.match(styles, /-webkit-text-fill-color: var\(--foreground\) !important/);
