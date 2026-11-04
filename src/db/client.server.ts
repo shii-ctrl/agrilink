@@ -33,13 +33,20 @@ function normalizeDatabaseUrl(url: string): { uri: string; requiresSsl: boolean 
 }
 
 const connection = normalizeDatabaseUrl(databaseUrl);
-const pool = connection.requiresSsl
-  ? createPool({
-      uri: connection.uri,
-      ssl: { rejectUnauthorized: true },
-      // Layerbase free databases can take roughly 20 seconds to wake.
-      connectTimeout: 60_000,
-    })
-  : createPool({ uri: connection.uri, connectTimeout: 60_000 });
+const pool = createPool({
+  uri: connection.uri,
+  ...(connection.requiresSsl ? { ssl: { rejectUnauthorized: true } } : {}),
+  // Serverless instances must not each reserve mysql2's default pool of ten
+  // connections. One queued connection is sufficient for this transactional app
+  // and prevents a few warm instances from exhausting the managed database.
+  connectionLimit: 1,
+  maxIdle: 1,
+  idleTimeout: 10_000,
+  waitForConnections: true,
+  queueLimit: 0,
+  enableKeepAlive: false,
+  // Layerbase free databases can take roughly 20 seconds to wake.
+  connectTimeout: 60_000,
+});
 
 export const db = drizzle(pool, { schema, mode: "default" });

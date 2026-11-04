@@ -17,13 +17,30 @@ const databaseRequiresSsl =
 // ssl-mode is a Layerbase URL hint, not a mysql2 connection option.
 parsedDatabaseUrl.searchParams.delete("ssl-mode");
 
-const connection = await mysql.createConnection({
-  uri: parsedDatabaseUrl.toString(),
-  multipleStatements: true,
-  // A free Layerbase database may need time to wake from hibernation.
-  connectTimeout: 60_000,
-  ...(databaseRequiresSsl ? { ssl: { rejectUnauthorized: true } } : {}),
-});
+async function connectWithRetry() {
+  const maximumAttempts = 6;
+  for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+    try {
+      return await mysql.createConnection({
+        uri: parsedDatabaseUrl.toString(),
+        multipleStatements: true,
+        // A free Layerbase database may need time to wake from hibernation.
+        connectTimeout: 60_000,
+        ...(databaseRequiresSsl ? { ssl: { rejectUnauthorized: true } } : {}),
+      });
+    } catch (error) {
+      if (error?.code !== "ER_CON_COUNT_ERROR" || attempt === maximumAttempts) throw error;
+      const retryDelayMs = attempt * 5_000;
+      console.warn(
+        `Database connection limit reached. Retrying migration in ${retryDelayMs / 1_000}s (${attempt}/${maximumAttempts}).`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    }
+  }
+  throw new Error("Could not establish a database connection for migrations.");
+}
+
+const connection = await connectWithRetry();
 const legacySchemaOnlyMigrations = new Set([
   "0001_operational_tables_and_demo_seed.sql",
   "0002_production_records.sql",

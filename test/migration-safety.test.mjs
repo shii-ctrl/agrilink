@@ -120,6 +120,20 @@ test("security rate-limit repair restores login throttling without deleting user
   assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
 });
 
+test("production database connections stay within managed serverless limits", async () => {
+  const [client, runner] = await Promise.all([
+    readFile("src/db/client.server.ts", "utf8"),
+    readFile("scripts/migrate.mjs", "utf8"),
+  ]);
+
+  assert.match(client, /connectionLimit: 1/);
+  assert.match(client, /idleTimeout: 10_000/);
+  assert.match(client, /enableKeepAlive: false/);
+  assert.match(runner, /async function connectWithRetry/);
+  assert.match(runner, /ER_CON_COUNT_ERROR/);
+  assert.match(runner, /maximumAttempts = 6/);
+});
+
 test("retired profile-photo visibility choices normalize to Everyone", async () => {
   const migration = await readFile("drizzle/0026_simplify_profile_photo_privacy.sql", "utf8");
   assert.match(migration, /NOT IN \('everyone', 'hidden'\)/);
