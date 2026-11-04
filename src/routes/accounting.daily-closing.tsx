@@ -89,6 +89,7 @@ function DailyClosingPage() {
     return data.preview.expectedCash - data.preview.openingCash + openingCash;
   }, [data, openingCash]);
   const variance = Number(actualCash || 0) - liveExpected;
+  const existingClosing = data?.existing ?? null;
   const totals = data?.existing ?? data?.preview;
 
   async function closeDay() {
@@ -200,11 +201,11 @@ function DailyClosingPage() {
                     <h2 className="flex items-center gap-2 text-xl font-semibold"><LockKeyhole className="size-5 text-primary" /> Cash count</h2>
                     <p className="mt-1 text-sm text-muted-foreground">Delivery fees are already included in sales and are never counted twice.</p>
                   </div>
-                  {data.existing ? <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">Closed and locked</span> : null}
+                  {existingClosing ? <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">Closed and locked</span> : null}
                 </div>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <MoneyInput label="Opening cash" value={openingCash} onChange={setOpeningCash} disabled={Boolean(data.existing)} />
-                  <MoneyInput label="Actual closing cash" value={actualCash} onChange={setActualCash} disabled={Boolean(data.existing)} />
+                  <MoneyInput label="Opening cash" value={openingCash} onChange={setOpeningCash} disabled={Boolean(existingClosing)} />
+                  <MoneyInput label="Actual closing cash" value={actualCash} onChange={setActualCash} disabled={Boolean(existingClosing)} />
                 </div>
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   <CashTotal label="Expected cash" value={liveExpected} />
@@ -212,21 +213,21 @@ function DailyClosingPage() {
                   <CashTotal label={variance > 0 ? "Overage" : variance < 0 ? "Shortage" : "Balanced"} value={variance} emphasized />
                 </div>
                 <label htmlFor="closing-notes" className="mt-5 block text-sm font-medium">Variance note {Math.abs(variance) >= 0.01 ? "(required)" : "(optional)"}</label>
-                <Textarea id="closing-notes" value={notes} disabled={Boolean(data.existing)} onChange={(event) => setNotes(event.target.value)} placeholder="Explain any shortage, overage, or unusual transaction…" className="mt-2 min-h-24 rounded-2xl" />
-                {!data.existing ? <Button className="mt-5 w-full sm:w-auto" onClick={() => void closeDay()} disabled={busy}><LockKeyhole className="size-4" /> {busy ? "Closing…" : "Close and lock day"}</Button> : null}
+                <Textarea id="closing-notes" value={notes} disabled={Boolean(existingClosing)} onChange={(event) => setNotes(event.target.value)} placeholder="Explain any shortage, overage, or unusual transaction…" className="mt-2 min-h-24 rounded-2xl" />
+                {!existingClosing ? <Button className="mt-5 w-full sm:w-auto" onClick={() => void closeDay()} disabled={busy}><LockKeyhole className="size-4" /> {busy ? "Closing…" : "Close and lock day"}</Button> : null}
               </article>
 
               <article className="rounded-3xl border border-border bg-card p-5 shadow-card sm:p-6">
                 <h2 className="text-lg font-semibold">Audited corrections</h2>
                 <p className="mt-1 text-sm text-muted-foreground">A closed day stays unchanged. Add a signed correction with a reason instead.</p>
-                {data.existing ? (
+                {existingClosing ? (
                   <>
                     <MoneyInput label="Adjustment (+ / −)" value={adjustmentAmount} onChange={(value) => setAdjustmentAmount(String(value))} />
                     <label htmlFor="adjustment-reason" className="mt-4 block text-sm font-medium">Reason</label>
                     <Textarea id="adjustment-reason" value={adjustmentReason} onChange={(event) => setAdjustmentReason(event.target.value)} className="mt-2 rounded-2xl" placeholder="Why is this correction needed?" />
                     <Button variant="outline" className="mt-4 w-full" onClick={() => void addAdjustment()} disabled={busy || !adjustmentAmount || adjustmentReason.trim().length < 5}>Add audited adjustment</Button>
                     <div className="mt-5 space-y-2">
-                      {data.existing.adjustments.map((item) => <div key={item.id} className="rounded-xl bg-muted/40 p-3 text-sm"><div className="flex justify-between gap-3"><span>{item.reason}</span><strong>{currency.format(item.amount)}</strong></div></div>)}
+                      {existingClosing.adjustments.map((item) => <div key={item.id} className="rounded-xl bg-muted/40 p-3 text-sm"><div className="flex justify-between gap-3"><span>{item.reason}</span><strong>{currency.format(item.amount)}</strong></div></div>)}
                     </div>
                   </>
                 ) : <p className="mt-5 rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground">Corrections become available only after the day is closed.</p>}

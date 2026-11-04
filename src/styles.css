@@ -171,6 +171,18 @@
   ::selection {
     background: color-mix(in oklab, var(--primary) 24%, transparent);
   }
+
+  /* Keep saved browser credentials readable in both light and dark themes. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: var(--foreground);
+    caret-color: var(--foreground);
+    box-shadow: 0 0 0 1000px var(--background) inset;
+    transition: background-color 9999s ease-out 0s;
+  }
 }
 
 @media (max-width: 640px) {

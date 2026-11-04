@@ -393,8 +393,8 @@ export function OrderDetails({
               />
             ) : null}
             {order.deliveryProof.signatureUrl ? (
-              <div className="rounded-xl border border-border bg-white p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Recipient signature
                 </p>
                 <img

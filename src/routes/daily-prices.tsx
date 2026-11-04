@@ -346,7 +346,7 @@ function DailyPricesPage() {
                 </span>
               </div>
             </div>
-            <div className="w-full rounded-3xl border border-white/70 bg-background/90 p-4 shadow-sm backdrop-blur lg:w-[25rem]">
+            <div className="w-full rounded-3xl border border-border/70 bg-background/90 p-4 shadow-sm backdrop-blur lg:w-[25rem]">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
