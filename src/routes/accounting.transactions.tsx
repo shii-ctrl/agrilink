@@ -9,6 +9,7 @@ import { AppSelect } from "@/components/ui/app-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { EmptyState } from "@/components/data/empty-state";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
@@ -115,7 +116,20 @@ function AccountingTransactionsPage() {
               </Button>
             )}
           </div>
-          <div className="overflow-x-auto">
+          <div className="grid gap-3 p-4 md:hidden">
+            {ordersPage.pageItems.map((order) => (
+              <article key={order.id} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0"><p className="truncate text-xs font-semibold uppercase tracking-wide text-primary">{order.id}</p><h3 className="mt-1 truncate font-semibold">{order.product}</h3><p className="mt-1 text-sm text-muted-foreground">{order.classification} · {order.quantity}</p></div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${transactionStatusClass(order.status)}`}>{order.status}</span>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 text-sm"><div><p className="text-xs text-muted-foreground">Buyer</p><p className="mt-0.5 font-medium">{order.buyer}</p></div><div><p className="text-xs text-muted-foreground">Farmer</p><p className="mt-0.5 font-medium">{order.farmer}</p></div><div><p className="text-xs text-muted-foreground">Amount</p><p className="mt-0.5 font-semibold">{order.total}</p></div><div><p className="text-xs text-muted-foreground">Payment</p><p className={`mt-0.5 font-semibold ${order.paymentStatus === "Paid" ? "text-primary" : "text-amber-700"}`}>{order.paymentStatus}</p></div></div>
+                <p className="mt-3 text-xs text-muted-foreground">Recorded {order.date}</p>
+              </article>
+            ))}
+            {!visibleOrders.length ? <EmptyState compact icon={ReceiptText} title={orders.length ? "No matching transactions" : "No transactions yet"} description={orders.length ? "Change or clear the current filters." : "Saved marketplace transactions will appear here."} /> : null}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[1050px] text-left text-sm">
               <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -168,4 +182,11 @@ function AccountingTransactionsPage() {
       </main>
     </AccountingLayout>
   );
+}
+
+function transactionStatusClass(status: string) {
+  if (status === "Sold") return "bg-emerald-100 text-emerald-800";
+  if (status === "Confirmed") return "bg-blue-100 text-blue-800";
+  if (["Cancelled", "Rejected"].includes(status)) return "bg-red-100 text-red-800";
+  return "bg-amber-100 text-amber-800";
 }

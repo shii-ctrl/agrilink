@@ -40,11 +40,11 @@ export function PaginationControls({
   const lastItem = Math.min(currentPage * pageSize, totalItems);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-4 text-sm text-muted-foreground">
+    <div className="flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-4 text-sm text-muted-foreground sm:flex-row sm:px-5">
       <span>
         Showing {firstItem}–{lastItem} of {totalItems} {itemLabel}
       </span>
-      <div className="flex items-center gap-2">
+      <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 sm:w-auto">
         <Button
           type="button"
           size="sm"
@@ -63,6 +63,7 @@ export function PaginationControls({
           variant="outline"
           disabled={currentPage === pageCount}
           onClick={() => setPage(currentPage + 1)}
+          className="justify-self-end"
         >
           Next
         </Button>

@@ -176,7 +176,7 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
 
 export function MarketerPageHeader({ title, description }: { title: string; description: string }) {
   return (
-    <header className="border-b border-border/70 bg-background/90 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur md:static sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl items-start gap-3">
         <SidebarTrigger className="mt-0.5" />
         <div>

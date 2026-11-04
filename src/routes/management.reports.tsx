@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
 import { Button } from "@/components/ui/button";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
+import { EmptyState } from "@/components/data/empty-state";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { getManagementReport } from "@/services/marketplace/marketplace-server-functions";
 import { getManagementFeedbackSummary } from "@/services/marketplace/order-feedback-server-functions";
@@ -124,7 +125,17 @@ function ManagementReportsPage() {
                 </span>
               </div>
               {closings.length ? (
-                <div className="overflow-x-auto">
+                <>
+                <div className="grid gap-3 px-4 pb-4 md:hidden">
+                  {closings.slice(0, 10).map((item) => (
+                    <article key={item.id} className="rounded-2xl border border-border bg-background p-4">
+                      <div className="flex items-center justify-between gap-3"><p className="font-semibold">{item.businessDate}</p><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.adjustedVariance === 0 ? "bg-primary/10 text-primary" : "bg-amber-100 text-amber-800"}`}>{item.adjustedVariance === 0 ? "Balanced" : item.adjustedVariance > 0 ? "Overage" : "Shortage"}</span></div>
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-sm"><ReportCash label="Gross sales" value={item.grossSales} /><ReportCash label="Service fee" value={item.serviceFeeIncome} /><ReportCash label="Expected" value={item.adjustedExpectedCash} /><ReportCash label="Actual" value={item.actualCash} /></div>
+                      {item.pendingCod > 0 ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">Pending COD: ₱{item.pendingCod.toFixed(2)}</p> : null}
+                    </article>
+                  ))}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
                   <table className="w-full min-w-[760px] text-left text-sm">
                     <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr><th className="px-5 py-3">Date</th><th className="px-5 py-3">Gross sales</th><th className="px-5 py-3">Service fee</th><th className="px-5 py-3">Pending COD</th><th className="px-5 py-3">Expected / actual</th><th className="px-5 py-3">Variance</th></tr>
@@ -143,10 +154,9 @@ function ManagementReportsPage() {
                     </tbody>
                   </table>
                 </div>
+                </>
               ) : (
-                <p className="border-t border-border px-5 py-10 text-center text-sm text-muted-foreground">
-                  No day has been closed by Accounting yet.
-                </p>
+                <EmptyState icon={LockKeyhole} title="No closed day yet" description="Accounting's first verified closing will appear here for Management monitoring." />
               )}
             </section>
 
@@ -337,4 +347,8 @@ function RatingBadge({ label, value }: { label: string; value: string }) {
       {label} {value} ★
     </span>
   );
+}
+
+function ReportCash({ label, value }: { label: string; value: number }) {
+  return <div className="rounded-xl bg-muted/40 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-0.5 font-semibold">₱{value.toFixed(2)}</p></div>;
 }

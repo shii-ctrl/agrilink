@@ -167,6 +167,10 @@
     outline: 3px solid var(--color-ring);
     outline-offset: 3px;
   }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 24%, transparent);
+  }
 }
 
 @media (max-width: 640px) {
@@ -265,13 +269,73 @@
   [class*="rounded-3xl"] {
     border-radius: 1.25rem;
   }
+
+  main {
+    scroll-margin-top: 4rem;
+  }
+}
+
+/* Data-heavy workspaces keep headings visible and provide clear row affordance. */
+main table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+main table tbody tr {
+  transition: background-color 150ms ease;
+}
+
+main table tbody tr:hover {
+  background: color-mix(in oklab, var(--muted) 65%, transparent);
+}
+
+.overflow-x-auto {
+  scrollbar-color: color-mix(in oklab, var(--primary) 35%, transparent) transparent;
+  scrollbar-width: thin;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
   .mobile-menu-enter,
   .mobile-menu-link,
   .mobile-menu-actions {
     animation: none;
+  }
+}
+
+@media print {
+  [data-sidebar="sidebar"],
+  [data-sidebar="trigger"],
+  button,
+  [role="dialog"] button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body,
+  main {
+    background: white !important;
+    color: black !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  article,
+  section {
+    break-inside: avoid;
+    box-shadow: none !important;
   }
 }
 

@@ -12,6 +12,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
+import { EmptyState } from "@/components/data/empty-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import type { OrderRecord } from "@/features/marketplace/order-records";
@@ -255,7 +256,35 @@ function BuyerOrdersPage() {
                     </Button>
                   )}
                 </div>
-                <div className="overflow-x-auto">
+                <div className="grid gap-3 p-4 md:hidden">
+                  {ordersPage.pageItems.map((order) => (
+                    <article key={order.id} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold uppercase tracking-wide text-primary">{order.id}</p>
+                          <h3 className="mt-1 font-semibold">{order.product}</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">{order.quantity} · {order.classification}</p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${orderStatusClass(order.status)}`}>{order.status}</span>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 text-sm">
+                        <div><p className="text-xs text-muted-foreground">Total</p><p className="mt-0.5 font-semibold">{order.total}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Payment</p><p className={`mt-0.5 font-semibold ${order.paymentStatus === "Paid" ? "text-primary" : "text-muted-foreground"}`}>{order.paymentStatus}</p></div>
+                        <div className="col-span-2"><p className="text-xs text-muted-foreground">Order date</p><p className="mt-0.5">{order.date}</p></div>
+                      </div>
+                      <Button variant="outline" className="mt-4 w-full" onClick={() => void openDetails(order.id)}>View order details</Button>
+                    </article>
+                  ))}
+                  {!visibleOrders.length ? (
+                    <EmptyState
+                      compact
+                      icon={PackageCheck}
+                      title={orders.length ? "No matching orders" : "No orders yet"}
+                      description={orders.length ? "Try clearing or changing your filters." : "Your PROCY marketplace orders will appear here."}
+                    />
+                  ) : null}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
                   <table className="w-full min-w-[700px] text-left text-sm">
                     <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
@@ -411,4 +440,11 @@ function BuyerOrdersPage() {
       </div>
     </BuyerLayout>
   );
+}
+
+function orderStatusClass(status: string) {
+  if (["Sold"].includes(status)) return "bg-emerald-100 text-emerald-800";
+  if (["Confirmed"].includes(status)) return "bg-blue-100 text-blue-800";
+  if (["Cancelled", "Rejected"].includes(status)) return "bg-red-100 text-red-800";
+  return "bg-amber-100 text-amber-800";
 }

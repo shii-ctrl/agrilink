@@ -16,6 +16,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
+import { EmptyState } from "@/components/data/empty-state";
+import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { Input } from "@/components/ui/input";
@@ -177,7 +179,7 @@ function DailyClosingPage() {
           </div>
         </section>
 
-        {loading ? <p className="py-16 text-center text-sm text-muted-foreground">Calculating saved transactions…</p> : null}
+        {loading ? <div className="mt-5"><WorkspaceLoadState loading error={null} onRetry={() => void load()} label="daily cash totals" /></div> : null}
         {!loading && totals ? (
           <>
             <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -233,7 +235,10 @@ function DailyClosingPage() {
 
             <section className="mt-5 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
               <div className="p-5 sm:p-6"><h2 className="text-lg font-semibold">Closing history</h2><p className="mt-1 text-sm text-muted-foreground">Permanent daily records visible to Accounting and Management.</p></div>
-              <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-5 py-3">Date</th><th className="px-5 py-3">Sales</th><th className="px-5 py-3">Expected</th><th className="px-5 py-3">Actual</th><th className="px-5 py-3">Variance</th><th className="px-5 py-3">Closed by</th></tr></thead><tbody className="divide-y divide-border">{history.map((item) => <tr key={item.id}><td className="px-5 py-4 font-medium">{item.businessDate}</td><td className="px-5 py-4">{currency.format(item.grossSales)}</td><td className="px-5 py-4">{currency.format(item.adjustedExpectedCash)}</td><td className="px-5 py-4">{currency.format(item.actualCash)}</td><td className={`px-5 py-4 font-semibold ${item.adjustedVariance === 0 ? "text-primary" : "text-amber-700"}`}>{currency.format(item.adjustedVariance)}</td><td className="px-5 py-4 text-muted-foreground">{item.closedByName}</td></tr>)}</tbody></table></div>
+              {history.length ? <>
+                <div className="grid gap-3 px-4 pb-4 md:hidden">{history.map((item) => <article key={item.id} className="rounded-2xl border border-border bg-background p-4"><div className="flex items-center justify-between gap-3"><p className="font-semibold">{item.businessDate}</p><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.adjustedVariance === 0 ? "bg-primary/10 text-primary" : "bg-amber-100 text-amber-800"}`}>{item.adjustedVariance === 0 ? "Balanced" : item.adjustedVariance > 0 ? "Overage" : "Shortage"}</span></div><div className="mt-3 grid grid-cols-2 gap-3 text-sm"><CashHistoryValue label="Sales" value={item.grossSales} /><CashHistoryValue label="Expected" value={item.adjustedExpectedCash} /><CashHistoryValue label="Actual" value={item.actualCash} /><CashHistoryValue label="Variance" value={item.adjustedVariance} /></div><p className="mt-3 text-xs text-muted-foreground">Closed by {item.closedByName}</p></article>)}</div>
+                <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-5 py-3">Date</th><th className="px-5 py-3">Sales</th><th className="px-5 py-3">Expected</th><th className="px-5 py-3">Actual</th><th className="px-5 py-3">Variance</th><th className="px-5 py-3">Closed by</th></tr></thead><tbody className="divide-y divide-border">{history.map((item) => <tr key={item.id}><td className="px-5 py-4 font-medium">{item.businessDate}</td><td className="px-5 py-4">{currency.format(item.grossSales)}</td><td className="px-5 py-4">{currency.format(item.adjustedExpectedCash)}</td><td className="px-5 py-4">{currency.format(item.actualCash)}</td><td className={`px-5 py-4 font-semibold ${item.adjustedVariance === 0 ? "text-primary" : "text-amber-700"}`}>{currency.format(item.adjustedVariance)}</td><td className="px-5 py-4 text-muted-foreground">{item.closedByName}</td></tr>)}</tbody></table></div>
+              </> : <EmptyState icon={LockKeyhole} title="No closing history yet" description="The first verified daily closing will appear here permanently." />}
             </section>
           </>
         ) : null}
@@ -251,4 +256,7 @@ function MoneyInput({ label, value, onChange, disabled = false }: { label: strin
 }
 function CashTotal({ label, value, emphasized = false }: { label: string; value: number; emphasized?: boolean }) {
   return <div className={`rounded-2xl p-4 ${emphasized ? "bg-primary text-primary-foreground" : "bg-muted/40"}`}><p className="text-xs opacity-75">{label}</p><p className="mt-1 text-xl font-semibold">{currency.format(value)}</p></div>;
+}
+function CashHistoryValue({ label, value }: { label: string; value: number }) {
+  return <div className="rounded-xl bg-muted/40 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-0.5 font-semibold">{currency.format(value)}</p></div>;
 }

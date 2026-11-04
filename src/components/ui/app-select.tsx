@@ -87,7 +87,7 @@ export function AppSelect({
             aria-haspopup="listbox"
             disabled={disabled}
             className={cn(
-              "h-auto min-h-10 w-full justify-between rounded-xl px-3 py-2 text-left font-normal shadow-none hover:bg-accent/40",
+              "h-auto min-h-11 w-full justify-between rounded-xl px-3.5 py-2 text-left font-normal shadow-sm hover:bg-accent/40",
               className,
             )}
           >

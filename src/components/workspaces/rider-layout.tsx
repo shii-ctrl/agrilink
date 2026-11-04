@@ -130,7 +130,7 @@ export function RiderLayout({ children }: { children: ReactNode }) {
 
 export function RiderPageHeader({ title, description }: { title: string; description: string }) {
   return (
-    <header className="flex items-start gap-3 border-b border-border bg-background px-4 py-4 md:px-8">
+    <header className="sticky top-0 z-30 flex items-start gap-3 border-b border-border bg-background/95 px-4 py-4 backdrop-blur md:static md:px-8">
       <SidebarTrigger className="mt-1" />
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Rider</p>
