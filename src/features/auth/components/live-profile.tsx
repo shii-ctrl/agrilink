@@ -24,6 +24,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -597,6 +598,15 @@ export function LiveProfile({
             Save changes
           </Button>
         </form>
+      </section>
+      <section className="mt-5 flex flex-col gap-4 rounded-3xl border border-border bg-card p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-semibold">Appearance</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Choose light or dark mode for AgriLink on this device.
+          </p>
+        </div>
+        <ThemeToggle showLabel />
       </section>
       <div className="mt-5 flex justify-end">
         <Button

@@ -1,8 +1,15 @@
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export function ThemeToggle() {
+export function ThemeToggle({
+  showLabel = false,
+  className,
+}: {
+  showLabel?: boolean;
+  className?: string;
+}) {
   const [dark, setDark] = useState(
     () => typeof window !== "undefined" && window.localStorage.getItem("agrilink-theme") === "dark",
   );
@@ -29,13 +36,17 @@ export function ThemeToggle() {
   }
   return (
     <Button
-      variant="ghost"
-      size="icon"
-      className="rounded-full"
+      variant={showLabel ? "outline" : "ghost"}
+      size={showLabel ? "default" : "icon"}
+      className={cn(
+        showLabel ? "w-full justify-center rounded-full sm:w-auto" : "rounded-full",
+        className,
+      )}
       onClick={toggle}
       aria-label={dark ? "Use light mode" : "Use dark mode"}
     >
       {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      {showLabel ? (dark ? "Switch to light mode" : "Switch to dark mode") : null}
     </Button>
   );
 }

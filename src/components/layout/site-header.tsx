@@ -160,9 +160,11 @@ export function SiteHeader({
           </nav>
 
           <div className="hidden items-center gap-2 lg:flex">
-            <span className={dark ? "[&>button]:text-forest-foreground" : undefined}>
-              <ThemeToggle />
-            </span>
+            {!account && (
+              <span className={dark ? "[&>button]:text-forest-foreground" : undefined}>
+                <ThemeToggle />
+              </span>
+            )}
             {isBuyer ? (
               <>
                 <BuyerCartButton dark={dark} />
@@ -253,9 +255,11 @@ export function SiteHeader({
                   dark ? "border-white/10" : "border-border"
                 }`}
               >
-                <span className={dark ? "[&>button]:text-forest-foreground" : undefined}>
-                  <ThemeToggle />
-                </span>
+                {!account && (
+                  <span className={dark ? "[&>button]:text-forest-foreground" : undefined}>
+                    <ThemeToggle />
+                  </span>
+                )}
                 {isBuyer ? (
                   <>
                     <BuyerCartButton dark={dark} />

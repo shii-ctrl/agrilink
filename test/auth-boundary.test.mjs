@@ -1078,19 +1078,21 @@ test("workspace identity is loaded from the authenticated server session", async
   assert.doesNotMatch(roleGate, /demo-session/);
 });
 
-test("every signed-in workspace exposes light and dark mode in its header", async () => {
-  const actionBar = await readFile(
-    "src/components/workspaces/workspace-header-actions.tsx",
-    "utf8",
-  );
-  const layouts = await Promise.all(
-    ["buyer", "farmer", "marketer", "management", "accounting", "rider"].map((role) =>
+test("every signed-in role keeps theme controls inside Profile", async () => {
+  const [actionBar, profile, siteHeader, ...layouts] = await Promise.all([
+    readFile("src/components/workspaces/workspace-header-actions.tsx", "utf8"),
+    readFile("src/features/auth/components/live-profile.tsx", "utf8"),
+    readFile("src/components/layout/site-header.tsx", "utf8"),
+    ...["buyer", "farmer", "marketer", "management", "accounting", "rider"].map((role) =>
       readFile(`src/components/workspaces/${role}-layout.tsx`, "utf8"),
     ),
-  );
+  ]);
 
-  assert.match(actionBar, /<ThemeToggle/);
+  assert.doesNotMatch(actionBar, /ThemeToggle/);
   assert.match(actionBar, /<NotificationCenter role=\{role\}/);
+  assert.match(profile, /<ThemeToggle showLabel/);
+  assert.match(profile, />Appearance</);
+  assert.match(siteHeader, /!account && \(/);
   for (const layout of layouts) {
     assert.match(layout, /<WorkspaceHeaderActions role=/);
   }
