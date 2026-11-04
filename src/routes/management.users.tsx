@@ -331,8 +331,8 @@ function ManagementUsersPage() {
                                 <Button
                                   type="button"
                                   size="sm"
-                                  variant="outline"
-                                  className="rounded-full border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                  variant="destructive"
+                                  className="rounded-full"
                                   onClick={async () => {
                                     if (
                                       !(await requestConfirmation({

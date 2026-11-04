@@ -442,7 +442,7 @@ function MarketerOrdersPage() {
                                 </Button>
                                 <Button
                                   size="sm"
-                                  variant="outline"
+                                  variant="destructive"
                                   className="rounded-full"
                                   onClick={() => cancelConfirmedOrder(order.id)}
                                 >

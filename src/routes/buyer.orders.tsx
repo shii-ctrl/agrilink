@@ -425,7 +425,7 @@ function BuyerOrdersPage() {
                 <div className="mb-4 flex flex-wrap justify-end gap-2 pr-12">
                   {selectedOrder.status === "Pending" && (
                     <Button
-                      variant="outline"
+                      variant="destructive"
                       className="rounded-full"
                       onClick={() => cancelOrder(selectedOrder)}
                     >

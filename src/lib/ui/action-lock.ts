@@ -4,20 +4,37 @@ const listeners = new Set<ActionLockListener>();
 let burstLocked = false;
 let pendingMutations = 0;
 let snapshot: "idle" | "guarded" | "busy" = "idle";
+let activeControl: HTMLElement | null = null;
+
+function updateActiveControl() {
+  if (pendingMutations > 0 && activeControl?.isConnected) {
+    activeControl.setAttribute("data-action-pending", "true");
+    activeControl.setAttribute("aria-busy", "true");
+    return;
+  }
+  if (activeControl?.getAttribute("data-action-pending") === "true") {
+    activeControl.removeAttribute("data-action-pending");
+    activeControl.removeAttribute("aria-busy");
+  }
+}
 
 function updateSnapshot() {
+  updateActiveControl();
   const next = pendingMutations > 0 ? "busy" : burstLocked ? "guarded" : "idle";
   if (next === snapshot) return;
   snapshot = next;
   listeners.forEach((listener) => listener());
+  if (next === "idle") activeControl = null;
 }
 
-function startClickGuard() {
+function startClickGuard(control: HTMLElement) {
+  activeControl = control;
   burstLocked = true;
   updateSnapshot();
   window.setTimeout(() => {
     burstLocked = false;
     updateSnapshot();
+    if (pendingMutations === 0) activeControl = null;
   }, 600);
 }
 
@@ -44,7 +61,7 @@ export function installActionClickGuard() {
       return;
     }
 
-    startClickGuard();
+    startClickGuard(control);
   };
 
   document.addEventListener("click", guardClick, true);

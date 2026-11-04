@@ -242,8 +242,8 @@ function ProductCatalogPage() {
                         {selected.active ? "Archive" : "Restore"}
                       </Button>
                       <Button
-                        variant="outline"
-                        className="rounded-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        variant="destructive"
+                        className="rounded-full"
                         onClick={async () => {
                           if (
                             !(await requestConfirmation({

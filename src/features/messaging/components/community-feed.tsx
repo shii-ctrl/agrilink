@@ -248,9 +248,8 @@ function CommunityCommentCard({
         {onDelete && (
           <Button
             type="button"
-            variant="ghost"
-            size="sm"
-            className="size-8 rounded-full p-0 text-destructive hover:text-destructive"
+            variant="destructive"
+            size="icon"
             disabled={busy}
             aria-label="Delete your comment"
             title="Delete your comment"

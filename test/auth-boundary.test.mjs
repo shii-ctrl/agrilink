@@ -1407,11 +1407,28 @@ test("the first action blocks competing buttons until its mutation finishes", as
   assert.match(lock, /event\.stopImmediatePropagation\(\)/);
   assert.match(lock, /beginMutatingAction/);
   assert.match(lock, /pendingMutations/);
+  assert.match(lock, /data-action-pending/);
+  assert.match(lock, /aria-busy/);
   assert.match(refresh, /const finishAction = isMutation \? beginMutatingAction\(\) : null/);
   assert.match(refresh, /finishAction\?\.\(\)/);
   assert.match(root, /installActionClickGuard/);
   assert.match(root, /<ActionLockShield \/>/);
   assert.match(shield, /Processing… Please wait/);
+});
+
+test("shared buttons enforce consistent action hierarchy, sizing, and loading feedback", async () => {
+  const button = await readFile("src/components/ui/button.tsx", "utf8");
+
+  assert.match(button, /default: "bg-primary text-primary-foreground/);
+  assert.match(button, /destructive: "bg-destructive text-destructive-foreground/);
+  assert.match(button, /secondary:\s*"border border-input bg-background/);
+  assert.match(button, /outline:\s*"border border-input bg-background/);
+  assert.match(button, /!rounded-xl/);
+  assert.match(button, /default: "!h-10/);
+  assert.match(button, /sm: "!h-9/);
+  assert.match(button, /lg: "!h-11/);
+  assert.match(button, /\[&_svg\]:!size-4/);
+  assert.match(button, /data-\[action-pending=true\].*animate-spin/);
 });
 
 test("public landing and marketplace pages share responsive page gutters", async () => {
