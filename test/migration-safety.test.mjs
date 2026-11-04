@@ -134,6 +134,45 @@ test("production database connections stay within managed serverless limits", as
   assert.match(runner, /maximumAttempts = 6/);
 });
 
+test("transactional saves write audit records through the active transaction", async () => {
+  const [authServer, marketplace, settlements] = await Promise.all([
+    readFile("src/services/auth/auth-server.ts", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
+    readFile("src/services/settlements/farmer-settlement-server-functions.ts", "utf8"),
+  ]);
+
+  assert.match(authServer, /executor: AuditLogExecutor = db/);
+  assert.match(authServer, /await executor\.insert\(auditLogs\)/);
+  assert.doesNotMatch(authServer, /await db\.insert\(auditLogs\)/);
+
+  const assertUsesActiveTransaction = (source, action) => {
+    const actionIndex = source.indexOf(action);
+    assert.notEqual(actionIndex, -1, `Missing audit action ${action}`);
+    const callStart = source.lastIndexOf("writeAuditLog(", actionIndex);
+    const callEnd = source.indexOf(");", actionIndex);
+    assert.notEqual(callStart, -1, `Missing audit call for ${action}`);
+    assert.notEqual(callEnd, -1, `Unterminated audit call for ${action}`);
+    assert.match(source.slice(callStart, callEnd + 2), /,\s*tx\s*,?\s*\);$/);
+  };
+
+  for (const action of [
+    '"order.create"',
+    '"delivery.assign_rider"',
+    "`fulfillment.${data.status}`",
+    '"delivery.completion.submit"',
+    '"delivery.attempt.failed"',
+    "`cod_remittance.${data.action}`",
+    '"order.confirm"',
+    '"order.sell"',
+    "`order.${data.outcome}`",
+    '"payment.record"',
+  ]) {
+    assertUsesActiveTransaction(marketplace, action);
+  }
+  assertUsesActiveTransaction(settlements, '"farmer_payout.release"');
+  assertUsesActiveTransaction(settlements, '"farmer_ipon.release"');
+});
+
 test("retired profile-photo visibility choices normalize to Everyone", async () => {
   const migration = await readFile("drizzle/0026_simplify_profile_photo_privacy.sql", "utf8");
   assert.match(migration, /NOT IN \('everyone', 'hidden'\)/);

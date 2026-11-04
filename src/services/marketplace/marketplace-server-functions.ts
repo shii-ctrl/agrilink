@@ -2354,7 +2354,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         .delete(cartItems)
         .where(and(eq(cartItems.cartId, cart.id), inArray(cartItems.listingId, listingIds)));
 
-      await writeAuditLog(buyer.id, "order.create", "order", orderId, { orderNumber });
+      await writeAuditLog(buyer.id, "order.create", "order", orderId, { orderNumber }, tx);
       return { id: orderId, orderNumber, totalAmount, buyerName: buyer.displayName };
     });
     const { notifyRole } = await import("@/services/messaging/notification-server");
@@ -2628,12 +2628,19 @@ export const assignDeliveryRider = createServerFn({ method: "POST" })
         note: `${rider.name} was assigned to this delivery.${data.reason ? ` Reason: ${data.reason}` : ""}`,
         changedAt: new Date(),
       });
-      await writeAuditLog(manager.id, "delivery.assign_rider", "order", order.id, {
-        orderNumber: order.orderNumber,
-        riderId: rider.id,
-        previousRiderId: order.assignedRiderId,
-        reason: data.reason,
-      });
+      await writeAuditLog(
+        manager.id,
+        "delivery.assign_rider",
+        "order",
+        order.id,
+        {
+          orderNumber: order.orderNumber,
+          riderId: rider.id,
+          previousRiderId: order.assignedRiderId,
+          reason: data.reason,
+        },
+        tx,
+      );
       return {
         buyerId: order.buyerId,
         orderNumber: order.orderNumber,
@@ -2733,9 +2740,16 @@ export const updateOrderFulfillment = createServerFn({ method: "POST" })
         note: labels[data.status],
         changedAt: now,
       });
-      await writeAuditLog(actor.id, `fulfillment.${data.status}`, "order", order.id, {
-        orderNumber: order.orderNumber,
-      });
+      await writeAuditLog(
+        actor.id,
+        `fulfillment.${data.status}`,
+        "order",
+        order.id,
+        {
+          orderNumber: order.orderNumber,
+        },
+        tx,
+      );
       return { buyerId: order.buyerId, orderNumber: order.orderNumber, status: data.status };
     });
     const { notifyUser } = await import("@/services/messaging/notification-server");
@@ -2826,10 +2840,17 @@ export const submitDeliveryProof = createServerFn({ method: "POST" })
             closedAt: null,
           },
         });
-      await writeAuditLog(rider.id, "delivery.completion.submit", "order", order.id, {
-        orderNumber: order.orderNumber,
-        recipientName: data.recipientName,
-      });
+      await writeAuditLog(
+        rider.id,
+        "delivery.completion.submit",
+        "order",
+        order.id,
+        {
+          orderNumber: order.orderNumber,
+          recipientName: data.recipientName,
+        },
+        tx,
+      );
       return { buyerId: order.buyerId, orderNumber: order.orderNumber };
     });
     const { notifyRole, notifyUser } = await import("@/services/messaging/notification-server");
@@ -2897,11 +2918,18 @@ export const reportDeliveryIssue = createServerFn({ method: "POST" })
         note: `${data.outcome.replaceAll("_", " ")}: ${data.reasonNote}${data.nextSchedule ? ` Next schedule: ${data.nextSchedule}` : ""}`,
         changedAt: now,
       });
-      await writeAuditLog(rider.id, "delivery.attempt.failed", "order", order.id, {
-        orderNumber: order.orderNumber,
-        outcome: data.outcome,
-        nextSchedule: data.nextSchedule,
-      });
+      await writeAuditLog(
+        rider.id,
+        "delivery.attempt.failed",
+        "order",
+        order.id,
+        {
+          orderNumber: order.orderNumber,
+          outcome: data.outcome,
+          nextSchedule: data.nextSchedule,
+        },
+        tx,
+      );
       return { buyerId: order.buyerId, orderNumber: order.orderNumber, status };
     });
     const { notifyRole, notifyUser } = await import("@/services/messaging/notification-server");
@@ -2998,10 +3026,17 @@ export const updateCodRemittance = createServerFn({ method: "POST" })
             .where(eq(codRemittances.id, row.remittance.id));
         }
       }
-      await writeAuditLog(actor.id, `cod_remittance.${data.action}`, "order", row.order.id, {
-        orderNumber: row.order.orderNumber,
-        amount: Number(row.remittance.amount),
-      });
+      await writeAuditLog(
+        actor.id,
+        `cod_remittance.${data.action}`,
+        "order",
+        row.order.id,
+        {
+          orderNumber: row.order.orderNumber,
+          amount: Number(row.remittance.amount),
+        },
+        tx,
+      );
       return {
         buyerId: row.order.buyerId,
         riderId: row.remittance.riderId,
@@ -4344,9 +4379,16 @@ export const confirmDatabaseOrder = createServerFn({ method: "POST" })
         note: "Marketer confirmed the order and reserved stock.",
         changedAt: now,
       });
-      await writeAuditLog(actor.id, "order.confirm", "order", order.id, {
-        orderNumber: order.orderNumber,
-      });
+      await writeAuditLog(
+        actor.id,
+        "order.confirm",
+        "order",
+        order.id,
+        {
+          orderNumber: order.orderNumber,
+        },
+        tx,
+      );
       return { orderId: order.id, buyerId: order.buyerId, orderNumber: order.orderNumber };
     });
     const { notifyUser } = await import("@/services/messaging/notification-server");
@@ -4467,9 +4509,16 @@ export const markDatabaseOrderSold = createServerFn({ method: "POST" })
         note: "Order fulfilled and marked sold.",
         changedAt: now,
       });
-      await writeAuditLog(actor.id, "order.sell", "order", order.id, {
-        orderNumber: order.orderNumber,
-      });
+      await writeAuditLog(
+        actor.id,
+        "order.sell",
+        "order",
+        order.id,
+        {
+          orderNumber: order.orderNumber,
+        },
+        tx,
+      );
       return { orderId: order.id, buyerId: order.buyerId, orderNumber: order.orderNumber };
     });
     const { notifyUser, notifyRole } = await import("@/services/messaging/notification-server");
@@ -4618,9 +4667,16 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
         note: data.reason ?? `Order ${data.outcome}. Fulfillment stopped.`,
         changedAt: new Date(),
       });
-      await writeAuditLog(actor.id, `order.${data.outcome}`, "order", order.id, {
-        orderNumber: order.orderNumber,
-      });
+      await writeAuditLog(
+        actor.id,
+        `order.${data.outcome}`,
+        "order",
+        order.id,
+        {
+          orderNumber: order.orderNumber,
+        },
+        tx,
+      );
       return {
         orderId: order.id,
         status: data.outcome,
@@ -4688,9 +4744,16 @@ export const recordDatabasePayment = createServerFn({ method: "POST" })
         .where(
           and(eq(farmerEarnings.orderId, order.id), eq(farmerEarnings.status, "pending_payment")),
         );
-      await writeAuditLog(actor.id, "payment.record", "payment", paymentNumber, {
-        orderNumber: order.orderNumber,
-      });
+      await writeAuditLog(
+        actor.id,
+        "payment.record",
+        "payment",
+        paymentNumber,
+        {
+          orderNumber: order.orderNumber,
+        },
+        tx,
+      );
       return { paymentNumber, buyerId: order.buyerId, orderNumber: order.orderNumber };
     });
     const { notifyUser } = await import("@/services/messaging/notification-server");

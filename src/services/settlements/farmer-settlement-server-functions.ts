@@ -260,12 +260,19 @@ export const releaseFarmerCashPayout = createServerFn({ method: "POST" })
       if (updated.affectedRows !== rows.length) {
         throw new Error("The available payout changed. Refresh and try again.");
       }
-      await writeAuditLog(accountant.id, "farmer_payout.release", "farmer_payout", payoutId, {
-        payoutNumber,
-        farmerId: data.farmerId,
-        receivingId: data.receivingId,
-        amount: values.netAmount,
-      });
+      await writeAuditLog(
+        accountant.id,
+        "farmer_payout.release",
+        "farmer_payout",
+        payoutId,
+        {
+          payoutNumber,
+          farmerId: data.farmerId,
+          receivingId: data.receivingId,
+          amount: values.netAmount,
+        },
+        tx,
+      );
       return {
         payoutId,
         payoutNumber,
@@ -338,11 +345,18 @@ export const releaseFarmerIpon = createServerFn({ method: "POST" })
       if (updated.affectedRows !== rows.length) {
         throw new Error("The IPON balance changed. Refresh and try again.");
       }
-      await writeAuditLog(accountant.id, "farmer_ipon.release", "farmer_ipon", releaseId, {
-        releaseNumber,
-        farmerId: data.farmerId,
-        amount: iponAmount,
-      });
+      await writeAuditLog(
+        accountant.id,
+        "farmer_ipon.release",
+        "farmer_ipon",
+        releaseId,
+        {
+          releaseNumber,
+          farmerId: data.farmerId,
+          amount: iponAmount,
+        },
+        tx,
+      );
       return {
         releaseId,
         releaseNumber,

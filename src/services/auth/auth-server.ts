@@ -243,14 +243,17 @@ export async function revokeCurrentSession() {
   deleteCookie(sessionCookieName, { path: "/" });
 }
 
+type AuditLogExecutor = Pick<typeof db, "insert">;
+
 export async function writeAuditLog(
   actorId: string | null,
   action: string,
   entityType: string,
   entityId: string | null,
   details?: Record<string, unknown>,
+  executor: AuditLogExecutor = db,
 ) {
-  await db.insert(auditLogs).values({
+  await executor.insert(auditLogs).values({
     id: crypto.randomUUID(),
     actorId,
     action,
