@@ -6,7 +6,6 @@ import {
   ClipboardCheck,
   Clock3,
   Egg,
-  ImageIcon,
   PackageCheck,
   Search,
   ShieldCheck,
@@ -21,7 +20,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import AutoScroll from "embla-carousel-auto-scroll";
 import { z } from "zod";
-import landingPlaceholder from "@/assets/landing-market-placeholder.svg";
+import procyHero from "@/assets/procy-hero.jpg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -346,16 +345,13 @@ function Index() {
 
             <div className="relative min-w-0 overflow-hidden rounded-3xl border border-primary/15 bg-card shadow-field sm:rounded-[2.5rem]">
               <img
-                src={landingPlaceholder}
-                alt="Replaceable AgriLink landing page photo placeholder"
+                src={procyHero}
+                alt="PROCY building and community market in Candelaria, Quezon"
                 width={960}
                 height={800}
                 fetchPriority="high"
-                className="aspect-[4/3] w-full object-cover sm:aspect-[6/5]"
+                className="aspect-[4/3] w-full object-cover object-center sm:aspect-[6/5]"
               />
-              <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1.5 text-[10px] font-medium text-foreground shadow-card backdrop-blur sm:left-4 sm:top-4 sm:gap-2 sm:px-3 sm:py-2 sm:text-xs">
-                <ImageIcon className="size-4 text-primary" /> Replaceable landing photo
-              </div>
               <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/25 bg-forest/90 p-3 text-forest-foreground shadow-field backdrop-blur sm:inset-x-4 sm:bottom-4 sm:p-5">
                 <p className="text-xs uppercase tracking-[0.14em] opacity-70">Live marketplace</p>
                 <div className="mt-2 flex items-end justify-between gap-4">
