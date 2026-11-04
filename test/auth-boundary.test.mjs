@@ -1563,6 +1563,10 @@ test("public landing and marketplace pages share responsive page gutters", async
   assert.match(home, sharedGutters);
   assert.match(marketplace, sharedGutters);
   assert.match(home, /items-start/);
+  assert.match(home, /grid grid-cols-1 gap-2 sm:mt-4 sm:flex/);
+  assert.match(home, /grid grid-cols-2 gap-x-3 gap-y-2/);
+  assert.match(home, /linear-gradient\(180deg/);
+  assert.doesNotMatch(home, /min-\[390px\]:grid-cols-[23]/);
   assert.doesNotMatch(marketplace, /max-w-6xl px-4 pb-24 pt-8/);
 });
 
