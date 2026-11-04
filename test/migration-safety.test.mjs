@@ -87,6 +87,16 @@ test("catalog integrity recovery preserves duplicate legacy products before addi
   assert.match(runner, /ORDER BY created_at ASC, id ASC/);
 });
 
+test("daily cash closing migration safely resumes after verified tables already exist", async () => {
+  const runner = await readFile("scripts/migrate.mjs", "utf8");
+
+  assert.match(runner, /prepareDailyCashClosingMigration/);
+  assert.match(runner, /information_schema\.COLUMNS/);
+  assert.match(runner, /information_schema\.STATISTICS/);
+  assert.match(runner, /Existing \$\{table\.name\} table does not match migration 0041/);
+  assert.match(runner, /Keeping existing verified table \$\{table\.name\}/);
+});
+
 test("Vercel applies checked migrations before building production code", async () => {
   const config = JSON.parse(await readFile("vercel.json", "utf8"));
   assert.equal(config.buildCommand, "npm run db:migrate && npm run build");

@@ -110,6 +110,84 @@ async function prepareCatalogNameIntegrityMigration(sql) {
   return sql;
 }
 
+async function prepareDailyCashClosingMigration(sql) {
+  const tables = [
+    {
+      name: "daily_cash_closings",
+      columns: [
+        "id",
+        "business_date",
+        "opening_cash",
+        "gross_sales",
+        "pickup_collections",
+        "cod_collections",
+        "pending_cod",
+        "delivery_fees",
+        "refunds",
+        "farmer_payable",
+        "farmer_payouts",
+        "service_fee_income",
+        "ipon_contributions",
+        "ipon_releases",
+        "expected_cash",
+        "actual_cash",
+        "variance",
+        "notes",
+        "closed_by_id",
+        "closed_at",
+        "created_at",
+      ],
+      indexes: ["PRIMARY", "daily_cash_closings_date_unique", "daily_cash_closings_closed_idx"],
+    },
+    {
+      name: "daily_cash_adjustments",
+      columns: ["id", "closing_id", "amount", "reason", "recorded_by_id", "created_at"],
+      indexes: ["PRIMARY", "daily_cash_adjustments_closing_idx"],
+    },
+  ];
+
+  let executableSql = sql;
+  for (const table of tables) {
+    const [existingColumns] = await connection.execute(
+      `SELECT COLUMN_NAME
+         FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?`,
+      [table.name],
+    );
+    if (!existingColumns.length) continue;
+
+    const presentColumns = new Set(existingColumns.map((column) => column.COLUMN_NAME));
+    const missingColumns = table.columns.filter((column) => !presentColumns.has(column));
+    const [existingIndexes] = await connection.execute(
+      `SELECT DISTINCT INDEX_NAME
+         FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?`,
+      [table.name],
+    );
+    const presentIndexes = new Set(existingIndexes.map((index) => index.INDEX_NAME));
+    const missingIndexes = table.indexes.filter((index) => !presentIndexes.has(index));
+    if (missingColumns.length || missingIndexes.length) {
+      throw new Error(
+        `Existing ${table.name} table does not match migration 0041. Missing columns: ${missingColumns.join(", ") || "none"}; missing indexes: ${missingIndexes.join(", ") || "none"}.`,
+      );
+    }
+
+    const escapedName = table.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const createTableStatement = new RegExp(
+      "CREATE TABLE `" + escapedName + "` \\([\\s\\S]*?\\);\\s*(?:--> statement-breakpoint\\s*)?",
+      "i",
+    );
+    if (!createTableStatement.test(executableSql)) {
+      throw new Error(`Could not locate the ${table.name} statement in migration 0041.`);
+    }
+    executableSql = executableSql.replace(createTableStatement, "");
+    console.log(`Keeping existing verified table ${table.name} from migration 0041.`);
+  }
+  return executableSql;
+}
+
 async function applyMigration(file, sql) {
   const inventoryFarmerConstraint =
     /ALTER TABLE inventory ADD CONSTRAINT IF NOT EXISTS fk_inventory_farmer FOREIGN KEY \(farmer_id\) REFERENCES users\(id\);\s*/i;
@@ -126,9 +204,12 @@ async function applyMigration(file, sql) {
   if (file === "0007_catalog_and_guidance_integrity.sql") {
     executableSql = await prepareCatalogNameIntegrityMigration(executableSql);
   }
+  if (file === "0041_daily_cash_closing.sql") {
+    executableSql = await prepareDailyCashClosingMigration(executableSql);
+  }
   while (true) {
     try {
-      await connection.query(executableSql);
+      if (executableSql.trim()) await connection.query(executableSql);
       if (needsInventoryFarmerConstraint) await ensureInventoryFarmerForeignKey();
       return;
     } catch (error) {
