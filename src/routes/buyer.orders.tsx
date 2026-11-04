@@ -15,6 +15,7 @@ import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { EmptyState } from "@/components/data/empty-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import type { OrderRecord } from "@/features/marketplace/order-records";
 import { formatSellingQuantity } from "@/features/marketplace/selling-units";
@@ -106,12 +107,14 @@ function BuyerOrdersPage() {
       });
     }
   };
-  const openDetails = async (orderNumber: string) => {
+  const loadOrderDetails = useCallback(async (orderNumber: string, background = false) => {
     if (detailsRequestRef.current) return;
     detailsRequestRef.current = orderNumber;
-    setSelectedId(orderNumber);
-    setSelectedOrder(null);
-    setDetailsLoading(true);
+    if (!background) {
+      setSelectedId(orderNumber);
+      setSelectedOrder(null);
+      setDetailsLoading(true);
+    }
     try {
       const detail = await getOrderDetails({ data: { orderNumber } });
       setSelectedOrder({
@@ -162,16 +165,23 @@ function BuyerOrdersPage() {
         stockReserved: detail.status === "pending" || detail.status === "confirmed",
       });
     } catch {
-      setSelectedId(null);
-      toast.error("Could not load order details", {
-        id: "buyer-order-details-error",
-        description: "Please try again. If the problem continues, contact PROCY support.",
-      });
+      if (!background) {
+        setSelectedId(null);
+        toast.error("Could not load order details", {
+          id: "buyer-order-details-error",
+          description: "Please try again. If the problem continues, contact PROCY support.",
+        });
+      }
     } finally {
       detailsRequestRef.current = null;
-      setDetailsLoading(false);
+      if (!background) setDetailsLoading(false);
     }
-  };
+  }, []);
+  const openDetails = (orderNumber: string) => loadOrderDetails(orderNumber);
+  useAutoRefresh(() => {
+    if (!selectedId) return;
+    return loadOrderDetails(selectedId, true);
+  }, 3_000);
   const buyAgain = async (order: OrderRecord) => {
     try {
       await rebuildBuyerCartFromOrder({ data: { orderNumber: order.id } });

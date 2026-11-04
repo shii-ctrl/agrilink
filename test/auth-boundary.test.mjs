@@ -1013,6 +1013,8 @@ test("buyers can cancel only pending orders while Marketers handle confirmed can
   assert.match(buyerOrders, /selectedOrder\.status === "Pending"/);
   assert.match(buyerOrders, /<Dialog[\s\S]*open=\{Boolean\(selectedId\)\}/);
   assert.match(buyerOrders, /Loading order details/);
+  assert.match(buyerOrders, /useAutoRefresh\(\(\) => \{/);
+  assert.match(buyerOrders, /loadOrderDetails\(selectedId, true\)/);
   assert.match(buyerOrders, /DialogContent className="[^"]*overflow-hidden/);
   assert.match(buyerOrders, /h-full min-h-0 overflow-y-auto/);
   assert.match(buyerOrders, /Contact PROCY if you need it cancelled/);
