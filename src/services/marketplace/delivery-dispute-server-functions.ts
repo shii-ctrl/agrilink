@@ -28,7 +28,7 @@ const disputeResolutions = [
 const createDisputeInput = z.object({
   orderNumber: z.string().trim().min(3).max(40),
   category: z.enum(disputeCategories),
-  description: z.string().trim().min(10).max(2_000),
+  description: z.string().trim().min(3).max(2_000),
   attachmentUrl: z.string().startsWith("data:image/").max(2_400_000).nullable(),
 });
 const disputeIdInput = z.object({ disputeId: z.string().uuid() });

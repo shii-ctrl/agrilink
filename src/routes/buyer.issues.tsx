@@ -36,6 +36,7 @@ const categories = Object.entries(disputeCategoryLabels).map(([value, label]) =>
   value,
   label,
 }));
+const MIN_ISSUE_DESCRIPTION_LENGTH = 3;
 
 function BuyerDeliveryIssues() {
   const request = useCallback(async () => {
@@ -87,8 +88,25 @@ function BuyerDeliveryIssues() {
   }
 
   async function submit() {
-    if (!orderNumber || !category || description.trim().length < 10) {
-      toast.error("Choose an order and issue type, then describe what happened.");
+    if (!orderNumber) {
+      toast.error("Choose the delivered order", {
+        description: "Select which order has the issue.",
+        id: "delivery-issue-form-error",
+      });
+      return;
+    }
+    if (!category) {
+      toast.error("Choose an issue type", {
+        description: "Select the problem that best matches what happened.",
+        id: "delivery-issue-form-error",
+      });
+      return;
+    }
+    if (description.trim().length < MIN_ISSUE_DESCRIPTION_LENGTH) {
+      toast.error("Describe what happened", {
+        description: `Enter at least ${MIN_ISSUE_DESCRIPTION_LENGTH} characters.`,
+        id: "delivery-issue-form-error",
+      });
       return;
     }
     setSaving(true);
@@ -273,9 +291,17 @@ function BuyerDeliveryIssues() {
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="Describe the missing, damaged, incorrect, or undelivered item"
                 maxLength={2_000}
+                minLength={MIN_ISSUE_DESCRIPTION_LENGTH}
+                aria-describedby="delivery-issue-description-help"
                 className="min-h-28"
               />
-              <p className="text-right text-xs text-muted-foreground">{description.length}/2000</p>
+              <div
+                id="delivery-issue-description-help"
+                className="flex items-center justify-between gap-3 text-xs text-muted-foreground"
+              >
+                <span>Minimum {MIN_ISSUE_DESCRIPTION_LENGTH} characters</span>
+                <span>{description.length}/2000</span>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="delivery-issue-photo">Supporting photo (optional)</Label>

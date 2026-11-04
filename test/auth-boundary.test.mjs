@@ -1366,6 +1366,7 @@ test("delivery disputes enforce a 24-hour role-protected resolution workflow", a
   assert.match(migration, /CREATE TABLE delivery_disputes/);
   assert.match(migration, /UNIQUE KEY delivery_disputes_order_unique/);
   assert.match(server, /export const createDeliveryDispute/);
+  assert.match(server, /description: z\.string\(\)\.trim\(\)\.min\(3\)/);
   assert.match(server, /24 \* 60 \* 60 \* 1000/);
   assert.match(server, /requireRole\("Buyer"\)/);
   assert.match(server, /requireRole\("Management"\)/);
@@ -1374,6 +1375,10 @@ test("delivery disputes enforce a 24-hour role-protected resolution workflow", a
   assert.match(server, /export const processDeliveryDisputeRefund/);
   assert.match(buyer, /Report an issue/);
   assert.match(buyer, /Supporting photo \(optional\)/);
+  assert.match(buyer, /MIN_ISSUE_DESCRIPTION_LENGTH = 3/);
+  assert.match(buyer, /Choose the delivered order/);
+  assert.match(buyer, /Choose an issue type/);
+  assert.match(buyer, /Minimum \{MIN_ISSUE_DESCRIPTION_LENGTH\} characters/);
   assert.match(management, /Management decision/);
   assert.match(management, /Partial refund/);
   assert.match(operational, /Management makes the final\s+decision/);
