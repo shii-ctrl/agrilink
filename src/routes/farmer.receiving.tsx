@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { AppSelect } from "@/components/ui/app-select";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import {
   getFarmerProductStatuses,
@@ -68,7 +69,10 @@ function FarmerReceivingPage() {
                   Your classified stock, available quantity, and marketplace status.
                 </p>
               </div>
-              <div className="grid gap-3 border-b border-border p-5 md:grid-cols-2">
+              <ResponsiveFilterPanel
+                activeCount={[statusQuery, statusFilter].filter(Boolean).length}
+                contentClassName="md:grid-cols-2"
+              >
                 <Input
                   aria-label="Search product status"
                   value={statusQuery}
@@ -86,9 +90,9 @@ function FarmerReceivingPage() {
                       .map((status) => ({ value: status, label: status })),
                   ]}
                 />
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[620px] text-left text-sm">
+              </ResponsiveFilterPanel>
+              <div className="overflow-x-auto md:overflow-visible">
+                <table data-responsive-table className="w-full min-w-[620px] text-left text-sm">
                   <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                     <tr>
                       <th className="px-6 py-4">Product</th>
@@ -100,15 +104,27 @@ function FarmerReceivingPage() {
                   <tbody>
                     {statusesPage.pageItems.map((status) => (
                       <tr key={status.id} className="border-t border-border">
-                        <td className="px-6 py-4 font-medium">{status.product}</td>
-                        <td className="px-6 py-4">{status.classification}</td>
-                        <td className="px-6 py-4">{status.availableKg} kg</td>
-                        <td className="px-6 py-4 text-primary">{status.status}</td>
+                        <td data-label="Product" className="px-6 py-4 font-medium">
+                          {status.product}
+                        </td>
+                        <td data-label="Classification" className="px-6 py-4">
+                          {status.classification}
+                        </td>
+                        <td data-label="Available" className="px-6 py-4">
+                          {status.availableKg} kg
+                        </td>
+                        <td data-label="Status" className="px-6 py-4 text-primary">
+                          {status.status}
+                        </td>
                       </tr>
                     ))}
                     {visibleStatuses.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
+                        <td
+                          data-mobile-full
+                          colSpan={4}
+                          className="px-6 py-8 text-center text-muted-foreground"
+                        >
                           {statuses.length
                             ? "No product status records match these filters."
                             : "No delivery-backed product status yet."}

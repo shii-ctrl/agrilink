@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppSelect } from "@/components/ui/app-select";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 
 export type CatalogProductRow = {
   id: string;
@@ -64,7 +65,10 @@ export function CatalogProductTable({
 
   return (
     <>
-      <div className="grid gap-3 border-b border-border p-5 sm:grid-cols-2">
+      <ResponsiveFilterPanel
+        activeCount={[search, cropType].filter(Boolean).length}
+        contentClassName="sm:grid-cols-2"
+      >
         <Input
           aria-label="Search catalog products"
           value={search}
@@ -83,9 +87,9 @@ export function CatalogProductTable({
         <p className="text-sm text-muted-foreground sm:col-span-2">
           Crop types and products are sorted from A to Z.
         </p>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
+      </ResponsiveFilterPanel>
+      <div className="overflow-x-auto md:overflow-visible">
+        <table data-responsive-table className="w-full min-w-[640px] text-left text-sm">
           <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-6 py-4 font-medium">Product</th>
@@ -97,13 +101,17 @@ export function CatalogProductTable({
           <tbody>
             {groupedProducts.flatMap((group) => [
               <tr key={`${group.type}-heading`} className="border-b border-border bg-muted/30">
-                <td className="px-6 py-3 font-semibold text-primary" colSpan={columnCount}>
+                <td
+                  data-mobile-full
+                  className="px-6 py-3 font-semibold text-primary"
+                  colSpan={columnCount}
+                >
                   {group.type}
                 </td>
               </tr>,
               ...group.products.map((product) => (
                 <tr key={product.id} className="border-b border-border last:border-0">
-                  <td className="px-6 py-4 font-medium">
+                  <td data-label="Product" className="px-6 py-4 font-medium">
                     {product.name}
                     {product.description ? (
                       <p className="mt-1 text-xs font-normal text-muted-foreground">
@@ -111,14 +119,16 @@ export function CatalogProductTable({
                       </p>
                     ) : null}
                   </td>
-                  <td className="px-6 py-4 text-muted-foreground">{product.cropType}</td>
+                  <td data-label="Crop type" className="px-6 py-4 text-muted-foreground">
+                    {product.cropType}
+                  </td>
                   {showStatus && (
-                    <td className="px-6 py-4 text-primary">
+                    <td data-label="Status" className="px-6 py-4 text-primary">
                       {product.active === false ? "Inactive" : "Active"}
                     </td>
                   )}
                   {onReplaceImage && (
-                    <td className="px-6 py-4">
+                    <td data-label="Photo" className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {product.imageUrl ? (
                           <img
@@ -150,7 +160,11 @@ export function CatalogProductTable({
             ])}
             {filteredCount === 0 && (
               <tr>
-                <td colSpan={columnCount} className="px-6 py-10 text-center text-muted-foreground">
+                <td
+                  data-mobile-full
+                  colSpan={columnCount}
+                  className="px-6 py-10 text-center text-muted-foreground"
+                >
                   {products.length ? "No catalog products match this search." : emptyMessage}
                 </td>
               </tr>

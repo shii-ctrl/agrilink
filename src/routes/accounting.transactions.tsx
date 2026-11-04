@@ -10,6 +10,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { EmptyState } from "@/components/data/empty-state";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
 
@@ -67,7 +68,15 @@ function AccountingTransactionsPage() {
               </p>
             </div>
           </div>
-          <div className="grid gap-3 border-b border-border p-5 md:grid-cols-3">
+          <ResponsiveFilterPanel
+            activeCount={
+              Number(Boolean(query)) +
+              Number(Boolean(orderStatus)) +
+              Number(Boolean(paymentStatus)) +
+              Number(Boolean(orderDate))
+            }
+            contentClassName="md:grid-cols-3"
+          >
             <Input
               aria-label="Search transactions"
               value={query}
@@ -115,19 +124,66 @@ function AccountingTransactionsPage() {
                 Clear filters
               </Button>
             )}
-          </div>
+          </ResponsiveFilterPanel>
           <div className="grid gap-3 p-4 md:hidden">
             {ordersPage.pageItems.map((order) => (
-              <article key={order.id} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+              <article
+                key={order.id}
+                className="rounded-2xl border border-border bg-background p-4 shadow-sm"
+              >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0"><p className="truncate text-xs font-semibold uppercase tracking-wide text-primary">{order.id}</p><h3 className="mt-1 truncate font-semibold">{order.product}</h3><p className="mt-1 text-sm text-muted-foreground">{order.classification} · {order.quantity}</p></div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${transactionStatusClass(order.status)}`}>{order.status}</span>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold uppercase tracking-wide text-primary">
+                      {order.id}
+                    </p>
+                    <h3 className="mt-1 truncate font-semibold">{order.product}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {order.classification} · {order.quantity}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${transactionStatusClass(order.status)}`}
+                  >
+                    {order.status}
+                  </span>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 text-sm"><div><p className="text-xs text-muted-foreground">Buyer</p><p className="mt-0.5 font-medium">{order.buyer}</p></div><div><p className="text-xs text-muted-foreground">Farmer</p><p className="mt-0.5 font-medium">{order.farmer}</p></div><div><p className="text-xs text-muted-foreground">Amount</p><p className="mt-0.5 font-semibold">{order.total}</p></div><div><p className="text-xs text-muted-foreground">Payment</p><p className={`mt-0.5 font-semibold ${order.paymentStatus === "Paid" ? "text-primary" : "text-amber-700"}`}>{order.paymentStatus}</p></div></div>
+                <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Buyer</p>
+                    <p className="mt-0.5 font-medium">{order.buyer}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Farmer</p>
+                    <p className="mt-0.5 font-medium">{order.farmer}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Amount</p>
+                    <p className="mt-0.5 font-semibold">{order.total}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Payment</p>
+                    <p
+                      className={`mt-0.5 font-semibold ${order.paymentStatus === "Paid" ? "text-primary" : "text-amber-700"}`}
+                    >
+                      {order.paymentStatus}
+                    </p>
+                  </div>
+                </div>
                 <p className="mt-3 text-xs text-muted-foreground">Recorded {order.date}</p>
               </article>
             ))}
-            {!visibleOrders.length ? <EmptyState compact icon={ReceiptText} title={orders.length ? "No matching transactions" : "No transactions yet"} description={orders.length ? "Change or clear the current filters." : "Saved marketplace transactions will appear here."} /> : null}
+            {!visibleOrders.length ? (
+              <EmptyState
+                compact
+                icon={ReceiptText}
+                title={orders.length ? "No matching transactions" : "No transactions yet"}
+                description={
+                  orders.length
+                    ? "Change or clear the current filters."
+                    : "Saved marketplace transactions will appear here."
+                }
+              />
+            ) : null}
           </div>
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[1050px] text-left text-sm">

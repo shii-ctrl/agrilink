@@ -9,6 +9,7 @@ import { AppSelect } from "@/components/ui/app-select";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { getManagementProductWorkspace } from "@/services/marketplace/marketplace-server-functions";
@@ -153,7 +154,12 @@ function StockTable({
         <h2 className="text-lg font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
-      <div className="grid gap-3 border-b border-border p-5 md:grid-cols-2 xl:grid-cols-5">
+      <ResponsiveFilterPanel
+        activeCount={
+          [query, cropType, classification, listingStatus, availableOnly].filter(Boolean).length
+        }
+        contentClassName="md:grid-cols-2 xl:grid-cols-5"
+      >
         <Input
           aria-label="Search stock"
           value={query}
@@ -212,9 +218,9 @@ function StockTable({
             Clear filters
           </Button>
         )}
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] text-left text-sm">
+      </ResponsiveFilterPanel>
+      <div className="overflow-x-auto md:overflow-visible">
+        <table data-responsive-table className="w-full min-w-[1100px] text-left text-sm">
           <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-6 py-4 font-medium">Product</th>
@@ -229,24 +235,38 @@ function StockTable({
           <tbody>
             {stockPage.pageItems.map((item) => (
               <tr key={item.id} className="border-b border-border last:border-0">
-                <td className="px-6 py-4 font-medium">{item.name}</td>
-                <td className="px-6 py-4">{item.farmer ?? "Unassigned / legacy stock"}</td>
-                <td className="px-6 py-4 text-muted-foreground">{item.cropType}</td>
-                <td className="px-6 py-4">{item.classification}</td>
-                <td className="px-6 py-4 text-primary">{item.listingStatus ?? "Not listed"}</td>
-                <td className="px-6 py-4">
+                <td data-label="Product" className="px-6 py-4 font-medium">
+                  {item.name}
+                </td>
+                <td data-label="Farmer owner" className="px-6 py-4">
+                  {item.farmer ?? "Unassigned / legacy stock"}
+                </td>
+                <td data-label="Crop type" className="px-6 py-4 text-muted-foreground">
+                  {item.cropType}
+                </td>
+                <td data-label="Classification" className="px-6 py-4">
+                  {item.classification}
+                </td>
+                <td data-label="Listing status" className="px-6 py-4 text-primary">
+                  {item.listingStatus ?? "Not listed"}
+                </td>
+                <td data-label="Price" className="px-6 py-4">
                   {item.pricePerKg === null
                     ? "—"
                     : `₱${item.pricePerKg.toFixed(2)} / ${sellingUnitLabel(item.sellingUnit)}`}
                 </td>
-                <td className="px-6 py-4 text-primary">
+                <td data-label="Available" className="px-6 py-4 text-primary">
                   {formatSellingQuantity(item.availableKg, item.sellingUnit)}
                 </td>
               </tr>
             ))}
             {!visibleStock.length && (
               <tr>
-                <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
+                <td
+                  data-mobile-full
+                  colSpan={7}
+                  className="px-6 py-10 text-center text-muted-foreground"
+                >
                   {stock.length
                     ? "No classified stock matches these filters."
                     : "No classified stock matches this view."}

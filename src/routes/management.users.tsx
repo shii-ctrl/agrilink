@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import {
@@ -135,13 +136,20 @@ function ManagementUsersPage() {
 
               <TabsContent value="all-users" className="mt-6">
                 <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-5">
+                  <div className="border-b border-border px-6 py-5">
                     <div>
                       <h2 className="text-lg font-semibold">All users</h2>
                       <p className="mt-1 text-sm text-muted-foreground">
                         Saved AgriLink accounts, including Buyer self-registration.
                       </p>
                     </div>
+                  </div>
+
+                  <ResponsiveFilterPanel
+                    title="Filter accounts"
+                    activeCount={(userSearch ? 1 : 0) + (userRoleFilter === "All" ? 0 : 1)}
+                    contentClassName="md:grid-cols-1"
+                  >
                     <div className="relative w-full max-w-md">
                       <Label htmlFor="user-search" className="sr-only">
                         Search user accounts
@@ -156,9 +164,6 @@ function ManagementUsersPage() {
                         className="h-10 pl-9"
                       />
                     </div>
-                  </div>
-
-                  <div className="border-b border-border bg-muted/20 px-6 py-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium">View accounts by role</p>
@@ -192,10 +197,10 @@ function ManagementUsersPage() {
                         })}
                       </div>
                     </div>
-                  </div>
+                  </ResponsiveFilterPanel>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[960px] text-left text-sm">
+                  <div className="overflow-x-auto md:overflow-visible">
+                    <table data-responsive-table className="w-full min-w-[960px] text-left text-sm">
                       <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                         <tr>
                           <th className="px-6 py-4 font-medium">Name</th>
@@ -208,7 +213,7 @@ function ManagementUsersPage() {
                       <tbody>
                         {usersPage.pageItems.map((user) => (
                           <tr key={user.id} className="border-b border-border last:border-0">
-                            <td className="px-6 py-4 font-medium">
+                            <td data-label="Name" className="px-6 py-4 font-medium">
                               <div className="flex items-center gap-3">
                                 <ProfileAvatar
                                   name={user.name}
@@ -218,12 +223,16 @@ function ManagementUsersPage() {
                                 <span>{user.name}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-muted-foreground">{user.contact}</td>
-                            <td className="px-6 py-4">{user.role}</td>
-                            <td className="px-6 py-4 text-primary">
+                            <td data-label="Contact" className="px-6 py-4 text-muted-foreground">
+                              {user.contact}
+                            </td>
+                            <td data-label="Role" className="px-6 py-4">
+                              {user.role}
+                            </td>
+                            <td data-label="Account status" className="px-6 py-4 text-primary">
                               {user.active ? "Active" : "Inactive"}
                             </td>
-                            <td className="px-6 py-4">
+                            <td data-label="Actions" className="px-6 py-4">
                               <div className="flex flex-wrap gap-2">
                                 {user.avatarUrl && (
                                   <Button
@@ -360,6 +369,7 @@ function ManagementUsersPage() {
                         {visibleUsers.length === 0 && (
                           <tr>
                             <td
+                              data-mobile-full
                               colSpan={5}
                               className="px-6 py-10 text-center text-muted-foreground"
                             >
@@ -388,8 +398,8 @@ function ManagementUsersPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-left text-sm">
+                  <div className="overflow-x-auto md:overflow-visible">
+                    <table data-responsive-table className="w-full min-w-[720px] text-left text-sm">
                       <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                         <tr>
                           <th className="px-6 py-4 font-medium">When</th>
@@ -401,19 +411,27 @@ function ManagementUsersPage() {
                       <tbody>
                         {activityPage.pageItems.map((log) => (
                           <tr key={log.id} className="border-b border-border last:border-0">
-                            <td className="px-6 py-4 text-muted-foreground">
+                            <td data-label="When" className="px-6 py-4 text-muted-foreground">
                               {new Date(log.createdAt).toLocaleString()}
                             </td>
-                            <td className="px-6 py-4">{log.actor ?? "System"}</td>
-                            <td className="px-6 py-4 font-medium">
+                            <td data-label="Actor" className="px-6 py-4">
+                              {log.actor ?? "System"}
+                            </td>
+                            <td data-label="Action" className="px-6 py-4 font-medium">
                               {formatAuditAction(log.action)}
                             </td>
-                            <td className="px-6 py-4 text-muted-foreground">{log.entityType}</td>
+                            <td data-label="Record" className="px-6 py-4 text-muted-foreground">
+                              {log.entityType}
+                            </td>
                           </tr>
                         ))}
                         {auditLogs.length === 0 && (
                           <tr>
-                            <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
+                            <td
+                              data-mobile-full
+                              colSpan={4}
+                              className="px-6 py-8 text-center text-muted-foreground"
+                            >
                               No saved activity yet.
                             </td>
                           </tr>

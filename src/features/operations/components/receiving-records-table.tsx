@@ -4,6 +4,7 @@ import { AppSelect } from "@/components/ui/app-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { formatSellingQuantity, type SellingUnit } from "@/features/marketplace/selling-units";
 
 export type ReceivingClassificationRecord = {
@@ -132,7 +133,13 @@ export function ReceivingRecordsTable({
 
   return (
     <>
-      <div className="grid gap-3 border-b border-border p-5 md:grid-cols-2 xl:grid-cols-5">
+      <ResponsiveFilterPanel
+        activeCount={
+          [search, selectedDate, selectedFarmer, selectedProduct, qualityOnly].filter(Boolean)
+            .length
+        }
+        contentClassName="md:grid-cols-2 xl:grid-cols-5"
+      >
         <Input
           aria-label="Search receiving records"
           value={search}
@@ -183,9 +190,9 @@ export function ReceivingRecordsTable({
             Clear filters
           </Button>
         )}
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-sm">
+      </ResponsiveFilterPanel>
+      <div className="overflow-x-auto md:overflow-visible">
+        <table data-responsive-table className="w-full min-w-[900px] text-left text-sm">
           <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-5 py-3">Delivery</th>
@@ -209,28 +216,49 @@ export function ReceivingRecordsTable({
                     )
                   }
                 >
-                  <td className="px-5 py-3 font-medium">{delivery.reference}</td>
-                  {showFarmer && <td className="px-5 py-3">{delivery.farmer}</td>}
-                  <td className="px-5 py-3">{delivery.product}</td>
-                  <td className="px-5 py-3 text-right text-emerald-700 dark:text-emerald-400">
+                  <td data-label="Delivery" className="px-5 py-3 font-medium">
+                    {delivery.reference}
+                  </td>
+                  {showFarmer && (
+                    <td data-label="Farmer" className="px-5 py-3">
+                      {delivery.farmer}
+                    </td>
+                  )}
+                  <td data-label="Product" className="px-5 py-3">
+                    {delivery.product}
+                  </td>
+                  <td
+                    data-label="Good"
+                    className="px-5 py-3 text-right text-emerald-700 dark:text-emerald-400"
+                  >
                     {formatSellingQuantity(delivery.goodKg, delivery.sellingUnit)}
                   </td>
-                  <td className="px-5 py-3 text-right text-amber-700 dark:text-amber-300">
+                  <td
+                    data-label="Semi"
+                    className="px-5 py-3 text-right text-amber-700 dark:text-amber-300"
+                  >
                     {formatSellingQuantity(delivery.semiKg, delivery.sellingUnit)}
                   </td>
-                  <td className="px-5 py-3 text-right text-red-700 dark:text-red-300">
+                  <td
+                    data-label="Reject"
+                    className="px-5 py-3 text-right text-red-700 dark:text-red-300"
+                  >
                     {formatSellingQuantity(delivery.rejectKg, delivery.sellingUnit)}
                   </td>
-                  <td className="px-5 py-3 text-right font-semibold">
+                  <td data-label="Total" className="px-5 py-3 text-right font-semibold">
                     {formatSellingQuantity(delivery.totalKg, delivery.sellingUnit)}
                   </td>
-                  <td className="px-5 py-3 text-muted-foreground">
+                  <td data-label="Received" className="px-5 py-3 text-muted-foreground">
                     {deliveryDate(delivery.recordedAt)}
                   </td>
                 </tr>
                 {expandedDeliveryId === delivery.id && (
                   <tr className="border-t border-border bg-muted/30">
-                    <td className="px-5 py-4 text-sm text-muted-foreground" colSpan={columnCount}>
+                    <td
+                      data-mobile-full
+                      className="px-5 py-4 text-sm text-muted-foreground"
+                      colSpan={columnCount}
+                    >
                       <span className="font-medium text-foreground">Delivery details:</span>{" "}
                       {delivery.reference}
                       {showFarmer ? ` · ${delivery.farmer}` : ""} delivered{" "}
@@ -246,7 +274,11 @@ export function ReceivingRecordsTable({
             ))}
             {visibleDeliveries.length === 0 && (
               <tr>
-                <td colSpan={columnCount} className="px-5 py-10 text-center text-muted-foreground">
+                <td
+                  data-mobile-full
+                  colSpan={columnCount}
+                  className="px-5 py-10 text-center text-muted-foreground"
+                >
                   {hasFilters ? "No deliveries match these filters." : emptyMessage}
                 </td>
               </tr>

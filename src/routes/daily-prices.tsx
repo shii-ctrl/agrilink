@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { AppSelect } from "@/components/ui/app-select";
@@ -445,64 +446,79 @@ function DailyPricesPage() {
                 </Button>
               ) : null}
             </div>
-            <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-12">
-              <label className="relative lg:col-span-5">
-                <span className="sr-only">Search products</span>
-                <Search className="pointer-events-none absolute left-3.5 top-3.5 size-4 text-muted-foreground" />
-                <Input
-                  aria-label="Search daily prices"
-                  className="h-11 rounded-xl bg-background pl-10"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search product or crop type"
-                />
-              </label>
-              <div className="lg:col-span-3">
-                <AppSelect
-                  ariaLabel="Filter daily prices by PROCY market category"
-                  value={marketCategory}
-                  onValueChange={setMarketCategory}
-                  options={[
-                    { value: "", label: "All categories" },
-                    ...procyMarketCategories.map((category) => ({
-                      value: category,
-                      label: category,
-                    })),
-                  ]}
-                />
+            <ResponsiveFilterPanel
+              activeCount={
+                Number(Boolean(query)) +
+                Number(Boolean(marketCategory)) +
+                Number(Boolean(classification)) +
+                Number(Boolean(sellingUnit)) +
+                Number(availableOnly)
+              }
+              className="mt-4 overflow-hidden rounded-2xl border border-border bg-background"
+              contentClassName="md:block"
+            >
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-12">
+                <label className="relative lg:col-span-5">
+                  <span className="sr-only">Search products</span>
+                  <Search className="pointer-events-none absolute left-3.5 top-3.5 size-4 text-muted-foreground" />
+                  <Input
+                    aria-label="Search daily prices"
+                    className="h-11 rounded-xl bg-background pl-10"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search product or crop type"
+                  />
+                </label>
+                <div className="lg:col-span-3">
+                  <AppSelect
+                    ariaLabel="Filter daily prices by PROCY market category"
+                    value={marketCategory}
+                    onValueChange={setMarketCategory}
+                    options={[
+                      { value: "", label: "All categories" },
+                      ...procyMarketCategories.map((category) => ({
+                        value: category,
+                        label: category,
+                      })),
+                    ]}
+                  />
+                </div>
+                <div className="lg:col-span-2">
+                  <AppSelect
+                    ariaLabel="Filter by quality"
+                    value={classification}
+                    onValueChange={setClassification}
+                    options={[
+                      { value: "", label: "All qualities" },
+                      ...classifications.map((quality) => ({ value: quality, label: quality })),
+                    ]}
+                  />
+                </div>
+                <div className="lg:col-span-2">
+                  <AppSelect
+                    ariaLabel="Filter by selling unit"
+                    value={sellingUnit}
+                    onValueChange={setSellingUnit}
+                    options={[
+                      { value: "", label: "All units" },
+                      ...sellingUnits.map((unit) => ({
+                        value: unit,
+                        label: sellingUnitLabel(unit),
+                      })),
+                    ]}
+                  />
+                </div>
               </div>
-              <div className="lg:col-span-2">
-                <AppSelect
-                  ariaLabel="Filter by quality"
-                  value={classification}
-                  onValueChange={setClassification}
-                  options={[
-                    { value: "", label: "All qualities" },
-                    ...classifications.map((quality) => ({ value: quality, label: quality })),
-                  ]}
-                />
-              </div>
-              <div className="lg:col-span-2">
-                <AppSelect
-                  ariaLabel="Filter by selling unit"
-                  value={sellingUnit}
-                  onValueChange={setSellingUnit}
-                  options={[
-                    { value: "", label: "All units" },
-                    ...sellingUnits.map((unit) => ({ value: unit, label: sellingUnitLabel(unit) })),
-                  ]}
-                />
-              </div>
-            </div>
-            <label className="mt-4 inline-flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium shadow-sm">
-              <Switch checked={availableOnly} onCheckedChange={setAvailableOnly} />
-              <span>
-                Available products only
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  Hide sold-out items
+              <label className="mt-4 inline-flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium shadow-sm">
+                <Switch checked={availableOnly} onCheckedChange={setAvailableOnly} />
+                <span>
+                  Available products only
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    Hide sold-out items
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+            </ResponsiveFilterPanel>
           </div>
 
           {loading ? (

@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { ProductCard } from "@/features/marketplace/components/product-card";
 import { FloatingBuyerCartSummary } from "@/features/marketplace/components/floating-buyer-cart-summary";
 import { Input } from "@/components/ui/input";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import type { Classification, Product } from "@/features/marketplace/products";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import { procyMarketCategoryGuide } from "@/features/marketplace/procy-market-categories";
@@ -129,7 +130,17 @@ function MarketplacePage() {
         Live Layerbase marketplace listings
       </p>
 
-      <div className="mt-8 rounded-2xl border border-border bg-card p-4 shadow-card sm:mt-10 sm:rounded-3xl sm:p-5">
+      <ResponsiveFilterPanel
+        activeCount={
+          Number(Boolean(query)) +
+          Number(Boolean(crop)) +
+          Number(Boolean(grade)) +
+          Number(inStockOnly) +
+          Number(bundleDealsOnly)
+        }
+        className="mt-8 rounded-2xl border border-border bg-card shadow-card sm:mt-10 sm:rounded-3xl"
+        contentClassName="md:block"
+      >
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -187,7 +198,7 @@ function MarketplacePage() {
             </div>
           </div>
         </div>
-      </div>
+      </ResponsiveFilterPanel>
 
       {results.length > 0 ? (
         <>

@@ -8,6 +8,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import type { OrderRecord } from "@/features/marketplace/order-records";
 import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
@@ -86,7 +87,10 @@ function ManagementTransactionsPage() {
                   Orders, sales, classifications, and payment records from AgriLink.
                 </p>
               </div>
-              <div className="grid gap-3 border-b border-border p-5 md:grid-cols-3">
+              <ResponsiveFilterPanel
+                activeCount={[query, orderStatus, paymentStatus, orderDate].filter(Boolean).length}
+                contentClassName="md:grid-cols-3"
+              >
                 <Input
                   aria-label="Search transactions"
                   value={query}
@@ -134,9 +138,9 @@ function ManagementTransactionsPage() {
                     Clear filters
                   </Button>
                 )}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1040px] text-left text-sm">
+              </ResponsiveFilterPanel>
+              <div className="overflow-x-auto md:overflow-visible">
+                <table data-responsive-table className="w-full min-w-[1040px] text-left text-sm">
                   <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-6 py-4 font-medium">Transaction ID</th>
@@ -153,20 +157,42 @@ function ManagementTransactionsPage() {
                   <tbody>
                     {transactionsPage.pageItems.map((transaction) => (
                       <tr key={transaction.id} className="border-b border-border last:border-0">
-                        <td className="px-6 py-4 font-medium">{transaction.id}</td>
-                        <td className="px-6 py-4">{transaction.buyer}</td>
-                        <td className="px-6 py-4">{transaction.product}</td>
-                        <td className="px-6 py-4">{transaction.classification}</td>
-                        <td className="px-6 py-4">{transaction.quantity}</td>
-                        <td className="px-6 py-4">{transaction.total}</td>
-                        <td className="px-6 py-4 text-primary">{transaction.status}</td>
-                        <td className="px-6 py-4 text-primary">{transaction.paymentStatus}</td>
-                        <td className="px-6 py-4 text-muted-foreground">{transaction.date}</td>
+                        <td data-label="Transaction ID" className="px-6 py-4 font-medium">
+                          {transaction.id}
+                        </td>
+                        <td data-label="Buyer" className="px-6 py-4">
+                          {transaction.buyer}
+                        </td>
+                        <td data-label="Product" className="px-6 py-4">
+                          {transaction.product}
+                        </td>
+                        <td data-label="Classification" className="px-6 py-4">
+                          {transaction.classification}
+                        </td>
+                        <td data-label="Quantity" className="px-6 py-4">
+                          {transaction.quantity}
+                        </td>
+                        <td data-label="Amount" className="px-6 py-4">
+                          {transaction.total}
+                        </td>
+                        <td data-label="Order status" className="px-6 py-4 text-primary">
+                          {transaction.status}
+                        </td>
+                        <td data-label="Payment status" className="px-6 py-4 text-primary">
+                          {transaction.paymentStatus}
+                        </td>
+                        <td data-label="Date" className="px-6 py-4 text-muted-foreground">
+                          {transaction.date}
+                        </td>
                       </tr>
                     ))}
                     {!visibleTransactions.length && (
                       <tr>
-                        <td colSpan={9} className="px-6 py-10 text-center text-muted-foreground">
+                        <td
+                          data-mobile-full
+                          colSpan={9}
+                          className="px-6 py-10 text-center text-muted-foreground"
+                        >
                           {transactions.length
                             ? "No transactions match these filters."
                             : "No marketplace transactions have been saved yet."}

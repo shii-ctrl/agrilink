@@ -190,27 +190,7 @@ function ProductDetail() {
     return Math.min(maximumSelectableQuantity, Math.max(quantityStep, rounded));
   }
 
-  function handleAddToCart() {
-    if (isBuyer) {
-      setIsAdding(true);
-      void addBuyerCartItem({ data: { listingId: selectedOffer.id, quantityKg: qty } })
-        .then((cart) => {
-          setCartQuantityKg(cart.find((item) => item.id === selectedOffer.id)?.quantityKg ?? 0);
-          void router.invalidate();
-          notifyBuyerCartChanged();
-          toast.success("Added to your cart", {
-            description: `${formatSellingQuantity(qty, product.sellingUnit)} of ${product.name} is saved to your account.`,
-          });
-        })
-        .catch((error) => {
-          toast.error("Could not add this product", {
-            description: error instanceof Error ? error.message : "Please refresh and try again.",
-          });
-        })
-        .finally(() => setIsAdding(false));
-      return;
-    }
-
+  function showBuyerAccessPrompt(action: "cart" | "checkout") {
     toast.custom(
       (id) => (
         <div className="relative w-[min(92vw,440px)] overflow-hidden rounded-3xl border border-primary/25 bg-card p-5 shadow-field">
@@ -230,10 +210,15 @@ function ProductDetail() {
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
                 Buyer access
               </p>
-              <h3 className="mt-1 text-lg font-semibold">Ready to build your order?</h3>
+              <h3 className="mt-1 text-lg font-semibold">
+                {action === "checkout"
+                  ? "Ready to place your order?"
+                  : "Ready to build your order?"}
+              </h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Sign in or create a Buyer account to add{" "}
-                <span className="font-medium text-foreground">{product.name}</span> to your cart.
+                Sign in or create a Buyer account to {action === "checkout" ? "buy" : "add"}{" "}
+                <span className="font-medium text-foreground">{product.name}</span>
+                {action === "checkout" ? " now." : " to your cart."}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
@@ -263,11 +248,33 @@ function ProductDetail() {
     );
   }
 
+  function handleAddToCart() {
+    if (!isBuyer) {
+      showBuyerAccessPrompt("cart");
+      return;
+    }
+
+    setIsAdding(true);
+    void addBuyerCartItem({ data: { listingId: selectedOffer.id, quantityKg: qty } })
+      .then((cart) => {
+        setCartQuantityKg(cart.find((item) => item.id === selectedOffer.id)?.quantityKg ?? 0);
+        void router.invalidate();
+        notifyBuyerCartChanged();
+        toast.success("Added to your cart", {
+          description: `${formatSellingQuantity(qty, product.sellingUnit)} of ${product.name} is saved to your account.`,
+        });
+      })
+      .catch((error) => {
+        toast.error("Could not add this product", {
+          description: error instanceof Error ? error.message : "Please refresh and try again.",
+        });
+      })
+      .finally(() => setIsAdding(false));
+  }
+
   function handleBuyNow() {
     if (!isBuyer) {
-      toast.error("Sign in as a Buyer to buy now", {
-        description: "Login or register first, then you can go directly to checkout.",
-      });
+      showBuyerAccessPrompt("checkout");
       return;
     }
 

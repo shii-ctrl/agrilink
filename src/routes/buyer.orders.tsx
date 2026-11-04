@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { EmptyState } from "@/components/data/empty-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import type { OrderRecord } from "@/features/marketplace/order-records";
 import { formatSellingQuantity } from "@/features/marketplace/selling-units";
@@ -207,7 +208,15 @@ function BuyerOrdersPage() {
                     <p className="mt-1 text-sm text-muted-foreground">Orders saved in AgriLink.</p>
                   </div>
                 </div>
-                <div className="grid gap-3 border-b border-border p-5 md:grid-cols-3">
+                <ResponsiveFilterPanel
+                  activeCount={
+                    Number(Boolean(query)) +
+                    Number(Boolean(orderStatus)) +
+                    Number(Boolean(paymentStatus)) +
+                    Number(Boolean(orderDate))
+                  }
+                  contentClassName="md:grid-cols-3"
+                >
                   <Input
                     aria-label="Search my orders"
                     value={query}
@@ -255,24 +264,54 @@ function BuyerOrdersPage() {
                       Clear filters
                     </Button>
                   )}
-                </div>
+                </ResponsiveFilterPanel>
                 <div className="grid gap-3 p-4 md:hidden">
                   {ordersPage.pageItems.map((order) => (
-                    <article key={order.id} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+                    <article
+                      key={order.id}
+                      className="rounded-2xl border border-border bg-background p-4 shadow-sm"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold uppercase tracking-wide text-primary">{order.id}</p>
+                          <p className="truncate text-xs font-semibold uppercase tracking-wide text-primary">
+                            {order.id}
+                          </p>
                           <h3 className="mt-1 font-semibold">{order.product}</h3>
-                          <p className="mt-1 text-sm text-muted-foreground">{order.quantity} · {order.classification}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {order.quantity} · {order.classification}
+                          </p>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${orderStatusClass(order.status)}`}>{order.status}</span>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${orderStatusClass(order.status)}`}
+                        >
+                          {order.status}
+                        </span>
                       </div>
                       <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 text-sm">
-                        <div><p className="text-xs text-muted-foreground">Total</p><p className="mt-0.5 font-semibold">{order.total}</p></div>
-                        <div><p className="text-xs text-muted-foreground">Payment</p><p className={`mt-0.5 font-semibold ${order.paymentStatus === "Paid" ? "text-primary" : "text-muted-foreground"}`}>{order.paymentStatus}</p></div>
-                        <div className="col-span-2"><p className="text-xs text-muted-foreground">Order date</p><p className="mt-0.5">{order.date}</p></div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total</p>
+                          <p className="mt-0.5 font-semibold">{order.total}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Payment</p>
+                          <p
+                            className={`mt-0.5 font-semibold ${order.paymentStatus === "Paid" ? "text-primary" : "text-muted-foreground"}`}
+                          >
+                            {order.paymentStatus}
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-muted-foreground">Order date</p>
+                          <p className="mt-0.5">{order.date}</p>
+                        </div>
                       </div>
-                      <Button variant="outline" className="mt-4 w-full" onClick={() => void openDetails(order.id)}>View order details</Button>
+                      <Button
+                        variant="outline"
+                        className="mt-4 w-full"
+                        onClick={() => void openDetails(order.id)}
+                      >
+                        View order details
+                      </Button>
                     </article>
                   ))}
                   {!visibleOrders.length ? (
@@ -280,7 +319,11 @@ function BuyerOrdersPage() {
                       compact
                       icon={PackageCheck}
                       title={orders.length ? "No matching orders" : "No orders yet"}
-                      description={orders.length ? "Try clearing or changing your filters." : "Your PROCY marketplace orders will appear here."}
+                      description={
+                        orders.length
+                          ? "Try clearing or changing your filters."
+                          : "Your PROCY marketplace orders will appear here."
+                      }
                     />
                   ) : null}
                 </div>

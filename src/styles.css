@@ -145,6 +145,18 @@
 }
 
 @layer base {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  img,
+  video,
+  canvas {
+    max-width: 100%;
+  }
+
   * {
     border-color: var(--color-border);
   }
@@ -192,6 +204,88 @@
   select,
   textarea {
     min-height: 2.75rem;
+  }
+}
+
+/* Operational tables become scan-friendly cards instead of forcing page-level horizontal scroll. */
+@media (max-width: 767px) {
+  table[data-responsive-table],
+  table[data-responsive-table] tbody,
+  table[data-responsive-table] tr,
+  table[data-responsive-table] td {
+    display: block;
+    width: 100%;
+  }
+
+  table[data-responsive-table] {
+    min-width: 0 !important;
+  }
+
+  table[data-responsive-table] thead {
+    display: none;
+  }
+
+  table[data-responsive-table] tbody {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  table[data-responsive-table] tbody > tr {
+    overflow: hidden;
+    border: 1px solid var(--color-border) !important;
+    border-radius: 1rem;
+    background: var(--color-card);
+    padding: 0.65rem 0.85rem;
+    box-shadow: var(--shadow-card);
+  }
+
+  table[data-responsive-table] td {
+    display: grid;
+    grid-template-columns: minmax(6.75rem, 0.42fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 0.75rem;
+    border: 0 !important;
+    padding: 0.45rem 0 !important;
+    text-align: right !important;
+    overflow-wrap: anywhere;
+  }
+
+  table[data-responsive-table] td::before {
+    content: attr(data-label);
+    color: var(--color-muted-foreground);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.25rem;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  table[data-responsive-table] td[data-mobile-full] {
+    display: block;
+    text-align: left !important;
+  }
+
+  table[data-responsive-table] td[data-mobile-full]::before,
+  table[data-responsive-table] td[colspan]::before {
+    display: none;
+  }
+
+  table[data-responsive-table] td :is(button, [role="button"]) {
+    max-width: 100%;
+  }
+
+  table[data-responsive-table] td[data-label="Actions"] > div,
+  table[data-responsive-table] td[data-label="Action"] > div {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  table[data-responsive-table] td[data-label="Actions"] :is(button, a),
+  table[data-responsive-table] td[data-label="Action"] :is(button, a) {
+    width: 100%;
   }
 }
 

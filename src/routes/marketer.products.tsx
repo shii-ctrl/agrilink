@@ -809,8 +809,8 @@ function StockOwnership({
         <Metric label="Farmer contributors" value={String(owners)} />
         <Metric label="Reserved" value={formatSellingQuantity(reserved, product.sellingUnit)} />
       </div>
-      <div className="mt-5 overflow-x-auto rounded-2xl border">
-        <table className="w-full min-w-[760px] text-left text-sm">
+      <div className="mt-5 overflow-x-auto rounded-2xl border md:overflow-visible">
+        <table data-responsive-table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Farmer owner</th>
@@ -824,18 +824,22 @@ function StockOwnership({
           <tbody>
             {product.contributions.map((row) => (
               <tr key={row.id} className="border-t">
-                <td className="px-4 py-3 font-medium">{row.farmer ?? "Legacy stock"}</td>
-                <td className="px-4 py-3">{row.classification}</td>
-                <td className="px-4 py-3">
+                <td data-label="Farmer owner" className="px-4 py-3 font-medium">
+                  {row.farmer ?? "Legacy stock"}
+                </td>
+                <td data-label="Quality" className="px-4 py-3">
+                  {row.classification}
+                </td>
+                <td data-label="Available" className="px-4 py-3">
                   {formatSellingQuantity(row.availableKg, product.sellingUnit)}
                 </td>
-                <td className="px-4 py-3">
+                <td data-label="Reserved" className="px-4 py-3">
                   {formatSellingQuantity(row.reservedKg, product.sellingUnit)}
                 </td>
-                <td className="px-4 py-3">
+                <td data-label="Total" className="px-4 py-3">
                   {formatSellingQuantity(row.quantityKg, product.sellingUnit)}
                 </td>
-                <td className="px-4 py-3">
+                <td data-label="Correction" className="px-4 py-3">
                   <StockAdjustment
                     inventoryId={row.id}
                     label={`${row.farmer ?? "Legacy stock"} ${row.classification}`}
@@ -847,7 +851,11 @@ function StockOwnership({
             ))}
             {!product.contributions.length ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                <td
+                  data-mobile-full
+                  colSpan={6}
+                  className="px-4 py-8 text-center text-muted-foreground"
+                >
                   No stock received yet.
                 </td>
               </tr>

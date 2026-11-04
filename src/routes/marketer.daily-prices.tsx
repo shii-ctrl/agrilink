@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
@@ -225,7 +226,10 @@ function MarketerDailyPricesPage() {
                     <RefreshCw className="size-3.5" /> Refresh
                   </Button>
                 </div>
-                <div className="grid gap-3 border-b border-border px-6 py-4 sm:grid-cols-2">
+                <ResponsiveFilterPanel
+                  activeCount={Number(Boolean(query)) + Number(selectedDate !== today())}
+                  contentClassName="md:grid-cols-2"
+                >
                   <DatePicker
                     ariaLabel="Select price history date"
                     value={selectedDate}
@@ -237,9 +241,9 @@ function MarketerDailyPricesPage() {
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Search product, category, or quality"
                   />
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left text-sm">
+                </ResponsiveFilterPanel>
+                <div className="overflow-x-auto md:overflow-visible">
+                  <table data-responsive-table className="w-full min-w-[760px] text-left text-sm">
                     <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
                       <tr>
                         <th className="px-6 py-4">Product</th>
@@ -253,16 +257,22 @@ function MarketerDailyPricesPage() {
                     <tbody>
                       {pricesPage.pageItems.map((entry) => (
                         <tr key={entry.id} className="border-t border-border">
-                          <td className="px-6 py-4 font-medium">{entry.product}</td>
-                          <td className="px-6 py-4">
+                          <td data-label="Product" className="px-6 py-4 font-medium">
+                            {entry.product}
+                          </td>
+                          <td data-label="PROCY market category" className="px-6 py-4">
                             {procyMarketCategoryForProduct(entry.product) ?? "Not in PROCY guide"}
                           </td>
-                          <td className="px-6 py-4">{entry.classification}</td>
-                          <td className="px-6 py-4">
+                          <td data-label="Classification" className="px-6 py-4">
+                            {entry.classification}
+                          </td>
+                          <td data-label="Unit price" className="px-6 py-4">
                             ₱{entry.price.toFixed(2)} / {sellingUnitLabel(entry.sellingUnit)}
                           </td>
-                          <td className="px-6 py-4">{entry.status}</td>
-                          <td className="px-6 py-4">
+                          <td data-label="Status" className="px-6 py-4">
+                            {entry.status}
+                          </td>
+                          <td data-label="Actions" className="px-6 py-4">
                             <div className="flex flex-wrap gap-2">
                               <Button
                                 size="sm"

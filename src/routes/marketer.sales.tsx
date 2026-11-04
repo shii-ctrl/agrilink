@@ -9,6 +9,7 @@ import { AppSelect } from "@/components/ui/app-select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
@@ -116,7 +117,14 @@ function MarketerSalesPage() {
                   </Button>
                 </div>
               </div>
-              <div className="grid gap-3 border-b border-border p-5 md:grid-cols-3">
+              <ResponsiveFilterPanel
+                activeCount={
+                  Number(Boolean(query)) +
+                  Number(Boolean(paymentStatus)) +
+                  Number(Boolean(saleDate))
+                }
+                contentClassName="md:grid-cols-3"
+              >
                 <Input
                   aria-label="Search sales records"
                   value={query}
@@ -151,9 +159,9 @@ function MarketerSalesPage() {
                     Clear filters
                   </Button>
                 )}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[950px] text-left text-sm">
+              </ResponsiveFilterPanel>
+              <div className="overflow-x-auto md:overflow-visible">
+                <table data-responsive-table className="w-full min-w-[950px] text-left text-sm">
                   <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-6 py-4 font-medium">Product</th>
@@ -170,20 +178,42 @@ function MarketerSalesPage() {
                   <tbody>
                     {salesPage.pageItems.map((order) => (
                       <tr key={order.id} className="border-b border-border last:border-0">
-                        <td className="px-6 py-4 font-medium">{order.product}</td>
-                        <td className="px-6 py-4">{order.classification}</td>
-                        <td className="px-6 py-4">{order.farmer}</td>
-                        <td className="px-6 py-4">{order.buyer}</td>
-                        <td className="px-6 py-4">{order.quantity}</td>
-                        <td className="px-6 py-4">{order.total}</td>
-                        <td className="px-6 py-4">{order.status}</td>
-                        <td className="px-6 py-4">{order.paymentStatus}</td>
-                        <td className="px-6 py-4 text-muted-foreground">{order.date}</td>
+                        <td data-label="Product" className="px-6 py-4 font-medium">
+                          {order.product}
+                        </td>
+                        <td data-label="Classification" className="px-6 py-4">
+                          {order.classification}
+                        </td>
+                        <td data-label="Farmer source" className="px-6 py-4">
+                          {order.farmer}
+                        </td>
+                        <td data-label="Buyer" className="px-6 py-4">
+                          {order.buyer}
+                        </td>
+                        <td data-label="Quantity" className="px-6 py-4">
+                          {order.quantity}
+                        </td>
+                        <td data-label="Amount" className="px-6 py-4">
+                          {order.total}
+                        </td>
+                        <td data-label="Status" className="px-6 py-4">
+                          {order.status}
+                        </td>
+                        <td data-label="Payment" className="px-6 py-4">
+                          {order.paymentStatus}
+                        </td>
+                        <td data-label="Date" className="px-6 py-4 text-muted-foreground">
+                          {order.date}
+                        </td>
                       </tr>
                     ))}
                     {!visibleOrders.length && (
                       <tr>
-                        <td colSpan={9} className="px-6 py-10 text-center text-muted-foreground">
+                        <td
+                          data-mobile-full
+                          colSpan={9}
+                          className="px-6 py-10 text-center text-muted-foreground"
+                        >
                           {sold.length
                             ? "No sales match these filters."
                             : "No completed sales have been saved yet."}

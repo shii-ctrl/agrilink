@@ -225,8 +225,8 @@ function ManagementDecisionSupportPage() {
                     placeholder="Search product summary"
                   />
                 </div>
-                <div className="mt-5 overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-sm">
+                <div className="mt-5 overflow-x-auto md:overflow-visible">
+                  <table data-responsive-table className="w-full min-w-[520px] text-sm">
                     <thead className="border-b text-left text-muted-foreground">
                       <tr>
                         <th className="pb-3 font-medium">Product</th>
@@ -239,11 +239,19 @@ function ManagementDecisionSupportPage() {
                     <tbody>
                       {summariesPage.pageItems.map((item) => (
                         <tr key={item.name} className="border-b last:border-0">
-                          <td className="py-3 font-medium">{item.name}</td>
-                          <td className="py-3">{item.stock} kg</td>
-                          <td className="py-3">{item.ordered} kg</td>
-                          <td className="py-3">{item.sold} kg</td>
-                          <td className="py-3 font-medium">
+                          <td data-label="Product" className="py-3 font-medium">
+                            {item.name}
+                          </td>
+                          <td data-label="Stock" className="py-3">
+                            {item.stock} kg
+                          </td>
+                          <td data-label="Reserved" className="py-3">
+                            {item.ordered} kg
+                          </td>
+                          <td data-label="Sold" className="py-3">
+                            {item.sold} kg
+                          </td>
+                          <td data-label="Status" className="py-3 font-medium">
                             {item.ordered <= item.stock
                               ? "Stock covers reserved demand"
                               : `${item.ordered - item.stock} kg shortfall`}
@@ -252,7 +260,11 @@ function ManagementDecisionSupportPage() {
                       ))}
                       {!visibleSummaries.length && (
                         <tr>
-                          <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                          <td
+                            data-mobile-full
+                            colSpan={5}
+                            className="py-8 text-center text-muted-foreground"
+                          >
                             No product summary matches your search.
                           </td>
                         </tr>

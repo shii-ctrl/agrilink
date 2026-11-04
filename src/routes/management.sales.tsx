@@ -6,6 +6,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import type { OrderRecord } from "@/features/marketplace/order-records";
 import { getDatabaseOrders } from "@/services/marketplace/marketplace-server-functions";
@@ -69,23 +70,29 @@ function ManagementSalesPage() {
         />
         {!loading && !loadError && (
           <>
-            <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
-              <div className="relative max-w-md">
-                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search sales records"
-                  className="h-11 rounded-full pl-11"
+            <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+              <ResponsiveFilterPanel
+                activeCount={[query, saleDate].filter(Boolean).length}
+                contentClassName="md:grid-cols-[minmax(0,1fr)_minmax(12rem,20rem)]"
+              >
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search sales records"
+                    className="h-11 rounded-full pl-11"
+                  />
+                </div>
+                <DatePicker
+                  ariaLabel="Filter sales by date"
+                  value={saleDate}
+                  onValueChange={setSaleDate}
                 />
-              </div>
-              <DatePicker
-                ariaLabel="Filter sales by date"
-                value={saleDate}
-                onValueChange={setSaleDate}
-                className="mt-3 max-w-xs"
-              />
-              <p className="mt-3 text-xs text-muted-foreground">Live sales data from AgriLink.</p>
+                <p className="text-xs text-muted-foreground md:col-span-2">
+                  Live sales data from AgriLink.
+                </p>
+              </ResponsiveFilterPanel>
             </section>
 
             <section className="mt-6 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
@@ -96,8 +103,8 @@ function ManagementSalesPage() {
                   records the payment status.
                 </p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1000px] text-left text-sm">
+              <div className="overflow-x-auto md:overflow-visible">
+                <table data-responsive-table className="w-full min-w-[1000px] text-left text-sm">
                   <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-6 py-4 font-medium">Product</th>
@@ -114,20 +121,42 @@ function ManagementSalesPage() {
                   <tbody>
                     {salesPage.pageItems.map((sale) => (
                       <tr key={sale.id} className="border-b border-border last:border-0">
-                        <td className="px-6 py-4 font-medium">{sale.product}</td>
-                        <td className="px-6 py-4">{sale.classification}</td>
-                        <td className="px-6 py-4">{sale.farmer}</td>
-                        <td className="px-6 py-4">{sale.buyer}</td>
-                        <td className="px-6 py-4">{sale.quantity}</td>
-                        <td className="px-6 py-4">{sale.total}</td>
-                        <td className="px-6 py-4 text-primary">{sale.status}</td>
-                        <td className="px-6 py-4 text-primary">{sale.paymentStatus}</td>
-                        <td className="px-6 py-4 text-muted-foreground">{sale.date}</td>
+                        <td data-label="Product" className="px-6 py-4 font-medium">
+                          {sale.product}
+                        </td>
+                        <td data-label="Classification" className="px-6 py-4">
+                          {sale.classification}
+                        </td>
+                        <td data-label="Farmer" className="px-6 py-4">
+                          {sale.farmer}
+                        </td>
+                        <td data-label="Buyer" className="px-6 py-4">
+                          {sale.buyer}
+                        </td>
+                        <td data-label="Sold quantity" className="px-6 py-4">
+                          {sale.quantity}
+                        </td>
+                        <td data-label="Selling price" className="px-6 py-4">
+                          {sale.total}
+                        </td>
+                        <td data-label="Sales status" className="px-6 py-4 text-primary">
+                          {sale.status}
+                        </td>
+                        <td data-label="Payment status" className="px-6 py-4 text-primary">
+                          {sale.paymentStatus}
+                        </td>
+                        <td data-label="Date" className="px-6 py-4 text-muted-foreground">
+                          {sale.date}
+                        </td>
                       </tr>
                     ))}
                     {!visibleSales.length && (
                       <tr>
-                        <td colSpan={9} className="px-6 py-10 text-center text-muted-foreground">
+                        <td
+                          data-mobile-full
+                          colSpan={9}
+                          className="px-6 py-10 text-center text-muted-foreground"
+                        >
                           {sales.length
                             ? "No sales match your search."
                             : "No completed sales have been saved yet."}

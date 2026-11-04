@@ -10,6 +10,7 @@ import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import type { OrderRecord } from "@/features/marketplace/order-records";
@@ -232,7 +233,14 @@ function MarketerOrdersPage() {
                   <RefreshCw className="size-3.5" /> Refresh
                 </Button>
               </div>
-              <div className="grid gap-3 border-b border-border px-6 py-4 md:grid-cols-[minmax(0,1fr)_minmax(11rem,0.6fr)]">
+              <ResponsiveFilterPanel
+                activeCount={
+                  Number(Boolean(query)) +
+                  Number(Boolean(statusFilter)) +
+                  Number(Boolean(orderDate))
+                }
+                contentClassName="md:grid-cols-[minmax(0,1fr)_minmax(11rem,0.6fr)]"
+              >
                 <label className="relative block">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -292,7 +300,7 @@ function MarketerOrdersPage() {
                     Clear filters
                   </Button>
                 )}
-              </div>
+              </ResponsiveFilterPanel>
               <div className="grid gap-3 p-4 md:hidden">
                 {ordersPage.pageItems.map((order) => (
                   <article key={order.id} className="rounded-2xl border border-border p-4">

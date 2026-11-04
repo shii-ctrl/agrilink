@@ -34,7 +34,7 @@ const AlertDialogContent = React.forwardRef<
     <AlertDialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-md translate-x-[-50%] translate-y-[-50%] gap-5 overflow-hidden rounded-3xl border border-primary/20 bg-card p-6 shadow-field duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 before:absolute before:inset-x-0 before:top-0 before:h-1.5 before:bg-primary",
+        "fixed left-[50%] top-[50%] z-50 grid max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-md translate-x-[-50%] translate-y-[-50%] gap-5 overflow-y-auto rounded-3xl border border-primary/20 bg-card p-5 shadow-field duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 before:absolute before:inset-x-0 before:top-0 before:h-1.5 before:bg-primary sm:w-[calc(100%-2rem)] sm:p-6",
         className,
       )}
       {...props}
@@ -45,7 +45,10 @@ AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName;
 
 const AlertDialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn("relative flex flex-col space-y-2 text-center sm:text-left", className)}
+    className={cn(
+      "sticky top-0 z-10 -mx-5 -mt-5 flex flex-col space-y-2 border-b border-border/70 bg-card/95 px-5 pb-3 pt-6 text-left backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6 sm:pb-4 sm:pt-7",
+      className,
+    )}
     {...props}
   />
 );
@@ -53,7 +56,10 @@ AlertDialogHeader.displayName = "AlertDialogHeader";
 
 const AlertDialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn("relative flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
+    className={cn(
+      "sticky bottom-0 z-10 -mx-5 -mb-5 flex flex-col-reverse gap-2 border-t border-border/70 bg-card/95 px-5 pb-5 pt-3 backdrop-blur [&>*]:w-full sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:px-6 sm:pb-6 sm:[&>*]:w-auto",
+      className,
+    )}
     {...props}
   />
 );
