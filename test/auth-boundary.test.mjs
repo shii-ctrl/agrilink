@@ -1454,3 +1454,28 @@ test("Farmer earnings use fixed deductions and Accounting-only cash releases", a
   assert.match(marketplace, /status: "pending_payment"/);
   assert.match(marketplace, /status: "available", eligibleAt: new Date\(\)/);
 });
+
+test("completed-order feedback is Buyer-owned and measurable by Management", async () => {
+  const [schema, migration, service, buyerOrders, dialog, reports] = await Promise.all([
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0040_order_feedback.sql", "utf8"),
+    readFile("src/services/marketplace/order-feedback-server-functions.ts", "utf8"),
+    readFile("src/routes/buyer.orders.tsx", "utf8"),
+    readFile("src/features/marketplace/components/order-feedback-dialog.tsx", "utf8"),
+    readFile("src/routes/management.reports.tsx", "utf8"),
+  ]);
+
+  assert.match(schema, /export const orderFeedback = mysqlTable/);
+  assert.match(schema, /export const orderItemRatings = mysqlTable/);
+  assert.match(migration, /CREATE TABLE order_feedback/);
+  assert.match(migration, /CREATE TABLE order_item_ratings/);
+  assert.match(service, /requireRole\("Buyer"\)/);
+  assert.match(service, /\["picked_up", "delivered"\]\.includes/);
+  assert.match(service, /Please rate every product in this order once/);
+  assert.match(service, /requireRole\("Management"\)/);
+  assert.match(buyerOrders, /Rate order/);
+  assert.match(dialog, /Product quality/);
+  assert.match(dialog, /Rider service/);
+  assert.match(reports, /Completed-order ratings/);
+  assert.match(reports, /Rider performance/);
+});

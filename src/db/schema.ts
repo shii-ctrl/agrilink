@@ -457,6 +457,40 @@ export const orderItems = mysqlTable(
   },
   (table) => [index("order_items_order_idx").on(table.orderId)],
 );
+export const orderFeedback = mysqlTable(
+  "order_feedback",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    orderId: varchar("order_id", { length: 36 }).notNull(),
+    buyerId: varchar("buyer_id", { length: 36 }).notNull(),
+    serviceRating: int("service_rating").notNull(),
+    riderRating: int("rider_rating"),
+    comment: text("comment"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("order_feedback_order_unique").on(table.orderId),
+    index("order_feedback_buyer_idx").on(table.buyerId, table.createdAt),
+  ],
+);
+export const orderItemRatings = mysqlTable(
+  "order_item_ratings",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    feedbackId: varchar("feedback_id", { length: 36 }).notNull(),
+    orderItemId: varchar("order_item_id", { length: 36 }).notNull(),
+    productId: varchar("product_id", { length: 36 }).notNull(),
+    rating: int("rating").notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("order_item_ratings_order_item_unique").on(table.orderItemId),
+    index("order_item_ratings_feedback_idx").on(table.feedbackId),
+    index("order_item_ratings_product_idx").on(table.productId, table.createdAt),
+  ],
+);
 export const payments = mysqlTable(
   "payments",
   {

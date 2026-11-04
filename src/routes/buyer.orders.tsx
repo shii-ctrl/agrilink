@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CircleAlert, LoaderCircle, PackageCheck, RotateCcw } from "lucide-react";
+import { CircleAlert, LoaderCircle, PackageCheck, RotateCcw, Star } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BuyerLayout, BuyerPageHeader } from "@/components/workspaces/buyer-layout";
 import { OrderDetails } from "@/features/marketplace/components/order-details";
+import { OrderFeedbackDialog } from "@/features/marketplace/components/order-feedback-dialog";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
@@ -28,6 +29,7 @@ function BuyerOrdersPage() {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
+  const [feedbackOrderNumber, setFeedbackOrderNumber] = useState<string | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
@@ -368,6 +370,16 @@ function BuyerOrdersPage() {
                       <RotateCcw className="size-4" /> Buy again
                     </Button>
                   )}
+                  {selectedOrder.status === "Sold" &&
+                  ["picked_up", "delivered"].includes(selectedOrder.fulfillmentStatus ?? "") ? (
+                    <Button
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => setFeedbackOrderNumber(selectedOrder.id)}
+                    >
+                      <Star className="size-4" /> Rate order
+                    </Button>
+                  ) : null}
                   {selectedOrder.fulfillmentStatus === "delivered" &&
                   selectedOrder.fulfilledAt &&
                   Date.now() - new Date(selectedOrder.fulfilledAt).getTime() <=
@@ -386,6 +398,16 @@ function BuyerOrdersPage() {
             ) : null}
           </DialogContent>
         </Dialog>
+        <OrderFeedbackDialog
+          open={Boolean(feedbackOrderNumber)}
+          onOpenChange={(open) => {
+            if (!open) setFeedbackOrderNumber(null);
+          }}
+          orderNumber={feedbackOrderNumber}
+          onSaved={async () => {
+            await reload();
+          }}
+        />
       </div>
     </BuyerLayout>
   );

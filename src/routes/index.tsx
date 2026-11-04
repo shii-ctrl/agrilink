@@ -267,7 +267,7 @@ function Index() {
           <div className="absolute inset-0 -z-20 bg-[linear-gradient(90deg,rgba(250,250,242,0.98)_0%,rgba(250,250,242,0.94)_38%,rgba(250,250,242,0.62)_58%,rgba(250,250,242,0.14)_82%,rgba(250,250,242,0.05)_100%)] dark:bg-[linear-gradient(90deg,rgba(7,45,26,0.98)_0%,rgba(7,45,26,0.94)_38%,rgba(7,45,26,0.7)_60%,rgba(7,45,26,0.18)_88%,rgba(7,45,26,0.08)_100%)]" />
           <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-b from-transparent to-background/95" />
 
-          <div className="grid min-h-[640px] w-full items-center gap-8 px-4 py-10 sm:min-h-[680px] sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)] lg:gap-12 lg:px-8">
+          <div className="grid min-h-[640px] w-full items-start gap-8 px-4 py-10 sm:min-h-[680px] sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.72fr)] lg:items-center lg:gap-12 lg:px-8">
             <div className="min-w-0 max-w-3xl text-foreground dark:text-forest-foreground">
               <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/25 bg-card/85 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary shadow-sm backdrop-blur-md dark:border-white/20 dark:bg-forest/70 dark:text-forest-foreground sm:px-4 sm:text-xs sm:tracking-[0.14em]">
                 <Sprout className="size-3.5" /> Fresh from PROCY farmer members
