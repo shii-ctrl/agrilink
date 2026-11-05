@@ -28,8 +28,8 @@ export function SiteFooter({ sessionSignedIn }: { sessionSignedIn?: boolean | nu
             <span className="font-display text-lg font-semibold">AgriLink</span>
           </div>
           <p className="mt-4 max-w-sm text-sm opacity-80">
-            A web-based marketplace and decision support system connecting local farmer members with
-            PROCY, the seller and market operator.
+            Connecting buyers with fresh, quality-classified produce supplied by PROCY farmer
+            members—with transparent prices and live stock availability.
           </p>
         </div>
 

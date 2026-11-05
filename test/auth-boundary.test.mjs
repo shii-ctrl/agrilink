@@ -1599,6 +1599,8 @@ test("public landing and marketplace pages share responsive page gutters", async
   assert.doesNotMatch(home, /Pickup details shown after confirmation/);
   assert.doesNotMatch(marketplace, /max-w-6xl px-4 pb-24 pt-8/);
   assert.match(footer, /0905 240 3280/);
+  assert.match(footer, /Connecting buyers with fresh, quality-classified produce/);
+  assert.doesNotMatch(footer, /A web-based marketplace and decision support system/);
   assert.match(footer, /\(042\) 373 2992/);
   assert.match(footer, /SPPAQFA@SENTRONGPAMILIHAN\.COM/);
   assert.match(footer, /Sentrong Pamilihan &quot;PROCY&quot;/);
