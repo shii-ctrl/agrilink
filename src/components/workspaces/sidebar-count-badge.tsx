@@ -1,6 +1,6 @@
 import { SidebarMenuBadge } from "@/components/ui/sidebar";
 
-export function SidebarCountBadge({ count }: { count?: number }) {
+export function SidebarCountBadge({ count }: { count: number | undefined }) {
   if (!count || count < 1) return null;
 
   return (

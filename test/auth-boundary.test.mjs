@@ -804,11 +804,16 @@ test("workspace sidebars show live role-specific pending work badges", async () 
   assert.match(service, /requireUser/);
   assert.match(service, /badges\["\/marketer\/orders"\]/);
   assert.match(service, /eq\(orders\.status, "pending"\)/);
+  assert.match(service, /markWorkspaceSidebarTargetRead/);
+  assert.match(service, /badges\["\/marketer\/disputes"\] = await unreadFor/);
+  assert.match(service, /\.set\(\{ readAt: new Date\(\) \}\)/);
   assert.match(service, /badges\["\/accounting\/farmer-payouts"\]/);
   assert.match(service, /badges\["\/management\/deliveries"\]/);
   assert.match(service, /badges\["\/rider"\]/);
   assert.match(service, /isNull\(notifications\.readAt\)/);
   assert.match(hook, /useAutoRefresh\(refresh, 12_000\)/);
+  assert.match(hook, /openTargetCount < 1/);
+  assert.match(hook, /markWorkspaceSidebarTargetRead/);
   assert.match(badge, /count > 99 \? "99\+" : count/);
   for (const layout of layouts) {
     assert.match(layout, /useWorkspaceSidebarBadges/);
