@@ -410,11 +410,11 @@ function Index() {
               aria-label="Featured produce carousel"
               aria-roledescription="carousel"
             >
-              <div className="flex touch-pan-y gap-4 sm:gap-6">
+              <div className="-ml-4 flex touch-pan-y sm:-ml-6">
                 {featured.map((product, index) => (
                   <div
                     key={product.id}
-                    className="flex shrink-0 basis-[92%] snap-start min-[430px]:basis-[82%] sm:basis-[54%] lg:basis-[31%] xl:basis-[24%] [&>a]:w-full"
+                    className="flex shrink-0 basis-[92%] snap-start pl-4 min-[430px]:basis-[82%] sm:basis-[54%] sm:pl-6 lg:basis-[31%] xl:basis-[24%] [&>a]:w-full"
                     role="group"
                     aria-roledescription="slide"
                     aria-label={`${index + 1} of ${featured.length}`}
