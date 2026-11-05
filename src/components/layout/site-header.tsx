@@ -1,36 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import {
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  ShoppingBag,
-  ShoppingCart,
-  Store,
-  UserRound,
-  X,
-} from "lucide-react";
+import { LayoutDashboard, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { ProfileAvatar } from "@/components/profile-avatar";
+import { FloatingBuyerCartSummary } from "@/features/marketplace/components/floating-buyer-cart-summary";
 import { LoginDialog } from "@/features/auth/components/login-dialog";
 import { PasswordResetDialog } from "@/features/auth/components/password-reset-dialog";
 import { RegisterDialog } from "@/features/auth/components/register-dialog";
-import { getCurrentSessionUser, logoutUser } from "@/services/auth/auth-functions";
-import { buyerCartChangedEvent } from "@/features/marketplace/cart-events";
+import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import { authSessionChangedEvent } from "@/lib/auth/session-events";
 import { NotificationCenter } from "@/features/messaging/components/notification-center";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 const nav = [
   { to: "/", label: "Home" },
@@ -46,6 +27,8 @@ type SessionAccount = {
   roles: string[];
   avatarUrl: string | null;
 };
+
+let cachedSessionAccount: SessionAccount | null | undefined;
 
 const workspaceForRoles = [
   ["Management", "/management"],
@@ -67,23 +50,38 @@ export function SiteHeader({
   sessionAccount?: SessionAccount | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [account, setAccount] = useState<SessionAccount | null>(null);
+  const [account, setAccount] = useState<SessionAccount | null>(
+    sessionAccount !== undefined ? sessionAccount : (cachedSessionAccount ?? null),
+  );
+  const [sessionResolved, setSessionResolved] = useState(
+    sessionAccount !== undefined || cachedSessionAccount !== undefined,
+  );
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [passwordResetOpen, setPasswordResetOpen] = useState(false);
   useEffect(() => {
     if (sessionAccount !== undefined) {
+      cachedSessionAccount = sessionAccount;
       setAccount(sessionAccount);
+      setSessionResolved(true);
       return;
     }
     let mounted = true;
     const loadAccount = () => {
       void getCurrentSessionUser()
         .then((user) => {
-          if (mounted) setAccount(user);
+          if (mounted) {
+            cachedSessionAccount = user;
+            setAccount(user);
+            setSessionResolved(true);
+          }
         })
         .catch(() => {
-          if (mounted) setAccount(null);
+          if (mounted) {
+            cachedSessionAccount = null;
+            setAccount(null);
+            setSessionResolved(true);
+          }
         });
     };
     loadAccount();
@@ -97,18 +95,19 @@ export function SiteHeader({
     const onProfileUpdated = (
       event: CustomEvent<{ displayName?: string; avatarUrl?: string | null }>,
     ) => {
-      setAccount((current) =>
-        current
-          ? {
-              ...current,
-              displayName: event.detail?.displayName ?? current.displayName,
-              avatarUrl:
-                typeof event.detail?.avatarUrl === "string" || event.detail?.avatarUrl === null
-                  ? event.detail.avatarUrl
-                  : current.avatarUrl,
-            }
-          : current,
-      );
+      setAccount((current) => {
+        if (!current) return current;
+        const updated = {
+          ...current,
+          displayName: event.detail?.displayName ?? current.displayName,
+          avatarUrl:
+            typeof event.detail?.avatarUrl === "string" || event.detail?.avatarUrl === null
+              ? event.detail.avatarUrl
+              : current.avatarUrl,
+        };
+        cachedSessionAccount = updated;
+        return updated;
+      });
     };
     window.addEventListener("agrilink:profile-updated", onProfileUpdated as EventListener);
     return () => {
@@ -136,14 +135,34 @@ export function SiteHeader({
     <>
       <header className={`sticky top-0 z-50 border-b backdrop-blur ${headerTone}`}>
         <div className="flex h-16 w-full items-center justify-between gap-2 px-4 sm:h-[5.75rem] sm:gap-4 sm:px-6 lg:px-8">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-full surface-sprout">
-              <ProcyLogo className="size-8" />
-            </span>
-            <span className="font-display text-base font-semibold tracking-tight sm:text-lg">
-              AgriLink
-            </span>
-          </Link>
+          {isBuyer ? (
+            <Link
+              to="/buyer/profile"
+              className={`flex min-w-0 items-center gap-2 rounded-full pr-3 transition-colors ${
+                dark ? "hover:bg-white/10" : "hover:bg-accent"
+              }`}
+              aria-label="Open my profile"
+            >
+              <ProfileAvatar
+                name={account!.displayName ?? account!.username}
+                avatarUrl={account!.avatarUrl}
+                className="size-9"
+                viewable={false}
+              />
+              <span className="hidden max-w-36 truncate text-sm font-semibold sm:block">
+                {account!.displayName ?? account!.username}
+              </span>
+            </Link>
+          ) : (
+            <Link to="/" className="flex items-center gap-2">
+              <span className="flex size-9 items-center justify-center rounded-full surface-sprout">
+                <ProcyLogo className="size-8" />
+              </span>
+              <span className="font-display text-base font-semibold tracking-tight sm:text-lg">
+                AgriLink
+              </span>
+            </Link>
+          )}
 
           <nav className="hidden items-center gap-1 lg:flex">
             {nav.map((item) => (
@@ -165,11 +184,10 @@ export function SiteHeader({
                 <ThemeToggle />
               </span>
             )}
-            {isBuyer ? (
-              <>
-                <BuyerCartButton dark={dark} />
-                <BuyerDrawer account={account!} onSignOut={() => setAccount(null)} />
-              </>
+            {!sessionResolved ? (
+              <div className="h-9 w-28" aria-hidden="true" />
+            ) : isBuyer ? (
+              <NotificationCenter role="Buyer" />
             ) : workspace ? (
               <Button asChild size="sm" className="rounded-full">
                 <Link to={workspace[1]}>Open workspace</Link>
@@ -201,7 +219,9 @@ export function SiteHeader({
             )}
           </div>
 
-          {isBuyer ? (
+          {!sessionResolved ? (
+            <div className="size-10" aria-hidden="true" />
+          ) : isBuyer ? (
             <div className="flex items-center gap-1 lg:hidden">
               <Link
                 to="/buyer"
@@ -211,8 +231,6 @@ export function SiteHeader({
                 <LayoutDashboard className="size-4" />
               </Link>
               <NotificationCenter role="Buyer" />
-              <BuyerCartButton dark={dark} />
-              <BuyerDrawer account={account!} compact onSignOut={() => setAccount(null)} />
             </div>
           ) : (
             <button
@@ -260,18 +278,7 @@ export function SiteHeader({
                     <ThemeToggle />
                   </span>
                 )}
-                {isBuyer ? (
-                  <>
-                    <BuyerCartButton dark={dark} />
-                    <BuyerDrawer
-                      account={account!}
-                      onSignOut={() => {
-                        setAccount(null);
-                        setOpen(false);
-                      }}
-                    />
-                  </>
-                ) : workspace ? (
+                {workspace ? (
                   <Button asChild size="sm" className="flex-1">
                     <Link to={workspace[1]} onClick={() => setOpen(false)}>
                       Open workspace
@@ -315,6 +322,7 @@ export function SiteHeader({
           </div>
         )}
       </header>
+      {isBuyer ? <FloatingBuyerCartSummary /> : null}
       <LoginDialog
         open={loginOpen}
         onOpenChange={setLoginOpen}
@@ -332,151 +340,5 @@ export function SiteHeader({
         onLogin={() => setLoginOpen(true)}
       />
     </>
-  );
-}
-
-function BuyerCartButton({ dark }: { dark: boolean }) {
-  const [itemCount, setItemCount] = useState(0);
-
-  useEffect(() => {
-    let mounted = true;
-    const loadCount = () => {
-      void import("@/services/marketplace/marketplace-server-functions")
-        .then(({ getBuyerCart }) => getBuyerCart())
-        .then((items) => {
-          if (mounted) setItemCount(items.length);
-        })
-        .catch(() => {
-          // The cart page will show a more useful message if loading fails.
-        });
-    };
-    loadCount();
-    window.addEventListener(buyerCartChangedEvent, loadCount);
-    window.addEventListener("focus", loadCount);
-    return () => {
-      mounted = false;
-      window.removeEventListener(buyerCartChangedEvent, loadCount);
-      window.removeEventListener("focus", loadCount);
-    };
-  }, []);
-
-  return (
-    <Link
-      to="/buyer/cart"
-      aria-label={itemCount ? `Open cart with ${itemCount} item groups` : "Open cart"}
-      className={`relative inline-flex size-9 items-center justify-center rounded-full border transition-colors ${
-        dark
-          ? "border-white/20 text-forest-foreground hover:bg-white/10"
-          : "border-border text-foreground hover:bg-accent"
-      }`}
-    >
-      <ShoppingCart className="size-4" />
-      {itemCount > 0 && (
-        <span className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-primary-foreground">
-          {itemCount > 99 ? "99+" : itemCount}
-        </span>
-      )}
-    </Link>
-  );
-}
-
-function BuyerDrawer({
-  account,
-  onSignOut,
-  compact = false,
-}: {
-  account: SessionAccount;
-  onSignOut: () => void;
-  compact?: boolean;
-}) {
-  const name = account.displayName ?? account.username;
-  return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button
-          size={compact ? "icon" : "sm"}
-          variant={compact ? "outline" : "default"}
-          className="rounded-full"
-          aria-label={compact ? "Open Buyer account menu" : undefined}
-        >
-          <ProfileAvatar
-            name={name}
-            avatarUrl={account.avatarUrl}
-            className={compact ? "size-6" : "size-5"}
-            viewable={false}
-          />
-          {compact ? null : name}
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="flex w-[min(86vw,22rem)] flex-col p-5">
-        <SheetHeader>
-          <ProfileAvatar
-            name={name}
-            avatarUrl={account.avatarUrl}
-            className="size-14"
-            viewable={false}
-          />
-          <SheetTitle className="mt-4">{name}</SheetTitle>
-          <SheetDescription>Buyer account · signed in</SheetDescription>
-        </SheetHeader>
-        <nav className="mt-8 space-y-2">
-          <SheetClose asChild>
-            <Link
-              to="/buyer"
-              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium hover:bg-accent"
-            >
-              <LayoutDashboard className="size-4 text-primary" /> Buyer dashboard
-            </Link>
-          </SheetClose>
-          <SheetClose asChild>
-            <Link
-              to="/marketplace"
-              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium hover:bg-accent"
-            >
-              <Store className="size-4 text-primary" /> Marketplace
-            </Link>
-          </SheetClose>
-          <SheetClose asChild>
-            <Link
-              to="/buyer/profile"
-              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium hover:bg-accent"
-            >
-              <UserRound className="size-4 text-primary" /> My profile
-            </Link>
-          </SheetClose>
-          <SheetClose asChild>
-            <Link
-              to="/buyer/cart"
-              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium hover:bg-accent"
-            >
-              <ShoppingCart className="size-4 text-primary" /> My cart
-            </Link>
-          </SheetClose>
-          <SheetClose asChild>
-            <Link
-              to="/buyer/orders"
-              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium hover:bg-accent"
-            >
-              <ShoppingBag className="size-4 text-primary" /> My orders
-            </Link>
-          </SheetClose>
-        </nav>
-        <div className="mt-auto border-t pt-4">
-          <LogoutConfirmation
-            onConfirm={async () => {
-              await logoutUser();
-              onSignOut();
-            }}
-          >
-            <Button
-              variant="ghost"
-              className="w-full justify-start rounded-xl text-destructive hover:text-destructive"
-            >
-              <LogOut className="size-4" /> Log out
-            </Button>
-          </LogoutConfirmation>
-        </div>
-      </SheetContent>
-    </Sheet>
   );
 }

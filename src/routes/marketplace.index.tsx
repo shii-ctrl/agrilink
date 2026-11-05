@@ -5,7 +5,6 @@ import { z } from "zod";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { ProductCard } from "@/features/marketplace/components/product-card";
-import { FloatingBuyerCartSummary } from "@/features/marketplace/components/floating-buyer-cart-summary";
 import { Input } from "@/components/ui/input";
 import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import type { Classification, Product } from "@/features/marketplace/products";
@@ -273,7 +272,6 @@ function MarketplacePage() {
     <div className="min-h-screen">
       <SiteHeader />
       {catalog}
-      <FloatingBuyerCartSummary />
       <SiteFooter />
     </div>
   );

@@ -15,6 +15,7 @@ import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { WorkspaceHeaderActions } from "@/components/workspaces/workspace-header-actions";
 import { CollapsibleSidebarGroup } from "@/components/workspaces/collapsible-sidebar-group";
+import { FloatingBuyerCartSummary } from "@/features/marketplace/components/floating-buyer-cart-summary";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -136,6 +137,7 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
           </SidebarFooter>
         </Sidebar>
         <div className="min-w-0 flex-1 bg-background pb-24 md:pb-0">{children}</div>
+        <FloatingBuyerCartSummary aboveMobileNav />
         <nav
           aria-label="Buyer mobile navigation"
           className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur md:hidden"

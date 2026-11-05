@@ -285,11 +285,16 @@ test("marketplace browsing keeps the public layout with Buyer mobile shopping to
   assert.match(marketplace, /Fresh produce from local farmer members/);
   assert.match(marketplace, /Live product availability/);
   assert.doesNotMatch(marketplace, /Live Layerbase marketplace listings/);
-  assert.match(marketplace, /<FloatingBuyerCartSummary/);
+  assert.doesNotMatch(marketplace, /<FloatingBuyerCartSummary/);
   assert.match(siteHeader, /Back to Buyer dashboard/);
   assert.match(siteHeader, /<NotificationCenter role="Buyer"/);
-  assert.match(siteHeader, /compact onSignOut/);
-  assert.match(floatingCart, /Current cart subtotal/);
+  assert.match(siteHeader, /<FloatingBuyerCartSummary/);
+  assert.match(siteHeader, /aria-label="Open my profile"/);
+  assert.match(siteHeader, /sessionResolved/);
+  assert.doesNotMatch(siteHeader, /BuyerDrawer|SheetContent/);
+  assert.match(buyerLayout, /<FloatingBuyerCartSummary aboveMobileNav/);
+  assert.match(floatingCart, /fixed left-4/);
+  assert.match(floatingCart, /title="Open cart"/);
   assert.match(floatingCart, /buyerCartChangedEvent/);
   assert.match(productDetail, /Selected subtotal/);
   assert.match(productDetail, /fixed inset-x-0 bottom-0/);
@@ -1245,7 +1250,6 @@ test("action confirmations use the shared branded dialog instead of browser prom
 
 test("all logout actions ask for confirmation before ending the session", async () => {
   const files = [
-    "src/components/layout/site-header.tsx",
     "src/components/workspaces/accounting-layout.tsx",
     "src/components/workspaces/buyer-layout.tsx",
     "src/components/workspaces/farmer-layout.tsx",
