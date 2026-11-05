@@ -1321,10 +1321,15 @@ test("delivery checkout collects a complete recipient and delivery address", asy
   assert.match(cart, /Barangay/);
   assert.match(cart, /City \/ Municipality/);
   assert.match(cart, /Preferred delivery date and time/);
+  assert.match(cart, /Choose a date/);
+  assert.match(cart, /Choose a time/);
+  assert.match(cart, /createDeliveryDateOptions/);
+  assert.match(cart, /preferredDeliverySchedule/);
+  assert.doesNotMatch(cart, /Example: Oct 28/);
   assert.match(cart, /min-h-10 items-center leading-snug/);
   assert.doesNotMatch(cart, /delivery-region/);
   assert.doesNotMatch(cart, /philippineRegions/);
-  assert.match(cart, /deliveryNote\(deliveryDetails\)/);
+  assert.match(cart, /deliveryNote\(deliveryDetails, deliveryDateOptions\)/);
   assert.match(cart, /Delivery recipient:/);
   assert.match(cart, /Delivery address/);
   assert.match(marketplace, /pickupNote: z\.string\(\)\.trim\(\)\.min\(3\)\.max\(2000\)/);

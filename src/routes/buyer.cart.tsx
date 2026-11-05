@@ -9,6 +9,13 @@ import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { peso } from "@/features/marketplace/products";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
@@ -33,9 +40,18 @@ type DeliveryDetails = {
   postalCode: string;
   city: string;
   phone: string;
-  schedule: string;
+  deliveryDate: string;
+  deliveryTime: string;
   instructions: string;
 };
+type DeliveryDateOption = { value: string; label: string };
+
+const deliveryTimeOptions = [
+  { value: "8:00 AM–10:00 AM", label: "8:00 AM–10:00 AM" },
+  { value: "10:00 AM–12:00 PM", label: "10:00 AM–12:00 PM" },
+  { value: "1:00 PM–3:00 PM", label: "1:00 PM–3:00 PM" },
+  { value: "3:00 PM–5:00 PM", label: "3:00 PM–5:00 PM" },
+] as const;
 const emptyCartItems: CartItem[] = [];
 const emptyDeliveryDetails: DeliveryDetails = {
   firstName: "",
@@ -46,9 +62,44 @@ const emptyDeliveryDetails: DeliveryDetails = {
   postalCode: "",
   city: "",
   phone: "",
-  schedule: "",
+  deliveryDate: "",
+  deliveryTime: "",
   instructions: "",
 };
+
+function localDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function createDeliveryDateOptions() {
+  const formatter = new Intl.DateTimeFormat("en-PH", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+
+  return Array.from({ length: 14 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + index + 1);
+    const prefix = index === 0 ? "Tomorrow" : formatter.format(date);
+    return {
+      value: localDateValue(date),
+      label: index === 0 ? `${prefix}, ${formatter.format(date)}` : prefix,
+    } satisfies DeliveryDateOption;
+  });
+}
+
+function preferredDeliverySchedule(details: DeliveryDetails, dateOptions: DeliveryDateOption[]) {
+  const dateLabel =
+    dateOptions.find((option) => option.value === details.deliveryDate)?.label ??
+    details.deliveryDate;
+  return [dateLabel, details.deliveryTime].filter(Boolean).join(", ");
+}
 
 function reservationCountdown(expiresAt: string, now: number) {
   const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - now) / 1000));
@@ -64,12 +115,12 @@ function deliveryAddress(details: DeliveryDetails) {
     .join(", ");
 }
 
-function deliveryNote(details: DeliveryDetails) {
+function deliveryNote(details: DeliveryDetails, dateOptions: DeliveryDateOption[]) {
   return [
     `Delivery recipient: ${details.firstName.trim()} ${details.lastName.trim()}`,
     `Address: ${deliveryAddress(details)}`,
     `Phone: ${details.phone.trim()}`,
-    `Preferred schedule: ${details.schedule.trim()}`,
+    `Preferred schedule: ${preferredDeliverySchedule(details, dateOptions)}`,
     details.instructions.trim() ? `Instructions: ${details.instructions.trim()}` : null,
   ]
     .filter(Boolean)
@@ -98,6 +149,7 @@ function BuyerCartPage() {
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [arrangementNote, setArrangementNote] = useState("");
   const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails>(emptyDeliveryDetails);
+  const [deliveryDateOptions] = useState<DeliveryDateOption[]>(createDeliveryDateOptions);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const releasedReservationRef = useRef(false);
@@ -185,12 +237,21 @@ function BuyerCartPage() {
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (
+      fulfillment === "delivery" &&
+      (!deliveryDetails.deliveryDate || !deliveryDetails.deliveryTime)
+    ) {
+      toast.error("Choose a delivery date and time", {
+        description: "Select your preferred delivery day and time window before continuing.",
+      });
+      return;
+    }
     const fulfillmentLabel = fulfillment === "pickup" ? "Pickup" : "Delivery";
     const orderContact = fulfillment === "delivery" ? deliveryDetails.phone.trim() : contact.trim();
     const pickupNote =
       fulfillment === "pickup"
         ? `Pickup recipient: ${pickupName.trim()}\nPreferred pickup: ${arrangementNote.trim()}`
-        : `Delivery:\n${deliveryNote(deliveryDetails)}`;
+        : `Delivery:\n${deliveryNote(deliveryDetails, deliveryDateOptions)}`;
     const accepted = await requestConfirmation({
       title: "Confirm your order?",
       description: `You are ordering ${items.length} product group${items.length === 1 ? "" : "s"} for ${peso(finalTotal)} by ${fulfillmentLabel.toLocaleLowerCase()}. Review the details before confirming.`,
@@ -252,7 +313,9 @@ function BuyerCartPage() {
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">Preferred schedule</dt>
-                  <dd className="max-w-48 text-right font-medium">{deliveryDetails.schedule}</dd>
+                  <dd className="max-w-48 text-right font-medium">
+                    {preferredDeliverySchedule(deliveryDetails, deliveryDateOptions)}
+                  </dd>
                 </div>
               </>
             )}
@@ -286,7 +349,9 @@ function BuyerCartPage() {
           deliveryAddress:
             fulfillment === "delivery" ? deliveryAddress(deliveryDetails) : undefined,
           preferredSchedule:
-            fulfillment === "delivery" ? deliveryDetails.schedule.trim() : arrangementNote.trim(),
+            fulfillment === "delivery"
+              ? preferredDeliverySchedule(deliveryDetails, deliveryDateOptions)
+              : arrangementNote.trim(),
           deliveryInstructions:
             fulfillment === "delivery" ? deliveryDetails.instructions.trim() : undefined,
           items: items.map((item) => ({
@@ -750,27 +815,58 @@ function BuyerCartPage() {
                                 required
                               />
                             </div>
-                            <div className="space-y-2">
-                              <Label
-                                className="flex min-h-10 items-center leading-snug"
-                                htmlFor="delivery-schedule"
-                              >
+                            <div className="space-y-2 sm:col-span-2">
+                              <p className="flex min-h-10 items-center text-sm font-medium leading-snug">
                                 Preferred delivery date and time
-                              </Label>
-                              <Input
-                                id="delivery-schedule"
-                                value={deliveryDetails.schedule}
-                                onChange={(event) =>
-                                  setDeliveryDetails((current) => ({
-                                    ...current,
-                                    schedule: event.target.value,
-                                  }))
-                                }
-                                placeholder="Example: Oct 28, 9:00 AM–12:00 PM"
-                                minLength={3}
-                                maxLength={200}
-                                required
-                              />
+                              </p>
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                  <Label htmlFor="delivery-date">Delivery date</Label>
+                                  <Select
+                                    value={deliveryDetails.deliveryDate}
+                                    onValueChange={(deliveryDate) =>
+                                      setDeliveryDetails((current) => ({
+                                        ...current,
+                                        deliveryDate,
+                                      }))
+                                    }
+                                  >
+                                    <SelectTrigger id="delivery-date" aria-required="true">
+                                      <SelectValue placeholder="Choose a date" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {deliveryDateOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="delivery-time">Time window</Label>
+                                  <Select
+                                    value={deliveryDetails.deliveryTime}
+                                    onValueChange={(deliveryTime) =>
+                                      setDeliveryDetails((current) => ({
+                                        ...current,
+                                        deliveryTime,
+                                      }))
+                                    }
+                                  >
+                                    <SelectTrigger id="delivery-time" aria-required="true">
+                                      <SelectValue placeholder="Choose a time" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {deliveryTimeOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
