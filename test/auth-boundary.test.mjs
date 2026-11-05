@@ -1738,6 +1738,15 @@ test("public pages share full-width responsive page gutters", async () => {
   assert.match(footer, /target="_blank"/);
 });
 
+test("Marketer dashboard omits redundant workflow guide cards", async () => {
+  const dashboard = await readFile("src/routes/marketer.index.tsx", "utf8");
+
+  assert.doesNotMatch(dashboard, /Receiving and classification/);
+  assert.doesNotMatch(dashboard, /Buyer order handling/);
+  assert.doesNotMatch(dashboard, /Order flow: Pending/);
+  assert.match(dashboard, /Low-stock attention/);
+});
+
 test("buyer-facing pages avoid internal operations language and unnecessary system guides", async () => {
   const [
     about,

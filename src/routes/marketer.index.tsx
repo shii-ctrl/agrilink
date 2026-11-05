@@ -15,7 +15,7 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getMarketerDashboard } from "@/services/marketplace/marketplace-server-functions";
 import { formatSellingQuantity, type SellingUnit } from "@/features/marketplace/selling-units";
 
@@ -116,44 +116,6 @@ function MarketerDashboard() {
                   </CardContent>
                 </Card>
               ))}
-            </section>
-            <section className="grid gap-5 lg:grid-cols-2">
-              <Card className="border-border/70 shadow-sm">
-                <CardHeader>
-                  <CardTitle>Receiving and classification</CardTitle>
-                  <CardDescription>
-                    Record farmer deliveries and classify each product as Good, Semi, or Reject
-                    before publishing it to the marketplace.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm text-muted-foreground">
-                  <p>
-                    Next module: capture delivery details, traceability information, quantity, and
-                    quality classification.
-                  </p>
-                  <div className="rounded-lg bg-muted p-3 text-foreground">
-                    Farmers supply PROCY; buyers see only PROCY marketplace listings.
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-border/70 shadow-sm">
-                <CardHeader>
-                  <CardTitle>Buyer order handling</CardTitle>
-                  <CardDescription>
-                    Review incoming buyer orders, confirm stock availability, and follow their
-                    progress through the PROCY sales workflow.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm text-muted-foreground">
-                  <p>
-                    Orders are confirmed by the marketer, then accounting records payment. No online
-                    payment gateway is included.
-                  </p>
-                  <div className="rounded-lg bg-muted p-3 text-foreground">
-                    Order flow: Pending → Confirmed → Sold; Accounting then records payment as Paid.
-                  </div>
-                </CardContent>
-              </Card>
             </section>
             <section className="rounded-3xl border border-semi/30 bg-card p-6 shadow-card">
               <div className="flex flex-wrap items-start justify-between gap-3">
