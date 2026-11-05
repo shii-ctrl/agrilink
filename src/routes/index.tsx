@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
-  BadgeCheck,
+  ClipboardCheck,
   Clock3,
   Egg,
   PackageCheck,
@@ -11,7 +11,6 @@ import {
   Sprout,
   Store,
   Tags,
-  Truck,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
@@ -70,21 +69,21 @@ const categories = [
   { label: "Bundle deals", icon: ShoppingBag, search: { deals: true, available: true } },
 ] as const;
 
-const trustPoints = [
+const assurancePoints = [
   {
-    icon: BadgeCheck,
-    title: "Quality classified",
-    body: "Good, Semi, and Reject options are clearly identified.",
+    icon: Clock3,
+    title: "Stock reservation",
+    body: "Cart quantities are reserved for 10 minutes during checkout.",
   },
   {
-    icon: PackageCheck,
-    title: "Live stock",
-    body: "Availability updates from actual product receiving records.",
+    icon: ClipboardCheck,
+    title: "Order verification",
+    body: "PROCY reviews product availability before confirming each order.",
   },
   {
-    icon: Store,
-    title: "One trusted seller",
-    body: "PROCY prices, confirms, and fulfills every Buyer order.",
+    icon: ShieldCheck,
+    title: "Tracking and support",
+    body: "Track fulfillment progress and report delivery or product concerns.",
   },
 ];
 
@@ -488,30 +487,28 @@ function Index() {
           </div>
         </section>
 
-        <section className="mt-14 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
-          <div className="grid gap-4 md:grid-cols-3">
-            {trustPoints.map((point) => (
+        <section className="mt-10 w-full px-4 sm:mt-16 sm:px-6 lg:px-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+            · Buyer assurance
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold sm:text-3xl">
+            Reliable ordering through PROCY
+          </h2>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {assurancePoints.map((point) => (
               <div
                 key={point.title}
-                className="flex gap-3 rounded-2xl border border-border bg-card p-5 shadow-card sm:gap-4 sm:rounded-3xl sm:p-6"
+                className="flex gap-3 rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5"
               >
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <point.icon className="size-5" />
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <point.icon className="size-4" />
                 </span>
                 <div>
-                  <h3 className="font-semibold">{point.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{point.body}</p>
+                  <h3 className="text-sm font-semibold">{point.title}</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{point.body}</p>
                 </div>
               </div>
             ))}
-          </div>
-          <div className="mt-4 grid gap-2 rounded-2xl bg-muted/60 px-4 py-4 text-xs text-muted-foreground sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-6 sm:px-5">
-            <span className="inline-flex items-center gap-2">
-              <Clock3 className="size-4" /> Stock refreshed from receiving records
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <Truck className="size-4" /> Pickup details shown after confirmation
-            </span>
           </div>
         </section>
 
