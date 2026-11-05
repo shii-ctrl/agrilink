@@ -3,14 +3,12 @@ import {
   ArrowRight,
   BadgeCheck,
   Check,
-  ClipboardCheck,
   Clock3,
   Egg,
   PackageCheck,
   Search,
   ShieldCheck,
   ShoppingBag,
-  ShoppingCart,
   Sprout,
   Store,
   Tags,
@@ -72,25 +70,6 @@ const categories = [
   { label: "Eggs", icon: Egg, search: { q: "itlog", available: true } },
   { label: "Bundle deals", icon: ShoppingBag, search: { deals: true, available: true } },
 ] as const;
-
-const orderSteps = [
-  {
-    icon: Search,
-    title: "Browse",
-  },
-  {
-    icon: ShoppingCart,
-    title: "Add to cart",
-  },
-  {
-    icon: ClipboardCheck,
-    title: "Confirm order",
-  },
-  {
-    icon: ShoppingBag,
-    title: "Receive order",
-  },
-];
 
 const trustPoints = [
   {
@@ -455,34 +434,6 @@ function Index() {
               No products are currently available.
             </div>
           )}
-        </section>
-
-        <section className="mt-10 w-full px-4 sm:mt-16 sm:px-6 lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            · Order process
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold sm:text-3xl">How ordering works</h2>
-          <div className="relative mt-5 overflow-hidden rounded-2xl border border-border bg-card px-4 py-2 shadow-card sm:px-6 sm:py-5">
-            <span className="absolute bottom-10 left-[2.125rem] top-10 w-px bg-border sm:bottom-auto sm:left-[12.5%] sm:right-[12.5%] sm:top-[2.4rem] sm:h-px sm:w-auto" />
-            <div className="relative grid sm:grid-cols-4">
-              {orderSteps.map((step, index) => (
-                <div
-                  key={step.title}
-                  className="relative z-10 flex min-h-16 items-center gap-3 py-2 sm:min-h-0 sm:flex-col sm:gap-2 sm:py-0 sm:text-center"
-                >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground ring-4 ring-card">
-                    <step.icon className="size-4" />
-                  </span>
-                  <div>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
-                      Step {index + 1}
-                    </span>
-                    <h3 className="text-sm font-semibold sm:mt-0.5">{step.title}</h3>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </section>
 
         <section className="mt-14 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
