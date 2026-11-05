@@ -135,34 +135,14 @@ export function SiteHeader({
     <>
       <header className={`sticky top-0 z-50 border-b backdrop-blur ${headerTone}`}>
         <div className="flex h-16 w-full items-center justify-between gap-2 px-4 sm:h-[5.75rem] sm:gap-4 sm:px-6 lg:px-8">
-          {isBuyer ? (
-            <Link
-              to="/buyer/profile"
-              className={`flex min-w-0 items-center gap-2 rounded-full pr-3 transition-colors ${
-                dark ? "hover:bg-white/10" : "hover:bg-accent"
-              }`}
-              aria-label="Open my profile"
-            >
-              <ProfileAvatar
-                name={account!.displayName ?? account!.username}
-                avatarUrl={account!.avatarUrl}
-                className="size-9"
-                viewable={false}
-              />
-              <span className="hidden max-w-36 truncate text-sm font-semibold sm:block">
-                {account!.displayName ?? account!.username}
-              </span>
-            </Link>
-          ) : (
-            <Link to="/" className="flex items-center gap-2">
-              <span className="flex size-9 items-center justify-center rounded-full surface-sprout">
-                <ProcyLogo className="size-8" />
-              </span>
-              <span className="font-display text-base font-semibold tracking-tight sm:text-lg">
-                AgriLink
-              </span>
-            </Link>
-          )}
+          <Link to="/" className="flex items-center gap-2">
+            <span className="flex size-9 items-center justify-center rounded-full surface-sprout">
+              <ProcyLogo className="size-8" />
+            </span>
+            <span className="font-display text-base font-semibold tracking-tight sm:text-lg">
+              AgriLink
+            </span>
+          </Link>
 
           <nav className="hidden items-center gap-1 lg:flex">
             {nav.map((item) => (
@@ -187,7 +167,26 @@ export function SiteHeader({
             {!sessionResolved ? (
               <div className="h-9 w-28" aria-hidden="true" />
             ) : isBuyer ? (
-              <NotificationCenter role="Buyer" />
+              <>
+                <NotificationCenter role="Buyer" />
+                <Link
+                  to="/buyer/profile"
+                  className={`flex min-w-0 items-center gap-2 rounded-full p-1 pr-3 transition-colors ${
+                    dark ? "hover:bg-white/10" : "hover:bg-accent"
+                  }`}
+                  aria-label="Open my profile"
+                >
+                  <ProfileAvatar
+                    name={account!.displayName ?? account!.username}
+                    avatarUrl={account!.avatarUrl}
+                    className="size-9"
+                    viewable={false}
+                  />
+                  <span className="max-w-36 truncate text-sm font-semibold">
+                    {account!.displayName ?? account!.username}
+                  </span>
+                </Link>
+              </>
             ) : workspace ? (
               <Button asChild size="sm" className="rounded-full">
                 <Link to={workspace[1]}>Open workspace</Link>
@@ -231,6 +230,18 @@ export function SiteHeader({
                 <LayoutDashboard className="size-4" />
               </Link>
               <NotificationCenter role="Buyer" />
+              <Link
+                to="/buyer/profile"
+                aria-label="Open my profile"
+                className={`inline-flex size-9 items-center justify-center overflow-hidden rounded-full border transition-colors ${menuButton}`}
+              >
+                <ProfileAvatar
+                  name={account!.displayName ?? account!.username}
+                  avatarUrl={account!.avatarUrl}
+                  className="size-full"
+                  viewable={false}
+                />
+              </Link>
             </div>
           ) : (
             <button

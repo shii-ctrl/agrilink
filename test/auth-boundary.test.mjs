@@ -293,7 +293,7 @@ test("marketplace browsing keeps the public layout with Buyer mobile shopping to
   assert.match(siteHeader, /sessionResolved/);
   assert.doesNotMatch(siteHeader, /BuyerDrawer|SheetContent/);
   assert.match(buyerLayout, /<FloatingBuyerCartSummary aboveMobileNav/);
-  assert.match(floatingCart, /fixed left-4/);
+  assert.match(floatingCart, /fixed right-4/);
   assert.match(floatingCart, /title="Open cart"/);
   assert.match(floatingCart, /buyerCartChangedEvent/);
   assert.match(productDetail, /Selected subtotal/);
