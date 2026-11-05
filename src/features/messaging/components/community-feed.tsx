@@ -706,16 +706,16 @@ export function CommunityFeed({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <section className="rounded-3xl border border-border bg-card p-4 shadow-card sm:p-5">
-        <div className="flex items-start justify-between gap-4">
+      <section className="rounded-2xl border border-border bg-card p-3 shadow-card sm:rounded-3xl sm:p-5">
+        <div className="flex items-start justify-between gap-2 sm:gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10">
                 <MessageCircle className="size-4.5 text-primary" />
               </span>
-              <h2 className="truncate text-base font-semibold sm:text-lg">{title}</h2>
+              <h2 className="line-clamp-2 text-sm font-semibold sm:truncate sm:text-lg">{title}</h2>
             </div>
-            <p className="mt-2 flex items-start gap-1.5 pl-0 text-xs font-medium leading-5 text-primary sm:pl-11">
+            <p className="mt-2 hidden items-start gap-1.5 pl-0 text-xs font-medium leading-5 text-primary sm:flex sm:pl-11">
               <Radio className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
               <span>
                 Live updates are on. New posts, comments, and reactions appear automatically.
@@ -726,12 +726,12 @@ export function CommunityFeed({
             <Button
               type="button"
               variant="outline"
-              className="h-10 w-auto shrink-0 rounded-full border-primary/20 bg-background px-3 text-foreground shadow-sm hover:border-primary/35 hover:bg-primary/5 sm:px-4"
+              className="size-10 shrink-0 rounded-full border-primary/20 bg-background p-0 text-foreground shadow-sm hover:border-primary/35 hover:bg-primary/5 sm:h-10 sm:w-auto sm:px-4"
               onClick={() => setComposerOpen(true)}
             >
               <Pencil className="size-4 text-primary" />
               <span className="hidden font-medium sm:inline">Share your thoughts</span>
-              <span className="font-medium sm:hidden">Post</span>
+              <span className="sr-only sm:hidden">Post</span>
             </Button>
           )}
         </div>
@@ -757,7 +757,7 @@ export function CommunityFeed({
           />
         </div>
       </section>
-      <section className="mt-6 space-y-4" aria-live="polite">
+      <section className="mt-3 space-y-3 sm:mt-6 sm:space-y-4" aria-live="polite">
         {loading && (
           <p className="rounded-3xl border border-border bg-card p-6 text-center text-sm text-muted-foreground shadow-card">
             Loading Community posts…
@@ -797,7 +797,7 @@ export function CommunityFeed({
               <article
                 key={message.id}
                 id={`community-post-${message.id}`}
-                className={`rounded-3xl border bg-card p-5 shadow-card ${
+                className={`rounded-2xl border bg-card p-4 shadow-card sm:rounded-3xl sm:p-5 ${
                   message.moderationStatus === "hidden"
                     ? "border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/10"
                     : message.isPinned

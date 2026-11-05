@@ -14,7 +14,7 @@ function AccountingCommunityPage() {
         title="Community"
         description="Share updates with AgriLink members and read role-protected private messages."
       />
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
+      <main className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4 sm:py-6 md:px-8 md:py-8">
         <CommunityWorkspace
           postTitle="Share an accounting update"
           placeholder="What is on your mind? Share an update with the AgriLink community..."

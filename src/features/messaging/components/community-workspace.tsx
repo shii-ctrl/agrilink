@@ -22,19 +22,19 @@ export function CommunityWorkspace({
   }
 
   return (
-    <Tabs defaultValue="feed">
-      <TabsList className="h-auto rounded-2xl p-1">
-        <TabsTrigger value="feed" className="gap-2 rounded-xl px-4 py-2">
+    <Tabs defaultValue="feed" className="min-w-0">
+      <TabsList className="grid h-auto w-full grid-cols-2 rounded-2xl p-1 sm:inline-grid sm:w-auto">
+        <TabsTrigger value="feed" className="min-w-0 gap-2 rounded-xl px-2 py-2.5 sm:px-4">
           <UsersRound className="size-4" /> Community feed
         </TabsTrigger>
-        <TabsTrigger value="messages" className="gap-2 rounded-xl px-4 py-2">
+        <TabsTrigger value="messages" className="min-w-0 gap-2 rounded-xl px-2 py-2.5 sm:px-4">
           <MessageCircle className="size-4" /> Private messages
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="feed" className="mt-6">
+      <TabsContent value="feed" className="mt-3 sm:mt-6">
         <CommunityFeed title={postTitle} placeholder={placeholder} />
       </TabsContent>
-      <TabsContent value="messages" className="mt-6">
+      <TabsContent value="messages" className="mt-3 sm:mt-6">
         <DirectMessagesPanel initialContactId={initialContactId} />
       </TabsContent>
     </Tabs>

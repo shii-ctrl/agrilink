@@ -17,7 +17,7 @@ function BuyerCommunityPage() {
         title="Private messages"
         description="Read and reply to your marketplace messages."
       />
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
+      <main className="mx-auto w-full max-w-6xl px-4 py-0 sm:py-6 md:px-8 md:py-8">
         <CommunityWorkspace
           postTitle="Share a community update"
           placeholder="What is on your mind? Share an update with the AgriLink community..."

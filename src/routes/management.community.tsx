@@ -13,7 +13,7 @@ function ManagementCommunityPage() {
         title="Community"
         description="Authorized, saved agricultural and marketplace updates."
       />
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
+      <main className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4 sm:py-6 md:px-8 md:py-8">
         <CommunityWorkspace
           postTitle="Share an authorized update"
           placeholder="What is on your mind? Share an agricultural or marketplace update..."

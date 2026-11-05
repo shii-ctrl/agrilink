@@ -892,6 +892,11 @@ test("private messages enforce workflow recipients and provide resilient convers
   assert.match(panel, /Start conversation/);
   assert.match(panel, /navigator\.onLine/);
   assert.match(panel, /Retry/);
+  assert.match(panel, /Back to conversations/);
+  assert.match(panel, /mobileConversationOpen/);
+  assert.match(panel, />Chats</);
+  assert.match(panel, /sticky top-0/);
+  assert.match(panel, /sticky bottom-0/);
 });
 
 test("Farmer Crop AI keeps the Gemini key server-only and scopes chats to each Farmer", async () => {

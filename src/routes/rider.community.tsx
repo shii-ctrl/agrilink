@@ -17,7 +17,7 @@ function RiderCommunityPage() {
         title="Private messages"
         description="Coordinate securely with Buyers assigned to your deliveries."
       />
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
+      <main className="mx-auto w-full max-w-6xl px-4 py-0 sm:py-6 md:px-8 md:py-8">
         <CommunityWorkspace
           postTitle="Share a delivery update"
           placeholder="Write a delivery update..."

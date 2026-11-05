@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   LoaderCircle,
   MessageCircle,
   RefreshCw,
@@ -108,6 +109,7 @@ export function DirectMessagesPanel({
   const localMessagesRef = useRef<LocalMessage[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -117,6 +119,7 @@ export function DirectMessagesPanel({
     typeof navigator === "undefined" ? true : navigator.onLine,
   );
   const [contactTyping, setContactTyping] = useState(false);
+  const [mobileConversationOpen, setMobileConversationOpen] = useState(Boolean(initialContactId));
 
   const syncLocalMessages = useCallback((next: LocalMessage[]) => {
     localMessagesRef.current = next;
@@ -291,6 +294,11 @@ export function DirectMessagesPanel({
     [localMessages, messages, selectedContactId],
   );
 
+  useEffect(() => {
+    if (!mobileConversationOpen && window.innerWidth < 1024) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [displayedMessages.length, mobileConversationOpen, selectedContactId]);
+
   const sendDraft = async () => {
     const message = draft.trim();
     if (!message || !selectedContact?.canSend) return;
@@ -315,8 +323,8 @@ export function DirectMessagesPanel({
   };
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-5 sm:p-6">
+    <section className="-mx-4 overflow-hidden border-y border-border bg-card sm:mx-0 sm:rounded-3xl sm:border sm:shadow-card">
+      <div className="hidden flex-wrap items-start justify-between gap-3 border-b border-border p-5 sm:flex sm:p-6">
         <div className="flex items-center gap-3">
           <span className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <MessageCircle className="size-5" />
@@ -357,33 +365,55 @@ export function DirectMessagesPanel({
           </Button>
         </div>
       ) : (
-        <div className="grid min-h-[36rem] lg:grid-cols-[18rem_minmax(0,1fr)]">
-          <aside className="border-b border-border bg-muted/20 p-4 lg:border-b-0 lg:border-r">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={searchRef}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search people or roles"
-                aria-label="Search private message contacts"
-                className="pl-9"
-              />
+        <div className="grid min-h-[calc(100dvh-12rem)] lg:min-h-[36rem] lg:grid-cols-[20rem_minmax(0,1fr)]">
+          <aside
+            className={`${mobileConversationOpen ? "hidden lg:block" : "block"} min-w-0 border-border bg-card lg:border-r lg:bg-muted/20`}
+          >
+            <div className="flex items-center justify-between px-4 pb-2 pt-4 lg:hidden">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Chats</h2>
+                <p className="text-xs text-muted-foreground">
+                  Private, role-protected conversations
+                </p>
+              </div>
+              <span className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
+                <MessageCircle className="size-5" />
+              </span>
             </div>
-            <div className="mt-4 space-y-1">
+            <div className="px-4 pb-3 pt-2 lg:p-4 lg:pb-0">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={searchRef}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search people or roles"
+                  aria-label="Search private message contacts"
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <div className="space-y-0.5 px-2 pb-4 lg:mt-2">
               {contacts.map((contact) => (
                 <button
                   key={contact.id}
                   type="button"
-                  onClick={() => setSelectedContactId(contact.id)}
-                  className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-colors hover:bg-accent ${
+                  onClick={() => {
+                    setSelectedContactId(contact.id);
+                    setMobileConversationOpen(true);
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3.5 text-left transition-colors hover:bg-accent lg:py-3 ${
                     contact.id === selectedContactId ? "bg-primary/10" : ""
                   }`}
                 >
-                  <ContactAvatar contact={contact} viewable={false} />
+                  <ContactAvatar
+                    contact={contact}
+                    className="size-12 lg:size-10"
+                    viewable={false}
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-semibold">{contact.name}</span>
+                      <span className="truncate text-[15px] font-semibold">{contact.name}</span>
                       {contact.unreadCount > 0 && (
                         <span className="flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold leading-5 text-primary-foreground">
                           {contact.unreadCount > 99 ? "99+" : contact.unreadCount}
@@ -396,7 +426,7 @@ export function DirectMessagesPanel({
                       />
                       {contact.role} · {contact.canSend ? "Available" : "History only"}
                     </span>
-                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    <span className="mt-0.5 block truncate text-[13px] text-muted-foreground">
                       {contact.lastMessage ?? "Start a conversation"}
                     </span>
                   </span>
@@ -417,10 +447,22 @@ export function DirectMessagesPanel({
             </div>
           </aside>
 
-          <div className="flex min-w-0 flex-col">
+          <div
+            className={`${mobileConversationOpen ? "flex" : "hidden lg:flex"} min-w-0 flex-col bg-background`}
+          >
             {selectedContact ? (
               <>
-                <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+                <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-card/95 px-3 py-3 backdrop-blur sm:px-5 sm:py-4">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="-ml-1 size-10 rounded-full lg:hidden"
+                    aria-label="Back to conversations"
+                    onClick={() => setMobileConversationOpen(false)}
+                  >
+                    <ArrowLeft className="size-5" />
+                  </Button>
                   <ContactAvatar contact={selectedContact} className="size-10" />
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{selectedContact.name}</p>
@@ -453,7 +495,7 @@ export function DirectMessagesPanel({
                   </div>
                 )}
 
-                <div className="flex-1 space-y-3 overflow-y-auto bg-muted/10 p-5">
+                <div className="flex-1 space-y-2 overflow-y-auto bg-muted/10 px-3 py-4 sm:space-y-3 sm:p-5">
                   {loadingConversation ? (
                     <div className="space-y-4 pt-4">
                       <Skeleton className="h-16 w-2/3 rounded-2xl" />
@@ -470,10 +512,10 @@ export function DirectMessagesPanel({
                           <ContactAvatar contact={selectedContact} className="size-7" />
                         )}
                         <div
-                          className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                          className={`max-w-[82%] rounded-3xl px-4 py-2.5 text-sm shadow-sm sm:max-w-[85%] sm:rounded-2xl sm:py-3 ${
                             message.isMine
                               ? "rounded-br-md bg-primary text-primary-foreground"
-                              : "rounded-bl-md bg-background"
+                              : "rounded-bl-md border border-border bg-card"
                           }`}
                         >
                           <p className="whitespace-pre-wrap leading-relaxed">{message.message}</p>
@@ -522,17 +564,18 @@ export function DirectMessagesPanel({
                       )}
                     </div>
                   )}
+                  <div ref={messagesEndRef} aria-hidden="true" />
                 </div>
 
                 <form
-                  className="border-t border-border p-4"
+                  className="sticky bottom-0 border-t border-border bg-card/95 p-3 backdrop-blur sm:p-4"
                   onSubmit={(event) => {
                     event.preventDefault();
                     void sendDraft();
                   }}
                 >
                   {selectedContact.canSend ? (
-                    <div className="flex flex-col gap-2 sm:flex-row">
+                    <div className="flex items-end gap-2">
                       <Textarea
                         ref={composerRef}
                         value={draft}
@@ -540,11 +583,13 @@ export function DirectMessagesPanel({
                         placeholder={`Message ${selectedContact.name}…`}
                         maxLength={4_000}
                         rows={2}
+                        className="min-h-11 flex-1 resize-none rounded-3xl px-4 py-3"
                         required
                       />
                       <Button
                         type="submit"
-                        className="rounded-full sm:self-end"
+                        size="icon"
+                        className="size-11 shrink-0 rounded-full"
                         disabled={!draft.trim()}
                       >
                         {localMessages.some((item) => item.status === "sending") ? (
@@ -552,7 +597,7 @@ export function DirectMessagesPanel({
                         ) : (
                           <Send className="size-4" />
                         )}
-                        Send
+                        <span className="sr-only">Send</span>
                       </Button>
                     </div>
                   ) : (

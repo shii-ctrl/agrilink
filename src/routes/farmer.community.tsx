@@ -12,8 +12,8 @@ function FarmerCommunityPage() {
         title="Community"
         description="Share saved updates with the AgriLink community."
       />
-      <main className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8">
-        <div className="mb-6 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
+      <main className="mx-auto w-full max-w-4xl px-3 py-4 sm:px-4 sm:py-6 md:px-8 md:py-8">
+        <div className="mb-6 hidden rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground sm:block">
           Share production updates, react thoughtfully, and use comments for helpful public
           conversations with other AgriLink members.
         </div>
