@@ -131,7 +131,7 @@ function BuyerDeliveryIssues() {
       resetForm();
       setOpen(false);
       toast.success("Delivery issue submitted", {
-        description: `${result.disputeNumber} is now waiting for Management review.`,
+        description: `${result.disputeNumber} was submitted for review.`,
       });
     } catch (cause) {
       toast.error("Could not submit issue", {
@@ -257,7 +257,7 @@ function BuyerDeliveryIssues() {
           <DialogHeader className="text-left">
             <DialogTitle>Report a delivery issue</DialogTitle>
             <DialogDescription>
-              Management will review the order, responses, and any supporting image.
+              Our team will review your order details and any supporting image.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

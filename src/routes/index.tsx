@@ -1,8 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
-  ClipboardCheck,
-  Clock3,
   Egg,
   PackageCheck,
   Search,
@@ -68,24 +66,6 @@ const categories = [
   { label: "Eggs", icon: Egg, search: { q: "itlog", available: true } },
   { label: "Bundle deals", icon: ShoppingBag, search: { deals: true, available: true } },
 ] as const;
-
-const assurancePoints = [
-  {
-    icon: Clock3,
-    title: "Stock reservation",
-    body: "Cart quantities are reserved for 10 minutes during checkout.",
-  },
-  {
-    icon: ClipboardCheck,
-    title: "Order verification",
-    body: "PROCY reviews product availability before confirming each order.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Tracking and support",
-    body: "Track fulfillment progress and report delivery or product concerns.",
-  },
-];
 
 function availableQuantity(product: Product) {
   return (product.offers ?? []).reduce(
@@ -309,7 +289,7 @@ function Index() {
                 <div className="mt-6 flex max-w-2xl flex-col items-stretch justify-between gap-4 rounded-2xl border border-primary/20 bg-card/90 p-4 text-card-foreground shadow-card sm:mt-7 sm:flex-row sm:items-center">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-primary">Welcome back</p>
-                    <p className="mt-1 font-semibold">{buyerName}, continue your Buyer journey.</p>
+                    <p className="mt-1 font-semibold">Welcome back, {buyerName}.</p>
                   </div>
                   <div className="grid grid-cols-1 gap-2 min-[430px]:grid-cols-2 sm:flex sm:flex-wrap">
                     <Button asChild size="sm" className="w-full rounded-full sm:w-auto">
@@ -338,7 +318,6 @@ function Index() {
                         ? "Loading products…"
                         : `${availableFeatured} featured products available`}
                     </p>
-                    <p className="mt-1 text-xs opacity-70">Stock refreshes automatically.</p>
                   </div>
                   <PackageCheck className="size-5 shrink-0 text-lime sm:size-7" />
                 </div>
@@ -484,31 +463,6 @@ function Index() {
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        <section className="mt-10 w-full px-4 sm:mt-16 sm:px-6 lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            · Buyer assurance
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold sm:text-3xl">
-            Reliable ordering through PROCY
-          </h2>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
-            {assurancePoints.map((point) => (
-              <div
-                key={point.title}
-                className="flex gap-3 rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5"
-              >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <point.icon className="size-4" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-semibold">{point.title}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{point.body}</p>
-                </div>
-              </div>
-            ))}
           </div>
         </section>
 

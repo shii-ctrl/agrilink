@@ -193,7 +193,7 @@ function BuyerCartPage() {
         : `Delivery:\n${deliveryNote(deliveryDetails)}`;
     const accepted = await requestConfirmation({
       title: "Confirm your order?",
-      description: `You are submitting ${items.length} product group${items.length === 1 ? "" : "s"} for ${peso(finalTotal)}. PROCY will review the ${fulfillmentLabel.toLocaleLowerCase()} arrangement before confirming it.`,
+      description: `You are ordering ${items.length} product group${items.length === 1 ? "" : "s"} for ${peso(finalTotal)} by ${fulfillmentLabel.toLocaleLowerCase()}. Review the details before confirming.`,
       confirmLabel: "Confirm order",
       cancelLabel: "Edit order",
       details: (
@@ -297,7 +297,7 @@ function BuyerCartPage() {
       });
       await reload();
       toast.success("Order submitted", {
-        description: `${databaseOrder.orderNumber} is Pending PROCY confirmation.`,
+        description: `${databaseOrder.orderNumber} is awaiting confirmation.`,
       });
       window.location.assign("/buyer/orders");
     } catch (error) {
@@ -315,7 +315,7 @@ function BuyerCartPage() {
       {confirmationDialog}
       <BuyerPageHeader
         title="My Cart"
-        description="Review your selected PROCY marketplace items before submitting a buyer order."
+        description="Review your items and choose pickup or delivery."
       />
       <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
         <WorkspaceLoadState
@@ -799,8 +799,8 @@ function BuyerCartPage() {
                   </Button>
                 </form>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Reserved stock is held for 10 minutes only. No online payment yet. PROCY will
-                  review and confirm this order before arranging payment.
+                  Complete checkout before the reservation expires. Payment instructions will be
+                  provided after your order is confirmed.
                 </p>
               </section>
             </div>

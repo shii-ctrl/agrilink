@@ -15,7 +15,7 @@ function BuyerCommunityPage() {
     <BuyerLayout>
       <BuyerPageHeader
         title="Private messages"
-        description="Read and reply to saved marketplace messages from the AgriLink team."
+        description="Read and reply to your marketplace messages."
       />
       <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
         <CommunityWorkspace

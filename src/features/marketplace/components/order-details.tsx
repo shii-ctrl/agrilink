@@ -212,7 +212,7 @@ export function OrderDetails({
   const statusSummary = isInterrupted
     ? {
         title: `Order ${order.status.toLowerCase()}`,
-        detail: "This order will not continue to fulfillment.",
+        detail: "This order is closed.",
         date: order.history?.at(-1)?.changedAt,
         tone: "border-destructive/25 bg-destructive/5 text-destructive",
       }
@@ -225,8 +225,8 @@ export function OrderDetails({
         }
       : order.status === "Sold"
         ? {
-            title: "Order fulfilled — awaiting payment recording",
-            detail: "Accounting will record the payment after it is received.",
+            title: "Awaiting payment update",
+            detail: "Your payment status will update after payment is received.",
             date: order.soldAt,
             tone: "border-amber-300 bg-amber-50 text-amber-900",
           }
@@ -247,14 +247,14 @@ export function OrderDetails({
                 title: fulfillmentLabel,
                 detail:
                   order.fulfillmentMethod === "delivery"
-                    ? "Track preparation, Rider assignment, and delivery separately from payment."
-                    : "Track preparation and pickup separately from payment.",
+                    ? "Follow the latest preparation and delivery updates below."
+                    : "Follow the latest preparation and pickup updates below.",
                 date: order.history?.at(-1)?.changedAt ?? order.confirmedAt,
                 tone: "border-primary/25 bg-primary/5 text-primary",
               }
             : {
                 title: "Order received",
-                detail: "PROCY is reviewing the order and available classified stock.",
+                detail: "PROCY is reviewing your order.",
                 date: order.createdAt ?? order.date,
                 tone: "border-primary/25 bg-primary/5 text-primary",
               };
@@ -367,7 +367,7 @@ export function OrderDetails({
               <p className="mt-1 text-sm text-muted-foreground">
                 {order.paymentId
                   ? `${order.paymentMethod ?? "Payment"} · ${order.paymentId}`
-                  : "Payment is recorded by Accounting after sale completion."}
+                  : "Your payment status will update after payment is received."}
               </p>
             </div>
           </div>
@@ -390,7 +390,7 @@ export function OrderDetails({
       <div className="overflow-hidden rounded-2xl border border-border">
         <div className="flex items-center gap-2 border-b border-border bg-muted/50 px-4 py-3">
           <ClipboardList className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold">Ordered classified items</h3>
+          <h3 className="text-sm font-semibold">Order items</h3>
         </div>
         <div className="divide-y divide-border">
           {items.map((item) => (

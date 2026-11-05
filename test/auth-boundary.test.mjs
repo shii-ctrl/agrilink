@@ -377,8 +377,8 @@ test("order details use a responsive real-workflow stepper and clear summaries",
   assert.match(source, /hidden px-2 pt-1 sm:flex/);
   assert.match(source, /Current ·/);
   assert.match(source, /reached \? "Completed" : "Waiting"/);
-  assert.match(source, /Order fulfilled — awaiting payment recording/);
-  assert.match(source, /Awaiting payment recording/);
+  assert.match(source, /Awaiting payment update/);
+  assert.match(source, /Your payment status will update after payment is received/);
   assert.match(source, /marketplaceImageFor\(item\.name\)/);
   assert.match(source, /item\.quantityKg \* item\.pricePerKg/);
   assert.match(source, /formatOrderDate\(entry\.changedAt, true\)/);
@@ -1591,10 +1591,8 @@ test("public landing and marketplace pages share responsive page gutters", async
   );
   assert.match(home, /Create an account/);
   assert.doesNotMatch(home, /I already have an account/);
-  assert.match(home, /Buyer assurance/);
-  assert.match(home, /Reliable ordering through PROCY/);
-  assert.match(home, /Cart quantities are reserved for 10 minutes during checkout/);
-  assert.match(home, /Tracking and support/);
+  assert.doesNotMatch(home, /Buyer assurance/);
+  assert.doesNotMatch(home, /Reliable ordering through PROCY/);
   assert.doesNotMatch(home, /Stock refreshed from receiving records/);
   assert.doesNotMatch(home, /Pickup details shown after confirmation/);
   assert.doesNotMatch(marketplace, /max-w-6xl px-4 pb-24 pt-8/);
@@ -1606,6 +1604,63 @@ test("public landing and marketplace pages share responsive page gutters", async
   assert.match(footer, /Sentrong Pamilihan &quot;PROCY&quot;/);
   assert.match(footer, /https:\/\/www\.facebook\.com\/SPPAQFI\.MarketingOpportunity/);
   assert.match(footer, /target="_blank"/);
+});
+
+test("buyer-facing pages avoid internal operations language and unnecessary system guides", async () => {
+  const [
+    about,
+    dailyPrices,
+    buyerCart,
+    buyerOrders,
+    buyerIssues,
+    buyerMessages,
+    buyerProfile,
+    productDetail,
+    orderDetails,
+    footer,
+  ] = await Promise.all([
+    readFile("src/routes/about.tsx", "utf8"),
+    readFile("src/routes/daily-prices.tsx", "utf8"),
+    readFile("src/routes/buyer.cart.tsx", "utf8"),
+    readFile("src/routes/buyer.orders.tsx", "utf8"),
+    readFile("src/routes/buyer.issues.tsx", "utf8"),
+    readFile("src/routes/buyer.community.tsx", "utf8"),
+    readFile("src/routes/buyer.profile.tsx", "utf8"),
+    readFile("src/routes/marketplace.$productId.tsx", "utf8"),
+    readFile("src/features/marketplace/components/order-details.tsx", "utf8"),
+    readFile("src/components/layout/site-footer.tsx", "utf8"),
+  ]);
+
+  const publicCopy = [
+    about,
+    dailyPrices,
+    buyerCart,
+    buyerOrders,
+    buyerIssues,
+    buyerMessages,
+    buyerProfile,
+    productDetail,
+    orderDetails,
+    footer,
+  ].join("\n");
+
+  for (const internalPhrase of [
+    "How PROCY pricing works",
+    "Roles in the system",
+    "Order and payment lifecycle",
+    "Management will review",
+    "waiting for Management review",
+    "recorded separately by Accounting",
+    "Payment is recorded by Accounting",
+    "available classified stock",
+    "Market operator &amp; seller",
+  ]) {
+    assert.doesNotMatch(publicCopy, new RegExp(internalPhrase));
+  }
+  assert.match(about, /Fresh local produce, made easier to find and order/);
+  assert.match(dailyPrices, /Daily prices/);
+  assert.match(buyerOrders, /View your orders, payment status, and pickup or delivery updates/);
+  assert.match(orderDetails, /Your payment status will update after payment is received/);
 });
 
 test("Farmer earnings use fixed deductions and Accounting-only cash releases", async () => {

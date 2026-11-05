@@ -201,7 +201,7 @@ function BuyerOrdersPage() {
         {confirmationDialog}
         <BuyerPageHeader
           title="My Orders"
-          description="Track buyer orders submitted to PROCY. Payment status is recorded separately by Accounting."
+          description="View your orders, payment status, and pickup or delivery updates."
         />
         <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
           <WorkspaceLoadState
@@ -217,7 +217,7 @@ function BuyerOrdersPage() {
                   <PackageCheck className="mt-0.5 size-5 text-primary" />
                   <div>
                     <h2 className="text-lg font-semibold">Order history</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">Orders saved in AgriLink.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Your recent orders.</p>
                   </div>
                 </div>
                 <ResponsiveFilterPanel

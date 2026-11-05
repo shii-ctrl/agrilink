@@ -7,7 +7,7 @@ function BuyerProfilePage() {
     <BuyerLayout>
       <BuyerPageHeader
         title="Profile"
-        description="View and update your saved Buyer account information."
+        description="Manage your account information and preferences."
       />
       <LiveProfile role="Buyer" showProfileCompletion />
     </BuyerLayout>

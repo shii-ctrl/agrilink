@@ -66,9 +66,9 @@ export function SiteFooter({ sessionSignedIn }: { sessionSignedIn?: boolean | nu
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-wide opacity-70">PROCY</h3>
           <ul className="mt-4 space-y-2 text-sm opacity-90">
-            <li>Market operator &amp; seller</li>
-            <li>Quality classification</li>
-            <li>Order fulfillment</li>
+            <li>Fresh local produce</li>
+            <li>Clear quality options</li>
+            <li>Pickup and delivery</li>
           </ul>
         </div>
 

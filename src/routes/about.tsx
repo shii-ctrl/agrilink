@@ -8,35 +8,22 @@ import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About AgriLink & PROCY — How the Marketplace Works" },
+      { title: "About AgriLink & PROCY" },
       {
         name: "description",
         content:
-          "AgriLink connects farmer members with PROCY, the seller and market operator that classifies, publishes, and fulfills every order.",
+          "AgriLink connects buyers with fresh, quality-classified produce supplied by PROCY farmer members.",
       },
       { property: "og:title", content: "About AgriLink & PROCY" },
       {
         property: "og:description",
-        content: "How farmer members, PROCY, and buyers work together on AgriLink.",
+        content:
+          "Fresh local produce, clear quality options, and convenient ordering through PROCY.",
       },
     ],
   }),
   component: AboutPage,
 });
-
-const roles = [
-  {
-    role: "Management",
-    body: "Creates and manages all internal accounts and oversees operations.",
-  },
-  { role: "Marketer", body: "Publishes and maintains marketplace listings and pricing." },
-  { role: "Accounting", body: "Records payments and marks confirmed orders as paid." },
-  {
-    role: "Farmer Member",
-    body: "Supplies harvests to PROCY and views their own receiving history.",
-  },
-  { role: "Buyer", body: "Self-registers, purchases from PROCY, and tracks their own orders." },
-];
 
 function AboutPage() {
   const [account, setAccount] = useState<
@@ -57,78 +44,44 @@ function AboutPage() {
       <main className="mx-auto max-w-6xl px-4 pt-12">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">· About</p>
         <h1 className="mt-3 max-w-3xl text-4xl font-semibold md:text-5xl">
-          AgriLink is a web-based marketplace and decision support system for local farmers
+          Fresh local produce, made easier to find and order
         </h1>
         <p className="mt-6 max-w-2xl text-base text-muted-foreground">
-          Traditional farming remains labor-intensive and disconnected from market demand. AgriLink
-          links farmer members, PROCY personnel, and buyers in one coordinated system — from
-          delivery intake and quality classification to order fulfillment and demand insight.
+          AgriLink is PROCY&apos;s online marketplace for quality-classified agricultural products
+          supplied by local farmer members.
         </p>
 
         <section className="mt-16 grid gap-6 md:grid-cols-2">
           <div className="rounded-[2rem] surface-field p-8">
-            <h2 className="text-2xl font-semibold">PROCY is the seller</h2>
+            <h2 className="text-2xl font-semibold">Farmer-member produce</h2>
             <p className="mt-4 text-sm opacity-85">
-              Farmer members supply agricultural products to PROCY. PROCY classifies, prices, and
-              publishes them, and buyers purchase from PROCY. There is no direct farmer-to-buyer
-              selling on AgriLink.
+              Browse vegetables, fruits, eggs, and other agricultural products supplied by PROCY
+              farmer members.
             </p>
           </div>
           <div className="rounded-[2rem] border border-border bg-card p-8 shadow-card">
-            <h2 className="text-2xl font-semibold">Order and payment lifecycle</h2>
-            <ol className="mt-5 space-y-3 text-sm text-muted-foreground">
-              {[
-                "Buyer places an order → Order status: Pending",
-                "PROCY confirms it → Order status: Confirmed; sales status: Sold",
-                "Accounting records payment → Payment status: Paid",
-                "Buyer orders automatically provide demand data for decision support",
-              ].map((step, i) => (
-                <li key={step} className="flex gap-3">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
-                    {i + 1}
-                  </span>
-                  {step}
-                </li>
-              ))}
-            </ol>
+            <h2 className="text-2xl font-semibold">Clear quality options</h2>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Compare Good, Semi, and Reject options using their photos, prices, and available
+              quantities.
+            </p>
           </div>
         </section>
 
         <section className="mt-16 grid gap-6 md:grid-cols-2">
           <div className="rounded-[2rem] border border-border bg-card p-8 shadow-card">
-            <h2 className="text-2xl font-semibold">Clear product classifications</h2>
+            <h2 className="text-2xl font-semibold">Current prices and availability</h2>
             <p className="mt-4 text-sm text-muted-foreground">
-              PROCY records each delivery as Good, Semi, and Reject quantities. Each classification
-              is a separate inventory and marketplace listing, so buyers can see exactly what is
-              available.
+              Check current marketplace stock and compare daily prices before placing an order.
             </p>
           </div>
           <div className="rounded-[2rem] border border-border bg-card p-8 shadow-card">
-            <h2 className="text-2xl font-semibold">Information for better decisions</h2>
+            <h2 className="text-2xl font-semibold">Pickup or delivery</h2>
             <p className="mt-4 text-sm text-muted-foreground">
-              AgriLink brings together production, harvest, supply, demand, price, and sales
-              information. Its decision support is a reference for planning, not a guarantee of
-              prices, buyers, harvests, sales, or profit.
+              Choose your preferred option at checkout and track your order from confirmation to
+              completion.
             </p>
           </div>
-        </section>
-
-        <section className="mt-16">
-          <h2 className="text-3xl font-semibold">Roles in the system</h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {roles.map((r) => (
-              <div
-                key={r.role}
-                className="rounded-3xl border border-border bg-card p-6 shadow-card"
-              >
-                <h3 className="text-lg font-semibold">{r.role}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{r.body}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-6 text-sm text-muted-foreground">
-            Only buyer accounts can self-register. Management creates all other accounts.
-          </p>
         </section>
 
         <section className="mt-20 rounded-[2rem] border border-border bg-cream p-10 text-center">

@@ -4,9 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
-  BarChart3,
   Bell,
-  ChevronDown,
   CircleMinus,
   Clock3,
   Leaf,
@@ -411,33 +409,17 @@ function DailyPricesPage() {
           </div>
         </section>
 
-        <details className="group mt-4 rounded-2xl border border-primary/15 bg-primary/[0.04] px-5 py-3.5 text-sm">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold">
-            <span className="flex items-center gap-2">
-              <BarChart3 className="size-5 text-primary" /> How PROCY pricing works
-            </span>
-            <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
-          </summary>
-          <div className="mt-3 grid gap-3 text-muted-foreground sm:grid-cols-2">
-            <p>Marketers publish daily prices. Hidden records never appear to public visitors.</p>
-            <p>
-              Market categories organize products; Good, Semi, and Reject remain separate quality
-              classifications.
-            </p>
-          </div>
-        </details>
-
-        <section className="mt-6 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+        <section className="mt-4 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
           <div className="border-b border-border bg-muted/15 p-5 sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-primary">
                   <SlidersHorizontal className="size-4" /> Browse prices
                 </p>
-                <h2 className="mt-1 text-2xl font-semibold">Price guide</h2>
+                <h2 className="mt-1 text-2xl font-semibold">Daily prices</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {loading
-                    ? "Loading the latest published prices…"
+                    ? "Loading current prices…"
                     : `${visibleProductRows.length} product${visibleProductRows.length === 1 ? "" : "s"} for ${dateLabel(date)}.`}
                 </p>
               </div>
@@ -574,7 +556,7 @@ function DailyPricesPage() {
           ) : (
             <div className="px-6 py-14 text-center">
               <ShoppingBag className="mx-auto size-9 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No published prices for this date</h3>
+              <h3 className="mt-4 text-lg font-semibold">No prices available for this date</h3>
               <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                 Try another date, change your filters, or return to the latest available prices.
               </p>

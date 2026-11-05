@@ -460,7 +460,7 @@ function ProductDetail() {
                   ? `${formatSellingQuantity(cartQuantityKg, product.sellingUnit)} is reserved for you. Continue to your cart before the reservation expires.`
                   : canPurchase
                     ? "Available now from PROCY farmer-member supply."
-                    : "This quality will automatically become available after new stock and pricing are recorded."}
+                    : "This quality is currently unavailable."}
               </p>
               {hasCartReservation && !isAvailable ? (
                 <Link
