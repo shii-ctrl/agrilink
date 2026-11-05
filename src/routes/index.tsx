@@ -76,23 +76,19 @@ const categories = [
 const orderSteps = [
   {
     icon: Search,
-    title: "Choose",
-    body: "Select a product and compare its available quality options.",
+    title: "Browse",
   },
   {
     icon: ShoppingCart,
-    title: "Reserve",
-    body: "Choose a quantity and add it to your Buyer cart.",
+    title: "Add to cart",
   },
   {
     icon: ClipboardCheck,
-    title: "Confirm",
-    body: "Submit the order and wait for confirmation from PROCY.",
+    title: "Confirm order",
   },
   {
     icon: ShoppingBag,
-    title: "Pick up",
-    body: "Collect your confirmed order using the saved order details.",
+    title: "Receive order",
   },
 ];
 
@@ -461,29 +457,31 @@ function Index() {
           )}
         </section>
 
-        <section className="mt-14 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
+        <section className="mt-10 w-full px-4 sm:mt-16 sm:px-6 lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            · Simple ordering
+            · Order process
           </p>
-          <h2 className="mt-3 text-2xl font-semibold sm:text-3xl md:text-4xl">
-            From product to pickup
-          </h2>
-          <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-            {orderSteps.map((step, index) => (
-              <div
-                key={step.title}
-                className="relative rounded-2xl border border-border bg-card p-5 shadow-card sm:rounded-3xl sm:p-6"
-              >
-                <span className="absolute right-5 top-5 text-xs font-semibold text-muted-foreground">
-                  0{index + 1}
-                </span>
-                <span className="flex size-11 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-                  <step.icon className="size-5" />
-                </span>
-                <h3 className="mt-5 text-lg font-semibold">{step.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
-              </div>
-            ))}
+          <h2 className="mt-2 text-2xl font-semibold sm:text-3xl">How ordering works</h2>
+          <div className="relative mt-5 overflow-hidden rounded-2xl border border-border bg-card px-4 py-2 shadow-card sm:px-6 sm:py-5">
+            <span className="absolute bottom-10 left-[2.125rem] top-10 w-px bg-border sm:bottom-auto sm:left-[12.5%] sm:right-[12.5%] sm:top-[2.4rem] sm:h-px sm:w-auto" />
+            <div className="relative grid sm:grid-cols-4">
+              {orderSteps.map((step, index) => (
+                <div
+                  key={step.title}
+                  className="relative z-10 flex min-h-16 items-center gap-3 py-2 sm:min-h-0 sm:flex-col sm:gap-2 sm:py-0 sm:text-center"
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground ring-4 ring-card">
+                    <step.icon className="size-4" />
+                  </span>
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+                      Step {index + 1}
+                    </span>
+                    <h3 className="text-sm font-semibold sm:mt-0.5">{step.title}</h3>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

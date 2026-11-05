@@ -1567,6 +1567,10 @@ test("public landing and marketplace pages share responsive page gutters", async
   assert.match(home, /grid grid-cols-2 gap-x-3 gap-y-2/);
   assert.match(home, /linear-gradient\(180deg/);
   assert.doesNotMatch(home, /min-\[390px\]:grid-cols-[23]/);
+  assert.match(home, /How ordering works/);
+  assert.match(home, /Receive order/);
+  assert.match(home, /sm:grid-cols-4/);
+  assert.doesNotMatch(home, /From product to pickup/);
   assert.doesNotMatch(marketplace, /max-w-6xl px-4 pb-24 pt-8/);
 });
 
