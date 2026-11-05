@@ -12,7 +12,6 @@ export function useWorkspaceSidebarBadges() {
   const [badges, setBadges] = useState<WorkspaceSidebarBadges>({});
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const dismissibleTarget = [
-    "/marketer/disputes",
     "/marketer/community",
     "/accounting/community",
     "/management/community",

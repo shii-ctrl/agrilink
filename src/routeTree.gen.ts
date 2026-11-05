@@ -56,6 +56,7 @@ import { Route as MarketerIndexRouteImport } from './routes/marketer.index'
 import { Route as MarketerClassificationRouteImport } from './routes/marketer.classification'
 import { Route as MarketerCommunityRouteImport } from './routes/marketer.community'
 import { Route as MarketerDailyPricesRouteImport } from './routes/marketer.daily-prices'
+import { Route as MarketerDeliveriesRouteImport } from './routes/marketer.deliveries'
 import { Route as MarketerDisputesRouteImport } from './routes/marketer.disputes'
 import { Route as MarketerOrdersRouteImport } from './routes/marketer.orders'
 import { Route as MarketerPricePublishRouteImport } from './routes/marketer.price-publish'
@@ -309,6 +310,11 @@ const MarketerDailyPricesRoute = MarketerDailyPricesRouteImport.update({
   path: '/marketer/daily-prices',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketerDeliveriesRoute = MarketerDeliveriesRouteImport.update({
+  id: '/marketer/deliveries',
+  path: '/marketer/deliveries',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketerDisputesRoute = MarketerDisputesRouteImport.update({
   id: '/marketer/disputes',
   path: '/marketer/disputes',
@@ -434,6 +440,7 @@ export interface FileRoutesByFullPath {
   '/marketer/classification': typeof MarketerClassificationRoute
   '/marketer/community': typeof MarketerCommunityRoute
   '/marketer/daily-prices': typeof MarketerDailyPricesRoute
+  '/marketer/deliveries': typeof MarketerDeliveriesRoute
   '/marketer/disputes': typeof MarketerDisputesRoute
   '/marketer/orders': typeof MarketerOrdersRoute
   '/marketer/price-publish': typeof MarketerPricePublishRoute
@@ -499,6 +506,7 @@ export interface FileRoutesByTo {
   '/marketer/classification': typeof MarketerClassificationRoute
   '/marketer/community': typeof MarketerCommunityRoute
   '/marketer/daily-prices': typeof MarketerDailyPricesRoute
+  '/marketer/deliveries': typeof MarketerDeliveriesRoute
   '/marketer/disputes': typeof MarketerDisputesRoute
   '/marketer/orders': typeof MarketerOrdersRoute
   '/marketer/price-publish': typeof MarketerPricePublishRoute
@@ -565,6 +573,7 @@ export interface FileRoutesById {
   '/marketer/classification': typeof MarketerClassificationRoute
   '/marketer/community': typeof MarketerCommunityRoute
   '/marketer/daily-prices': typeof MarketerDailyPricesRoute
+  '/marketer/deliveries': typeof MarketerDeliveriesRoute
   '/marketer/disputes': typeof MarketerDisputesRoute
   '/marketer/orders': typeof MarketerOrdersRoute
   '/marketer/price-publish': typeof MarketerPricePublishRoute
@@ -632,6 +641,7 @@ export interface FileRouteTypes {
     | '/marketer/classification'
     | '/marketer/community'
     | '/marketer/daily-prices'
+    | '/marketer/deliveries'
     | '/marketer/disputes'
     | '/marketer/orders'
     | '/marketer/price-publish'
@@ -697,6 +707,7 @@ export interface FileRouteTypes {
     | '/marketer/classification'
     | '/marketer/community'
     | '/marketer/daily-prices'
+    | '/marketer/deliveries'
     | '/marketer/disputes'
     | '/marketer/orders'
     | '/marketer/price-publish'
@@ -762,6 +773,7 @@ export interface FileRouteTypes {
     | '/marketer/classification'
     | '/marketer/community'
     | '/marketer/daily-prices'
+    | '/marketer/deliveries'
     | '/marketer/disputes'
     | '/marketer/orders'
     | '/marketer/price-publish'
@@ -828,6 +840,7 @@ export interface RootRouteChildren {
   MarketerClassificationRoute: typeof MarketerClassificationRoute
   MarketerCommunityRoute: typeof MarketerCommunityRoute
   MarketerDailyPricesRoute: typeof MarketerDailyPricesRoute
+  MarketerDeliveriesRoute: typeof MarketerDeliveriesRoute
   MarketerDisputesRoute: typeof MarketerDisputesRoute
   MarketerOrdersRoute: typeof MarketerOrdersRoute
   MarketerPricePublishRoute: typeof MarketerPricePublishRoute
@@ -1182,6 +1195,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketerDailyPricesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/marketer/deliveries': {
+      id: '/marketer/deliveries'
+      path: '/marketer/deliveries'
+      fullPath: '/marketer/deliveries'
+      preLoaderRoute: typeof MarketerDeliveriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/marketer/disputes': {
       id: '/marketer/disputes'
       path: '/marketer/disputes'
@@ -1340,6 +1360,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketerClassificationRoute: MarketerClassificationRoute,
   MarketerCommunityRoute: MarketerCommunityRoute,
   MarketerDailyPricesRoute: MarketerDailyPricesRoute,
+  MarketerDeliveriesRoute: MarketerDeliveriesRoute,
   MarketerDisputesRoute: MarketerDisputesRoute,
   MarketerOrdersRoute: MarketerOrdersRoute,
   MarketerPricePublishRoute: MarketerPricePublishRoute,

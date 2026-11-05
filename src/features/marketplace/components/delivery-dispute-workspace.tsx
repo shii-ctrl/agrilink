@@ -68,7 +68,7 @@ export function DeliveryDisputeWorkspace({ scopeLabel }: { scopeLabel: string })
               <div>
                 <h2 className="font-semibold">Cases needing operational context</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Add factual order, product, or delivery information. Management makes the final
+                  Add factual order, product, or delivery information. The Marketer makes the final
                   decision.
                 </p>
               </div>

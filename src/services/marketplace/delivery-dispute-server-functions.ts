@@ -42,16 +42,13 @@ const reviewInput = disputeIdInput.extend({
 
 const targetByRole = {
   Buyer: "/buyer/issues",
-  Management: "/management/disputes",
   Marketer: "/marketer/disputes",
   Rider: "/rider/disputes",
   Accounting: "/accounting/refunds",
 } as const;
 
 function actorRole(roles: string[]) {
-  return ["Management", "Marketer", "Rider", "Accounting", "Buyer"].find((role) =>
-    roles.includes(role),
-  );
+  return ["Marketer", "Rider", "Accounting", "Buyer"].find((role) => roles.includes(role));
 }
 
 function disputeNumber() {
@@ -191,14 +188,9 @@ export const createDeliveryDispute = createServerFn({ method: "POST" })
     });
     const { notifyRole, notifyUser } = await import("@/services/messaging/notification-server");
     await Promise.all([
-      notifyRole("Management", {
-        title: "New delivery issue",
-        message: `${created.disputeNumber} needs review.`,
-        target: targetByRole.Management,
-      }),
       notifyRole("Marketer", {
         title: "New delivery issue",
-        message: `${created.disputeNumber} may require a product response.`,
+        message: `${created.disputeNumber} needs review.`,
         target: targetByRole.Marketer,
       }),
       created.riderId
@@ -221,9 +213,9 @@ export const getMyDeliveryDisputes = createServerFn({ method: "GET" }).handler(a
 export const getOperationalDeliveryDisputes = createServerFn({ method: "GET" }).handler(
   async () => {
     const { requireAnyRole } = await import("@/services/auth/auth-server");
-    const actor = await requireAnyRole(["Management", "Marketer", "Rider"]);
+    const actor = await requireAnyRole(["Marketer", "Rider"]);
     const disputes = await fetchDisputes();
-    if (actor.roles.includes("Management") || actor.roles.includes("Marketer")) return disputes;
+    if (actor.roles.includes("Marketer")) return disputes;
     return disputes.filter((dispute) => dispute.riderId === actor.id);
   },
 );
@@ -233,7 +225,7 @@ export const respondToDeliveryDispute = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { eq } = await import("drizzle-orm");
     const { requireAnyRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const actor = await requireAnyRole(["Buyer", "Management", "Marketer", "Rider"]);
+    const actor = await requireAnyRole(["Buyer", "Marketer", "Rider"]);
     const role = actorRole(actor.roles);
     if (!role) throw new Error("Your account cannot respond to this issue.");
     const { db } = await import("@/db/client.server");
@@ -246,7 +238,6 @@ export const respondToDeliveryDispute = createServerFn({ method: "POST" })
       .where(eq(deliveryDisputes.id, data.disputeId));
     if (!row) throw new Error("This delivery issue could not be found.");
     const permitted =
-      actor.roles.includes("Management") ||
       actor.roles.includes("Marketer") ||
       row.dispute.buyerId === actor.id ||
       row.order.assignedRiderId === actor.id;
@@ -280,10 +271,10 @@ export const respondToDeliveryDispute = createServerFn({ method: "POST" })
         message: `${row.dispute.disputeNumber} received a ${role} response.`,
         target: targetByRole.Buyer,
       }),
-      notifyRole("Management", {
+      notifyRole("Marketer", {
         title: "Delivery issue response",
         message: `${row.dispute.disputeNumber} received a ${role} response.`,
-        target: targetByRole.Management,
+        target: targetByRole.Marketer,
       }),
     ]);
     return { success: true };
@@ -294,7 +285,7 @@ export const reviewDeliveryDispute = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { eq } = await import("drizzle-orm");
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const manager = await requireRole("Management");
+    const marketer = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
     const { deliveryDisputeEvents, deliveryDisputes, orders } = await import("@/db/schema");
     const [row] = await db
@@ -338,23 +329,29 @@ export const reviewDeliveryDispute = createServerFn({ method: "POST" })
           resolutionNote: data.resolutionNote,
           refundAmount: refundAmount?.toFixed(2) ?? null,
           refundStatus,
-          decidedById: manager.id,
+          decidedById: marketer.id,
           resolvedAt: ["rejected", "resolved"].includes(data.status) ? now : null,
         })
         .where(eq(deliveryDisputes.id, row.dispute.id));
       await tx.insert(deliveryDisputeEvents).values({
         id: crypto.randomUUID(),
         disputeId: row.dispute.id,
-        actorId: manager.id,
+        actorId: marketer.id,
         event: `status_${data.status}`,
         note: data.resolutionNote,
       });
     });
-    await writeAuditLog(manager.id, "delivery_dispute.review", "delivery_dispute", row.dispute.id, {
-      status: data.status,
-      resolution: data.resolution,
-      refundAmount,
-    });
+    await writeAuditLog(
+      marketer.id,
+      "delivery_dispute.review",
+      "delivery_dispute",
+      row.dispute.id,
+      {
+        status: data.status,
+        resolution: data.resolution,
+        refundAmount,
+      },
+    );
     const { notifyRole, notifyUser } = await import("@/services/messaging/notification-server");
     await Promise.all([
       notifyUser(row.dispute.buyerId, {
@@ -428,10 +425,10 @@ export const processDeliveryDisputeRefund = createServerFn({ method: "POST" })
         message: `${dispute.disputeNumber} was resolved. Accounting processed ₱${Number(dispute.refundAmount).toFixed(2)}.`,
         target: targetByRole.Buyer,
       }),
-      notifyRole("Management", {
+      notifyRole("Marketer", {
         title: "Delivery refund completed",
         message: `${dispute.disputeNumber} was closed by Accounting.`,
-        target: targetByRole.Management,
+        target: targetByRole.Marketer,
       }),
     ]);
     return { success: true };

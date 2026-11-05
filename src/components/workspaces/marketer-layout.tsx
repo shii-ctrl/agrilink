@@ -11,6 +11,7 @@ import {
   Settings,
   ShoppingBag,
   Tag,
+  Truck,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -56,7 +57,8 @@ const marketerSections = [
     title: "Operations",
     items: [
       { title: "Orders", to: "/marketer/orders", icon: ClipboardCheck },
-      { title: "Delivery Issues", to: "/marketer/disputes", icon: CircleAlert },
+      { title: "Delivery Operations", to: "/marketer/deliveries", icon: Truck },
+      { title: "Delivery Disputes", to: "/marketer/disputes", icon: CircleAlert },
       { title: "Sales Monitoring", to: "/marketer/sales", icon: Boxes },
     ],
   },

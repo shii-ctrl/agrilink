@@ -2455,92 +2455,90 @@ export const getRiderCompletedDeliveries = createServerFn({ method: "GET" }).han
   }));
 });
 
-export const getManagementDeliveryOperations = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { requireRole } = await import("@/services/auth/auth-server");
-    await requireRole("Management");
-    const { db } = await import("@/db/client.server");
-    const { deliveryAssignments, orders, roles, userRoles, users } = await import("@/db/schema");
-    const [riders, deliveries, assignmentRows] = await Promise.all([
-      db
-        .select({ id: users.id, name: users.displayName })
-        .from(users)
-        .innerJoin(userRoles, eq(userRoles.userId, users.id))
-        .innerJoin(roles, eq(userRoles.roleId, roles.id))
-        .where(and(eq(roles.name, "Rider"), eq(users.active, true)))
-        .orderBy(asc(users.displayName)),
-      db
-        .select({
-          orderId: orders.id,
-          orderNumber: orders.orderNumber,
-          buyer: users.displayName,
-          contact: orders.contact,
-          recipientName: orders.recipientName,
-          deliveryAddress: orders.deliveryAddress,
-          preferredSchedule: orders.preferredSchedule,
-          fulfillmentStatus: orders.fulfillmentStatus,
-          assignedRiderId: orders.assignedRiderId,
-          totalAmount: orders.totalAmount,
-          createdAt: orders.createdAt,
-        })
-        .from(orders)
-        .innerJoin(users, eq(orders.buyerId, users.id))
-        .where(
-          and(
-            eq(orders.fulfillmentMethod, "delivery"),
-            inArray(orders.fulfillmentStatus, [
-              "ready_for_dispatch",
-              "rider_assigned",
-              "out_for_delivery",
-              "delivery_failed",
-              "rescheduled",
-              "delivered",
-            ]),
-          ),
-        )
-        .orderBy(desc(orders.createdAt)),
-      db
-        .select({
-          orderId: deliveryAssignments.orderId,
-          riderId: deliveryAssignments.riderId,
-          reason: deliveryAssignments.reason,
-          assignedAt: deliveryAssignments.assignedAt,
-        })
-        .from(deliveryAssignments)
-        .orderBy(desc(deliveryAssignments.assignedAt)),
-    ]);
-    return {
-      riders: riders.map((rider) => ({
-        ...rider,
-        activeAssignments: deliveries.filter(
-          (delivery) =>
-            delivery.assignedRiderId === rider.id &&
-            !["delivered", "delivery_failed"].includes(delivery.fulfillmentStatus),
-        ).length,
-      })),
-      deliveries: deliveries.map((order) => ({
-        ...order,
-        totalAmount: Number(order.totalAmount),
-        createdAt: order.createdAt.toISOString(),
-        assignedRiderName: riders.find((rider) => rider.id === order.assignedRiderId)?.name ?? null,
-        assignmentHistory: assignmentRows
-          .filter((assignment) => assignment.orderId === order.orderId)
-          .map((assignment) => ({
-            ...assignment,
-            riderName:
-              riders.find((rider) => rider.id === assignment.riderId)?.name ?? "Inactive Rider",
-            assignedAt: assignment.assignedAt.toISOString(),
-          })),
-      })),
-    };
-  },
-);
+export const getMarketerDeliveryOperations = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireRole } = await import("@/services/auth/auth-server");
+  await requireRole("Marketer");
+  const { db } = await import("@/db/client.server");
+  const { deliveryAssignments, orders, roles, userRoles, users } = await import("@/db/schema");
+  const [riders, deliveries, assignmentRows] = await Promise.all([
+    db
+      .select({ id: users.id, name: users.displayName })
+      .from(users)
+      .innerJoin(userRoles, eq(userRoles.userId, users.id))
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(and(eq(roles.name, "Rider"), eq(users.active, true)))
+      .orderBy(asc(users.displayName)),
+    db
+      .select({
+        orderId: orders.id,
+        orderNumber: orders.orderNumber,
+        buyer: users.displayName,
+        contact: orders.contact,
+        recipientName: orders.recipientName,
+        deliveryAddress: orders.deliveryAddress,
+        preferredSchedule: orders.preferredSchedule,
+        fulfillmentStatus: orders.fulfillmentStatus,
+        assignedRiderId: orders.assignedRiderId,
+        totalAmount: orders.totalAmount,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .innerJoin(users, eq(orders.buyerId, users.id))
+      .where(
+        and(
+          eq(orders.fulfillmentMethod, "delivery"),
+          inArray(orders.fulfillmentStatus, [
+            "ready_for_dispatch",
+            "rider_assigned",
+            "out_for_delivery",
+            "delivery_failed",
+            "rescheduled",
+            "delivered",
+          ]),
+        ),
+      )
+      .orderBy(desc(orders.createdAt)),
+    db
+      .select({
+        orderId: deliveryAssignments.orderId,
+        riderId: deliveryAssignments.riderId,
+        reason: deliveryAssignments.reason,
+        assignedAt: deliveryAssignments.assignedAt,
+      })
+      .from(deliveryAssignments)
+      .orderBy(desc(deliveryAssignments.assignedAt)),
+  ]);
+  return {
+    riders: riders.map((rider) => ({
+      ...rider,
+      activeAssignments: deliveries.filter(
+        (delivery) =>
+          delivery.assignedRiderId === rider.id &&
+          !["delivered", "delivery_failed"].includes(delivery.fulfillmentStatus),
+      ).length,
+    })),
+    deliveries: deliveries.map((order) => ({
+      ...order,
+      totalAmount: Number(order.totalAmount),
+      createdAt: order.createdAt.toISOString(),
+      assignedRiderName: riders.find((rider) => rider.id === order.assignedRiderId)?.name ?? null,
+      assignmentHistory: assignmentRows
+        .filter((assignment) => assignment.orderId === order.orderId)
+        .map((assignment) => ({
+          ...assignment,
+          riderName:
+            riders.find((rider) => rider.id === assignment.riderId)?.name ?? "Inactive Rider",
+          assignedAt: assignment.assignedAt.toISOString(),
+        })),
+    })),
+  };
+});
 
 export const assignDeliveryRider = createServerFn({ method: "POST" })
   .validator(assignRiderInput)
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const manager = await requireRole("Management");
+    const marketer = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
     const { deliveryAssignments, orderFulfillmentHistory, orders, roles, userRoles, users } =
       await import("@/db/schema");
@@ -2589,7 +2587,7 @@ export const assignDeliveryRider = createServerFn({ method: "POST" })
         id: crypto.randomUUID(),
         orderId: order.id,
         riderId: rider.id,
-        assignedById: manager.id,
+        assignedById: marketer.id,
         reason: data.reason ?? (order.assignedRiderId ? "Delivery retry" : "Initial assignment"),
         assignedAt: new Date(),
       });
@@ -2597,12 +2595,12 @@ export const assignDeliveryRider = createServerFn({ method: "POST" })
         id: crypto.randomUUID(),
         orderId: order.id,
         status: "rider_assigned",
-        changedById: manager.id,
+        changedById: marketer.id,
         note: `${rider.name} was assigned to this delivery.${data.reason ? ` Reason: ${data.reason}` : ""}`,
         changedAt: new Date(),
       });
       await writeAuditLog(
-        manager.id,
+        marketer.id,
         "delivery.assign_rider",
         "order",
         order.id,
@@ -2912,11 +2910,11 @@ export const reportDeliveryIssue = createServerFn({ method: "POST" })
         message: `${result.orderNumber}: ${data.reasonNote}`,
         target: "/buyer/orders",
       }),
-      notifyRole("Management", {
+      notifyRole("Marketer", {
         title:
           result.status === "rescheduled" ? "Delivery rescheduled" : "Delivery needs attention",
         message: `${result.orderNumber}: ${data.reasonNote}`,
-        target: "/management/deliveries",
+        target: "/marketer/deliveries",
       }),
     ]);
     return result;
@@ -3083,9 +3081,9 @@ export const getAccountingCodRemittances = createServerFn({ method: "GET" }).han
   }));
 });
 
-export const getManagementDeliveryFee = createServerFn({ method: "GET" }).handler(async () => {
+export const getMarketerDeliverySettings = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
-  await requireRole("Management");
+  await requireRole("Marketer");
   const { db } = await import("@/db/client.server");
   const { deliverySettings } = await import("@/db/schema");
   const [settings] = await db
@@ -3101,29 +3099,29 @@ export const getManagementDeliveryFee = createServerFn({ method: "GET" }).handle
   };
 });
 
-export const updateManagementDeliveryFee = createServerFn({ method: "POST" })
+export const updateMarketerDeliveryFee = createServerFn({ method: "POST" })
   .validator(deliveryFeeInput)
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const manager = await requireRole("Management");
+    const marketer = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
     const { deliverySettings } = await import("@/db/schema");
     const fee = Math.round(data.deliveryFee * 100) / 100;
     await db
       .insert(deliverySettings)
-      .values({ id: 1, flatFee: fee.toFixed(2), updatedById: manager.id })
+      .values({ id: 1, flatFee: fee.toFixed(2), updatedById: marketer.id })
       .onDuplicateKeyUpdate({
-        set: { flatFee: fee.toFixed(2), updatedById: manager.id },
+        set: { flatFee: fee.toFixed(2), updatedById: marketer.id },
       });
-    await writeAuditLog(manager.id, "delivery_fee.update", "delivery_settings", "1", { fee });
+    await writeAuditLog(marketer.id, "delivery_fee.update", "delivery_settings", "1", { fee });
     return { deliveryFee: fee };
   });
 
-export const updateManagementDeliveryAvailability = createServerFn({ method: "POST" })
+export const updateMarketerDeliveryAvailability = createServerFn({ method: "POST" })
   .validator(deliveryAvailabilityInput)
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const manager = await requireRole("Management");
+    const marketer = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
     const { deliverySettings } = await import("@/db/schema");
     await db
@@ -3132,13 +3130,13 @@ export const updateManagementDeliveryAvailability = createServerFn({ method: "PO
         id: 1,
         flatFee: "59.00",
         deliveryEnabled: data.deliveryEnabled,
-        updatedById: manager.id,
+        updatedById: marketer.id,
       })
       .onDuplicateKeyUpdate({
-        set: { deliveryEnabled: data.deliveryEnabled, updatedById: manager.id },
+        set: { deliveryEnabled: data.deliveryEnabled, updatedById: marketer.id },
       });
     await writeAuditLog(
-      manager.id,
+      marketer.id,
       data.deliveryEnabled ? "delivery.enable" : "delivery.disable",
       "delivery_settings",
       "1",

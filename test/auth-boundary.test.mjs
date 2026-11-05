@@ -804,10 +804,13 @@ test("workspace sidebars show live role-specific pending work badges", async () 
   assert.match(service, /badges\["\/marketer\/orders"\]/);
   assert.match(service, /eq\(orders\.status, "pending"\)/);
   assert.match(service, /markWorkspaceSidebarTargetRead/);
-  assert.match(service, /badges\["\/marketer\/disputes"\] = await unreadFor/);
+  assert.match(service, /badges\["\/marketer\/deliveries"\]/);
+  assert.match(service, /eq\(orders\.fulfillmentStatus, "ready_for_dispatch"\)/);
+  assert.match(service, /badges\["\/marketer\/disputes"\] = numberFrom/);
+  assert.match(service, /inArray\(deliveryDisputes\.status/);
   assert.match(service, /\.set\(\{ readAt: new Date\(\) \}\)/);
   assert.match(service, /badges\["\/accounting\/farmer-payouts"\]/);
-  assert.match(service, /badges\["\/management\/deliveries"\]/);
+  assert.doesNotMatch(service, /badges\["\/management\/(?:deliveries|disputes)"\]/);
   assert.match(service, /badges\["\/rider"\]/);
   assert.match(service, /isNull\(notifications\.readAt\)/);
   assert.match(hook, /useAutoRefresh\(refresh, 12_000\)/);
@@ -1370,14 +1373,14 @@ test("Management dashboard keeps daily history available without altering saved 
   assert.match(marketplace, /Classified stock recorded \$\{periodLabel\}/);
 });
 
-test("delivery availability is controlled by Management and Rider access stays role-protected", async () => {
+test("delivery availability is controlled by Marketer and Rider access stays role-protected", async () => {
   const [
     schema,
     feeMigration,
     riderMigration,
     marketplace,
     cart,
-    management,
+    marketerDeliveries,
     riderLayout,
     riderPage,
   ] = await Promise.all([
@@ -1386,7 +1389,7 @@ test("delivery availability is controlled by Management and Rider access stays r
     readFile("drizzle/0020_rider_role_and_delivery_availability.sql", "utf8"),
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/routes/buyer.cart.tsx", "utf8"),
-    readFile("src/routes/management.deliveries.tsx", "utf8"),
+    readFile("src/routes/marketer.deliveries.tsx", "utf8"),
     readFile("src/components/workspaces/rider-layout.tsx", "utf8"),
     readFile("src/routes/rider.index.tsx", "utf8"),
   ]);
@@ -1404,8 +1407,8 @@ test("delivery availability is controlled by Management and Rider access stays r
     marketplace,
     /data\.fulfillment === "delivery" \? Number\(settings\?\.flatFee \?\? 59\) : 0/,
   );
-  assert.match(marketplace, /export const updateManagementDeliveryFee/);
-  assert.match(marketplace, /export const updateManagementDeliveryAvailability/);
+  assert.match(marketplace, /export const updateMarketerDeliveryFee/);
+  assert.match(marketplace, /export const updateMarketerDeliveryAvailability/);
   assert.match(marketplace, /Delivery is temporarily unavailable/);
   assert.match(marketplace, /export const getRiderDeliveryStatus/);
   assert.match(marketplace, /requireRole\("Management"\)/);
@@ -1414,9 +1417,9 @@ test("delivery availability is controlled by Management and Rider access stays r
   assert.match(cart, /fulfillment === "delivery" \? deliveryFee : 0/);
   assert.match(cart, /Delivery is temporarily unavailable/);
   assert.match(cart, /Free — arrange a time with PROCY/);
-  assert.match(management, /Delivery fee/);
-  assert.match(management, /updateManagementDeliveryFee/);
-  assert.match(management, /updateManagementDeliveryAvailability/);
+  assert.match(marketerDeliveries, /Delivery settings/);
+  assert.match(marketerDeliveries, /updateMarketerDeliveryFee/);
+  assert.match(marketerDeliveries, /updateMarketerDeliveryAvailability/);
   assert.match(riderLayout, /RoleGate role="Rider"/);
   assert.match(riderPage, /getRiderDeliveryStatus/);
 });
@@ -1453,9 +1456,9 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
     migration,
     marketplace,
     marketer,
-    management,
+    marketerDeliveries,
     dashboard,
-    layout,
+    marketerLayout,
     rider,
     accounting,
     orderDetails,
@@ -1470,9 +1473,9 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
     readFile("drizzle/0035_delivery_fulfillment_flow.sql", "utf8"),
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/routes/marketer.orders.tsx", "utf8"),
-    readFile("src/routes/management.deliveries.tsx", "utf8"),
+    readFile("src/routes/marketer.deliveries.tsx", "utf8"),
     readFile("src/routes/management.index.tsx", "utf8"),
-    readFile("src/components/workspaces/management-layout.tsx", "utf8"),
+    readFile("src/components/workspaces/marketer-layout.tsx", "utf8"),
     readFile("src/routes/rider.index.tsx", "utf8"),
     readFile("src/routes/accounting.payments.tsx", "utf8"),
     readFile("src/features/marketplace/components/order-details.tsx", "utf8"),
@@ -1499,12 +1502,12 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(marketplace, /Cash on Delivery can only be recorded for a Delivery order/);
   assert.match(marketer, /Start preparing/);
   assert.match(marketer, /Ready for dispatch/);
-  assert.match(management, /Delivery dispatch/);
-  assert.match(management, /Active \{activeCount\}/);
-  assert.match(management, /Delivered \{completedCount\}/);
+  assert.match(marketerDeliveries, /Delivery dispatch/);
+  assert.match(marketerDeliveries, /Active \{activeCount\}/);
+  assert.match(marketerDeliveries, /Delivered \{completedCount\}/);
   assert.doesNotMatch(dashboard, /Delivery dispatch/);
-  assert.match(layout, /Delivery Operations/);
-  assert.match(layout, /\/management\/deliveries/);
+  assert.match(marketerLayout, /Delivery Operations/);
+  assert.match(marketerLayout, /\/marketer\/deliveries/);
   assert.match(rider, /Start delivery/);
   assert.match(rider, /Complete with proof/);
   assert.doesNotMatch(rider, /Submit COD/);
@@ -1540,23 +1543,21 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.doesNotMatch(proofDialog, /Proof photo/);
   assert.doesNotMatch(proofDialog, /Recipient signature pad/);
   assert.doesNotMatch(proofDialog, /Add current location \(optional\)/);
-  assert.match(management, /Assignment history/);
-  assert.match(management, /activeAssignments/);
+  assert.match(marketerDeliveries, /Assignment history/);
+  assert.match(marketerDeliveries, /activeAssignments/);
   assert.match(accounting, /Collected → Submitted → Verified → Closed/);
 });
 
 test("delivery disputes enforce a 24-hour role-protected resolution workflow", async () => {
-  const [schema, migration, server, buyer, management, operational, accounting] = await Promise.all(
-    [
-      readFile("src/db/schema.ts", "utf8"),
-      readFile("drizzle/0037_delivery_dispute_resolution.sql", "utf8"),
-      readFile("src/services/marketplace/delivery-dispute-server-functions.ts", "utf8"),
-      readFile("src/routes/buyer.issues.tsx", "utf8"),
-      readFile("src/routes/management.disputes.tsx", "utf8"),
-      readFile("src/features/marketplace/components/delivery-dispute-workspace.tsx", "utf8"),
-      readFile("src/routes/accounting.refunds.tsx", "utf8"),
-    ],
-  );
+  const [schema, migration, server, buyer, marketer, operational, accounting] = await Promise.all([
+    readFile("src/db/schema.ts", "utf8"),
+    readFile("drizzle/0037_delivery_dispute_resolution.sql", "utf8"),
+    readFile("src/services/marketplace/delivery-dispute-server-functions.ts", "utf8"),
+    readFile("src/routes/buyer.issues.tsx", "utf8"),
+    readFile("src/routes/marketer.disputes.tsx", "utf8"),
+    readFile("src/features/marketplace/components/delivery-dispute-workspace.tsx", "utf8"),
+    readFile("src/routes/accounting.refunds.tsx", "utf8"),
+  ]);
 
   assert.match(schema, /deliveryDisputes/);
   assert.match(schema, /deliveryDisputeResponses/);
@@ -1567,7 +1568,7 @@ test("delivery disputes enforce a 24-hour role-protected resolution workflow", a
   assert.match(server, /description: z\.string\(\)\.trim\(\)\.min\(3\)/);
   assert.match(server, /24 \* 60 \* 60 \* 1000/);
   assert.match(server, /requireRole\("Buyer"\)/);
-  assert.match(server, /requireRole\("Management"\)/);
+  assert.match(server, /requireRole\("Marketer"\)/);
   assert.match(server, /requireRole\("Accounting"\)/);
   assert.match(server, /row\.order\.assignedRiderId === actor\.id/);
   assert.match(server, /export const processDeliveryDisputeRefund/);
@@ -1577,9 +1578,9 @@ test("delivery disputes enforce a 24-hour role-protected resolution workflow", a
   assert.match(buyer, /Choose the delivered order/);
   assert.match(buyer, /Choose an issue type/);
   assert.match(buyer, /Minimum \{MIN_ISSUE_DESCRIPTION_LENGTH\} characters/);
-  assert.match(management, /Management decision/);
-  assert.match(management, /Partial refund/);
-  assert.match(operational, /Management makes the final\s+decision/);
+  assert.match(marketer, /Marketer decision/);
+  assert.match(marketer, /Partial refund/);
+  assert.match(operational, /Marketer makes the final\s+decision/);
   assert.match(accounting, /Approved refund queue/);
   assert.match(accounting, /Mark processed/);
 });

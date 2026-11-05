@@ -5,7 +5,6 @@ import { z } from "zod";
 export type WorkspaceSidebarBadges = Record<string, number>;
 
 const dismissibleSidebarTargets = [
-  "/marketer/disputes",
   "/marketer/community",
   "/accounting/community",
   "/management/community",
@@ -17,7 +16,6 @@ const dismissibleSidebarTargets = [
 ] as const;
 
 const targetRoles: Record<(typeof dismissibleSidebarTargets)[number], string> = {
-  "/marketer/disputes": "Marketer",
   "/marketer/community": "Marketer",
   "/accounting/community": "Accounting",
   "/management/community": "Management",
@@ -80,7 +78,18 @@ export const getWorkspaceSidebarBadges = createServerFn({ method: "GET" }).handl
     badges["/marketer/orders"] = numberFrom(
       await db.select({ total: count() }).from(orders).where(eq(orders.status, "pending")),
     );
-    badges["/marketer/disputes"] = await unreadFor("/marketer/disputes");
+    badges["/marketer/deliveries"] = numberFrom(
+      await db
+        .select({ total: count() })
+        .from(orders)
+        .where(eq(orders.fulfillmentStatus, "ready_for_dispatch")),
+    );
+    badges["/marketer/disputes"] = numberFrom(
+      await db
+        .select({ total: count() })
+        .from(deliveryDisputes)
+        .where(inArray(deliveryDisputes.status, ["submitted", "under_review", "waiting_response"])),
+    );
     badges["/marketer/community"] = await unreadFor("/marketer/community");
   }
 
@@ -115,18 +124,6 @@ export const getWorkspaceSidebarBadges = createServerFn({ method: "GET" }).handl
   }
 
   if (user.roles.includes("Management")) {
-    badges["/management/deliveries"] = numberFrom(
-      await db
-        .select({ total: count() })
-        .from(orders)
-        .where(eq(orders.fulfillmentStatus, "ready_for_dispatch")),
-    );
-    badges["/management/disputes"] = numberFrom(
-      await db
-        .select({ total: count() })
-        .from(deliveryDisputes)
-        .where(inArray(deliveryDisputes.status, ["submitted", "under_review", "waiting_response"])),
-    );
     badges["/management/community"] = await unreadFor("/management/community");
   }
 
