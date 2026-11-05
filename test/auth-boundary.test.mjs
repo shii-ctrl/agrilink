@@ -689,6 +689,9 @@ test("public authentication uses the floating dialog system", async () => {
   assert.match(styles, /\.dark \.auth-login-field/);
   assert.match(styles, /-webkit-text-fill-color: var\(--foreground\) !important/);
   assert.match(styles, /-webkit-box-shadow: 0 0 0 1000px var\(--background\) inset !important/);
+  assert.match(styles, /html::-webkit-scrollbar,[\s\S]*body::-webkit-scrollbar/);
+  assert.match(styles, /html body\[data-scroll-locked\]/);
+  assert.match(styles, /--removed-body-scroll-bar-size: 0px !important/);
   assert.match(dialog, /flex size-10/);
   assert.match(dialog, /rounded-full/);
   assert.match(root, /interactive-widget=resizes-content/);
