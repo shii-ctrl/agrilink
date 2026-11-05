@@ -723,6 +723,8 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.match(marketerLayout, /Product Catalog/);
   assert.match(marketerLayout, /Record Stock/);
   assert.match(marketerLayout, /Stock Records/);
+  assert.match(marketerLayout, /activeOptions=\{\{ exact: true \}\}/);
+  assert.doesNotMatch(marketerLayout, /activeProps=\{\{ className:/);
   assert.doesNotMatch(marketerLayout, /Reject Stock|\/marketer\/rejects/);
   assert.doesNotMatch(marketerLayout, /Price & Publish|Published Listings/);
   assert.match(marketerPage, /Permanent products/);

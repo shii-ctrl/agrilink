@@ -104,10 +104,7 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
                             tooltip={item.title}
                             isActive={pathname === item.to}
                           >
-                            <Link
-                              to={item.to}
-                              activeProps={{ className: "bg-primary/10 text-primary" }}
-                            >
+                            <Link to={item.to} activeOptions={{ exact: true }}>
                               <item.icon />
                               <span>{item.title}</span>
                             </Link>
