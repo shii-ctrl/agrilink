@@ -185,6 +185,31 @@ const dailyPriceInput = z.object({
   listingId: z.string().uuid(),
   price: z.number().positive().max(100000),
 });
+const bulkDailyPriceInput = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  prices: z
+    .array(
+      z.object({
+        listingId: z.string().uuid(),
+        price: z.number().positive().max(100_000),
+      }),
+    )
+    .min(1)
+    .max(250)
+    .superRefine((prices, context) => {
+      const listingIds = new Set<string>();
+      prices.forEach((price, index) => {
+        if (listingIds.has(price.listingId)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Each product quality can be published only once per batch.",
+            path: [index, "listingId"],
+          });
+        }
+        listingIds.add(price.listingId);
+      });
+    }),
+});
 const dailyPriceStatusInput = z.object({
   id: z.string().uuid(),
   published: z.boolean(),
@@ -1595,6 +1620,103 @@ export const publishDailyPrice = createServerFn({ method: "POST" })
       listing.sellingUnit,
     );
     return { id, updated: false };
+  });
+
+export const publishDailyPricesBulk = createServerFn({ method: "POST" })
+  .validator(bulkDailyPriceInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    const { db } = await import("@/db/client.server");
+    const { dailyPrices, listings, products } = await import("@/db/schema");
+    const listingIds = data.prices.map((entry) => entry.listingId);
+    const listingRows = await db
+      .select({
+        id: listings.id,
+        status: listings.status,
+        productName: products.name,
+        sellingUnit: products.sellingUnit,
+      })
+      .from(listings)
+      .innerJoin(products, eq(listings.productId, products.id))
+      .where(inArray(listings.id, listingIds));
+    const listingById = new Map(listingRows.map((listing) => [listing.id, listing]));
+    const invalidListing = data.prices.find(
+      (entry) => listingById.get(entry.listingId)?.status !== "published",
+    );
+    if (invalidListing) {
+      throw new Error("One or more selected product qualities are no longer published.");
+    }
+
+    const existingRows = await db
+      .select({ id: dailyPrices.id, listingId: dailyPrices.listingId })
+      .from(dailyPrices)
+      .where(
+        and(
+          inArray(dailyPrices.listingId, listingIds),
+          sql`DATE(${dailyPrices.priceDate}) = ${data.date}`,
+        ),
+      );
+    const existingByListing = new Map(existingRows.map((entry) => [entry.listingId, entry.id]));
+    const savedIds: string[] = [];
+    let created = 0;
+    let updated = 0;
+
+    await db.transaction(async (tx) => {
+      for (const entry of data.prices) {
+        const existingId = existingByListing.get(entry.listingId);
+        if (existingId) {
+          await tx
+            .update(dailyPrices)
+            .set({
+              price: entry.price.toFixed(2),
+              published: true,
+              createdById: actor.id,
+              createdAt: new Date(),
+            })
+            .where(eq(dailyPrices.id, existingId));
+          savedIds.push(existingId);
+          updated += 1;
+          continue;
+        }
+        const id = crypto.randomUUID();
+        await tx.insert(dailyPrices).values({
+          id,
+          listingId: entry.listingId,
+          price: entry.price.toFixed(2),
+          priceDate: new Date(`${data.date}T00:00:00`),
+          published: true,
+          createdById: actor.id,
+        });
+        savedIds.push(id);
+        created += 1;
+      }
+    });
+
+    await writeAuditLog(actor.id, "daily_price.bulk_publish", "daily_price_batch", data.date, {
+      date: data.date,
+      listingIds,
+      created,
+      updated,
+    });
+    const { notifyRole } = await import("@/services/messaging/notification-server");
+    await notifyRole("Buyer", {
+      title: "Daily prices updated",
+      message: `${data.prices.length} product ${data.prices.length === 1 ? "price is" : "prices are"} available for ${data.date}.`,
+      target: "/daily-prices",
+    });
+    await Promise.all(
+      data.prices.map((entry) => {
+        const listing = listingById.get(entry.listingId)!;
+        return notifyMatchingDailyPriceAlerts(
+          entry.listingId,
+          listing.productName,
+          entry.price,
+          listing.sellingUnit,
+        );
+      }),
+    );
+    return { savedIds, created, updated, count: data.prices.length };
   });
 
 export const setDailyPricePublished = createServerFn({ method: "POST" })

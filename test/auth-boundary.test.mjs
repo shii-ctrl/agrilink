@@ -448,10 +448,11 @@ test("catalog product descriptions may be left blank", async () => {
 });
 
 test("daily prices use PROCY market categories as an organizing guide", async () => {
-  const [categories, publicPrices, marketerPrices] = await Promise.all([
+  const [categories, publicPrices, marketerPrices, marketplace] = await Promise.all([
     readFile("src/features/marketplace/procy-market-categories.ts", "utf8"),
     readFile("src/routes/daily-prices.tsx", "utf8"),
     readFile("src/routes/marketer.daily-prices.tsx", "utf8"),
+    readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
   ]);
 
   for (const category of [
@@ -466,7 +467,13 @@ test("daily prices use PROCY market categories as an organizing guide", async ()
   }
   assert.match(publicPrices, /PROCY market category/);
   assert.match(publicPrices, /Filter daily prices by PROCY market category/);
-  assert.match(marketerPrices, /PROCY market categories are a guide/);
+  assert.match(marketerPrices, /Publish daily prices/);
+  assert.match(marketerPrices, /Copy previous prices/);
+  assert.match(marketerPrices, /Review and publish/);
+  assert.match(marketerPrices, /Draft changes are saved on this device/);
+  assert.match(marketplace, /export const publishDailyPricesBulk/);
+  assert.match(marketplace, /daily_price\.bulk_publish/);
+  assert.match(marketplace, /Each product quality can be published only once per batch/);
   assert.doesNotMatch(categories, /70\/60|250\/230/);
 });
 
