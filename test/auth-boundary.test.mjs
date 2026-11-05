@@ -471,6 +471,9 @@ test("daily prices use PROCY market categories as an organizing guide", async ()
   assert.match(marketerPrices, /Copy previous prices/);
   assert.match(marketerPrices, /Review and publish/);
   assert.match(marketerPrices, /Draft changes are saved on this device/);
+  assert.match(marketerPrices, /Quality to update/);
+  assert.match(marketerPrices, /\["Good", "Semi", "Reject"\]/);
+  assert.match(marketerPrices, /listing\.classification === qualityFilter/);
   assert.match(marketplace, /export const publishDailyPricesBulk/);
   assert.match(marketplace, /daily_price\.bulk_publish/);
   assert.match(marketplace, /Each product quality can be published only once per batch/);

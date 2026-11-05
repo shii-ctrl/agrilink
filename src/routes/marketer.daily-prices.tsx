@@ -58,6 +58,7 @@ function MarketerDailyPricesPage() {
   const [draftReadyFor, setDraftReadyFor] = useState<string | null>(null);
   const [publisherQuery, setPublisherQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [qualityFilter, setQualityFilter] = useState<Classification>("Good");
   const [selectedDate, setSelectedDate] = useState(today);
   const [historyQuery, setHistoryQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -110,9 +111,13 @@ function MarketerDailyPricesPage() {
         .map((category) => ({ value: category, label: category })),
     [publishedListings],
   );
+  const qualityListings = useMemo(
+    () => publishedListings.filter((listing) => listing.classification === qualityFilter),
+    [publishedListings, qualityFilter],
+  );
   const visibleListings = useMemo(() => {
     const query = publisherQuery.trim().toLocaleLowerCase();
-    return publishedListings.filter((listing) => {
+    return qualityListings.filter((listing) => {
       const category = categoryFor(listing.name);
       const matchesCategory = categoryFilter === "all" || category === categoryFilter;
       const matchesQuery =
@@ -122,7 +127,7 @@ function MarketerDailyPricesPage() {
           .includes(query);
       return matchesCategory && matchesQuery;
     });
-  }, [categoryFilter, publishedListings, publisherQuery]);
+  }, [categoryFilter, publisherQuery, qualityListings]);
 
   const currentPriceByListing = useMemo(
     () =>
@@ -174,13 +179,16 @@ function MarketerDailyPricesPage() {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedPrices = useMemo(
     () =>
-      publishedListings
+      qualityListings
         .filter((listing) => selectedSet.has(listing.id))
         .map((listing) => ({ listing, price: Number(prices[listing.id]) }))
         .filter((entry) => Number.isFinite(entry.price) && entry.price > 0),
-    [prices, publishedListings, selectedSet],
+    [prices, qualityListings, selectedSet],
   );
-  const invalidSelectedCount = selectedIds.length - selectedPrices.length;
+  const selectedQualityCount = qualityListings.filter((listing) =>
+    selectedSet.has(listing.id),
+  ).length;
+  const invalidSelectedCount = selectedQualityCount - selectedPrices.length;
   const allVisibleSelected =
     visibleListings.length > 0 && visibleListings.every((listing) => selectedSet.has(listing.id));
 
@@ -205,7 +213,7 @@ function MarketerDailyPricesPage() {
   };
 
   const copyPreviousPrices = () => {
-    const copied = publishedListings.filter((listing) => previousPriceByListing.has(listing.id));
+    const copied = qualityListings.filter((listing) => previousPriceByListing.has(listing.id));
     if (!copied.length) {
       toast.warning("No earlier prices are available to copy.");
       return;
@@ -220,14 +228,18 @@ function MarketerDailyPricesPage() {
       ),
     }));
     setSelectedIds((current) => [...new Set([...current, ...copied.map((listing) => listing.id)])]);
-    toast.success(`${copied.length} previous ${copied.length === 1 ? "price" : "prices"} copied.`);
+    toast.success(
+      `${copied.length} previous ${qualityFilter} ${copied.length === 1 ? "price" : "prices"} copied.`,
+    );
   };
 
-  const clearDraft = () => {
-    window.localStorage.removeItem(draftKey(priceDate));
-    setPrices({});
-    setSelectedIds([]);
-    toast.success("Draft cleared.");
+  const clearQualityDraft = () => {
+    const qualityIds = new Set(qualityListings.map((listing) => listing.id));
+    setPrices((current) =>
+      Object.fromEntries(Object.entries(current).filter(([id]) => !qualityIds.has(id))),
+    );
+    setSelectedIds((current) => current.filter((id) => !qualityIds.has(id)));
+    toast.success(`${qualityFilter} price draft cleared.`);
   };
 
   const publishSelectedPrices = async () => {
@@ -240,7 +252,17 @@ function MarketerDailyPricesPage() {
           prices: selectedPrices.map(({ listing, price }) => ({ listingId: listing.id, price })),
         },
       });
-      window.localStorage.removeItem(draftKey(priceDate));
+      const publishedIds = new Set(selectedPrices.map(({ listing }) => listing.id));
+      const remainingPrices = Object.fromEntries(
+        Object.entries(prices).filter(([id]) => !publishedIds.has(id)),
+      );
+      const remainingSelectedIds = selectedIds.filter((id) => !publishedIds.has(id));
+      window.localStorage.setItem(
+        draftKey(priceDate),
+        JSON.stringify({ prices: remainingPrices, selectedIds: remainingSelectedIds }),
+      );
+      setPrices(remainingPrices);
+      setSelectedIds(remainingSelectedIds);
       setSelectedDate(priceDate);
       setReviewOpen(false);
       await load();
@@ -260,7 +282,7 @@ function MarketerDailyPricesPage() {
     <MarketerLayout>
       <MarketerPageHeader
         title="Daily Prices & Deals"
-        description="Prepare and publish PROCY prices for multiple product qualities in one batch."
+        description="Update Good, Semi, or Reject prices separately and publish each quality in one batch."
       />
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
         <WorkspaceLoadState
@@ -283,7 +305,8 @@ function MarketerDailyPricesPage() {
                   <div>
                     <h2 className="text-lg font-semibold">Publish daily prices</h2>
                     <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                      Enter only the prices that apply. Blank and unchecked rows will be skipped.
+                      Choose one quality, then enter only the prices that apply. Blank and unchecked
+                      rows will be skipped.
                     </p>
                   </div>
                 </div>
@@ -293,8 +316,42 @@ function MarketerDailyPricesPage() {
                 </div>
               </div>
 
+              <div className="border-b border-border px-5 py-4 sm:px-6">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Quality to update
+                </p>
+                <div
+                  className="grid grid-cols-3 gap-2 rounded-2xl bg-muted p-1.5"
+                  role="tablist"
+                  aria-label="Choose product quality to update"
+                >
+                  {(["Good", "Semi", "Reject"] as const).map((quality) => {
+                    const count = publishedListings.filter(
+                      (listing) => listing.classification === quality,
+                    ).length;
+                    return (
+                      <Button
+                        key={quality}
+                        type="button"
+                        size="sm"
+                        variant={qualityFilter === quality ? "default" : "ghost"}
+                        role="tab"
+                        aria-selected={qualityFilter === quality}
+                        className="w-full"
+                        onClick={() => setQualityFilter(quality)}
+                      >
+                        {quality} ({count})
+                      </Button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Only {qualityFilter} prices are shown and included when you publish this tab.
+                </p>
+              </div>
+
               <ResponsiveFilterPanel
-                title="Find product qualities"
+                title={`Find ${qualityFilter} products`}
                 activeCount={Number(Boolean(publisherQuery)) + Number(categoryFilter !== "all")}
                 contentClassName="md:grid-cols-[1fr_260px]"
               >
@@ -348,8 +405,8 @@ function MarketerDailyPricesPage() {
                   >
                     Select in-stock
                   </Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={clearDraft}>
-                    Clear draft
+                  <Button type="button" size="sm" variant="ghost" onClick={clearQualityDraft}>
+                    Clear {qualityFilter} draft
                   </Button>
                 </div>
               </div>
@@ -361,7 +418,7 @@ function MarketerDailyPricesPage() {
                       <th className="w-14 px-5 py-4 sm:px-6">
                         <span className="sr-only">Select</span>
                       </th>
-                      <th className="px-5 py-4 sm:px-6">Product quality</th>
+                      <th className="px-5 py-4 sm:px-6">Product</th>
                       <th className="px-5 py-4 sm:px-6">Availability</th>
                       <th className="px-5 py-4 sm:px-6">Previous price</th>
                       <th className="w-56 px-5 py-4 sm:px-6">New price</th>
@@ -381,7 +438,7 @@ function MarketerDailyPricesPage() {
                               onCheckedChange={(value) => toggleListing(listing.id, value === true)}
                             />
                           </td>
-                          <td data-label="Product quality" className="px-5 py-4 sm:px-6">
+                          <td data-label="Product" className="px-5 py-4 sm:px-6">
                             <p className="font-semibold">{listing.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {listing.classification} · {categoryFor(listing.name)}
@@ -447,7 +504,7 @@ function MarketerDailyPricesPage() {
                           colSpan={5}
                           className="px-6 py-10 text-center text-muted-foreground"
                         >
-                          No published product qualities match these filters.
+                          No published {qualityFilter} products match these filters.
                         </td>
                       </tr>
                     ) : null}
@@ -458,8 +515,8 @@ function MarketerDailyPricesPage() {
               <div className="sticky bottom-3 z-20 m-3 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-background/95 p-4 shadow-field backdrop-blur sm:m-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-semibold">
-                    {selectedPrices.length} valid {selectedPrices.length === 1 ? "price" : "prices"}{" "}
-                    ready
+                    {selectedPrices.length} valid {qualityFilter.toLocaleLowerCase()}{" "}
+                    {selectedPrices.length === 1 ? "price" : "prices"} ready
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Draft changes are saved on this device.
@@ -543,6 +600,7 @@ function MarketerDailyPricesPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => {
+                                setQualityFilter(entry.classification);
                                 setPriceDate(entry.date);
                                 setPrices((saved) => ({
                                   ...saved,
@@ -619,8 +677,8 @@ function MarketerDailyPricesPage() {
           <DialogHeader>
             <DialogTitle>Review daily prices</DialogTitle>
             <DialogDescription>
-              Confirm {selectedPrices.length} {selectedPrices.length === 1 ? "price" : "prices"} for{" "}
-              {formatDate(priceDate)}.
+              Confirm {selectedPrices.length} {qualityFilter}{" "}
+              {selectedPrices.length === 1 ? "price" : "prices"} for {formatDate(priceDate)}.
             </DialogDescription>
           </DialogHeader>
           <div className="divide-y divide-border rounded-2xl border border-border">
@@ -665,7 +723,9 @@ function MarketerDailyPricesPage() {
               Go back
             </Button>
             <Button type="button" disabled={saving} onClick={() => void publishSelectedPrices()}>
-              {saving ? "Publishing…" : `Publish ${selectedPrices.length} prices`}
+              {saving
+                ? "Publishing…"
+                : `Publish ${selectedPrices.length} ${qualityFilter} ${selectedPrices.length === 1 ? "price" : "prices"}`}
             </Button>
           </DialogFooter>
         </DialogContent>
