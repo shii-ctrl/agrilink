@@ -268,12 +268,7 @@ export async function findUserByIdentifier(identifier: string) {
   const [user] = await db
     .select()
     .from(users)
-    .where(
-      or(
-        sql`LOWER(TRIM(${users.username})) = ${normalized}`,
-        sql`LOWER(TRIM(${users.email})) = ${normalized}`,
-      ),
-    );
+    .where(or(eq(users.username, normalized), eq(users.email, normalized)));
   return user ?? null;
 }
 

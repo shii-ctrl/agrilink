@@ -38,7 +38,7 @@ test("Buyer self-registration is username-only and keeps email optional", async 
   assert.match(homePage, /RegisterDialog/);
 });
 
-test("username login lookup is trimmed and case-insensitive", async () => {
+test("username login lookup normalizes input without database-specific expressions", async () => {
   const authServer = await readFile(
     new URL("../src/services/auth/auth-server.ts", import.meta.url),
     "utf8",
@@ -48,8 +48,10 @@ test("username login lookup is trimmed and case-insensitive", async () => {
     "utf8",
   );
 
-  assert.match(authServer, /LOWER\(TRIM\(\$\{users\.username\}\)\)/);
-  assert.match(authServer, /LOWER\(TRIM\(\$\{users\.email\}\)\)/);
+  assert.match(authServer, /identifier\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(authServer, /eq\(users\.username, normalized\)/);
+  assert.match(authServer, /eq\(users\.email, normalized\)/);
+  assert.doesNotMatch(authServer, /LOWER\(TRIM\(/);
   assert.match(loginDialog, /autoCapitalize="none"/);
   assert.match(loginDialog, /autoCorrect="off"/);
 });
