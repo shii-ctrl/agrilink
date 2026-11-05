@@ -133,7 +133,9 @@ export function SiteHeader({
 
   return (
     <>
-      <header className={`sticky top-0 z-50 border-b backdrop-blur ${headerTone}`}>
+      <header
+        className={`site-header-shell sticky top-0 z-50 border-b backdrop-blur ${headerTone}`}
+      >
         <div className="flex h-16 w-full items-center justify-between gap-2 px-4 sm:h-[5.75rem] sm:gap-4 sm:px-6 lg:px-8">
           <Link to="/" className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-full surface-sprout">

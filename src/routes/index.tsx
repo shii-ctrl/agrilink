@@ -94,7 +94,9 @@ function FeaturedSkeleton() {
 function Index() {
   const navigate = useNavigate();
   const { auth } = Route.useSearch();
-  const [account, setAccount] = useState<SessionAccount | null>(null);
+  // Keep the session unresolved during the first render. Passing `null` here would
+  // briefly make the shared header look signed out whenever the Buyer returns Home.
+  const [account, setAccount] = useState<SessionAccount | null | undefined>(undefined);
   const [featured, setFeatured] = useState<Product[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [heroQuery, setHeroQuery] = useState("");
@@ -203,7 +205,7 @@ function Index() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader
-        sessionAccount={account}
+        {...(account === undefined ? {} : { sessionAccount: account })}
         onLogin={() => setLoginOpen(true)}
         onRegister={() => setRegisterOpen(true)}
       />

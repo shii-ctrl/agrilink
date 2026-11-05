@@ -39,7 +39,7 @@ export function FloatingBuyerCartSummary({ aboveMobileNav = false }: { aboveMobi
   return (
     <Link
       to="/buyer/cart"
-      className={`fixed right-4 z-[55] inline-flex size-14 items-center justify-center rounded-full border border-primary/30 bg-primary text-primary-foreground shadow-2xl transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+      className={`floating-buyer-cart fixed right-4 z-[55] inline-flex size-14 items-center justify-center rounded-full border border-primary/30 bg-primary text-primary-foreground shadow-2xl transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
         aboveMobileNav ? "bottom-20 md:bottom-5" : "bottom-5"
       }`}
       aria-label={itemCount ? `Open cart with ${itemCount} item groups` : "Open cart"}

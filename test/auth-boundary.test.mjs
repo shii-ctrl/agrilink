@@ -291,14 +291,31 @@ test("marketplace browsing keeps the public layout with Buyer mobile shopping to
   assert.match(siteHeader, /<FloatingBuyerCartSummary/);
   assert.match(siteHeader, /aria-label="Open my profile"/);
   assert.match(siteHeader, /sessionResolved/);
+  assert.match(siteHeader, /site-header-shell/);
   assert.doesNotMatch(siteHeader, /BuyerDrawer|SheetContent/);
   assert.match(buyerLayout, /<FloatingBuyerCartSummary aboveMobileNav/);
   assert.match(floatingCart, /fixed right-4/);
+  assert.match(floatingCart, /floating-buyer-cart/);
   assert.match(floatingCart, /title="Open cart"/);
   assert.match(floatingCart, /buyerCartChangedEvent/);
   assert.match(productDetail, /Selected subtotal/);
   assert.match(productDetail, /fixed inset-x-0 bottom-0/);
   assert.match(productDetail, /pb-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\]/);
+});
+
+test("public navigation keeps the Buyer session stable and transitions smoothly", async () => {
+  const [home, router, styles] = await Promise.all([
+    readFile("src/routes/index.tsx", "utf8"),
+    readFile("src/router.tsx", "utf8"),
+    readFile("src/styles.css", "utf8"),
+  ]);
+
+  assert.match(home, /useState<SessionAccount \| null \| undefined>\(undefined\)/);
+  assert.match(home, /account === undefined \? \{\} : \{ sessionAccount: account \}/);
+  assert.match(router, /defaultPreload: "intent"/);
+  assert.match(router, /defaultViewTransition: true/);
+  assert.match(styles, /view-transition-name: agrilink-header/);
+  assert.match(styles, /@keyframes page-fade-in/);
 });
 
 test("marketplace supports remembered grid and list views on every screen size", async () => {
