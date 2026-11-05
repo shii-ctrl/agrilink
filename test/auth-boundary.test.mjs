@@ -1580,6 +1580,8 @@ test("public landing and marketplace pages share responsive page gutters", async
   assert.match(footer, /\(042\) 373 2992/);
   assert.match(footer, /SPPAQFA@SENTRONGPAMILIHAN\.COM/);
   assert.match(footer, /Sentrong Pamilihan &quot;PROCY&quot;/);
+  assert.match(footer, /https:\/\/www\.facebook\.com\/SPPAQFI\.MarketingOpportunity/);
+  assert.match(footer, /target="_blank"/);
 });
 
 test("Farmer earnings use fixed deductions and Accounting-only cash releases", async () => {

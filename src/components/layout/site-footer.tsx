@@ -104,12 +104,19 @@ export function SiteFooter({ sessionSignedIn }: { sessionSignedIn?: boolean | nu
                 <span className="min-w-0 break-all">SPPAQFA@SENTRONGPAMILIHAN.COM</span>
               </a>
             </li>
-            <li className="flex items-start gap-2.5">
-              <Facebook className="mt-0.5 size-4 shrink-0" />
-              <span>
-                <span className="block text-xs opacity-70">Facebook</span>
-                Sentrong Pamilihan &quot;PROCY&quot;
-              </span>
+            <li>
+              <a
+                href="https://www.facebook.com/SPPAQFI.MarketingOpportunity"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-start gap-2.5 hover:underline"
+              >
+                <Facebook className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  <span className="block text-xs opacity-70">Facebook</span>
+                  Sentrong Pamilihan &quot;PROCY&quot;
+                </span>
+              </a>
             </li>
           </ul>
         </div>
