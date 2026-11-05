@@ -19,6 +19,8 @@ import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { WorkspaceHeaderActions } from "@/components/workspaces/workspace-header-actions";
 import { CollapsibleSidebarGroup } from "@/components/workspaces/collapsible-sidebar-group";
+import { SidebarCountBadge } from "@/components/workspaces/sidebar-count-badge";
+import { useWorkspaceSidebarBadges } from "@/hooks/use-workspace-sidebar-badges";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -48,6 +50,7 @@ export function AccountingLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const accountant = useWorkspaceUser("Accounting");
+  const badges = useWorkspaceSidebarBadges();
   return (
     <RoleGate role="Accounting">
       <SidebarProvider>
@@ -74,6 +77,7 @@ export function AccountingLayout({ children }: { children: ReactNode }) {
                         <span>{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
+                    <SidebarCountBadge count={badges[item.to]} />
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>

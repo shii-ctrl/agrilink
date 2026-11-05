@@ -791,6 +791,31 @@ test("Every workspace sidebar exposes collapsible navigation sections", async ()
   }
 });
 
+test("workspace sidebars show live role-specific pending work badges", async () => {
+  const [service, hook, badge, ...layouts] = await Promise.all([
+    readFile("src/services/workspaces/sidebar-badge-server-functions.ts", "utf8"),
+    readFile("src/hooks/use-workspace-sidebar-badges.ts", "utf8"),
+    readFile("src/components/workspaces/sidebar-count-badge.tsx", "utf8"),
+    ...["accounting", "farmer", "management", "marketer", "rider"].map((role) =>
+      readFile(`src/components/workspaces/${role}-layout.tsx`, "utf8"),
+    ),
+  ]);
+
+  assert.match(service, /requireUser/);
+  assert.match(service, /badges\["\/marketer\/orders"\]/);
+  assert.match(service, /eq\(orders\.status, "pending"\)/);
+  assert.match(service, /badges\["\/accounting\/farmer-payouts"\]/);
+  assert.match(service, /badges\["\/management\/deliveries"\]/);
+  assert.match(service, /badges\["\/rider"\]/);
+  assert.match(service, /isNull\(notifications\.readAt\)/);
+  assert.match(hook, /useAutoRefresh\(refresh, 12_000\)/);
+  assert.match(badge, /count > 99 \? "99\+" : count/);
+  for (const layout of layouts) {
+    assert.match(layout, /useWorkspaceSidebarBadges/);
+    assert.match(layout, /<SidebarCountBadge count=\{badges\[item\.to\]\}/);
+  }
+});
+
 test("role workflows keep catalog, cart, and Farmer stock states consistent", async () => {
   const [marketplace, marketerCatalog, receiving, notifications] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),

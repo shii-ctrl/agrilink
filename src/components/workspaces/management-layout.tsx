@@ -31,6 +31,8 @@ import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { WorkspaceHeaderActions } from "@/components/workspaces/workspace-header-actions";
 import { CollapsibleSidebarGroup } from "@/components/workspaces/collapsible-sidebar-group";
+import { SidebarCountBadge } from "@/components/workspaces/sidebar-count-badge";
+import { useWorkspaceSidebarBadges } from "@/hooks/use-workspace-sidebar-badges";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -69,6 +71,7 @@ export function ManagementLayout({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [managerName, setManagerName] = useState("Management");
   const [managerAvatarUrl, setManagerAvatarUrl] = useState<string | null>(null);
+  const badges = useWorkspaceSidebarBadges();
 
   useEffect(() => {
     let mounted = true;
@@ -141,6 +144,7 @@ export function ManagementLayout({ children }: { children: ReactNode }) {
                           <span>{item.label}</span>
                         </Link>
                       </SidebarMenuButton>
+                      <SidebarCountBadge count={badges[item.to]} />
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>

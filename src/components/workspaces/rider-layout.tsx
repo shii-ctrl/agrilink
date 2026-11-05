@@ -7,6 +7,8 @@ import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { WorkspaceHeaderActions } from "@/components/workspaces/workspace-header-actions";
 import { CollapsibleSidebarGroup } from "@/components/workspaces/collapsible-sidebar-group";
+import { SidebarCountBadge } from "@/components/workspaces/sidebar-count-badge";
+import { useWorkspaceSidebarBadges } from "@/hooks/use-workspace-sidebar-badges";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { signOutCurrentAccount } from "@/lib/auth/session-view";
@@ -33,6 +35,7 @@ export function RiderLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const rider = useWorkspaceUser("Rider");
+  const badges = useWorkspaceSidebarBadges();
 
   return (
     <RoleGate role="Rider">
@@ -60,6 +63,7 @@ export function RiderLayout({ children }: { children: ReactNode }) {
                         <span>{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
+                    <SidebarCountBadge count={badges[item.to]} />
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>

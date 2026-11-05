@@ -19,6 +19,8 @@ import { RoleGate } from "@/components/layout/role-gate";
 import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { WorkspaceHeaderActions } from "@/components/workspaces/workspace-header-actions";
+import { SidebarCountBadge } from "@/components/workspaces/sidebar-count-badge";
+import { useWorkspaceSidebarBadges } from "@/hooks/use-workspace-sidebar-badges";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -68,6 +70,7 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const marketer = useWorkspaceUser("Marketer");
+  const badges = useWorkspaceSidebarBadges();
   return (
     <RoleGate role="Marketer">
       <SidebarProvider>
@@ -109,6 +112,7 @@ export function MarketerLayout({ children }: { children: ReactNode }) {
                               <span>{item.title}</span>
                             </Link>
                           </SidebarMenuButton>
+                          <SidebarCountBadge count={badges[item.to]} />
                         </SidebarMenuItem>
                       ))}
                     </SidebarMenu>
