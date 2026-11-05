@@ -254,12 +254,12 @@ function DailyPricesPage() {
   const productRowsPage = usePagination(visibleProductRows, { pageSize: 8 });
   const selectedProduct = productRows.find((item) => item.productId === selectedProductId) ?? null;
 
+  const chartEndAt = dateFromValue(latestDate)?.getTime() ?? Date.now();
+  const chartStartAt = chartEndAt - (chartRange - 1) * 24 * 60 * 60 * 1000;
   const chartData = useMemo(() => {
-    const end = dateFromValue(latestDate)?.getTime() ?? Date.now();
-    const cutoff = end - (chartRange - 1) * 24 * 60 * 60 * 1000;
     return [...new Set(entries.map((entry) => entry.date))]
       .sort()
-      .filter((historyDate) => (dateFromValue(historyDate)?.getTime() ?? 0) >= cutoff)
+      .filter((historyDate) => (dateFromValue(historyDate)?.getTime() ?? 0) >= chartStartAt)
       .map((historyDate) => {
         const values = Object.fromEntries(
           entries
@@ -272,13 +272,14 @@ function DailyPricesPage() {
             .map((entry) => [entry.classification.toLowerCase(), entry.price]),
         );
         return {
+          timestamp: dateFromValue(historyDate)?.getTime() ?? 0,
           date: historyDate.slice(5).replace("-", "/"),
           good: values["good"],
           semi: values["semi"],
           reject: values["reject"],
         };
       });
-  }, [chartProduct, chartRange, entries, latestDate]);
+  }, [chartProduct, chartStartAt, entries]);
 
   const selectedUpdatedAt = publishedEntries
     .map((entry) => entry.createdAt)
@@ -615,9 +616,32 @@ function DailyPricesPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.12} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                  <XAxis
+                    dataKey="timestamp"
+                    type="number"
+                    scale="time"
+                    domain={[chartStartAt, chartEndAt]}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => {
+                      const tickDate = new Date(Number(value));
+                      return `${String(tickDate.getMonth() + 1).padStart(2, "0")}/${String(
+                        tickDate.getDate(),
+                      ).padStart(2, "0")}`;
+                    }}
+                  />
                   <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `₱${value}`} />
-                  <Tooltip formatter={(value) => `₱${Number(value).toFixed(2)}`} />
+                  <Tooltip
+                    formatter={(value) => `₱${Number(value).toFixed(2)}`}
+                    labelFormatter={(value) => {
+                      const tooltipDate = new Date(Number(value));
+                      return new Intl.DateTimeFormat("en-PH", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      }).format(tooltipDate);
+                    }}
+                  />
                   <Legend />
                   <Line
                     type="monotone"

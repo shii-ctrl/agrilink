@@ -508,6 +508,8 @@ test("public daily prices provide responsive discovery, details, history, and Bu
   assert.match(page, /PriceMobileCard/);
   assert.match(page, /View in marketplace/);
   assert.match(page, /3 months/);
+  assert.match(page, /scale="time"/);
+  assert.match(page, /domain=\{\[chartStartAt, chartEndAt\]\}/);
   assert.match(page, /Set alert/);
   assert.match(marketplace, /export const saveDailyPriceAlert/);
   assert.match(marketplace, /requireRole\("Buyer"\)/);
