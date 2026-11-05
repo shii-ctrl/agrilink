@@ -759,6 +759,10 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.doesNotMatch(marketerLayout, /Reject Stock|\/marketer\/rejects/);
   assert.doesNotMatch(marketerLayout, /Price & Publish|Published Listings/);
   assert.match(marketerPage, /Permanent products/);
+  assert.match(
+    marketerPage,
+    /max-h-\[60vh\][^"\n]*overflow-y-auto[^"\n]*\[scrollbar-width:none\][^"\n]*\[&::-webkit-scrollbar\]:hidden/,
+  );
   assert.match(marketerPage, /Good, Semi, and Reject offers are prepared automatically as drafts/);
   assert.match(marketerPage, /Stock & owners/);
   assert.match(marketerPage, /Corrections create a separate audited inventory movement/);

@@ -147,7 +147,7 @@ function ProductCatalogPage() {
                 placeholder="Search catalog"
                 className="mt-4"
               />
-              <div className="mt-3 max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+              <div className="mt-3 max-h-[60vh] space-y-2 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {visible.map((product) => {
                   const stock = product.contributions.reduce(
                     (total, row) => total + row.availableKg,
