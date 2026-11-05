@@ -320,7 +320,7 @@ function DailyPricesPage() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:py-12">
+      <main className="w-full px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         <section className="relative overflow-hidden rounded-[2rem] border border-primary/15 bg-gradient-to-br from-primary/10 via-card to-accent/40 shadow-card">
           <div className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-primary/10 blur-2xl" />
           <div className="pointer-events-none absolute -bottom-24 left-1/3 size-56 rounded-full bg-accent/60 blur-3xl" />

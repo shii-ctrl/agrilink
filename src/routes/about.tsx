@@ -41,7 +41,7 @@ function AboutPage() {
     <div className="min-h-screen">
       <SiteHeader />
 
-      <main className="mx-auto max-w-6xl px-4 pt-12">
+      <main className="w-full px-4 pt-10 sm:px-6 sm:pt-12 lg:px-8">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">· About</p>
         <h1 className="mt-3 max-w-3xl text-4xl font-semibold md:text-5xl">
           Fresh local produce, made easier to find and order

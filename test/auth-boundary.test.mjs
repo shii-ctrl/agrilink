@@ -1680,16 +1680,24 @@ test("shared buttons enforce consistent action hierarchy, sizing, and loading fe
   assert.match(button, /data-\[action-pending=true\].*animate-spin/);
 });
 
-test("public landing and marketplace pages share responsive page gutters", async () => {
-  const [home, marketplace, footer] = await Promise.all([
+test("public pages share full-width responsive page gutters", async () => {
+  const [home, marketplace, dailyPrices, help, about, footer] = await Promise.all([
     readFile("src/routes/index.tsx", "utf8"),
     readFile("src/routes/marketplace.index.tsx", "utf8"),
+    readFile("src/routes/daily-prices.tsx", "utf8"),
+    readFile("src/routes/help.tsx", "utf8"),
+    readFile("src/routes/about.tsx", "utf8"),
     readFile("src/components/layout/site-footer.tsx", "utf8"),
   ]);
 
   const sharedGutters = /px-4[^"\n]*sm:px-6[^"\n]*lg:px-8/;
-  assert.match(home, sharedGutters);
-  assert.match(marketplace, sharedGutters);
+  for (const page of [home, marketplace, dailyPrices, help, about]) {
+    assert.match(page, sharedGutters);
+  }
+  for (const page of [dailyPrices, help, about]) {
+    assert.doesNotMatch(page, /<main className="[^"]*max-w-/);
+    assert.match(page, /<main className="w-full/);
+  }
   assert.match(home, /items-start/);
   assert.match(home, /grid grid-cols-1 gap-2 sm:mt-4 sm:flex/);
   assert.match(home, /grid grid-cols-2 gap-x-3 gap-y-2/);
