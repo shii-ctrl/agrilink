@@ -173,8 +173,10 @@ export function SiteHeader({
                 <NotificationCenter role="Buyer" />
                 <Link
                   to="/buyer/profile"
-                  className={`flex min-w-0 items-center gap-2 rounded-full p-1 pr-3 transition-colors ${
-                    dark ? "hover:bg-white/10" : "hover:bg-accent"
+                  className={`flex min-w-0 items-center gap-2 rounded-full border p-1 pr-3 shadow-sm transition-colors ${
+                    dark
+                      ? "border-white/15 bg-white/5 hover:bg-white/10"
+                      : "border-border/70 bg-card/80 hover:bg-accent"
                   }`}
                   aria-label="Open my profile"
                 >
@@ -184,7 +186,7 @@ export function SiteHeader({
                     className="size-9"
                     viewable={false}
                   />
-                  <span className="max-w-36 truncate text-sm font-semibold">
+                  <span className="max-w-44 truncate text-sm font-semibold">
                     {account!.displayName ?? account!.username}
                   </span>
                 </Link>

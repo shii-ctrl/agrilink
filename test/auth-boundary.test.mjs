@@ -1083,7 +1083,11 @@ test("new messages and Community activity create timely recipient notifications"
   assert.match(notifications, /communityTargetByRole/);
   assert.match(notifications, /excludeUserId/);
   assert.match(notificationCenter, /window\.setInterval/);
-  assert.match(notificationCenter, /12_000/);
+  assert.match(notificationCenter, /8_000/);
+  assert.match(notificationCenter, /notificationListeners/);
+  assert.match(notificationCenter, /agrilinkDataChangedEvent/);
+  assert.match(notificationCenter, /authSessionChangedEvent/);
+  assert.match(notificationCenter, /notificationSessionGeneration/);
   assert.match(notificationCenter, /toast\(notification\.title/);
   assert.match(communityFeed, /Live updates are on/);
   assert.match(communityFeed, /window\.setInterval/);
