@@ -7,7 +7,6 @@ import {
   LogOut,
   MessageCircle,
   PackageCheck,
-  ReceiptText,
   Settings,
   UsersRound,
 } from "lucide-react";
@@ -45,7 +44,6 @@ const managementSections = [
     items: [
       { label: "Products", icon: Boxes, to: "/management/products" as const },
       { label: "Receiving", icon: PackageCheck, to: "/management/receiving" as const },
-      { label: "Sales", icon: ReceiptText, to: "/management/sales" as const },
       { label: "Transactions", icon: FileBarChart, to: "/management/transactions" as const },
     ],
   },
