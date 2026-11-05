@@ -45,7 +45,7 @@ export function useWorkspaceSidebarBadges() {
       .then(refresh)
       .catch(() => {});
   }, [dismissibleTarget, openTargetCount, refresh]);
-  useAutoRefresh(refresh, 12_000);
+  useAutoRefresh(refresh, 60_000);
 
   return badges;
 }

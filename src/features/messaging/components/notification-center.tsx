@@ -94,7 +94,7 @@ function startNotificationSync() {
       void refreshNotifications({ announce: false });
     };
     void refreshNotifications({ announce: false });
-    const timer = window.setInterval(refreshWhenVisible, 8_000);
+    const timer = window.setInterval(refreshWhenVisible, 45_000);
     window.addEventListener("focus", refreshWhenVisible);
     window.addEventListener("online", refreshWhenVisible);
     window.addEventListener(agrilinkDataChangedEvent, refreshWhenVisible);

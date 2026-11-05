@@ -29,7 +29,7 @@ import {
 
 type Workspace = Awaited<ReturnType<typeof getDirectMessageWorkspace>>;
 type Contact = Workspace["contacts"][number];
-type ConversationMessage = Awaited<ReturnType<typeof getDirectConversation>>[number];
+type ConversationMessage = Awaited<ReturnType<typeof getDirectConversation>>["messages"][number];
 type LocalMessage = {
   id: string;
   participantId: string;
@@ -108,6 +108,17 @@ export function DirectMessagesPanel({
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [selectedContactId, setSelectedContactId] = useState("");
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const conversationCache = useRef(
+    new Map<
+      string,
+      {
+        messages: ConversationMessage[];
+        syncedAt: string;
+      }
+    >(),
+  );
+  const currentContactId = useRef(selectedContactId);
+  currentContactId.current = selectedContactId;
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
   const localMessagesRef = useRef<LocalMessage[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -155,7 +166,23 @@ export function DirectMessagesPanel({
     }
     if (!silent) setLoadingConversation(true);
     try {
-      setMessages(await getDirectConversation({ data: { participantId } }));
+      const previous = conversationCache.current.get(participantId);
+      const result = await getDirectConversation({
+        data: { participantId, ...(previous ? { after: previous.syncedAt } : {}) },
+      });
+      const latest = conversationCache.current.get(participantId);
+      if (latest && latest.syncedAt > result.syncedAt) return;
+      const merged = new Map(latest?.messages.map((message) => [message.id, message]) ?? []);
+      result.messages.forEach((message) => merged.set(message.id, message));
+      const nextMessages = [...merged.values()].sort(
+        (left, right) => left.time.localeCompare(right.time) || left.id.localeCompare(right.id),
+      );
+      conversationCache.current.set(participantId, {
+        messages: nextMessages,
+        syncedAt: result.syncedAt,
+      });
+      if (currentContactId.current !== participantId) return;
+      setMessages(nextMessages);
       setError(null);
     } catch (reason) {
       if (!silent) {
@@ -216,12 +243,25 @@ export function DirectMessagesPanel({
   }, [loadConversation, loadWorkspace, selectedContactId]);
 
   useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState !== "visible" || !navigator.onLine) return;
-      void loadConversation(selectedContactId, true).then(() => loadWorkspace());
+    let refreshing = false;
+    const refresh = async () => {
+      if (refreshing || document.visibilityState !== "visible" || !navigator.onLine) return;
+      refreshing = true;
+      try {
+        await loadConversation(selectedContactId, true);
+        await loadWorkspace();
+      } finally {
+        refreshing = false;
+      }
     };
-    const polling = window.setInterval(refresh, 5_000);
-    return () => window.clearInterval(polling);
+    const polling = window.setInterval(refresh, 15_000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    return () => {
+      window.clearInterval(polling);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+    };
   }, [loadConversation, loadWorkspace, selectedContactId]);
 
   useEffect(() => {
@@ -247,13 +287,19 @@ export function DirectMessagesPanel({
       setContactTyping(false);
       return;
     }
+    let checking = false;
     const checkTyping = () => {
+      if (checking || document.visibilityState !== "visible" || !navigator.onLine) return;
+      checking = true;
       void getDirectTyping({ data: { participantId: selectedContactId } })
         .then((result) => setContactTyping(result.isTyping))
-        .catch(() => setContactTyping(false));
+        .catch(() => setContactTyping(false))
+        .finally(() => {
+          checking = false;
+        });
     };
     checkTyping();
-    const timer = window.setInterval(checkTyping, 1_500);
+    const timer = window.setInterval(checkTyping, 5_000);
     return () => window.clearInterval(timer);
   }, [online, selectedContactId]);
 

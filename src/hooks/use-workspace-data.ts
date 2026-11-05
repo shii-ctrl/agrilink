@@ -42,9 +42,11 @@ export function useWorkspaceData<T>(request: () => Promise<T>) {
   useEffect(() => {
     void load().catch(() => undefined);
   }, [load]);
-  useAutoRefresh(() => {
-    void load({ background: true }).catch(() => undefined);
-  });
+  useAutoRefresh(() =>
+    load({ background: true })
+      .then(() => undefined)
+      .catch(() => undefined),
+  );
 
   return { data, loading, error, reload: load };
 }

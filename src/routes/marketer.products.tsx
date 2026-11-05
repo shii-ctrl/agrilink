@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { marketplaceImageFor } from "@/features/marketplace/marketplace-images";
 import { prepareProductImage } from "@/features/marketplace/product-image-upload";
+import { CatalogPhotoMaintenance } from "@/features/marketplace/components/catalog-photo-maintenance";
 import { procyMarketCategories } from "@/features/marketplace/procy-market-categories";
 import {
   defaultSellingUnit,
@@ -180,6 +181,7 @@ function ProductCatalogPage() {
                   );
                 })}
               </div>
+              <CatalogPhotoMaintenance onSaved={load} />
             </aside>
             <div className="min-w-0 space-y-6">
               {showCreate ? (

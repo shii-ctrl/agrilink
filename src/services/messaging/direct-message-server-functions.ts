@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -12,6 +12,7 @@ const messagingRoles = [
 ] as const;
 
 const conversationInput = z.object({ participantId: z.string().uuid() });
+const conversationReadInput = conversationInput.extend({ after: z.string().datetime().optional() });
 const messageInput = conversationInput.extend({
   message: z.string().trim().min(1).max(4_000),
   clientMessageId: z.string().uuid().optional(),
@@ -113,43 +114,36 @@ async function directRecipientIds(viewer: MessagingUser) {
   return ids;
 }
 
-async function conversationContactIds(viewerId: string) {
-  const { db } = await import("@/db/client.server");
-  const { directMessages } = await import("@/db/schema");
-  const rows = await db
-    .select({ senderId: directMessages.senderId, recipientId: directMessages.recipientId })
-    .from(directMessages)
-    .where(or(eq(directMessages.senderId, viewerId), eq(directMessages.recipientId, viewerId)));
-  return new Set(rows.map((row) => (row.senderId === viewerId ? row.recipientId : row.senderId)));
-}
-
 async function conversationSummaries(viewerId: string) {
   const { db } = await import("@/db/client.server");
   const { directMessages } = await import("@/db/schema");
-  const rows = await db
+  const contactId = sql<string>`CASE WHEN ${directMessages.senderId} = ${viewerId}
+    THEN ${directMessages.recipientId} ELSE ${directMessages.senderId} END`;
+  const ranked = db
     .select({
-      senderId: directMessages.senderId,
-      recipientId: directMessages.recipientId,
+      contactId: contactId.as("contact_id"),
       message: directMessages.message,
-      readAt: directMessages.readAt,
       createdAt: directMessages.createdAt,
+      unreadCount: sql<number>`SUM(CASE WHEN ${directMessages.recipientId} = ${viewerId}
+        AND ${directMessages.readAt} IS NULL THEN 1 ELSE 0 END)
+        OVER (PARTITION BY ${contactId})`.as("unread_count"),
+      rank: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${contactId}
+        ORDER BY ${directMessages.createdAt} DESC, ${directMessages.id} DESC)`.as("message_rank"),
     })
     .from(directMessages)
     .where(or(eq(directMessages.senderId, viewerId), eq(directMessages.recipientId, viewerId)))
-    .orderBy(asc(directMessages.createdAt));
+    .as("conversation_summaries");
+  const rows = await db.select().from(ranked).where(eq(ranked.rank, 1));
 
   const summaries = new Map<
     string,
     { lastMessage: string; lastMessageAt: string; unreadCount: number }
   >();
   for (const row of rows) {
-    const contactId = row.senderId === viewerId ? row.recipientId : row.senderId;
-    const current = summaries.get(contactId);
-    summaries.set(contactId, {
+    summaries.set(row.contactId, {
       lastMessage: row.message,
       lastMessageAt: row.createdAt.toISOString(),
-      unreadCount:
-        (current?.unreadCount ?? 0) + (row.recipientId === viewerId && row.readAt === null ? 1 : 0),
+      unreadCount: Number(row.unreadCount),
     });
   }
   return summaries;
@@ -158,11 +152,11 @@ async function conversationSummaries(viewerId: string) {
 async function contactsForViewer(viewer: MessagingUser): Promise<Contact[]> {
   const { db } = await import("@/db/client.server");
   const { roles, userRoles, users } = await import("@/db/schema");
-  const [allowedIds, existingIds, summaries] = await Promise.all([
+  const [allowedIds, summaries] = await Promise.all([
     directRecipientIds(viewer),
-    conversationContactIds(viewer.id),
     conversationSummaries(viewer.id),
   ]);
+  const existingIds = new Set(summaries.keys());
   const contactIds = [...new Set([...allowedIds, ...existingIds])];
   if (!contactIds.length) return [];
 
@@ -236,7 +230,7 @@ export const getDirectMessageWorkspace = createServerFn({ method: "GET" }).handl
 });
 
 export const getDirectConversation = createServerFn({ method: "GET" })
-  .validator(conversationInput)
+  .validator(conversationReadInput)
   .handler(async ({ data }) => {
     const viewer = await currentMessagingUser();
     await findContact(viewer, data.participantId);
@@ -273,15 +267,29 @@ export const getDirectConversation = createServerFn({ method: "GET" })
         createdAt: directMessages.createdAt,
       })
       .from(directMessages)
-      .where(condition)
+      .where(
+        and(
+          condition,
+          data.after
+            ? or(
+                gte(directMessages.createdAt, new Date(Date.parse(data.after) - 1_000)),
+                gte(directMessages.readAt, new Date(Date.parse(data.after) - 1_000)),
+                gte(directMessages.deliveredAt, new Date(Date.parse(data.after) - 1_000)),
+              )
+            : undefined,
+        ),
+      )
       .orderBy(asc(directMessages.createdAt));
-    return rows.map((row) => ({
-      id: row.id,
-      message: row.message,
-      isMine: row.senderId === viewer.id,
-      time: row.createdAt.toISOString(),
-      status: row.readAt ? "read" : row.deliveredAt ? "delivered" : "sent",
-    }));
+    return {
+      syncedAt: openedAt.toISOString(),
+      messages: rows.map((row) => ({
+        id: row.id,
+        message: row.message,
+        isMine: row.senderId === viewer.id,
+        time: row.createdAt.toISOString(),
+        status: row.readAt ? "read" : row.deliveredAt ? "delivered" : "sent",
+      })),
+    };
   });
 
 export const getDirectTyping = createServerFn({ method: "GET" })

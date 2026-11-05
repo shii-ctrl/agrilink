@@ -412,10 +412,10 @@ export function CommunityFeed({
   useEffect(() => {
     void load();
     const polling = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && navigator.onLine) {
         void load({ preservePages: true, silent: true });
       }
-    }, 15_000);
+    }, 60_000);
     const refreshOnFocus = () => void load({ preservePages: true, silent: true });
     const refreshOnVisibility = () => {
       if (document.visibilityState === "visible") {

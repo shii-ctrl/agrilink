@@ -597,7 +597,7 @@ test("role workspaces refresh saved operational data while users are active", as
   ]);
 
   assert.match(hook, /window\.addEventListener\("focus", refreshWhenVisible\)/);
-  assert.match(hook, /intervalMs = 20_000/);
+  assert.match(hook, /intervalMs = 60_000/);
   assert.match(hook, /intervalMs > 0/);
   assert.match(hook, /agrilinkDataChangedEvent/);
   assert.match(hook, /window\.addEventListener\("storage", refreshFromStorage\)/);
@@ -841,7 +841,7 @@ test("workspace sidebars show live role-specific pending work badges", async () 
   assert.doesNotMatch(service, /badges\["\/management\/(?:deliveries|disputes)"\]/);
   assert.match(service, /badges\["\/rider"\]/);
   assert.match(service, /isNull\(notifications\.readAt\)/);
-  assert.match(hook, /useAutoRefresh\(refresh, 12_000\)/);
+  assert.match(hook, /useAutoRefresh\(refresh, 60_000\)/);
   assert.match(hook, /openTargetCount < 1/);
   assert.match(hook, /markWorkspaceSidebarTargetRead/);
   assert.match(badge, /count > 99 \? "99\+" : count/);
@@ -1143,7 +1143,7 @@ test("new messages and Community activity create timely recipient notifications"
   assert.match(notifications, /communityTargetByRole/);
   assert.match(notifications, /excludeUserId/);
   assert.match(notificationCenter, /window\.setInterval/);
-  assert.match(notificationCenter, /8_000/);
+  assert.match(notificationCenter, /45_000/);
   assert.match(notificationCenter, /notificationListeners/);
   assert.match(notificationCenter, /agrilinkDataChangedEvent/);
   assert.match(notificationCenter, /authSessionChangedEvent/);
@@ -1151,7 +1151,7 @@ test("new messages and Community activity create timely recipient notifications"
   assert.match(notificationCenter, /toast\(notification\.title/);
   assert.match(communityFeed, /Live updates are on/);
   assert.match(communityFeed, /window\.setInterval/);
-  assert.match(communityFeed, /15_000/);
+  assert.match(communityFeed, /60_000/);
   assert.match(communityFeed, /document\.visibilityState === "visible"/);
   assert.match(communityFeed, /Load more posts/);
   assert.match(communityFeed, /COMMUNITY_PAGE_SIZE = 25/);
