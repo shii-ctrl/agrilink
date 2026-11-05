@@ -526,6 +526,9 @@ test("public daily prices provide responsive discovery, details, history, and Bu
   assert.doesNotMatch(page, /Invalid Date/);
   assert.match(page, /Latest available prices/);
   assert.match(page, /Available products only/);
+  assert.match(page, /xl:grid-cols-\[minmax\(16rem,1\.5fr\)/);
+  assert.match(page, /md:col-span-2 xl:col-span-1/);
+  assert.doesNotMatch(page, /mt-4 inline-flex cursor-pointer/);
   assert.match(page, /PriceMobileCard/);
   assert.match(page, /View in marketplace/);
   assert.match(page, /3 months/);

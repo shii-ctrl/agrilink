@@ -441,8 +441,8 @@ function DailyPricesPage() {
               className="mt-4 overflow-hidden rounded-2xl border border-border bg-background"
               contentClassName="md:block"
             >
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-12">
-                <label className="relative lg:col-span-5">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(16rem,1.5fr)_minmax(12rem,1fr)_minmax(10rem,0.75fr)_minmax(10rem,0.75fr)_max-content] xl:items-center">
+                <label className="relative md:col-span-2 xl:col-span-1">
                   <span className="sr-only">Search products</span>
                   <Search className="pointer-events-none absolute left-3.5 top-3.5 size-4 text-muted-foreground" />
                   <Input
@@ -453,7 +453,7 @@ function DailyPricesPage() {
                     placeholder="Search product or crop type"
                   />
                 </label>
-                <div className="lg:col-span-3">
+                <div className="min-w-0">
                   <AppSelect
                     ariaLabel="Filter daily prices by PROCY market category"
                     value={marketCategory}
@@ -467,7 +467,7 @@ function DailyPricesPage() {
                     ]}
                   />
                 </div>
-                <div className="lg:col-span-2">
+                <div className="min-w-0">
                   <AppSelect
                     ariaLabel="Filter by quality"
                     value={classification}
@@ -478,7 +478,7 @@ function DailyPricesPage() {
                     ]}
                   />
                 </div>
-                <div className="lg:col-span-2">
+                <div className="min-w-0">
                   <AppSelect
                     ariaLabel="Filter by selling unit"
                     value={sellingUnit}
@@ -492,16 +492,20 @@ function DailyPricesPage() {
                     ]}
                   />
                 </div>
-              </div>
-              <label className="mt-4 inline-flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium shadow-sm">
-                <Switch checked={availableOnly} onCheckedChange={setAvailableOnly} />
-                <span>
-                  Available products only
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    Hide sold-out items
+                <label className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-2 text-sm font-medium shadow-sm xl:whitespace-nowrap">
+                  <Switch
+                    className="shrink-0"
+                    checked={availableOnly}
+                    onCheckedChange={setAvailableOnly}
+                  />
+                  <span className="leading-tight">
+                    Available products only
+                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground xl:hidden">
+                      Hide sold-out items
+                    </span>
                   </span>
-                </span>
-              </label>
+                </label>
+              </div>
             </ResponsiveFilterPanel>
           </div>
 
