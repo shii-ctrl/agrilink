@@ -14,15 +14,13 @@ import { RoleGate } from "@/components/layout/role-gate";
 import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { WorkspaceHeaderActions } from "@/components/workspaces/workspace-header-actions";
+import { CollapsibleSidebarGroup } from "@/components/workspaces/collapsible-sidebar-group";
 import { useWorkspaceUser } from "@/hooks/use-workspace-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -70,27 +68,24 @@ export function BuyerLayout({ children }: { children: ReactNode }) {
             </Link>
           </SidebarHeader>
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Main</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {nav.map((item) => (
-                    <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={item.label}
-                        isActive={buyerNavIsActive(pathname, item.to)}
-                      >
-                        <Link to={item.to} activeOptions={{ exact: true }}>
-                          <item.icon />
-                          <span>{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+            <CollapsibleSidebarGroup label="Main">
+              <SidebarMenu>
+                {nav.map((item) => (
+                  <SidebarMenuItem key={item.label}>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={item.label}
+                      isActive={buyerNavIsActive(pathname, item.to)}
+                    >
+                      <Link to={item.to} activeOptions={{ exact: true }}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </CollapsibleSidebarGroup>
           </SidebarContent>
           <SidebarFooter className="p-4">
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">

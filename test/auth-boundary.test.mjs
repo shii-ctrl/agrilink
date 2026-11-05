@@ -746,6 +746,25 @@ test("Marketer product workflow uses one permanent catalog and preserves old URL
   assert.match(publishedListingsPage, /redirect\(\{ to: "\/marketer\/products" \}\)/);
 });
 
+test("Every workspace sidebar exposes collapsible navigation sections", async () => {
+  const collapsibleGroup = await readFile(
+    "src/components/workspaces/collapsible-sidebar-group.tsx",
+    "utf8",
+  );
+  const layouts = await Promise.all(
+    ["accounting", "buyer", "farmer", "management", "rider"].map((role) =>
+      readFile(`src/components/workspaces/${role}-layout.tsx`, "utf8"),
+    ),
+  );
+
+  assert.match(collapsibleGroup, /<details open/);
+  assert.match(collapsibleGroup, /ChevronDown/);
+  assert.match(collapsibleGroup, /group-open\/sidebar-section:rotate-180/);
+  for (const layout of layouts) {
+    assert.match(layout, /CollapsibleSidebarGroup/);
+  }
+});
+
 test("role workflows keep catalog, cart, and Farmer stock states consistent", async () => {
   const [marketplace, marketerCatalog, receiving, notifications] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),

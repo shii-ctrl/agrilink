@@ -18,9 +18,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -33,6 +30,7 @@ import { RoleGate } from "@/components/layout/role-gate";
 import { LogoutConfirmation } from "@/components/layout/logout-confirmation";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { WorkspaceHeaderActions } from "@/components/workspaces/workspace-header-actions";
+import { CollapsibleSidebarGroup } from "@/components/workspaces/collapsible-sidebar-group";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -129,27 +127,24 @@ export function ManagementLayout({ children }: { children: ReactNode }) {
 
           <SidebarContent>
             {managementSections.map((section) => (
-              <SidebarGroup key={section.label}>
-                <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {section.items.map((item) => (
-                      <SidebarMenuItem key={item.label}>
-                        <SidebarMenuButton
-                          asChild
-                          tooltip={item.label}
-                          isActive={pathname === item.to}
-                        >
-                          <Link to={item.to} activeOptions={{ exact: true }}>
-                            <item.icon />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
+              <CollapsibleSidebarGroup key={section.label} label={section.label}>
+                <SidebarMenu>
+                  {section.items.map((item) => (
+                    <SidebarMenuItem key={item.label}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={item.label}
+                        isActive={pathname === item.to}
+                      >
+                        <Link to={item.to} activeOptions={{ exact: true }}>
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </CollapsibleSidebarGroup>
             ))}
           </SidebarContent>
 
