@@ -208,6 +208,9 @@ export function LoginDialog({
                   id="landing-login-identifier"
                   name="identifier"
                   autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="Username or email"
                   required
                   className="auth-login-field h-12 border-border bg-background pl-10 text-foreground placeholder:text-muted-foreground"

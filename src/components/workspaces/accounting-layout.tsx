@@ -35,15 +35,34 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-const navigation = [
-  { label: "Dashboard", to: "/accounting", icon: BarChart3 },
-  { label: "Transactions", to: "/accounting/transactions", icon: ReceiptText },
-  { label: "Record Payment", to: "/accounting/payments", icon: CircleDollarSign },
-  { label: "Farmer Payouts", to: "/accounting/farmer-payouts", icon: Landmark },
-  { label: "Delivery Refunds", to: "/accounting/refunds", icon: HandCoins },
-  { label: "Daily Closing", to: "/accounting/daily-closing", icon: LockKeyhole },
-  { label: "Reports", to: "/accounting/reports", icon: FileBarChart },
-  { label: "Community", to: "/accounting/community", icon: MessageCircle },
+const accountingSections = [
+  {
+    label: "Main",
+    items: [{ label: "Dashboard", to: "/accounting", icon: BarChart3 }],
+  },
+  {
+    label: "Payments",
+    items: [
+      { label: "Transactions", to: "/accounting/transactions", icon: ReceiptText },
+      { label: "Record Payment", to: "/accounting/payments", icon: CircleDollarSign },
+      { label: "Delivery Refunds", to: "/accounting/refunds", icon: HandCoins },
+    ],
+  },
+  {
+    label: "Farmer settlement",
+    items: [{ label: "Farmer Payouts", to: "/accounting/farmer-payouts", icon: Landmark }],
+  },
+  {
+    label: "Cash management",
+    items: [
+      { label: "Daily Closing", to: "/accounting/daily-closing", icon: LockKeyhole },
+      { label: "Reports", to: "/accounting/reports", icon: FileBarChart },
+    ],
+  },
+  {
+    label: "Collaboration",
+    items: [{ label: "Community", to: "/accounting/community", icon: MessageCircle }],
+  },
 ] as const;
 
 export function AccountingLayout({ children }: { children: ReactNode }) {
@@ -67,21 +86,27 @@ export function AccountingLayout({ children }: { children: ReactNode }) {
             </Link>
           </SidebarHeader>
           <SidebarContent>
-            <CollapsibleSidebarGroup label="Main">
-              <SidebarMenu>
-                {navigation.map((item) => (
-                  <SidebarMenuItem key={item.label}>
-                    <SidebarMenuButton asChild tooltip={item.label} isActive={pathname === item.to}>
-                      <Link to={item.to} activeOptions={{ exact: true }}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                    <SidebarCountBadge count={badges[item.to]} />
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </CollapsibleSidebarGroup>
+            {accountingSections.map((section) => (
+              <CollapsibleSidebarGroup key={section.label} label={section.label}>
+                <SidebarMenu>
+                  {section.items.map((item) => (
+                    <SidebarMenuItem key={item.label}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={item.label}
+                        isActive={pathname === item.to}
+                      >
+                        <Link to={item.to} activeOptions={{ exact: true }}>
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                      <SidebarCountBadge count={badges[item.to]} />
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </CollapsibleSidebarGroup>
+            ))}
           </SidebarContent>
           <SidebarFooter className="p-4">
             <div className="mb-3 rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-3">

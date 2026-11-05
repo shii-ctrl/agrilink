@@ -38,6 +38,22 @@ test("Buyer self-registration is username-only and keeps email optional", async 
   assert.match(homePage, /RegisterDialog/);
 });
 
+test("username login lookup is trimmed and case-insensitive", async () => {
+  const authServer = await readFile(
+    new URL("../src/services/auth/auth-server.ts", import.meta.url),
+    "utf8",
+  );
+  const loginDialog = await readFile(
+    new URL("../src/features/auth/components/login-dialog.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(authServer, /LOWER\(TRIM\(\$\{users\.username\}\)\)/);
+  assert.match(authServer, /LOWER\(TRIM\(\$\{users\.email\}\)\)/);
+  assert.match(loginDialog, /autoCapitalize="none"/);
+  assert.match(loginDialog, /autoCorrect="off"/);
+});
+
 test("initial Management setup is guarded by a server-side one-time secret", async () => {
   const source = await readFile("src/services/auth/admin-server-functions.ts", "utf8");
   const setup = source.slice(source.indexOf("export const createInitialManagementAccount"));
