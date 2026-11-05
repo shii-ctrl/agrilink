@@ -281,6 +281,10 @@ test("marketplace browsing keeps the public layout with Buyer mobile shopping to
   assert.match(buyerLayout, /fixed inset-x-0 bottom-0/);
   assert.match(buyerLayout, /md:hidden/);
   assert.match(marketplace, /overflow-x-auto/);
+  assert.match(marketplace, /PROCY marketplace/);
+  assert.match(marketplace, /Fresh produce from local farmer members/);
+  assert.match(marketplace, /Live product availability/);
+  assert.doesNotMatch(marketplace, /Live Layerbase marketplace listings/);
   assert.match(marketplace, /<FloatingBuyerCartSummary/);
   assert.match(siteHeader, /Back to Buyer dashboard/);
   assert.match(siteHeader, /<NotificationCenter role="Buyer"/);

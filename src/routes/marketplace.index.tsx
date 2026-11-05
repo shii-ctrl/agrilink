@@ -130,16 +130,17 @@ function MarketplacePage() {
   const catalog = (
     <main className="w-full px-4 pb-24 pt-8 sm:px-6 sm:pb-0 sm:pt-12 lg:px-8">
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-        · Public marketplace
+        · PROCY marketplace
       </p>
       <h1 className="mt-3 max-w-2xl text-4xl font-semibold md:text-5xl">
-        Produce supplied by farmer members, sold by PROCY
+        Fresh produce from local farmer members
       </h1>
       <p className="mt-4 max-w-xl text-sm text-muted-foreground">
-        Browse freely. Login or register as a buyer to add items to your cart and place orders.
+        Browse quality-classified products supplied by PROCY farmer members, with current prices and
+        live stock availability.
       </p>
       <p className="mt-3 inline-flex rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
-        Live Layerbase marketplace listings
+        Live product availability
       </p>
 
       <ResponsiveFilterPanel
