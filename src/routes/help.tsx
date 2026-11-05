@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CircleHelp, LogIn, ShoppingCart, Sprout } from "lucide-react";
+import { CircleAlert, MessageCircle, PackageSearch, ShoppingCart } from "lucide-react";
 
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -9,47 +9,51 @@ export const Route = createFileRoute("/help")({
   head: () => ({
     meta: [
       { title: "Help — AgriLink" },
-      { name: "description", content: "Learn how to browse and use the AgriLink marketplace." },
+      { name: "description", content: "Buyer support for AgriLink orders and marketplace use." },
     ],
   }),
   component: HelpPage,
 });
 
 function HelpPage() {
-  const steps = [
+  const supportLinks = [
     {
-      icon: Sprout,
-      title: "Browse products",
-      text: "Open Marketplace to view products supplied by farmer members and managed by PROCY. Use search and filters to find what you need.",
-    },
-    {
-      icon: CircleHelp,
-      title: "Understand classifications",
-      text: "Each product is listed separately as Good, Semi, or Reject. The PROCY Market Categories guide explains the crop groups.",
-    },
-    {
-      icon: LogIn,
-      title: "Create or use a Buyer account",
-      text: "You may browse freely. Login or registration is required before adding products to a cart or placing an order.",
+      icon: PackageSearch,
+      title: "Find products",
+      text: "Search available products by crop type, quality, and stock.",
+      to: "/marketplace" as const,
     },
     {
       icon: ShoppingCart,
-      title: "Place an order",
-      text: "Add available products to your cart, review the quantity, and submit your order. PROCY confirms orders; AgriLink has no online payment gateway.",
+      title: "Review your cart",
+      text: "Check quantities, totals, and your pickup or delivery details.",
+      to: "/buyer/cart" as const,
+    },
+    {
+      icon: CircleAlert,
+      title: "Report an issue",
+      text: "Submit a concern about an eligible delivered order.",
+      to: "/buyer/issues" as const,
+    },
+    {
+      icon: MessageCircle,
+      title: "Contact support",
+      text: "Open your private messages for order assistance.",
+      to: "/buyer/community" as const,
     },
   ];
   const faq = [
     [
       "Can I buy directly from farmers?",
-      "No. Farmers supply PROCY, and PROCY lists and sells products to buyers.",
+      "Products are supplied by PROCY farmer members and sold through PROCY.",
     ],
     [
       "What do Good, Semi, and Reject mean?",
-      "They are separate PROCY quality classifications. Each has its own listing, price, and available quantity.",
+      "They are quality options with separate photos, prices, and available quantities.",
     ],
     [
       "How do I track an order?",
-      "Sign in as a Buyer and open My Orders to see Pending, Confirmed, Sold, and Paid progress.",
+      "Sign in and open My Orders to view the latest order, payment, pickup, or delivery status.",
     ],
   ];
   return (
@@ -57,25 +61,23 @@ function HelpPage() {
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Help center</p>
-        <h1 className="mt-3 max-w-2xl text-4xl font-semibold md:text-5xl">How to use AgriLink</h1>
+        <h1 className="mt-3 max-w-2xl text-4xl font-semibold md:text-5xl">Buyer support</h1>
         <p className="mt-4 max-w-2xl text-muted-foreground">
-          A simple guide for visitors and buyers using the PROCY marketplace.
+          Find products, manage orders, and get help with your purchases.
         </p>
         <section className="mt-10 grid gap-5 md:grid-cols-2">
-          {steps.map((step, index) => (
-            <article
-              key={step.title}
-              className="rounded-3xl border border-border bg-card p-6 shadow-card"
+          {supportLinks.map((item) => (
+            <Link
+              key={item.title}
+              to={item.to}
+              className="rounded-3xl border border-border bg-card p-6 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-field"
             >
               <span className="flex size-10 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-                <step.icon className="size-5" />
+                <item.icon className="size-5" />
               </span>
-              <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-primary">
-                Step {index + 1}
-              </p>
-              <h2 className="mt-1 text-xl font-semibold">{step.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.text}</p>
-            </article>
+              <h2 className="mt-5 text-xl font-semibold">{item.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.text}</p>
+            </Link>
           ))}
         </section>
         <section className="mt-8 rounded-3xl border border-border bg-card p-6 shadow-card">
@@ -90,10 +92,9 @@ function HelpPage() {
           </div>
         </section>
         <section className="mt-8 rounded-3xl border border-primary/20 bg-accent p-6 text-accent-foreground">
-          <h2 className="text-lg font-semibold">Who manages the marketplace?</h2>
+          <h2 className="text-lg font-semibold">Looking for something?</h2>
           <p className="mt-2 text-sm leading-relaxed">
-            Farmer Members supply PROCY. PROCY receives, classifies, lists, and sells products to
-            buyers. Buyers do not purchase directly from individual farmers.
+            Browse the marketplace to check current products, prices, and availability.
           </p>
           <Button asChild className="mt-5 rounded-full">
             <Link to="/marketplace">Browse marketplace</Link>

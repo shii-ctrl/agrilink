@@ -1618,6 +1618,9 @@ test("buyer-facing pages avoid internal operations language and unnecessary syst
     productDetail,
     orderDetails,
     footer,
+    help,
+    privacy,
+    terms,
   ] = await Promise.all([
     readFile("src/routes/about.tsx", "utf8"),
     readFile("src/routes/daily-prices.tsx", "utf8"),
@@ -1629,6 +1632,9 @@ test("buyer-facing pages avoid internal operations language and unnecessary syst
     readFile("src/routes/marketplace.$productId.tsx", "utf8"),
     readFile("src/features/marketplace/components/order-details.tsx", "utf8"),
     readFile("src/components/layout/site-footer.tsx", "utf8"),
+    readFile("src/routes/help.tsx", "utf8"),
+    readFile("src/routes/privacy.tsx", "utf8"),
+    readFile("src/routes/terms.tsx", "utf8"),
   ]);
 
   const publicCopy = [
@@ -1642,6 +1648,9 @@ test("buyer-facing pages avoid internal operations language and unnecessary syst
     productDetail,
     orderDetails,
     footer,
+    help,
+    privacy,
+    terms,
   ].join("\n");
 
   for (const internalPhrase of [
@@ -1654,6 +1663,11 @@ test("buyer-facing pages avoid internal operations language and unnecessary syst
     "Payment is recorded by Accounting",
     "available classified stock",
     "Market operator &amp; seller",
+    "How to use AgriLink",
+    "Prototype service",
+    "prototype marketplace",
+    "Marketplace workflow",
+    "Contact Management",
   ]) {
     assert.doesNotMatch(publicCopy, new RegExp(internalPhrase));
   }
@@ -1661,6 +1675,11 @@ test("buyer-facing pages avoid internal operations language and unnecessary syst
   assert.match(dailyPrices, /Daily prices/);
   assert.match(buyerOrders, /View your orders, payment status, and pickup or delivery updates/);
   assert.match(orderDetails, /Your payment status will update after payment is received/);
+  assert.match(help, /Buyer support/);
+  assert.match(help, /Find products/);
+  assert.match(help, /Report an issue/);
+  assert.match(privacy, /Contact PROCY for account access help/);
+  assert.match(terms, /Orders are subject to product availability and confirmation/);
 });
 
 test("Farmer earnings use fixed deductions and Accounting-only cash releases", async () => {
