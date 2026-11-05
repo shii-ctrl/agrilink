@@ -1554,9 +1554,10 @@ test("shared buttons enforce consistent action hierarchy, sizing, and loading fe
 });
 
 test("public landing and marketplace pages share responsive page gutters", async () => {
-  const [home, marketplace] = await Promise.all([
+  const [home, marketplace, footer] = await Promise.all([
     readFile("src/routes/index.tsx", "utf8"),
     readFile("src/routes/marketplace.index.tsx", "utf8"),
+    readFile("src/components/layout/site-footer.tsx", "utf8"),
   ]);
 
   const sharedGutters = /px-4[^"\n]*sm:px-6[^"\n]*lg:px-8/;
@@ -1575,6 +1576,10 @@ test("public landing and marketplace pages share responsive page gutters", async
   assert.match(home, /Browse classified products/);
   assert.doesNotMatch(home, /> Selectable</);
   assert.doesNotMatch(marketplace, /max-w-6xl px-4 pb-24 pt-8/);
+  assert.match(footer, /0905 240 3280/);
+  assert.match(footer, /\(042\) 373 2992/);
+  assert.match(footer, /SPPAQFA@SENTRONGPAMILIHAN\.COM/);
+  assert.match(footer, /Sentrong Pamilihan &quot;PROCY&quot;/);
 });
 
 test("Farmer earnings use fixed deductions and Accounting-only cash releases", async () => {

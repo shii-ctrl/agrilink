@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { Facebook, Mail, Phone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ProcyLogo } from "@/components/layout/procy-logo";
 import { getCurrentSessionUser } from "@/services/auth/auth-functions";
@@ -18,8 +19,8 @@ export function SiteFooter({ sessionSignedIn }: { sessionSignedIn?: boolean | nu
 
   return (
     <footer className="mt-16 surface-field sm:mt-24">
-      <div className="grid w-full gap-8 px-4 py-10 sm:gap-10 sm:px-6 sm:py-16 md:grid-cols-4 lg:px-8">
-        <div className="md:col-span-2">
+      <div className="grid w-full gap-8 px-4 py-10 sm:gap-10 sm:px-6 sm:py-16 md:grid-cols-2 lg:grid-cols-[1.4fr_0.8fr_0.9fr_1.3fr] lg:px-8">
+        <div>
           <div className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-full bg-lime text-forest">
               <ProcyLogo className="size-8" />
@@ -68,7 +69,48 @@ export function SiteFooter({ sessionSignedIn }: { sessionSignedIn?: boolean | nu
             <li>Market operator &amp; seller</li>
             <li>Quality classification</li>
             <li>Order fulfillment</li>
-            <li>procy@agrilink.ph</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-wide opacity-70">
+            Contact PROCY
+          </h3>
+          <ul className="mt-4 space-y-3 text-sm opacity-90">
+            <li>
+              <a href="tel:+639052403280" className="flex items-start gap-2.5 hover:underline">
+                <Phone className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  <span className="block text-xs opacity-70">Mobile</span>
+                  0905 240 3280
+                </span>
+              </a>
+            </li>
+            <li>
+              <a href="tel:+63423732992" className="flex items-start gap-2.5 hover:underline">
+                <Phone className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  <span className="block text-xs opacity-70">Landline</span>
+                  (042) 373 2992
+                </span>
+              </a>
+            </li>
+            <li>
+              <a
+                href="mailto:sppaqfa@sentrongpamilihan.com"
+                className="flex min-w-0 items-start gap-2.5 hover:underline"
+              >
+                <Mail className="mt-0.5 size-4 shrink-0" />
+                <span className="min-w-0 break-all">SPPAQFA@SENTRONGPAMILIHAN.COM</span>
+              </a>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <Facebook className="mt-0.5 size-4 shrink-0" />
+              <span>
+                <span className="block text-xs opacity-70">Facebook</span>
+                Sentrong Pamilihan &quot;PROCY&quot;
+              </span>
+            </li>
           </ul>
         </div>
       </div>
