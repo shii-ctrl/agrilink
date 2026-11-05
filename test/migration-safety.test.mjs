@@ -279,3 +279,13 @@ test("Farmer settlement migration starts with new sales and preserves existing o
   assert.doesNotMatch(migration, /UPDATE orders SET farmer_settlement_eligible = TRUE/);
   assert.doesNotMatch(migration, /DELETE|DROP TABLE|TRUNCATE TABLE/);
 });
+
+test("private messaging experience preserves conversations while adding delivery and typing state", async () => {
+  const migration = await readFile("drizzle/0044_private_message_experience.sql", "utf8");
+
+  assert.match(migration, /ALTER TABLE direct_messages/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS delivered_at DATETIME NULL/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS direct_message_typing/);
+  assert.match(migration, /FOREIGN KEY \(user_id\) REFERENCES users\(id\) ON DELETE CASCADE/);
+  assert.doesNotMatch(migration, /DELETE FROM|DROP TABLE|TRUNCATE TABLE/);
+});

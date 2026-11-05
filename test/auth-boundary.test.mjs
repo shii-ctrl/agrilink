@@ -843,10 +843,11 @@ test("reordered carts and Community access protect role boundaries", async () =>
   assert.match(retirement, /DROP TABLE IF EXISTS guidance_messages/);
 });
 
-test("private messages enforce the Community role recipient rules", async () => {
-  const [directMessages, migration, panel] = await Promise.all([
+test("private messages enforce workflow recipients and provide resilient conversation states", async () => {
+  const [directMessages, migration, experienceMigration, panel] = await Promise.all([
     readFile("src/services/messaging/direct-message-server-functions.ts", "utf8"),
     readFile("drizzle/0015_direct_messages.sql", "utf8"),
+    readFile("drizzle/0044_private_message_experience.sql", "utf8"),
     readFile("src/features/messaging/components/direct-messages-panel.tsx", "utf8"),
   ]);
 
@@ -856,25 +857,41 @@ test("private messages enforce the Community role recipient rules", async () => 
     directMessages,
     /viewer\.roles\.includes\("Farmer"\)[\s\S]*?addRoleRecipients\(\["Farmer"\]\)/,
   );
-  assert.match(directMessages, /viewer\.roles\.includes\("Buyer"\) && existingIds\.has\(row\.id\)/);
   assert.match(directMessages, /viewer\.roles\.includes\("Buyer"\)/);
   assert.match(directMessages, /isNotNull\(orders\.assignedRiderId\)/);
+  assert.match(directMessages, /activeDeliveryStatuses/);
+  assert.match(directMessages, /inArray\(orders\.fulfillmentStatus/);
   assert.match(directMessages, /viewer\.roles\.includes\("Rider"\)/);
   assert.match(directMessages, /eq\(orders\.assignedRiderId, viewer\.id\)/);
+  assert.match(directMessages, /unreadCount/);
+  assert.match(directMessages, /lastMessageAt/);
+  assert.match(directMessages, /Date\.parse\(right\.lastMessageAt\)/);
   assert.match(directMessages, /Rider: "\/rider\/community"/);
   assert.match(directMessages, /\?contact=\$\{viewer\.id\}/);
   assert.doesNotMatch(directMessages, /Farm Consultant|farmerConsultantAssignments/);
   assert.match(directMessages, /export const getDirectConversation/);
+  assert.match(directMessages, /export const getDirectTyping/);
+  assert.match(directMessages, /export const updateDirectTyping/);
   assert.match(directMessages, /export const sendDirectMessage/);
   assert.match(directMessages, /Your role cannot start a private message/);
   assert.match(directMessages, /New private message/);
   assert.match(directMessages, /avatarUrl: users\.avatarUrl/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS direct_messages/);
   assert.match(migration, /fk_direct_message_sender/);
+  assert.match(experienceMigration, /ADD COLUMN IF NOT EXISTS delivered_at/);
+  assert.match(experienceMigration, /CREATE TABLE IF NOT EXISTS direct_message_typing/);
   assert.match(panel, /Private messages/);
-  assert.match(panel, /Message only the people your role is allowed to contact/);
+  assert.match(panel, /Saved and role-protected/);
+  assert.match(panel, /Available for this workflow/);
   assert.match(panel, /function ContactAvatar/);
   assert.match(panel, /contact\.avatarUrl/);
+  assert.match(panel, /Sending…/);
+  assert.match(panel, /Delivered/);
+  assert.match(panel, /is typing…/);
+  assert.match(panel, /No conversations yet/);
+  assert.match(panel, /Start conversation/);
+  assert.match(panel, /navigator\.onLine/);
+  assert.match(panel, /Retry/);
 });
 
 test("Farmer Crop AI keeps the Gemini key server-only and scopes chats to each Farmer", async () => {

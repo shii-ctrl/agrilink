@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -12,7 +12,11 @@ const messagingRoles = [
 ] as const;
 
 const conversationInput = z.object({ participantId: z.string().uuid() });
-const messageInput = conversationInput.extend({ message: z.string().trim().min(1).max(4_000) });
+const messageInput = conversationInput.extend({
+  message: z.string().trim().min(1).max(4_000),
+  clientMessageId: z.string().uuid().optional(),
+});
+const typingInput = conversationInput.extend({ isTyping: z.boolean() });
 
 type MessagingRole = (typeof messagingRoles)[number];
 type MessagingUser = {
@@ -26,6 +30,9 @@ type Contact = {
   role: string;
   avatarUrl: string | null;
   canSend: boolean;
+  lastMessage: string | null;
+  lastMessageAt: string | null;
+  unreadCount: number;
 };
 
 const workspaceByRole: Record<MessagingRole, string> = {
@@ -36,6 +43,13 @@ const workspaceByRole: Record<MessagingRole, string> = {
   Buyer: "/buyer/community",
   Rider: "/rider/community",
 };
+
+const activeDeliveryStatuses = [
+  "rider_assigned",
+  "out_for_delivery",
+  "delivery_failed",
+  "rescheduled",
+] as const;
 
 function displayRole(roles: string[]) {
   return messagingRoles.find((role) => roles.includes(role)) ?? roles[0] ?? "AgriLink member";
@@ -71,7 +85,13 @@ async function directRecipientIds(viewer: MessagingUser) {
     const assignedRiders = await db
       .select({ id: orders.assignedRiderId })
       .from(orders)
-      .where(and(eq(orders.buyerId, viewer.id), isNotNull(orders.assignedRiderId)));
+      .where(
+        and(
+          eq(orders.buyerId, viewer.id),
+          isNotNull(orders.assignedRiderId),
+          inArray(orders.fulfillmentStatus, [...activeDeliveryStatuses]),
+        ),
+      );
     assignedRiders.forEach((row) => {
       if (row.id) ids.add(row.id);
     });
@@ -81,7 +101,12 @@ async function directRecipientIds(viewer: MessagingUser) {
     const assignedBuyers = await db
       .select({ id: orders.buyerId })
       .from(orders)
-      .where(eq(orders.assignedRiderId, viewer.id));
+      .where(
+        and(
+          eq(orders.assignedRiderId, viewer.id),
+          inArray(orders.fulfillmentStatus, [...activeDeliveryStatuses]),
+        ),
+      );
     assignedBuyers.forEach((row) => ids.add(row.id));
   }
   ids.delete(viewer.id);
@@ -98,12 +123,45 @@ async function conversationContactIds(viewerId: string) {
   return new Set(rows.map((row) => (row.senderId === viewerId ? row.recipientId : row.senderId)));
 }
 
+async function conversationSummaries(viewerId: string) {
+  const { db } = await import("@/db/client.server");
+  const { directMessages } = await import("@/db/schema");
+  const rows = await db
+    .select({
+      senderId: directMessages.senderId,
+      recipientId: directMessages.recipientId,
+      message: directMessages.message,
+      readAt: directMessages.readAt,
+      createdAt: directMessages.createdAt,
+    })
+    .from(directMessages)
+    .where(or(eq(directMessages.senderId, viewerId), eq(directMessages.recipientId, viewerId)))
+    .orderBy(asc(directMessages.createdAt));
+
+  const summaries = new Map<
+    string,
+    { lastMessage: string; lastMessageAt: string; unreadCount: number }
+  >();
+  for (const row of rows) {
+    const contactId = row.senderId === viewerId ? row.recipientId : row.senderId;
+    const current = summaries.get(contactId);
+    summaries.set(contactId, {
+      lastMessage: row.message,
+      lastMessageAt: row.createdAt.toISOString(),
+      unreadCount:
+        (current?.unreadCount ?? 0) + (row.recipientId === viewerId && row.readAt === null ? 1 : 0),
+    });
+  }
+  return summaries;
+}
+
 async function contactsForViewer(viewer: MessagingUser): Promise<Contact[]> {
   const { db } = await import("@/db/client.server");
   const { roles, userRoles, users } = await import("@/db/schema");
-  const [allowedIds, existingIds] = await Promise.all([
+  const [allowedIds, existingIds, summaries] = await Promise.all([
     directRecipientIds(viewer),
     conversationContactIds(viewer.id),
+    conversationSummaries(viewer.id),
   ]);
   const contactIds = [...new Set([...allowedIds, ...existingIds])];
   if (!contactIds.length) return [];
@@ -129,10 +187,14 @@ async function contactsForViewer(viewer: MessagingUser): Promise<Contact[]> {
       role: "AgriLink member",
       avatarUrl: row.avatarVisibility === "hidden" ? null : row.avatarUrl,
       roles: [],
-      // Buyers may start a thread only with a Rider assigned to one of their orders.
-      // Existing permitted conversations remain replyable without exposing unrelated accounts.
       canSend:
-        allowedIds.has(row.id) || (viewer.roles.includes("Buyer") && existingIds.has(row.id)),
+        allowedIds.has(row.id) ||
+        (!viewer.roles.includes("Buyer") &&
+          !viewer.roles.includes("Rider") &&
+          existingIds.has(row.id)),
+      lastMessage: summaries.get(row.id)?.lastMessage ?? null,
+      lastMessageAt: summaries.get(row.id)?.lastMessageAt ?? null,
+      unreadCount: summaries.get(row.id)?.unreadCount ?? 0,
     };
     current.roles.push(row.role);
     current.role = displayRole(current.roles);
@@ -140,7 +202,14 @@ async function contactsForViewer(viewer: MessagingUser): Promise<Contact[]> {
   }
   return [...contacts.values()]
     .map(({ roles: _roles, ...contact }) => contact)
-    .sort((left, right) => left.name.localeCompare(right.name));
+    .sort((left, right) => {
+      if (left.lastMessageAt && right.lastMessageAt) {
+        return Date.parse(right.lastMessageAt) - Date.parse(left.lastMessageAt);
+      }
+      if (left.lastMessageAt) return -1;
+      if (right.lastMessageAt) return 1;
+      return left.name.localeCompare(right.name);
+    });
 }
 
 async function findContact(viewer: MessagingUser, participantId: string) {
@@ -157,6 +226,12 @@ async function currentMessagingUser() {
 
 export const getDirectMessageWorkspace = createServerFn({ method: "GET" }).handler(async () => {
   const viewer = await currentMessagingUser();
+  const { db } = await import("@/db/client.server");
+  const { directMessages } = await import("@/db/schema");
+  await db
+    .update(directMessages)
+    .set({ deliveredAt: new Date() })
+    .where(and(eq(directMessages.recipientId, viewer.id), isNull(directMessages.deliveredAt)));
   return { contacts: await contactsForViewer(viewer) };
 });
 
@@ -177,19 +252,10 @@ export const getDirectConversation = createServerFn({ method: "GET" })
         eq(directMessages.recipientId, viewer.id),
       ),
     );
-    const rows = await db
-      .select({
-        id: directMessages.id,
-        senderId: directMessages.senderId,
-        message: directMessages.message,
-        createdAt: directMessages.createdAt,
-      })
-      .from(directMessages)
-      .where(condition)
-      .orderBy(asc(directMessages.createdAt));
+    const openedAt = new Date();
     await db
       .update(directMessages)
-      .set({ readAt: new Date() })
+      .set({ deliveredAt: openedAt, readAt: openedAt })
       .where(
         and(
           eq(directMessages.senderId, data.participantId),
@@ -197,12 +263,73 @@ export const getDirectConversation = createServerFn({ method: "GET" })
           isNull(directMessages.readAt),
         ),
       );
+    const rows = await db
+      .select({
+        id: directMessages.id,
+        senderId: directMessages.senderId,
+        message: directMessages.message,
+        deliveredAt: directMessages.deliveredAt,
+        readAt: directMessages.readAt,
+        createdAt: directMessages.createdAt,
+      })
+      .from(directMessages)
+      .where(condition)
+      .orderBy(asc(directMessages.createdAt));
     return rows.map((row) => ({
       id: row.id,
       message: row.message,
       isMine: row.senderId === viewer.id,
       time: row.createdAt.toISOString(),
+      status: row.readAt ? "read" : row.deliveredAt ? "delivered" : "sent",
     }));
+  });
+
+export const getDirectTyping = createServerFn({ method: "GET" })
+  .validator(conversationInput)
+  .handler(async ({ data }) => {
+    const viewer = await currentMessagingUser();
+    const contact = await findContact(viewer, data.participantId);
+    const { db } = await import("@/db/client.server");
+    const { directMessageTyping } = await import("@/db/schema");
+    const [typing] = await db
+      .select({ expiresAt: directMessageTyping.expiresAt })
+      .from(directMessageTyping)
+      .where(
+        and(
+          eq(directMessageTyping.userId, contact.id),
+          eq(directMessageTyping.participantId, viewer.id),
+          gt(directMessageTyping.expiresAt, new Date()),
+        ),
+      )
+      .limit(1);
+    return { isTyping: Boolean(typing), name: contact.name };
+  });
+
+export const updateDirectTyping = createServerFn({ method: "POST" })
+  .validator(typingInput)
+  .handler(async ({ data }) => {
+    const viewer = await currentMessagingUser();
+    const contact = await findContact(viewer, data.participantId);
+    if (!contact.canSend) return { active: false };
+    const { db } = await import("@/db/client.server");
+    const { directMessageTyping } = await import("@/db/schema");
+    if (!data.isTyping) {
+      await db
+        .delete(directMessageTyping)
+        .where(
+          and(
+            eq(directMessageTyping.userId, viewer.id),
+            eq(directMessageTyping.participantId, contact.id),
+          ),
+        );
+      return { active: false };
+    }
+    const expiresAt = new Date(Date.now() + 5_000);
+    await db
+      .insert(directMessageTyping)
+      .values({ userId: viewer.id, participantId: contact.id, expiresAt })
+      .onDuplicateKeyUpdate({ set: { expiresAt } });
+    return { active: true };
   });
 
 export const sendDirectMessage = createServerFn({ method: "POST" })
@@ -215,7 +342,20 @@ export const sendDirectMessage = createServerFn({ method: "POST" })
     }
     const { db } = await import("@/db/client.server");
     const { directMessages, roles, userRoles } = await import("@/db/schema");
-    const id = crypto.randomUUID();
+    const id = data.clientMessageId ?? crypto.randomUUID();
+    if (data.clientMessageId) {
+      const [existing] = await db
+        .select({ senderId: directMessages.senderId, recipientId: directMessages.recipientId })
+        .from(directMessages)
+        .where(eq(directMessages.id, id))
+        .limit(1);
+      if (existing) {
+        if (existing.senderId !== viewer.id || existing.recipientId !== contact.id) {
+          throw new Error("This message could not be retried safely.");
+        }
+        return { id };
+      }
+    }
     await db.insert(directMessages).values({
       id,
       senderId: viewer.id,

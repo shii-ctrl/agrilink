@@ -833,6 +833,7 @@ export const directMessages = mysqlTable(
     senderId: varchar("sender_id", { length: 36 }).notNull(),
     recipientId: varchar("recipient_id", { length: 36 }).notNull(),
     message: text("message").notNull(),
+    deliveredAt: datetime("delivered_at"),
     readAt: datetime("read_at"),
     createdAt,
     updatedAt,
@@ -844,6 +845,19 @@ export const directMessages = mysqlTable(
       table.createdAt,
     ),
     index("direct_messages_recipient_read_idx").on(table.recipientId, table.readAt),
+  ],
+);
+export const directMessageTyping = mysqlTable(
+  "direct_message_typing",
+  {
+    userId: varchar("user_id", { length: 36 }).notNull(),
+    participantId: varchar("participant_id", { length: 36 }).notNull(),
+    expiresAt: datetime("expires_at").notNull(),
+    updatedAt,
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.participantId] }),
+    index("direct_message_typing_participant_expiry_idx").on(table.participantId, table.expiresAt),
   ],
 );
 export const farmerAiConversations = mysqlTable(
