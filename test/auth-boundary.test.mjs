@@ -1570,6 +1570,10 @@ test("public landing and marketplace pages share responsive page gutters", async
   assert.doesNotMatch(home, /How ordering works/);
   assert.doesNotMatch(home, /Receive order/);
   assert.doesNotMatch(home, /From product to pickup/);
+  assert.match(home, /PROCY quality classifications/);
+  assert.match(home, /Compare available quality options/);
+  assert.match(home, /Browse classified products/);
+  assert.doesNotMatch(home, /> Selectable</);
   assert.doesNotMatch(marketplace, /max-w-6xl px-4 pb-24 pt-8/);
 });
 

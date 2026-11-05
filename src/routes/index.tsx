@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
   BadgeCheck,
-  Check,
   Clock3,
   Egg,
   PackageCheck,
@@ -437,57 +436,52 @@ function Index() {
         </section>
 
         <section className="mt-14 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
-          <div className="grid gap-6 overflow-hidden rounded-3xl surface-field p-5 sm:gap-8 sm:rounded-[2rem] sm:p-7 md:grid-cols-[0.9fr_1.1fr] md:p-12">
+          <div className="grid gap-6 overflow-hidden rounded-3xl surface-field p-5 sm:gap-8 sm:rounded-[2rem] sm:p-7 md:grid-cols-[0.9fr_1.1fr] md:p-10">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-70">
-                · Clear quality choices
+                · PROCY quality classifications
               </p>
-              <h2 className="mt-4 text-2xl font-semibold sm:text-3xl md:text-4xl">
-                One product, selectable quality options
+              <h2 className="mt-3 text-2xl font-semibold sm:text-3xl md:text-4xl">
+                Compare available quality options
               </h2>
-              <p className="mt-4 max-w-md text-sm leading-relaxed opacity-80">
-                Each permanent product listing may offer Good, Semi, and Reject. Buyers compare the
-                photo, price, and available stock before adding their preferred quality to cart.
+              <p className="mt-3 max-w-lg text-sm leading-relaxed opacity-80">
+                Products may be offered in Good, Semi, or Reject classifications. Photos, prices,
+                and available quantities are shown separately for informed purchasing.
               </p>
               <Button
                 asChild
                 variant="secondary"
-                className="mt-6 w-full rounded-full sm:mt-7 sm:w-auto"
+                className="mt-5 w-full rounded-full sm:mt-6 sm:w-auto"
               >
                 <Link to="/marketplace" search={{}}>
-                  Compare live products <ArrowRight className="size-4" />
+                  Browse classified products <ArrowRight className="size-4" />
                 </Link>
               </Button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {[
                 {
                   grade: "Good",
-                  detail: "Best appearance and quality",
+                  detail: "Best overall appearance and condition",
                   tone: "bg-emerald-500/15",
                 },
                 {
                   grade: "Semi",
-                  detail: "Usable produce at a different price",
+                  detail: "Usable produce with minor visual imperfections",
                   tone: "bg-amber-400/15",
                 },
                 {
                   grade: "Reject",
-                  detail: "Lower grade, clearly identified",
+                  detail: "Lower-grade produce offered at a reduced price",
                   tone: "bg-orange-500/15",
                 },
               ].map((item) => (
                 <div
                   key={item.grade}
-                  className={`flex items-center justify-between gap-3 rounded-2xl border border-white/15 p-4 sm:gap-4 sm:p-5 ${item.tone}`}
+                  className={`rounded-2xl border border-white/15 px-4 py-3.5 sm:px-5 ${item.tone}`}
                 >
-                  <div>
-                    <p className="font-semibold">{item.grade} quality</p>
-                    <p className="mt-1 text-xs opacity-70">{item.detail}</p>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 text-xs font-medium">
-                    <Check className="size-4" /> Selectable
-                  </span>
+                  <p className="font-semibold">{item.grade}</p>
+                  <p className="mt-0.5 text-xs opacity-70">{item.detail}</p>
                 </div>
               ))}
             </div>
