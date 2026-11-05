@@ -1575,6 +1575,13 @@ test("public landing and marketplace pages share responsive page gutters", async
   assert.match(home, /Compare available quality options/);
   assert.match(home, /Browse classified products/);
   assert.doesNotMatch(home, /> Selectable</);
+  assert.match(home, /Order fresh produce from PROCY/);
+  assert.match(
+    home,
+    /Create a Buyer account to reserve available stock and choose pickup or delivery/,
+  );
+  assert.match(home, /Create Buyer account/);
+  assert.doesNotMatch(home, /I already have an account/);
   assert.doesNotMatch(marketplace, /max-w-6xl px-4 pb-24 pt-8/);
   assert.match(footer, /0905 240 3280/);
   assert.match(footer, /\(042\) 373 2992/);

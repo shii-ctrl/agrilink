@@ -515,17 +515,17 @@ function Index() {
           </div>
         </section>
 
-        <section className="mt-14 w-full px-4 sm:mt-24 sm:px-6 lg:px-8">
-          <div className="rounded-3xl border border-border bg-cream p-6 text-center dark:bg-card sm:rounded-[2rem] sm:p-8 md:p-14">
-            <h2 className="text-2xl font-semibold sm:text-3xl md:text-4xl">
-              {isBuyer ? "Continue your AgriLink order" : "Ready to buy from PROCY?"}
+        <section className="mt-10 w-full px-4 sm:mt-16 sm:px-6 lg:px-8">
+          <div className="rounded-3xl border border-border bg-cream px-5 py-7 text-center dark:bg-card sm:rounded-[2rem] sm:px-8 sm:py-9">
+            <h2 className="text-2xl font-semibold sm:text-3xl">
+              {isBuyer ? "Continue your AgriLink order" : "Order fresh produce from PROCY"}
             </h2>
-            <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
               {isBuyer
                 ? "Review your reserved products or track the latest status of your submitted orders."
-                : "Browse freely, then register as a Buyer when you are ready to reserve stock and submit an order."}
+                : "Create a Buyer account to reserve available stock and choose pickup or delivery."}
             </p>
-            <div className="mt-6 grid gap-2 sm:mt-7 sm:flex sm:flex-wrap sm:justify-center sm:gap-3">
+            <div className="mt-5 grid gap-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-3">
               {isBuyer ? (
                 <>
                   <Button asChild size="lg" className="w-full rounded-full sm:w-auto">
@@ -548,7 +548,7 @@ function Index() {
                     className="w-full rounded-full sm:w-auto"
                     onClick={() => setRegisterOpen(true)}
                   >
-                    Register
+                    Create Buyer account
                   </Button>
                   <Button
                     type="button"
@@ -557,7 +557,7 @@ function Index() {
                     className="w-full rounded-full sm:w-auto"
                     onClick={() => setLoginOpen(true)}
                   >
-                    I already have an account
+                    Sign in
                   </Button>
                 </>
               )}
