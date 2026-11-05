@@ -622,6 +622,8 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
       throw new Error("A catalog product with that name already exists.");
     }
     const id = crypto.randomUUID();
+    const { uploadCatalogImage } = await import("./catalog-image-storage.server");
+    const imageUrl = data.imageDataUrl ? await uploadCatalogImage(data.imageDataUrl) : null;
     await db.transaction(async (tx) => {
       await tx.insert(products).values({
         id,
@@ -629,7 +631,7 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
         cropType: data.cropType,
         sellingUnit: data.sellingUnit,
         ...(data.description ? { description: data.description } : {}),
-        ...(data.imageDataUrl ? { imageUrl: data.imageDataUrl } : {}),
+        ...(imageUrl ? { imageUrl } : {}),
       });
       const qualityRows = await tx
         .select({ id: classifications.id })
@@ -644,7 +646,7 @@ export const createCatalogProduct = createServerFn({ method: "POST" })
           classificationId: classification.id,
           pricePerKg: "0.01",
           retailPricePerKg: "0.01",
-          imageUrl: data.imageDataUrl || null,
+          imageUrl,
           status: "draft" as const,
         })),
       );
@@ -693,6 +695,8 @@ export const updateCatalogProduct = createServerFn({ method: "POST" })
         throw new Error("Selling unit cannot be changed after stock has been recorded.");
       }
     }
+    const { uploadCatalogImage } = await import("./catalog-image-storage.server");
+    const imageUrl = data.imageDataUrl ? await uploadCatalogImage(data.imageDataUrl) : null;
     const [updated] = await db
       .update(products)
       .set({
@@ -700,7 +704,7 @@ export const updateCatalogProduct = createServerFn({ method: "POST" })
         cropType: data.cropType,
         sellingUnit: data.sellingUnit,
         description: data.description || null,
-        ...(data.imageDataUrl ? { imageUrl: data.imageDataUrl } : {}),
+        ...(imageUrl ? { imageUrl } : {}),
       })
       .where(eq(products.id, data.productId));
     if (updated.affectedRows !== 1) throw new Error("The catalog product could not be found.");
@@ -833,10 +837,9 @@ export const updateCatalogProductImage = createServerFn({ method: "POST" })
       .where(and(eq(products.id, data.productId), eq(products.active, true)));
     if (!product) throw new Error("This catalog product is no longer available.");
 
-    await db
-      .update(products)
-      .set({ imageUrl: data.imageDataUrl })
-      .where(eq(products.id, product.id));
+    const { uploadCatalogImage } = await import("./catalog-image-storage.server");
+    const imageUrl = await uploadCatalogImage(data.imageDataUrl);
+    await db.update(products).set({ imageUrl }).where(eq(products.id, product.id));
     await writeAuditLog(actor.id, "product.catalog_image_update", "product", product.id, {
       name: product.name,
     });
@@ -865,12 +868,14 @@ export const updateMarketplaceOfferImage = createServerFn({ method: "POST" })
     if (!offer) throw new Error("This marketplace quality could not be found.");
     if (!offer.productActive) throw new Error("Restore this product before changing its photo.");
 
-    await db.update(listings).set({ imageUrl: data.imageDataUrl }).where(eq(listings.id, offer.id));
+    const { uploadCatalogImage } = await import("./catalog-image-storage.server");
+    const imageUrl = await uploadCatalogImage(data.imageDataUrl);
+    await db.update(listings).set({ imageUrl }).where(eq(listings.id, offer.id));
     await writeAuditLog(actor.id, "listing.image.update", "marketplace_listing", offer.id, {
       product: offer.product,
       classification: offer.classification,
     });
-    return { id: offer.id, imageUrl: data.imageDataUrl };
+    return { id: offer.id, imageUrl };
   });
 
 export const getCatalogProducts = createServerFn({ method: "GET" }).handler(async () => {

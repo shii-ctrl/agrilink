@@ -727,11 +727,12 @@ function QualityPhoto({
                 await onSaved();
                 setPreview("");
               })
-              .catch((error) =>
+              .catch((error) => {
+                setPreview("");
                 toast.error(`${offer.classification} photo could not be updated`, {
                   description: error instanceof Error ? error.message : "Choose another image.",
-                }),
-              )
+                });
+              })
               .finally(() => {
                 setPreparing(false);
                 setSaving(false);
