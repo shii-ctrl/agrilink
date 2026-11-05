@@ -8,10 +8,10 @@ import { formatSellingQuantity } from "@/features/marketplace/selling-units";
 
 export function ProductCard({
   product,
-  mobileView = "grid",
+  catalogView = "grid",
 }: {
   product: Product;
-  mobileView?: "grid" | "list";
+  catalogView?: "grid" | "list";
 }) {
   const offers = product.offers?.length
     ? product.offers
@@ -90,8 +90,8 @@ export function ProductCard({
       onFocus={() => setPreviewing(true)}
       onBlur={stopPreview}
       aria-busy={isOpening}
-      className={`group relative overflow-hidden border border-border bg-card shadow-card transition-all sm:flex sm:flex-col sm:rounded-3xl ${
-        mobileView === "list" ? "flex flex-row rounded-2xl" : "flex flex-col rounded-2xl"
+      className={`group relative overflow-hidden border border-border bg-card shadow-card transition-all sm:rounded-3xl ${
+        catalogView === "list" ? "flex flex-row rounded-2xl" : "flex flex-col rounded-2xl"
       } ${
         isOpening ? "pointer-events-none" : ""
       } ${outOfStock ? "opacity-80" : "hover:-translate-y-1 hover:shadow-field"}`}
@@ -122,8 +122,10 @@ export function ProductCard({
           )
         : null}
       <div
-        className={`relative shrink-0 overflow-hidden sm:aspect-[4/3] sm:w-full ${
-          mobileView === "list" ? "aspect-square w-28" : "aspect-square w-full"
+        className={`relative shrink-0 overflow-hidden ${
+          catalogView === "list"
+            ? "aspect-square w-28 sm:aspect-[4/3] sm:w-56 lg:w-64"
+            : "aspect-square w-full sm:aspect-[4/3]"
         }`}
       >
         <div
@@ -163,8 +165,8 @@ export function ProductCard({
         ) : null}
       </div>
       <div
-        className={`flex min-w-0 flex-1 flex-col sm:gap-3 sm:p-5 ${
-          mobileView === "list" ? "gap-1.5 p-3" : "gap-2 p-3"
+        className={`flex min-w-0 flex-1 flex-col ${
+          catalogView === "list" ? "gap-1.5 p-3 sm:gap-3 sm:p-5" : "gap-2 p-3 sm:gap-3 sm:p-5"
         }`}
       >
         <div>
