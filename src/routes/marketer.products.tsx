@@ -582,7 +582,7 @@ function MarketplaceEditor({
               }),
             },
           });
-          toast.success("Good, Semi, and Reject marketplace settings saved");
+          toast.success("Marketplace settings and today’s Daily Prices saved");
           await onSaved();
         } catch (error) {
           toast.error("Marketplace settings could not be saved", {

@@ -23,6 +23,55 @@ const marketplaceQualityOrder: Classification[] = ["Good", "Semi", "Reject"];
 
 const moneyValue = (value: number) => Number(value.toFixed(2));
 
+function currentProcyPriceDate() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+async function syncMarketplacePriceToToday(
+  tx: MarketplaceTransaction,
+  listingId: string,
+  price: number | null,
+  actorId: string,
+) {
+  const { dailyPrices } = await import("@/db/schema");
+  const date = currentProcyPriceDate();
+  const [existing] = await tx
+    .select({ id: dailyPrices.id })
+    .from(dailyPrices)
+    .where(and(eq(dailyPrices.listingId, listingId), sql`DATE(${dailyPrices.priceDate}) = ${date}`))
+    .limit(1);
+
+  if (existing) {
+    await tx
+      .update(dailyPrices)
+      .set({
+        ...(price === null ? {} : { price: price.toFixed(2) }),
+        published: price !== null,
+        createdById: actorId,
+        createdAt: new Date(),
+      })
+      .where(eq(dailyPrices.id, existing.id));
+    return { id: existing.id, date, created: false };
+  }
+  if (price === null) return { id: null, date, created: false };
+
+  const id = crypto.randomUUID();
+  await tx.insert(dailyPrices).values({
+    id,
+    listingId,
+    price: price.toFixed(2),
+    priceDate: new Date(`${date}T00:00:00`),
+    published: true,
+    createdById: actorId,
+  });
+  return { id, date, created: true };
+}
+
 async function createFarmerEarningsForSale(
   tx: MarketplaceTransaction,
   orderId: string,
@@ -179,40 +228,6 @@ function normalizeRecipientName(value: string) {
 const releaseOrderInput = workflowActionInput.extend({
   outcome: z.enum(["cancelled", "rejected"]),
   reason: z.string().trim().min(3).max(500).optional(),
-});
-const dailyPriceInput = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  listingId: z.string().uuid(),
-  price: z.number().positive().max(100000),
-});
-const bulkDailyPriceInput = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  prices: z
-    .array(
-      z.object({
-        listingId: z.string().uuid(),
-        price: z.number().positive().max(100_000),
-      }),
-    )
-    .min(1)
-    .max(250)
-    .superRefine((prices, context) => {
-      const listingIds = new Set<string>();
-      prices.forEach((price, index) => {
-        if (listingIds.has(price.listingId)) {
-          context.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Each product quality can be published only once per batch.",
-            path: [index, "listingId"],
-          });
-        }
-        listingIds.add(price.listingId);
-      });
-    }),
-});
-const dailyPriceStatusInput = z.object({
-  id: z.string().uuid(),
-  published: z.boolean(),
 });
 const dailyPriceAlertInput = z.object({
   listingId: z.string().uuid(),
@@ -1201,17 +1216,23 @@ export const updateMarketplaceListingPricing = createServerFn({ method: "POST" }
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
     const { listings } = await import("@/db/schema");
-    const [updated] = await db
-      .update(listings)
-      .set({
-        pricePerKg: data.retailPricePerKg.toFixed(2),
-        retailPricePerKg: data.retailPricePerKg.toFixed(2),
-        priceConfigured: true,
-        bundlePricePerKg: data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
-        bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
-      })
-      .where(eq(listings.id, data.listingId));
-    if (updated.affectedRows !== 1) throw new Error("The marketplace listing could not be found.");
+    await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(listings)
+        .set({
+          pricePerKg: data.retailPricePerKg.toFixed(2),
+          retailPricePerKg: data.retailPricePerKg.toFixed(2),
+          priceConfigured: true,
+          bundlePricePerKg:
+            data.bundlePricePerKg === null ? null : data.bundlePricePerKg.toFixed(2),
+          bundleMinimumKg: data.bundleMinimumKg === null ? null : data.bundleMinimumKg.toFixed(2),
+        })
+        .where(eq(listings.id, data.listingId));
+      if (updated.affectedRows !== 1) {
+        throw new Error("The marketplace listing could not be found.");
+      }
+      await syncMarketplacePriceToToday(tx, data.listingId, data.retailPricePerKg, actor.id);
+    });
     await writeAuditLog(actor.id, "listing.pricing.update", "marketplace_listing", data.listingId, {
       retailPricePerKg: data.retailPricePerKg,
       bundlePricePerKg: data.bundlePricePerKg,
@@ -1235,8 +1256,10 @@ export const saveMarketplaceProductOffers = createServerFn({ method: "POST" })
           productId: listings.productId,
           classification: classifications.name,
           productName: products.name,
+          sellingUnit: products.sellingUnit,
           productActive: products.active,
           previousStatus: listings.status,
+          previousRetailPrice: listings.retailPricePerKg,
         })
         .from(listings)
         .innerJoin(classifications, eq(listings.classificationId, classifications.id))
@@ -1283,7 +1306,21 @@ export const saveMarketplaceProductOffers = createServerFn({ method: "POST" })
         if (updated.affectedRows !== 1) {
           throw new Error(`${current.classification} settings could not be saved.`);
         }
-        results.push({ ...current, ...offer, status });
+        const syncedPrice = await syncMarketplacePriceToToday(
+          tx,
+          offer.listingId,
+          offer.retailPricePerKg,
+          actor.id,
+        );
+        results.push({
+          ...current,
+          ...offer,
+          status,
+          syncedPriceDate: syncedPrice.date,
+          priceChanged:
+            (current.previousRetailPrice === null ? null : Number(current.previousRetailPrice)) !==
+            offer.retailPricePerKg,
+        });
       }
       return results;
     });
@@ -1315,6 +1352,27 @@ export const saveMarketplaceProductOffers = createServerFn({ method: "POST" })
           target: "/buyer/cart",
         });
       }
+    }
+    const publicPriceChanges = saved.filter(
+      (offer) =>
+        offer.priceChanged && offer.retailPricePerKg !== null && offer.status === "published",
+    );
+    if (publicPriceChanges.length) {
+      await notifyRole("Buyer", {
+        title: "Marketplace prices updated",
+        message: `${publicPriceChanges.length} product ${publicPriceChanges.length === 1 ? "price has" : "prices have"} been updated for today.`,
+        target: "/daily-prices",
+      });
+      await Promise.all(
+        publicPriceChanges.map((offer) =>
+          notifyMatchingDailyPriceAlerts(
+            offer.id,
+            offer.productName,
+            offer.retailPricePerKg!,
+            offer.sellingUnit,
+          ),
+        ),
+      );
     }
     return saved.map((offer) => ({ id: offer.id, status: offer.status }));
   });
@@ -1542,213 +1600,6 @@ export const getMarketerDailyPrices = createServerFn({ method: "GET" }).handler(
   await requireRole("Marketer");
   return fetchDailyPrices(false);
 });
-
-export const publishDailyPrice = createServerFn({ method: "POST" })
-  .validator(dailyPriceInput)
-  .handler(async ({ data }) => {
-    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const actor = await requireRole("Marketer");
-    const { db } = await import("@/db/client.server");
-    const { dailyPrices, listings, products } = await import("@/db/schema");
-    const [listing] = await db
-      .select({
-        id: listings.id,
-        status: listings.status,
-        productName: products.name,
-        sellingUnit: products.sellingUnit,
-      })
-      .from(listings)
-      .innerJoin(products, eq(listings.productId, products.id))
-      .where(eq(listings.id, data.listingId));
-    if (!listing || listing.status !== "published") {
-      throw new Error("Choose a currently published marketplace listing.");
-    }
-    const [existing] = await db
-      .select({ id: dailyPrices.id })
-      .from(dailyPrices)
-      .where(
-        and(
-          eq(dailyPrices.listingId, data.listingId),
-          sql`DATE(${dailyPrices.priceDate}) = ${data.date}`,
-        ),
-      );
-    if (existing) {
-      await db
-        .update(dailyPrices)
-        .set({
-          price: data.price.toFixed(2),
-          published: true,
-          createdById: actor.id,
-          createdAt: new Date(),
-        })
-        .where(eq(dailyPrices.id, existing.id));
-      await writeAuditLog(actor.id, "daily_price.update", "daily_price", existing.id, data);
-      const { notifyRole } = await import("@/services/messaging/notification-server");
-      await notifyRole("Buyer", {
-        title: "Daily price updated",
-        message: `${listing.productName} is now ₱${data.price.toFixed(2)} per ${sellingUnitLabel(listing.sellingUnit)} for ${data.date}.`,
-        target: "/daily-prices",
-      });
-      await notifyMatchingDailyPriceAlerts(
-        data.listingId,
-        listing.productName,
-        data.price,
-        listing.sellingUnit,
-      );
-      return { id: existing.id, updated: true };
-    }
-    const id = crypto.randomUUID();
-    await db.insert(dailyPrices).values({
-      id,
-      listingId: data.listingId,
-      price: data.price.toFixed(2),
-      priceDate: new Date(`${data.date}T00:00:00`),
-      published: true,
-      createdById: actor.id,
-    });
-    await writeAuditLog(actor.id, "daily_price.publish", "daily_price", id, data);
-    const { notifyRole } = await import("@/services/messaging/notification-server");
-    await notifyRole("Buyer", {
-      title: "New daily price",
-      message: `${listing.productName} is ₱${data.price.toFixed(2)} per ${sellingUnitLabel(listing.sellingUnit)} for ${data.date}.`,
-      target: "/daily-prices",
-    });
-    await notifyMatchingDailyPriceAlerts(
-      data.listingId,
-      listing.productName,
-      data.price,
-      listing.sellingUnit,
-    );
-    return { id, updated: false };
-  });
-
-export const publishDailyPricesBulk = createServerFn({ method: "POST" })
-  .validator(bulkDailyPriceInput)
-  .handler(async ({ data }) => {
-    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const actor = await requireRole("Marketer");
-    const { db } = await import("@/db/client.server");
-    const { dailyPrices, listings, products } = await import("@/db/schema");
-    const listingIds = data.prices.map((entry) => entry.listingId);
-    const listingRows = await db
-      .select({
-        id: listings.id,
-        status: listings.status,
-        productName: products.name,
-        sellingUnit: products.sellingUnit,
-      })
-      .from(listings)
-      .innerJoin(products, eq(listings.productId, products.id))
-      .where(inArray(listings.id, listingIds));
-    const listingById = new Map(listingRows.map((listing) => [listing.id, listing]));
-    const invalidListing = data.prices.find(
-      (entry) => listingById.get(entry.listingId)?.status !== "published",
-    );
-    if (invalidListing) {
-      throw new Error("One or more selected product qualities are no longer published.");
-    }
-
-    const existingRows = await db
-      .select({ id: dailyPrices.id, listingId: dailyPrices.listingId })
-      .from(dailyPrices)
-      .where(
-        and(
-          inArray(dailyPrices.listingId, listingIds),
-          sql`DATE(${dailyPrices.priceDate}) = ${data.date}`,
-        ),
-      );
-    const existingByListing = new Map(existingRows.map((entry) => [entry.listingId, entry.id]));
-    const savedIds: string[] = [];
-    let created = 0;
-    let updated = 0;
-
-    await db.transaction(async (tx) => {
-      for (const entry of data.prices) {
-        const existingId = existingByListing.get(entry.listingId);
-        if (existingId) {
-          await tx
-            .update(dailyPrices)
-            .set({
-              price: entry.price.toFixed(2),
-              published: true,
-              createdById: actor.id,
-              createdAt: new Date(),
-            })
-            .where(eq(dailyPrices.id, existingId));
-          savedIds.push(existingId);
-          updated += 1;
-          continue;
-        }
-        const id = crypto.randomUUID();
-        await tx.insert(dailyPrices).values({
-          id,
-          listingId: entry.listingId,
-          price: entry.price.toFixed(2),
-          priceDate: new Date(`${data.date}T00:00:00`),
-          published: true,
-          createdById: actor.id,
-        });
-        savedIds.push(id);
-        created += 1;
-      }
-    });
-
-    await writeAuditLog(actor.id, "daily_price.bulk_publish", "daily_price_batch", data.date, {
-      date: data.date,
-      listingIds,
-      created,
-      updated,
-    });
-    const { notifyRole } = await import("@/services/messaging/notification-server");
-    await notifyRole("Buyer", {
-      title: "Daily prices updated",
-      message: `${data.prices.length} product ${data.prices.length === 1 ? "price is" : "prices are"} available for ${data.date}.`,
-      target: "/daily-prices",
-    });
-    await Promise.all(
-      data.prices.map((entry) => {
-        const listing = listingById.get(entry.listingId)!;
-        return notifyMatchingDailyPriceAlerts(
-          entry.listingId,
-          listing.productName,
-          entry.price,
-          listing.sellingUnit,
-        );
-      }),
-    );
-    return { savedIds, created, updated, count: data.prices.length };
-  });
-
-export const setDailyPricePublished = createServerFn({ method: "POST" })
-  .validator(dailyPriceStatusInput)
-  .handler(async ({ data }) => {
-    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
-    const actor = await requireRole("Marketer");
-    const { db } = await import("@/db/client.server");
-    const { dailyPrices, listings, products } = await import("@/db/schema");
-    const [dailyPrice] = await db
-      .select({ productName: products.name })
-      .from(dailyPrices)
-      .innerJoin(listings, eq(dailyPrices.listingId, listings.id))
-      .innerJoin(products, eq(listings.productId, products.id))
-      .where(eq(dailyPrices.id, data.id));
-    if (!dailyPrice) throw new Error("The daily price could not be found.");
-    const [result] = await db
-      .update(dailyPrices)
-      .set({ published: data.published })
-      .where(eq(dailyPrices.id, data.id));
-    if (result.affectedRows !== 1) throw new Error("The daily price could not be found.");
-    await writeAuditLog(actor.id, "daily_price.visibility", "daily_price", data.id, data);
-    const { notifyRole } = await import("@/services/messaging/notification-server");
-    await notifyRole("Buyer", {
-      title: data.published ? "Daily price published" : "Daily price hidden",
-      message: data.published
-        ? `${dailyPrice.productName}'s daily price is now available to view.`
-        : `${dailyPrice.productName}'s daily price is no longer publicly available.`,
-      target: "/daily-prices",
-    });
-    return { id: data.id, published: data.published };
-  });
 
 async function buyerCartRows(buyerId: string) {
   const { db } = await import("@/db/client.server");

@@ -469,7 +469,7 @@ test("catalog product descriptions may be left blank", async () => {
   assert.match(marketplace, /Description must contain at least 4 characters when provided/);
 });
 
-test("daily prices use PROCY market categories as an organizing guide", async () => {
+test("marketplace retail prices automatically create read-only daily price history", async () => {
   const [categories, publicPrices, marketerPrices, marketplace] = await Promise.all([
     readFile("src/features/marketplace/procy-market-categories.ts", "utf8"),
     readFile("src/routes/daily-prices.tsx", "utf8"),
@@ -489,16 +489,15 @@ test("daily prices use PROCY market categories as an organizing guide", async ()
   }
   assert.match(publicPrices, /PROCY market category/);
   assert.match(publicPrices, /Filter daily prices by PROCY market category/);
-  assert.match(marketerPrices, /Publish daily prices/);
-  assert.match(marketerPrices, /Copy previous prices/);
-  assert.match(marketerPrices, /Review and publish/);
-  assert.match(marketerPrices, /Draft changes are saved on this device/);
-  assert.match(marketerPrices, /Quality to update/);
-  assert.match(marketerPrices, /\["Good", "Semi", "Reject"\]/);
-  assert.match(marketerPrices, /listing\.classification === qualityFilter/);
-  assert.match(marketplace, /export const publishDailyPricesBulk/);
-  assert.match(marketplace, /daily_price\.bulk_publish/);
-  assert.match(marketplace, /Each product quality can be published only once per batch/);
+  assert.match(marketerPrices, /Read-only records synchronized from the Product Catalog/);
+  assert.match(marketerPrices, /Today’s synced prices/);
+  assert.match(marketerPrices, /Previous dates remain unchanged/);
+  assert.match(marketplace, /async function syncMarketplacePriceToToday/);
+  assert.match(marketplace, /timeZone: "Asia\/Manila"/);
+  assert.match(marketplace, /await syncMarketplacePriceToToday/);
+  assert.doesNotMatch(marketplace, /export const publishDailyPrice\s*=/);
+  assert.doesNotMatch(marketplace, /export const publishDailyPricesBulk\s*=/);
+  assert.doesNotMatch(marketplace, /export const setDailyPricePublished\s*=/);
   assert.doesNotMatch(categories, /70\/60|250\/230/);
 });
 
@@ -1146,8 +1145,8 @@ test("operational changes notify the users who need to respond", async () => {
   assert.match(accounts, /Account deactivated/);
   assert.match(marketplace, /New marketplace listing/);
   assert.match(marketplace, /Marketplace listing changed/);
-  assert.match(marketplace, /Daily price updated/);
-  assert.match(marketplace, /Daily price hidden/);
+  assert.match(marketplace, /Marketplace prices updated/);
+  assert.match(marketplace, /notifyMatchingDailyPriceAlerts/);
   assert.match(notifications, /export async function notifyCartHoldersForListing/);
 });
 
