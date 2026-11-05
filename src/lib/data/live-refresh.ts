@@ -2,6 +2,7 @@ import { beginMutatingAction } from "@/lib/ui/action-lock";
 
 export const agrilinkDataChangedEvent = "agrilink:data-changed";
 const storageKey = "agrilink:last-data-change";
+export const backgroundMutationHeader = "x-agrilink-background";
 
 export function notifyAgrilinkDataChanged() {
   window.dispatchEvent(new Event(agrilinkDataChangedEvent));
@@ -26,8 +27,16 @@ export function installMutationRefreshObserver() {
       input instanceof Request ? input.url : String(input),
       window.location.href,
     );
+    const requestHeaders = new Headers(input instanceof Request ? input.headers : undefined);
+    if (init?.headers) {
+      new Headers(init.headers).forEach((value, key) => requestHeaders.set(key, value));
+    }
+    const isBackgroundMutation = requestHeaders.get(backgroundMutationHeader) === "true";
     const isMutation =
-      requestUrl.origin === window.location.origin && method !== "GET" && method !== "HEAD";
+      requestUrl.origin === window.location.origin &&
+      method !== "GET" &&
+      method !== "HEAD" &&
+      !isBackgroundMutation;
     const finishAction = isMutation ? beginMutatingAction() : null;
 
     try {

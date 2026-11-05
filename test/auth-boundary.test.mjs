@@ -613,6 +613,8 @@ test("successful system actions trigger immediate and cross-tab soft refreshes",
   assert.match(liveRefresh, /method !== "GET"/);
   assert.match(liveRefresh, /method !== "HEAD"/);
   assert.match(liveRefresh, /requestUrl\.origin === window\.location\.origin/);
+  assert.match(liveRefresh, /backgroundMutationHeader/);
+  assert.match(liveRefresh, /!isBackgroundMutation/);
   assert.match(liveRefresh, /notifyAgrilinkDataChanged\(\)/);
   assert.match(liveRefresh, /localStorage\.setItem/);
   assert.match(home, /useAutoRefresh\(\(\) => loadFeatured/);
@@ -888,6 +890,7 @@ test("private messages enforce workflow recipients and provide resilient convers
   assert.match(panel, /Sending…/);
   assert.match(panel, /Delivered/);
   assert.match(panel, /is typing…/);
+  assert.match(panel, /headers: backgroundMutationHeaders/);
   assert.match(panel, /No conversations yet/);
   assert.match(panel, /Start conversation/);
   assert.match(panel, /navigator\.onLine/);

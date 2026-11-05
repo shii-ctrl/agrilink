@@ -18,6 +18,7 @@ import { ProfileAvatar } from "@/components/profile-avatar";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { backgroundMutationHeader } from "@/lib/data/live-refresh";
 import {
   getDirectConversation,
   getDirectMessageWorkspace,
@@ -45,6 +46,8 @@ const statusLabels = {
   read: "Read",
   failed: "Not sent",
 } as const;
+
+const backgroundMutationHeaders = { [backgroundMutationHeader]: "true" };
 
 function messageStatusLabel(status: string) {
   return statusLabels[status as keyof typeof statusLabels] ?? "Sent";
@@ -261,6 +264,7 @@ export function DirectMessagesPanel({
     const timer = window.setTimeout(() => {
       void updateDirectTyping({
         data: { participantId: selectedContact.id, isTyping: draft.trim().length > 0 },
+        headers: backgroundMutationHeaders,
       }).catch(() => undefined);
     }, 500);
     return () => window.clearTimeout(timer);
@@ -271,6 +275,7 @@ export function DirectMessagesPanel({
       if (selectedContactId) {
         void updateDirectTyping({
           data: { participantId: selectedContactId, isTyping: false },
+          headers: backgroundMutationHeaders,
         }).catch(() => undefined);
       }
     },
@@ -314,6 +319,7 @@ export function DirectMessagesPanel({
     syncLocalMessages([...localMessagesRef.current, queuedMessage]);
     void updateDirectTyping({
       data: { participantId: selectedContact.id, isTyping: false },
+      headers: backgroundMutationHeaders,
     }).catch(() => undefined);
     if (!online) {
       toast.info("You are offline. This message will retry automatically when connected.");
