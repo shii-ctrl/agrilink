@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { History, ImageOff, Power, Search, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { ImageOff, Power, Search, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "@/lib/ui/toast";
 import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
@@ -17,7 +17,6 @@ import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import {
   createManagementUser,
   deleteManagedUser,
-  getManagementAuditLogs,
   getManagementUsers,
   resetManagedUserPassword,
   removeManagedUserAvatar,
@@ -50,7 +49,6 @@ const userRoleFilters = [
 ] as const;
 type UserRoleFilter = (typeof userRoleFilters)[number];
 const EMPTY_USERS: ManagementUser[] = [];
-const EMPTY_AUDIT_LOGS: Awaited<ReturnType<typeof getManagementAuditLogs>> = [];
 
 function ManagedSelect({
   id,
@@ -88,12 +86,11 @@ function ManagementUsersPage() {
   const [userSearch, setUserSearch] = useState("");
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const loadManagementData = useCallback(async () => {
-    const [users, auditLogs] = await Promise.all([getManagementUsers(), getManagementAuditLogs()]);
-    return { users, auditLogs };
+    const users = await getManagementUsers();
+    return { users };
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(loadManagementData);
   const users = data?.users ?? EMPTY_USERS;
-  const auditLogs = data?.auditLogs ?? EMPTY_AUDIT_LOGS;
   const visibleUsers = useMemo(() => {
     const query = userSearch.trim().toLocaleLowerCase();
     return users.filter((user) => {
@@ -108,7 +105,6 @@ function ManagementUsersPage() {
   }, [userRoleFilter, userSearch, users]);
   // Keep the filtered account list as the source before splitting it into manageable pages.
   const usersPage = usePagination(visibleUsers.map((user) => user));
-  const activityPage = usePagination(auditLogs);
   return (
     <ManagementLayout>
       {confirmationDialog}
@@ -131,7 +127,6 @@ function ManagementUsersPage() {
                 <TabsTrigger value="all-users">All Users</TabsTrigger>
                 <TabsTrigger value="add-user">Add User</TabsTrigger>
                 <TabsTrigger value="reset-password">Reset Password</TabsTrigger>
-                <TabsTrigger value="activity">Activity Log</TabsTrigger>
               </TabsList>
 
               <TabsContent value="all-users" className="mt-6">
@@ -384,65 +379,6 @@ function ManagementUsersPage() {
                 </section>
               </TabsContent>
 
-              <TabsContent value="activity" className="mt-6">
-                <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-                  <div className="flex items-start gap-3 border-b border-border px-6 py-5">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-                      <History className="size-5" />
-                    </span>
-                    <div>
-                      <h2 className="text-lg font-semibold">Management activity</h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        The 100 most recent saved account and operational actions. Passwords and
-                        reset codes are never recorded here.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="overflow-x-auto md:overflow-visible">
-                    <table data-responsive-table className="w-full min-w-[720px] text-left text-sm">
-                      <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                        <tr>
-                          <th className="px-6 py-4 font-medium">When</th>
-                          <th className="px-6 py-4 font-medium">Actor</th>
-                          <th className="px-6 py-4 font-medium">Action</th>
-                          <th className="px-6 py-4 font-medium">Record</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {activityPage.pageItems.map((log) => (
-                          <tr key={log.id} className="border-b border-border last:border-0">
-                            <td data-label="When" className="px-6 py-4 text-muted-foreground">
-                              {new Date(log.createdAt).toLocaleString()}
-                            </td>
-                            <td data-label="Actor" className="px-6 py-4">
-                              {log.actor ?? "System"}
-                            </td>
-                            <td data-label="Action" className="px-6 py-4 font-medium">
-                              {formatAuditAction(log.action)}
-                            </td>
-                            <td data-label="Record" className="px-6 py-4 text-muted-foreground">
-                              {log.entityType}
-                            </td>
-                          </tr>
-                        ))}
-                        {auditLogs.length === 0 && (
-                          <tr>
-                            <td
-                              data-mobile-full
-                              colSpan={4}
-                              className="px-6 py-8 text-center text-muted-foreground"
-                            >
-                              No saved activity yet.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  <PaginationControls {...activityPage} itemLabel="activity records" />
-                </section>
-              </TabsContent>
-
               <TabsContent value="add-user" className="mt-6">
                 <section className="max-w-3xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
                   <div className="flex items-start gap-3">
@@ -661,13 +597,6 @@ function ManagementUsersPage() {
       </main>
     </ManagementLayout>
   );
-}
-
-function formatAuditAction(action: string) {
-  return action
-    .split(".")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" · ");
 }
 
 type ManagementUser = {
