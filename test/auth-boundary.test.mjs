@@ -1580,7 +1580,7 @@ test("public landing and marketplace pages share responsive page gutters", async
     home,
     /Create a Buyer account to reserve available stock and choose pickup or delivery/,
   );
-  assert.match(home, /Create Buyer account/);
+  assert.match(home, /Create an account/);
   assert.doesNotMatch(home, /I already have an account/);
   assert.match(home, /Buyer assurance/);
   assert.match(home, /Reliable ordering through PROCY/);

@@ -545,7 +545,7 @@ function Index() {
                     className="w-full rounded-full sm:w-auto"
                     onClick={() => setRegisterOpen(true)}
                   >
-                    Create Buyer account
+                    Create an account
                   </Button>
                   <Button
                     type="button"
