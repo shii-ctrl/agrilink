@@ -1610,6 +1610,9 @@ test("delivery disputes enforce a 24-hour role-protected resolution workflow", a
   assert.match(buyer, /Minimum \{MIN_ISSUE_DESCRIPTION_LENGTH\} characters/);
   assert.match(marketer, /Marketer decision/);
   assert.match(marketer, /Partial refund/);
+  assert.match(marketer, /Resolved case archive/);
+  assert.match(marketer, /dispute\.status !== "resolved"/);
+  assert.match(marketer, /Archive \(\$\{archivedCount\}\)/);
   assert.match(operational, /Marketer makes the final\s+decision/);
   assert.match(accounting, /Approved refund queue/);
   assert.match(accounting, /Mark processed/);
