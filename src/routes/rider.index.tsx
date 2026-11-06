@@ -8,7 +8,6 @@ import {
   MapPin,
   MessageCircle,
   PackageCheck,
-  Phone,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "@/lib/ui/toast";
@@ -155,7 +154,6 @@ function RiderDashboard() {
                     const needsAttention = ["delivery_failed", "rescheduled"].includes(
                       order.fulfillmentStatus,
                     );
-                    const contact = order.contact?.replace(/[^+\d]/g, "");
                     return (
                       <article
                         key={order.orderNumber}
@@ -202,23 +200,7 @@ function RiderDashboard() {
                             {order.paymentId ? "Paid" : money(order.totalAmount)}
                           </span>
                         </div>
-                        <div className="mt-auto grid grid-cols-2 gap-2">
-                          {contact ? (
-                            <Button asChild variant="outline" className="w-full">
-                              <a
-                                href={`tel:${contact}`}
-                                aria-label={`Call ${order.recipientName || order.buyer}`}
-                              >
-                                <Phone className="size-4" />
-                                Call
-                              </a>
-                            </Button>
-                          ) : (
-                            <Button variant="outline" disabled>
-                              <Phone className="size-4" />
-                              No phone
-                            </Button>
-                          )}
+                        <div className="mt-auto grid gap-2">
                           <Button asChild variant="outline" className="w-full">
                             <Link to="/rider/community" search={{ contact: order.buyerId }}>
                               <MessageCircle className="size-4" />
@@ -227,7 +209,7 @@ function RiderDashboard() {
                           </Button>
                           {order.fulfillmentStatus === "rider_assigned" ? (
                             <Button
-                              className="col-span-2 w-full"
+                              className="w-full"
                               disabled={updating !== null}
                               onClick={() => void updateDelivery(order.orderNumber)}
                             >
@@ -243,7 +225,7 @@ function RiderDashboard() {
                           ) : onTrip ? (
                             <>
                               <Button
-                                className="col-span-2 w-full"
+                                className="w-full"
                                 disabled={updating !== null}
                                 onClick={() => setCompletingOrder(order.orderNumber)}
                               >
@@ -252,7 +234,7 @@ function RiderDashboard() {
                               </Button>
                               <Button
                                 variant="outline"
-                                className="col-span-2 w-full"
+                                className="w-full"
                                 disabled={updating !== null}
                                 onClick={() => setIssueOrder(order.orderNumber)}
                               >
@@ -261,7 +243,7 @@ function RiderDashboard() {
                               </Button>
                             </>
                           ) : needsAttention ? (
-                            <p className="col-span-2 mt-2 text-sm text-amber-800 dark:text-amber-300">
+                            <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
                               Awaiting a delivery update.
                             </p>
                           ) : null}
