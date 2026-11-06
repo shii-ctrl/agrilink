@@ -201,7 +201,7 @@ export function LoginDialog({
             }}
           >
             <div className="space-y-2">
-              <Label htmlFor="landing-login-identifier">Email</Label>
+              <Label htmlFor="landing-login-identifier">Username or email</Label>
               <div className="relative">
                 <UserRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -211,7 +211,7 @@ export function LoginDialog({
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="Email"
+                  placeholder="Username or email"
                   required
                   className="auth-login-field h-12 border-border bg-background pl-10 text-foreground placeholder:text-muted-foreground"
                 />
