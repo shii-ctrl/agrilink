@@ -2362,13 +2362,16 @@ export const getBuyerDeliveryFee = createServerFn({ method: "GET" }).handler(asy
   };
 });
 
-/** The Rider workspace may view delivery availability but cannot change checkout settings. */
+/** Rider-scoped assignments and today's delivery count; checkout settings remain read-only. */
 export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
   const rider = await requireRole("Rider");
   const { db } = await import("@/db/client.server");
-  const { deliverySettings, orders, users } = await import("@/db/schema");
-  const [[settings], assignments] = await Promise.all([
+  const { deliverySettings, orders, users, payments } = await import("@/db/schema");
+  const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const todayStart = new Date(`${today}T00:00:00+08:00`);
+  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const [[settings], assignments, [completed]] = await Promise.all([
     db
       .select({
         flatFee: deliverySettings.flatFee,
@@ -2381,6 +2384,7 @@ export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(
       .select({
         orderId: orders.id,
         orderNumber: orders.orderNumber,
+        buyerId: orders.buyerId,
         buyer: users.displayName,
         contact: orders.contact,
         recipientName: orders.recipientName,
@@ -2389,9 +2393,11 @@ export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(
         deliveryInstructions: orders.deliveryInstructions,
         fulfillmentStatus: orders.fulfillmentStatus,
         totalAmount: orders.totalAmount,
+        paymentId: payments.id,
       })
       .from(orders)
       .innerJoin(users, eq(orders.buyerId, users.id))
+      .leftJoin(payments, eq(payments.orderId, orders.id))
       .where(
         and(
           eq(orders.assignedRiderId, rider.id),
@@ -2405,10 +2411,22 @@ export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(
         ),
       )
       .orderBy(asc(orders.createdAt)),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.assignedRiderId, rider.id),
+          eq(orders.fulfillmentMethod, "delivery"),
+          eq(orders.fulfillmentStatus, "delivered"),
+          sql`${orders.fulfilledAt} >= ${todayStart} AND ${orders.fulfilledAt} < ${tomorrowStart}`,
+        ),
+      ),
   ]);
   return {
     deliveryFee: Number(settings?.flatFee ?? 59),
     deliveryEnabled: settings?.deliveryEnabled ?? true,
+    completedToday: Number(completed?.count ?? 0),
     assignments: assignments.map((order) => ({
       ...order,
       totalAmount: Number(order.totalAmount),

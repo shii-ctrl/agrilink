@@ -1540,7 +1540,7 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(marketerLayout, /Delivery Operations/);
   assert.match(marketerLayout, /\/marketer\/deliveries/);
   assert.match(rider, /Start delivery/);
-  assert.match(rider, /Complete with proof/);
+  assert.match(rider, /Complete delivery/);
   assert.doesNotMatch(rider, /Submit COD/);
   assert.match(marketplace, /export const getRiderCompletedDeliveries/);
   assert.match(completedDeliveries, /Completed orders move here automatically/);
@@ -1549,8 +1549,7 @@ test("delivery fulfillment keeps Operations, Rider, and Accounting responsibilit
   assert.match(completedDeliveries, /PaginationControls/);
   assert.match(riderLayout, /Completed deliveries/);
   assert.match(riderLayout, /\/rider\/completed/);
-  assert.match(accounting, /Accounting scope/);
-  assert.match(accounting, /verify the order total/);
+  assert.doesNotMatch(accounting, /Accounting scope/);
   assert.match(orderDetails, /Assigned Rider/);
   assert.match(orderDetails, /Message Rider/);
   assert.match(orderDetails, /Delivery OTP/);

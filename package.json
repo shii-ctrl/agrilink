@@ -15,7 +15,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit",
-    "test:unit": "node --test test/auth-boundary.test.mjs test/migration-safety.test.mjs test/decision-support.test.mjs test/community-resolution.test.mjs",
+    "test:unit": "node --test test/auth-boundary.test.mjs test/migration-safety.test.mjs test/decision-support.test.mjs test/community-resolution.test.mjs test/rider-dashboard.test.mjs",
     "test:integration": "node --test test/migration-integrity.test.mjs",
     "test:run": "npm run test:unit && npm run test:integration",
     "test:e2e": "node --test test/e2e/*.test.mjs",

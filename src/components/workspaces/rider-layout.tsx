@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const navigation = [
-  { label: "Delivery status", to: "/rider", icon: Bike },
+  { label: "Active deliveries", to: "/rider", icon: Bike },
   { label: "Completed deliveries", to: "/rider/completed", icon: PackageCheck },
   { label: "Delivery issues", to: "/rider/disputes", icon: CircleAlert },
   { label: "Messages", to: "/rider/community", icon: MessageCircle },
