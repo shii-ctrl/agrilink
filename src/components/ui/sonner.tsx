@@ -56,7 +56,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "rounded-full bg-primary px-4 font-semibold text-primary-foreground hover:bg-secondary",
           cancelButton: "rounded-full bg-muted px-3 text-muted-foreground",
           closeButton:
-            "!left-auto !right-2.5 !top-2.5 !size-7 !translate-x-0 !translate-y-0 rounded-full !border-0 !bg-transparent text-muted-foreground !shadow-none hover:!bg-muted hover:text-foreground",
+            "!absolute !left-auto !right-1 !top-1 !size-8 !translate-none !transform-none rounded-full !border-0 !bg-transparent text-muted-foreground !shadow-none hover:!bg-muted hover:text-foreground [&_svg]:size-4",
         },
       }}
       {...props}
