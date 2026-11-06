@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, CircleDollarSign, Clock3, Printer, WalletCards } from "lucide-react";
+import { CheckCircle2, CircleDollarSign, Printer, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "@/lib/ui/toast";
 
@@ -229,15 +229,6 @@ function AccountingPaymentsPage() {
           description="Record payment after a PROCY order is marked Sold. This page records payment information and does not process online payments."
         />
         <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
-          <div className="mb-6 flex gap-3 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
-            <Clock3 className="mt-0.5 size-5 shrink-0" />
-            <p>
-              <span className="font-semibold">Accounting scope:</span> verify the order total and
-              delivery fee, record Cash or COD only after money is received, then issue the receipt.
-              Preparing orders, assigning Riders, and changing delivery progress stay with
-              Operations.
-            </p>
-          </div>
           <section className="mb-6 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
             <div className="flex items-start gap-3 border-b border-border px-5 py-5 sm:px-6">
               <WalletCards className="mt-0.5 size-5 text-primary" />
