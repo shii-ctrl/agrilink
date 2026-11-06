@@ -1,13 +1,11 @@
+// Keep legacy units readable for existing products and transaction history.
 export const sellingUnits = ["kg", "piece", "bundle", "pack", "tray", "sack"] as const;
 export type SellingUnit = (typeof sellingUnits)[number];
 
 export const sellingUnitOptions = [
   { value: "kg", label: "Kilogram (kg)" },
   { value: "piece", label: "Piece" },
-  { value: "bundle", label: "Bundle" },
-  { value: "pack", label: "Pack" },
   { value: "tray", label: "Tray" },
-  { value: "sack", label: "Sack" },
 ] satisfies { value: SellingUnit; label: string }[];
 
 export function defaultSellingUnit(productName: string): SellingUnit {

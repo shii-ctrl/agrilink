@@ -472,6 +472,7 @@ function DetailsEditor({
           value={sellingUnit}
           onValueChange={(value) => setSellingUnit(value as SellingUnit)}
           options={sellingUnitOptions}
+          placeholder={sellingUnitLabel(sellingUnit)}
           searchable={false}
         />
       </Field>
