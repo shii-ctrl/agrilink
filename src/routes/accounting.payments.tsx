@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, CircleDollarSign, Printer, WalletCards } from "lucide-react";
+import { CheckCircle2, ChevronDown, CircleDollarSign, Printer, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "@/lib/ui/toast";
 
 import { AccountingLayout, AccountingPageHeader } from "@/components/workspaces/accounting-layout";
+import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/ui/app-select";
 import { Label } from "@/components/ui/label";
@@ -175,6 +176,7 @@ function AccountingPaymentsPage() {
     () => orders.filter((order) => order.paymentStatus === "Paid"),
     [orders],
   );
+  const recordedPaymentsPage = usePagination(recordedPayments, { pageSize: 5 });
   const selectedOrder = awaitingPayment.find((order) => order.id === selectedOrderId);
 
   async function recordPayment(event: React.FormEvent<HTMLFormElement>) {
@@ -362,15 +364,22 @@ function AccountingPaymentsPage() {
                 </form>
               )}
             </section>
-            <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-              <div className="border-b border-border px-6 py-5">
-                <h2 className="text-lg font-semibold">Recorded payments</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <details
+              open
+              className="group/recorded-payments overflow-hidden rounded-3xl border border-border bg-card shadow-card self-start"
+            >
+              <summary className="relative cursor-pointer list-none px-6 py-5 pr-14 focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                <span className="block text-lg font-semibold">Recorded payments</span>
+                <span className="mt-1 block text-sm text-muted-foreground">
                   Payment records linked to completed PROCY orders.
-                </p>
-              </div>
-              <div className="divide-y divide-border">
-                {recordedPayments.map((order) => (
+                </span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className="absolute right-6 top-1/2 size-5 -translate-y-1/2 text-muted-foreground transition-transform group-open/recorded-payments:rotate-180"
+                />
+              </summary>
+              <div className="divide-y divide-border border-t border-border">
+                {recordedPaymentsPage.pageItems.map((order) => (
                   <div
                     key={order.id}
                     className="grid grid-cols-1 gap-3 px-6 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
@@ -404,7 +413,8 @@ function AccountingPaymentsPage() {
                   </p>
                 )}
               </div>
-            </section>
+              <PaginationControls {...recordedPaymentsPage} itemLabel="payments" />
+            </details>
           </div>
         </main>
       </div>
