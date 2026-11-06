@@ -3656,29 +3656,51 @@ export const getManagementDecisionSupport = createServerFn({ method: "GET" }).ha
   const [stock, orderLines, priceHistory] = await Promise.all([
     db
       .select({
-        id: inventory.id,
+        id: listings.id,
+        productId: products.id,
         name: products.name,
         classification: classifications.name,
-        availableKg: sql<string>`${inventory.quantityKg} - ${inventory.reservedKg}`,
+        sellingUnit: products.sellingUnit,
+        active: products.active,
+        availableKg: sql<string>`COALESCE(SUM(${inventory.quantityKg} - ${inventory.reservedKg}), 0)`,
+        reservedKg: sql<string>`COALESCE(SUM(${inventory.reservedKg}), 0)`,
+        quantityKg: sql<string>`COALESCE(SUM(${inventory.quantityKg}), 0)`,
+        oldestReceivedAt: sql<
+          string | null
+        >`DATE_FORMAT(MIN(CASE WHEN ${inventory.quantityKg} > 0 THEN ${inventory.receivedAt} END), '%Y-%m-%dT%H:%i:%sZ')`,
         listingStatus: listings.status,
       })
-      .from(inventory)
-      .innerJoin(products, eq(inventory.productId, products.id))
-      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .from(listings)
+      .innerJoin(products, eq(listings.productId, products.id))
+      .innerJoin(classifications, eq(listings.classificationId, classifications.id))
       .leftJoin(
-        listings,
+        inventory,
         and(
-          eq(listings.productId, inventory.productId),
-          eq(listings.classificationId, inventory.classificationId),
+          eq(inventory.productId, listings.productId),
+          eq(inventory.classificationId, listings.classificationId),
         ),
+      )
+      .groupBy(
+        listings.id,
+        products.id,
+        products.name,
+        classifications.name,
+        products.sellingUnit,
+        products.active,
+        listings.status,
       ),
     db
       .select({
-        name: products.name,
-        classification: classifications.name,
+        orderId: orders.id,
+        productId: products.id,
+        name: sql<string>`COALESCE(${orderItems.productName}, ${products.name})`,
+        classification: sql<string>`COALESCE(${orderItems.classificationName}, ${classifications.name})`,
+        sellingUnit: orderItems.sellingUnit,
         quantityKg: orderItems.quantityKg,
+        amount: sql<string>`${orderItems.quantityKg} * ${orderItems.pricePerKg}`,
         status: orders.status,
         createdAt: orders.createdAt,
+        soldAt: orders.soldAt,
       })
       .from(orderItems)
       .innerJoin(orders, eq(orderItems.orderId, orders.id))
@@ -3690,6 +3712,7 @@ export const getManagementDecisionSupport = createServerFn({ method: "GET" }).ha
         listingId: dailyPrices.listingId,
         name: products.name,
         classification: classifications.name,
+        sellingUnit: products.sellingUnit,
         price: dailyPrices.price,
         priceDate: dailyPrices.priceDate,
       })
@@ -3700,17 +3723,25 @@ export const getManagementDecisionSupport = createServerFn({ method: "GET" }).ha
       .where(eq(dailyPrices.published, true)),
   ]);
   return {
-    stock: stock.map((row) => ({ ...row, availableKg: Math.max(0, Number(row.availableKg)) })),
+    stock: stock.map((row) => ({
+      ...row,
+      availableKg: Math.max(0, Number(row.availableKg)),
+      reservedKg: Math.max(0, Number(row.reservedKg)),
+      quantityKg: Math.max(0, Number(row.quantityKg)),
+    })),
     orderLines: orderLines.map((row) => ({
       ...row,
       quantityKg: Number(row.quantityKg),
+      amount: Number(row.amount),
       createdAt: row.createdAt.toISOString(),
+      soldAt: row.soldAt?.toISOString() ?? null,
     })),
     priceHistory: priceHistory.map((row) => ({
       ...row,
       price: Number(row.price),
       priceDate: row.priceDate.toISOString(),
     })),
+    updatedAt: new Date().toISOString(),
   };
 });
 

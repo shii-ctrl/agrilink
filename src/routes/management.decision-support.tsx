@@ -1,379 +1,566 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { BarChart3, CircleAlert, LineChart, PackageSearch, TrendingUp } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
-import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
-import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
+import { ManagementLayout, ManagementPageHeader } from "@/components/workspaces/management-layout";
+import { AppSelect } from "@/components/ui/app-select";
+import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useWorkspaceData } from "@/hooks/use-workspace-data";
 import { peso } from "@/features/marketplace/products";
+import {
+  sellingUnitLabel,
+  sellingUnitOptions,
+  formatSellingQuantity,
+  type SellingUnit,
+} from "@/features/marketplace/selling-units";
+import {
+  buildDecisionSupport,
+  manilaDay,
+  shiftDay,
+  validDay,
+} from "@/features/management/decision-support";
 import { getManagementDecisionSupport } from "@/services/marketplace/marketplace-server-functions";
 
 export const Route = createFileRoute("/management/decision-support")({
-  head: () => ({
-    meta: [
-      { title: "Decision Support — Management | AgriLink" },
-      { name: "description", content: "Live Management decision support for AgriLink." },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "Decision Support — Management | AgriLink" }] }),
   component: ManagementDecisionSupportPage,
 });
 
-type Support = Awaited<ReturnType<typeof getManagementDecisionSupport>>;
-type ProductSummary = { name: string; stock: number; ordered: number; sold: number };
+const qualityOptions = ["all", "Good", "Semi", "Reject"].map((quality) => ({
+  value: quality,
+  label: quality === "all" ? "All qualities" : quality,
+}));
 
-function dateRange(values: string[], fallback: string) {
-  const dates = values
-    .map((value) => new Date(value))
-    .filter((date) => !Number.isNaN(date.getTime()))
-    .sort((first, second) => first.getTime() - second.getTime());
-  if (!dates.length) return fallback;
-  const first = dates[0];
-  const last = dates.at(-1);
-  if (!first || !last) return fallback;
-  const format = (date: Date) =>
-    date.toLocaleDateString("en-PH", { month: "short", day: "2-digit", year: "numeric" });
-  return dates.length === 1 ? format(first) : `${format(first)} – ${format(last)}`;
+type Recommendation = {
+  id: string;
+  label: string;
+  priority: "High" | "Medium" | "Review";
+  reason: string;
+  action: string;
+  to: "/management/transactions" | "/management/products" | "/management/receiving";
+};
+
+function changeLabel(current: number, previous: number) {
+  if (!previous) return current ? "No sales in previous period" : "No change from previous period";
+  const change = ((current - previous) / previous) * 100;
+  return `${change > 0 ? "+" : ""}${change.toFixed(1)}% vs previous period`;
 }
 
 function ManagementDecisionSupportPage() {
   const loadSupport = useCallback(() => getManagementDecisionSupport(), []);
   const { data: support, loading, error, reload } = useWorkspaceData(loadSupport);
-  const [summaryQuery, setSummaryQuery] = useState("");
-
-  const summaries = useMemo<ProductSummary[]>(() => {
-    const grouped = new Map<string, ProductSummary>();
-    for (const item of support?.stock ?? []) {
-      const summary = grouped.get(item.name) ?? { name: item.name, stock: 0, ordered: 0, sold: 0 };
-      summary.stock += item.availableKg;
-      grouped.set(item.name, summary);
-    }
-    for (const line of support?.orderLines ?? []) {
-      const summary = grouped.get(line.name) ?? { name: line.name, stock: 0, ordered: 0, sold: 0 };
-      if (line.status === "pending" || line.status === "confirmed")
-        summary.ordered += line.quantityKg;
-      if (line.status === "sold") summary.sold += line.quantityKg;
-      grouped.set(line.name, summary);
-    }
-    return [...grouped.values()].sort((first, second) => second.ordered - first.ordered);
-  }, [support]);
-
-  const lowStock = useMemo(
+  const today = manilaDay(new Date());
+  const [period, setPeriod] = useState("7");
+  const [start, setStart] = useState(() => shiftDay(today, -6));
+  const [end, setEnd] = useState(today);
+  const [unit, setUnit] = useState<SellingUnit>("kg");
+  const [quality, setQuality] = useState("all");
+  const [query, setQuery] = useState("");
+  const validRange = validDay(start) && validDay(end) && start <= end && end <= today;
+  const analysis = useMemo(
     () =>
-      (support?.stock ?? [])
-        .filter((item) => item.listingStatus === "published" && item.availableKg <= 15)
-        .sort((first, second) => first.availableKg - second.availableKg),
-    [support],
+      support && validRange ? buildDecisionSupport(support, { start, end, unit, quality }) : null,
+    [support, validRange, start, end, unit, quality],
   );
-  const visibleSummaries = useMemo(() => {
-    const query = summaryQuery.trim().toLocaleLowerCase();
-    return summaries.filter((item) => !query || item.name.toLocaleLowerCase().includes(query));
-  }, [summaries, summaryQuery]);
-  const summariesPage = usePagination(visibleSummaries, { pageSize: 8 });
-
-  const priceChanges = useMemo(() => {
-    const byListing = new Map<string, Support["priceHistory"]>();
+  const rows = analysis?.rows ?? [];
+  const filtered = rows.filter((row) =>
+    `${row.name} ${row.classification}`.toLowerCase().includes(query.trim().toLowerCase()),
+  );
+  const page = usePagination(filtered, { pageSize: 8 });
+  const agingPage = usePagination(
+    rows.filter((row) => row.aging),
+    { pageSize: 5 },
+  );
+  const topSellers = [...rows]
+    .filter((row) => row.sold > 0)
+    .sort((a, b) => b.sold - a.sold)
+    .slice(0, 5);
+  const actions = rows
+    .flatMap<Recommendation>((row) => {
+      const label = `${row.name} · ${row.classification}`;
+      if (row.shortage > 0)
+        return [
+          {
+            id: row.id,
+            label,
+            priority: "High",
+            reason: `Open orders exceed on-hand stock by ${formatSellingQuantity(row.shortage, unit)}.`,
+            action: "Review supply and confirmed orders",
+            to: "/management/transactions" as const,
+          },
+        ];
+      if (row.published && row.stock === 0)
+        return [
+          {
+            id: row.id,
+            label,
+            priority: "High",
+            reason: "This published quality has no available stock.",
+            action: "Review stock with Marketer",
+            to: "/management/products" as const,
+          },
+        ];
+      if (row.published && row.replenish > 0)
+        return [
+          {
+            id: row.id,
+            label,
+            priority: "Medium",
+            reason: `Estimated coverage is ${row.coverage} days. Suggested additional supply: ${formatSellingQuantity(row.replenish, unit)} for 7 days.`,
+            action: "Coordinate replenishment",
+            to: "/management/receiving" as const,
+          },
+        ];
+      if (row.slowMoving)
+        return [
+          {
+            id: row.id,
+            label,
+            priority: "Medium",
+            reason: `Oldest remaining batch is ${row.ageDays} days old with slow recent sales.`,
+            action: "Review quality and pricing",
+            to: "/management/products" as const,
+          },
+        ];
+      if (row.aging)
+        return [
+          {
+            id: row.id,
+            label,
+            priority: "Review",
+            reason: `Oldest remaining batch is ${row.ageDays} days old.`,
+            action: "Inspect remaining stock",
+            to: "/management/receiving" as const,
+          },
+        ];
+      return [];
+    })
+    .sort(
+      (a, b) =>
+        ["High", "Medium", "Review"].indexOf(a.priority) -
+        ["High", "Medium", "Review"].indexOf(b.priority),
+    );
+  const actionsPage = usePagination(actions, { pageSize: 6 });
+  const prices = useMemo(() => {
+    const grouped = new Map<string, NonNullable<typeof support>["priceHistory"]>();
     for (const row of support?.priceHistory ?? []) {
-      const entries = byListing.get(row.listingId) ?? [];
-      entries.push(row);
-      byListing.set(row.listingId, entries);
+      const day = manilaDay(row.priceDate);
+      if (
+        row.sellingUnit !== unit ||
+        (quality !== "all" && row.classification !== quality) ||
+        day < start ||
+        day > end
+      )
+        continue;
+      const history = grouped.get(row.listingId) ?? [];
+      history.push(row);
+      grouped.set(row.listingId, history);
     }
-    return [...byListing.values()]
-      .map((history) => {
-        const ordered = [...history].sort((first, second) =>
-          first.priceDate.localeCompare(second.priceDate),
-        );
-        const latest = ordered.at(-1);
-        if (!latest) return null;
-        const previous = ordered.at(-2) ?? latest;
-        return {
-          id: latest.listingId,
-          label: `${latest.name} — ${latest.classification}`,
-          latest: latest.price,
-          previous: previous.price,
-          range: dateRange(
-            ordered.map((entry) => entry.priceDate),
-            "No published dates",
-          ),
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  }, [support]);
-
-  const stockKg = summaries.reduce((total, item) => total + item.stock, 0);
-  const orderedKg = summaries.reduce((total, item) => total + item.ordered, 0);
-  const soldKg = summaries.reduce((total, item) => total + item.sold, 0);
-  const orderRange = dateRange(
-    (support?.orderLines ?? []).map((line) => line.createdAt),
-    "No saved orders",
-  );
-  const priceRange = dateRange(
-    (support?.priceHistory ?? []).map((entry) => entry.priceDate),
-    "No published price records",
-  );
+    return [...grouped.values()].map((history) => {
+      const ordered = [...history].sort((a, b) => a.priceDate.localeCompare(b.priceDate));
+      return { latest: ordered.at(-1)!, previous: ordered.at(-2) };
+    });
+  }, [support, unit, quality, start, end]);
+  const pricesPage = usePagination(prices, { pageSize: 8 });
+  const quantity = (value: number) => formatSellingQuantity(value, unit);
+  const totals = analysis?.totals;
+  const selectPeriod = (value: string) => {
+    setPeriod(value);
+    if (value !== "custom") {
+      setStart(shiftDay(today, 1 - Number(value)));
+      setEnd(today);
+    }
+  };
 
   return (
     <ManagementLayout>
       <ManagementPageHeader
         title="Decision Support"
-        description="Live summaries from saved classified stock, buyer orders, sales, and published prices."
+        description="Supply priorities, sales performance, and stock planning."
       />
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
+      <main className="mx-auto w-full min-w-0 max-w-7xl space-y-6 px-4 py-6 md:px-8">
+        <section className="rounded-3xl border border-border bg-card p-4 shadow-card">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label>Sales period</Label>
+              <AppSelect
+                ariaLabel="Sales period"
+                value={period}
+                onValueChange={selectPeriod}
+                options={[
+                  { value: "1", label: "Today" },
+                  { value: "7", label: "Last 7 days" },
+                  { value: "30", label: "Last 30 days" },
+                  { value: "custom", label: "Custom range" },
+                ]}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Selling unit</Label>
+              <AppSelect
+                ariaLabel="Selling unit"
+                value={unit}
+                onValueChange={(value) => setUnit(value as SellingUnit)}
+                options={sellingUnitOptions}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Quality</Label>
+              <AppSelect
+                ariaLabel="Quality"
+                value={quality}
+                onValueChange={setQuality}
+                options={qualityOptions}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                className="w-full"
+                variant="outline"
+                disabled={loading}
+                onClick={() => void reload().catch(() => undefined)}
+              >
+                Refresh data
+              </Button>
+            </div>
+          </div>
+          {period === "custom" && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>From</Label>
+                <DatePicker
+                  ariaLabel="Sales from date"
+                  value={start}
+                  onValueChange={setStart}
+                  max={end || today}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>To</Label>
+                <DatePicker
+                  ariaLabel="Sales to date"
+                  value={end}
+                  onValueChange={setEnd}
+                  min={start}
+                  max={today}
+                />
+              </div>
+            </div>
+          )}
+          {!validRange && (
+            <p role="alert" className="mt-3 text-sm text-destructive">
+              Choose a valid date range ending today or earlier.
+            </p>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Sales period {start} – {end} · Philippine time
+            {support
+              ? ` · Updated ${new Date(support.updatedAt).toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" })}`
+              : ""}
+          </p>
+        </section>
         <WorkspaceLoadState
           loading={loading}
           error={error}
           onRetry={() => void reload()}
           label="decision-support data"
         />
-        {!loading && !error && (
+        {analysis && !loading && !error && (
           <>
-            <section className="rounded-3xl border border-primary/20 bg-accent p-5 text-sm text-accent-foreground">
-              <div className="flex items-start gap-3">
-                <CircleAlert className="mt-0.5 size-5 shrink-0" />
-                <div>
-                  <h2 className="font-semibold">Saved AgriLink records</h2>
-                  <p className="mt-1 opacity-85">
-                    Order records: {orderRange}. Published price history: {priceRange}. No browser
-                    demo data is used here.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 {
-                  label: "Classified stock",
-                  value: `${stockKg} kg`,
-                  detail: "After current reservations",
-                  icon: PackageSearch,
+                  label: "Available stock now",
+                  value: quantity(totals!.stock),
+                  detail: `${quantity(totals!.reserved)} reserved separately`,
                 },
                 {
-                  label: "Reserved demand",
-                  value: `${orderedKg} kg`,
-                  detail: "Pending and confirmed orders",
-                  icon: BarChart3,
+                  label: "Open-order demand now",
+                  value: quantity(totals!.demand),
+                  detail: "Pending and confirmed orders across all dates",
                 },
                 {
                   label: "Completed sales",
-                  value: `${soldKg} kg`,
-                  detail: `${summaries.filter((item) => item.sold > 0).length} product type(s) sold`,
-                  icon: TrendingUp,
+                  value: quantity(totals!.sold),
+                  detail: changeLabel(totals!.sold, totals!.previousSold),
                 },
                 {
-                  label: "Low-stock listings",
-                  value: String(lowStock.length),
-                  detail: "Published listings with 15 kg or less",
-                  icon: CircleAlert,
+                  label: "Product sales value",
+                  value: peso(totals!.sales),
+                  detail: changeLabel(totals!.sales, totals!.previousSales),
                 },
-              ].map((metric) => {
-                const Icon = metric.icon;
-                return (
-                  <article
-                    key={metric.label}
-                    className="rounded-3xl border border-border bg-card p-5 shadow-card"
-                  >
-                    <Icon className="size-5 text-primary" />
-                    <p className="mt-4 text-sm text-muted-foreground">{metric.label}</p>
-                    <p className="mt-1 text-2xl font-bold tracking-tight">{metric.value}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">{metric.detail}</p>
-                  </article>
-                );
-              })}
+              ].map((metric) => (
+                <article
+                  key={metric.label}
+                  className="rounded-3xl border border-border bg-card p-5 shadow-card"
+                >
+                  <p className="text-sm text-muted-foreground">{metric.label}</p>
+                  <p className="mt-2 break-words text-2xl font-bold">{metric.value}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{metric.detail}</p>
+                </article>
+              ))}
             </section>
-
-            <section className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-              <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold">Stock versus reserved demand</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Current classified stock compared with pending and confirmed orders.
-                    </p>
+            <p className="text-xs text-muted-foreground">
+              Comparison period {analysis.previousStart} – {analysis.previousEnd}. Product sales
+              value excludes delivery fees.
+              {analysis.legacySales > 0
+                ? " Older sales without a completion date use their order date."
+                : ""}
+            </p>
+            <section className="rounded-3xl border border-border bg-card p-4 shadow-card sm:p-6">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Action priorities</h2>
+                <span className="text-xs text-muted-foreground">
+                  Current stock · {actions.length} items
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {actionsPage.pageItems.map((item) => (
+                  <article key={item.id} className="rounded-2xl border border-border p-4">
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-semibold ${item.priority === "High" ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-primary/10 text-primary"}`}
+                    >
+                      {item.priority}
+                    </span>
+                    <h3 className="mt-3 font-semibold">{item.label}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">{item.reason}</p>
+                    <Link
+                      to={item.to}
+                      className="mt-3 inline-block text-sm font-semibold text-primary underline underline-offset-4"
+                    >
+                      {item.action} →
+                    </Link>
+                  </article>
+                ))}
+              </div>
+              {!actions.length && (
+                <p className="py-5 text-sm text-muted-foreground">
+                  No current priorities for this unit and quality. Products with limited sales
+                  history may need manual review.
+                </p>
+              )}
+              <PaginationControls {...actionsPage} itemLabel="priorities" />
+            </section>
+            <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+              <article className="min-w-0 rounded-3xl border border-border bg-card p-4 shadow-card sm:p-6">
+                <h2 className="text-lg font-semibold">Available and reserved stock</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Current quantities in {sellingUnitLabel(unit, 2)}. Reservations are already
+                  deducted from available stock.
+                </p>
+                <Input
+                  className="mt-4"
+                  aria-label="Search product summary"
+                  placeholder="Search product or quality"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+                {page.pageItems.length > 0 && (
+                  <div
+                    className="mt-5 w-full min-w-0"
+                    style={{ height: Math.max(250, page.pageItems.length * 58) }}
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        layout="vertical"
+                        data={page.pageItems.map((row) => ({
+                          ...row,
+                          label: `${row.name} · ${row.classification}`,
+                        }))}
+                        margin={{ left: 0, right: 12 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          horizontal={false}
+                          stroke="var(--border)"
+                        />
+                        <XAxis
+                          type="number"
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="label"
+                          width={115}
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "var(--card)",
+                            borderColor: "var(--border)",
+                            color: "var(--foreground)",
+                          }}
+                          formatter={(value: number) => quantity(value)}
+                        />
+                        <Legend />
+                        <Bar
+                          dataKey="stock"
+                          name="Available"
+                          fill="var(--primary)"
+                          radius={[0, 4, 4, 0]}
+                        />
+                        <Bar
+                          dataKey="reserved"
+                          name="Reserved"
+                          fill="var(--chart-2)"
+                          radius={[0, 4, 4, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
-                  <BarChart3 className="size-5 shrink-0 text-primary" />
-                </div>
-                <div className="mt-5 h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={summaries} barGap={6}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                      <YAxis tickLine={false} axisLine={false} unit=" kg" />
-                      <Tooltip formatter={(value: number) => [`${value} kg`, ""]} />
-                      <Bar
-                        dataKey="stock"
-                        name="Classified stock"
-                        fill="var(--primary)"
-                        radius={[7, 7, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="ordered"
-                        name="Reserved demand"
-                        fill="var(--chart-2)"
-                        radius={[7, 7, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-5 max-w-md">
-                  <Input
-                    aria-label="Search stock and demand summary"
-                    value={summaryQuery}
-                    onChange={(event) => setSummaryQuery(event.target.value)}
-                    placeholder="Search product summary"
-                  />
-                </div>
-                <div className="mt-5 overflow-x-auto md:overflow-visible">
-                  <table data-responsive-table className="w-full min-w-[520px] text-sm">
-                    <thead className="border-b text-left text-muted-foreground">
+                )}
+                <div className="mt-5">
+                  <table data-responsive-table className="w-full text-left text-sm">
+                    <thead className="border-b text-xs text-muted-foreground">
                       <tr>
-                        <th className="pb-3 font-medium">Product</th>
-                        <th className="pb-3 font-medium">Stock</th>
-                        <th className="pb-3 font-medium">Reserved</th>
-                        <th className="pb-3 font-medium">Sold</th>
-                        <th className="pb-3 font-medium">Status</th>
+                        <th className="py-3">Product / quality</th>
+                        <th>Available</th>
+                        <th>Open orders</th>
+                        <th>Coverage</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {summariesPage.pageItems.map((item) => (
-                        <tr key={item.name} className="border-b last:border-0">
-                          <td data-label="Product" className="py-3 font-medium">
-                            {item.name}
+                      {page.pageItems.map((row) => (
+                        <tr key={row.id} className="border-b border-border last:border-0">
+                          <td data-label="Product / quality" className="py-3 font-medium">
+                            {row.name}
+                            <span className="block text-xs text-muted-foreground">
+                              {row.classification}
+                            </span>
                           </td>
-                          <td data-label="Stock" className="py-3">
-                            {item.stock} kg
-                          </td>
-                          <td data-label="Reserved" className="py-3">
-                            {item.ordered} kg
-                          </td>
-                          <td data-label="Sold" className="py-3">
-                            {item.sold} kg
-                          </td>
-                          <td data-label="Status" className="py-3 font-medium">
-                            {item.ordered <= item.stock
-                              ? "Stock covers reserved demand"
-                              : `${item.ordered - item.stock} kg shortfall`}
+                          <td data-label="Available">{quantity(row.stock)}</td>
+                          <td data-label="Open orders">{quantity(row.demand)}</td>
+                          <td data-label="Coverage">
+                            {row.coverage === null ? "Insufficient data" : `${row.coverage} days`}
                           </td>
                         </tr>
                       ))}
-                      {!visibleSummaries.length && (
-                        <tr>
-                          <td
-                            data-mobile-full
-                            colSpan={5}
-                            className="py-8 text-center text-muted-foreground"
-                          >
-                            No product summary matches your search.
-                          </td>
-                        </tr>
-                      )}
                     </tbody>
                   </table>
+                  {!page.pageItems.length && (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                      No products match these filters.
+                    </p>
+                  )}
                 </div>
-                <PaginationControls {...summariesPage} itemLabel="product summaries" />
+                <PaginationControls {...page} itemLabel="products" />
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Coverage uses the last 14 calendar days of completed sales and available stock.
+                  Estimates require at least 7 days of history and 3 selling days. Replenishment
+                  targets 7 days of supply when coverage is 3 days or less.
+                </p>
               </article>
-              <div className="space-y-6">
-                <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
+              <div className="min-w-0 space-y-6">
+                <article className="rounded-3xl border border-border bg-card p-5 shadow-card">
                   <h2 className="text-lg font-semibold">Best-selling products</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Sold quantities from {orderRange}.
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Selected sales period · {sellingUnitLabel(unit, 2)}
                   </p>
-                  <div className="mt-5 space-y-4">
-                    {summaries
-                      .filter((item) => item.sold > 0)
-                      .sort((first, second) => second.sold - first.sold)
-                      .slice(0, 3)
-                      .map((item, index) => (
-                        <div key={item.name} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                              {index + 1}
-                            </span>
-                            <span className="font-medium">{item.name}</span>
-                          </div>
-                          <span className="font-semibold">{item.sold} kg sold</span>
+                  <div className="mt-4 space-y-4">
+                    {topSellers.map((row, index) => (
+                      <div key={row.id} className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium">
+                            {index + 1}. {row.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{row.classification}</p>
                         </div>
-                      ))}
-                    {!summaries.some((item) => item.sold > 0) && (
-                      <p className="text-sm text-muted-foreground">
-                        No sold orders are recorded yet.
-                      </p>
-                    )}
-                  </div>
-                </article>
-                <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
-                  <h2 className="text-lg font-semibold">Low-stock attention</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Published listings with 15 kg or less available.
-                  </p>
-                  <div className="mt-5 space-y-3">
-                    {lowStock.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between rounded-2xl bg-destructive/8 px-3 py-2.5"
-                      >
-                        <span className="font-medium">
-                          {item.name} — {item.classification}
-                        </span>
-                        <span className="text-sm font-semibold text-destructive">
-                          {item.availableKg} kg left
-                        </span>
+                        <span className="shrink-0 text-sm font-semibold">{quantity(row.sold)}</span>
                       </div>
                     ))}
-                    {!lowStock.length && (
-                      <p className="text-sm text-muted-foreground">
-                        No published listings need low-stock attention.
-                      </p>
-                    )}
                   </div>
+                  {!topSellers.length && (
+                    <p className="py-5 text-sm text-muted-foreground">
+                      No completed sales in this period.
+                    </p>
+                  )}
+                </article>
+                <article className="rounded-3xl border border-border bg-card p-5 shadow-card">
+                  <h2 className="text-lg font-semibold">Aging and slow-moving stock</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Remaining batches received 7 or more days ago. Age indicates review priority,
+                    not an expiry date.
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {agingPage.pageItems.map((row) => (
+                      <div key={row.id} className="rounded-2xl border border-border p-3">
+                        <p className="font-medium">
+                          {row.name} · {row.classification}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {quantity(row.stock)} available · oldest batch {row.ageDays} days
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-primary">
+                          {row.slowMoving
+                            ? "Slow-moving · review quality and pricing"
+                            : "Review oldest remaining batch"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {!agingPage.pageItems.length && (
+                    <p className="py-5 text-sm text-muted-foreground">
+                      No aging stock for these filters.
+                    </p>
+                  )}
+                  <PaginationControls {...agingPage} itemLabel="products" />
                 </article>
               </div>
             </section>
-
-            <section className="mt-8 rounded-3xl border border-border bg-card p-6 shadow-card">
-              <div className="flex items-start gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-                  <LineChart className="size-5" />
-                </span>
-                <div>
-                  <h2 className="text-lg font-semibold">Published price changes</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Latest saved price compared with the previous published price. Price history:{" "}
-                    {priceRange}.
-                  </p>
-                </div>
+            <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
+              <h2 className="text-lg font-semibold">Published price changes</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Latest two published prices within the selected period.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {pricesPage.pageItems.map(({ latest, previous }) => (
+                  <article key={latest.listingId} className="rounded-2xl border border-border p-4">
+                    <h3 className="font-medium">
+                      {latest.name} · {latest.classification}
+                    </h3>
+                    <p className="mt-3 text-xl font-bold">
+                      {peso(latest.price)}
+                      <span className="text-sm font-normal text-muted-foreground">
+                        {" "}
+                        / {sellingUnitLabel(latest.sellingUnit)}
+                      </span>
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {previous
+                        ? latest.price === previous.price
+                          ? "No price change"
+                          : `${latest.price > previous.price ? "↑" : "↓"} ${peso(Math.abs(latest.price - previous.price))} from ${manilaDay(previous.priceDate)}`
+                        : "One price record · no comparison yet"}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Published {manilaDay(latest.priceDate)}
+                    </p>
+                  </article>
+                ))}
               </div>
-              <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                {priceChanges.map((item) => {
-                  const change = item.latest - item.previous;
-                  return (
-                    <article key={item.id} className="rounded-2xl border border-border p-4">
-                      <p className="font-medium">{item.label}</p>
-                      <p className="mt-3 text-xl font-bold">
-                        {peso(item.latest)}
-                        <span className="text-sm font-normal text-muted-foreground"> / kg</span>
-                      </p>
-                      <p
-                        className={`mt-2 text-sm font-medium ${change >= 0 ? "text-primary" : "text-destructive"}`}
-                      >
-                        {change === 0
-                          ? "No change"
-                          : `${change > 0 ? "↑" : "↓"} ${peso(Math.abs(change))} from previous price`}
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Compared within {item.range}
-                      </p>
-                    </article>
-                  );
-                })}
-                {!priceChanges.length && (
-                  <p className="text-sm text-muted-foreground">
-                    No published daily-price records are available yet.
-                  </p>
-                )}
-              </div>
+              {!prices.length && (
+                <p className="py-5 text-sm text-muted-foreground">
+                  No published prices for these filters.
+                </p>
+              )}
+              <PaginationControls {...pricesPage} itemLabel="prices" />
             </section>
           </>
         )}
