@@ -34,6 +34,9 @@ test("Buyer self-registration is username-only and keeps email optional", async 
   assert.doesNotMatch(registerDialog, /name="contact"/);
   assert.doesNotMatch(registerDialog, /name="email"/);
   assert.match(registerDialog, /Create a Buyer account/);
+  assert.match(registerDialog, /const usernamePattern =/);
+  assert.match(registerDialog, /Do not use spaces/);
+  assert.match(registerDialog, /registrationErrorMessage\(error\)/);
   assert.match(registerDialog, /Username-only Buyer accounts do not have email password recovery/);
   assert.match(homePage, /RegisterDialog/);
 });

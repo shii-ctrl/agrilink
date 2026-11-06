@@ -2,6 +2,7 @@ import { useNavigate, useRouter } from "@tanstack/react-router";
 import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/lib/ui/toast";
+import { userFacingErrorMessage } from "@/lib/ui/user-facing-error";
 
 import { Button } from "@/components/ui/button";
 import { ProcyLogo } from "@/components/layout/procy-logo";
@@ -24,6 +25,21 @@ type RegisterDialogProps = {
   onOpenChange: (open: boolean) => void;
   onLogin?: () => void;
 };
+
+const usernamePattern = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const usernameHelp =
+  "Do not use spaces. Use letters, numbers, periods, underscores, or hyphens only.";
+
+function registrationErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  if (
+    message.includes('"username"') ||
+    message.includes("Use letters, numbers, periods, underscores, or hyphens only")
+  ) {
+    return usernameHelp;
+  }
+  return userFacingErrorMessage(error, "Please check your details and try again.");
+}
 
 export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogProps) {
   const navigate = useNavigate();
@@ -54,7 +70,12 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
             onSubmit={async (event) => {
               event.preventDefault();
               const formData = new FormData(event.currentTarget);
+              const username = String(formData.get("username") ?? "").trim();
               const password = String(formData.get("password") ?? "");
+              if (!usernamePattern.test(username)) {
+                toast.error("Invalid username", { description: usernameHelp });
+                return;
+              }
               if (password !== String(formData.get("confirm") ?? "")) {
                 toast.error("Passwords do not match", {
                   description: "Enter the same password in both fields.",
@@ -65,7 +86,7 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
               try {
                 const signedIn = await registerBuyer({
                   data: {
-                    username: String(formData.get("username") ?? ""),
+                    username,
                     password,
                   },
                 });
@@ -83,7 +104,7 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
                 navigate({ to: "/", replace: true });
               } catch (error) {
                 toast.error("Unable to create account", {
-                  description: error instanceof Error ? error.message : "Please try again.",
+                  description: registrationErrorMessage(error),
                 });
               } finally {
                 setIsCreating(false);
@@ -101,13 +122,19 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
                   minLength={3}
                   maxLength={120}
                   pattern="[A-Za-z0-9][A-Za-z0-9._-]*"
+                  title={usernameHelp}
+                  onInvalid={(event) => {
+                    if (!event.currentTarget.validity.patternMismatch) return;
+                    event.preventDefault();
+                    toast.error("Invalid username", { description: usernameHelp });
+                  }}
                   placeholder="Choose a username"
                   required
                   className="auth-login-field h-12 border-border bg-background pl-10 text-foreground placeholder:text-muted-foreground"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Use letters, numbers, periods, underscores, or hyphens.
+                No spaces. Use letters, numbers, periods, underscores, or hyphens.
               </p>
             </div>
             <PasswordField
