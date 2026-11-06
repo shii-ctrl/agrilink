@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, count, countDistinct, eq, inArray, isNull, like } from "drizzle-orm";
+import { and, count, countDistinct, eq, inArray, isNull, like, or } from "drizzle-orm";
 import { z } from "zod";
 
 export type WorkspaceSidebarBadges = Record<string, number>;
@@ -55,7 +55,7 @@ export const getWorkspaceSidebarBadges = createServerFn({ method: "GET" }).handl
   const { requireUser } = await import("@/services/auth/auth-server");
   const user = await requireUser();
   const { db } = await import("@/db/client.server");
-  const { codRemittances, deliveryDisputes, farmerEarnings, notifications, orders, payments } =
+  const { codRemittances, deliveryDisputes, farmerEarnings, notifications, orders, payments, users } =
     await import("@/db/schema");
 
   const badges: WorkspaceSidebarBadges = {};
@@ -94,20 +94,30 @@ export const getWorkspaceSidebarBadges = createServerFn({ method: "GET" }).handl
   }
 
   if (user.roles.includes("Accounting")) {
-    const unpaidOrders = numberFrom(
+    const unpaidPickupOrders = numberFrom(
       await db
         .select({ total: count() })
         .from(orders)
+        .innerJoin(users, eq(orders.buyerId, users.id))
         .leftJoin(payments, eq(payments.orderId, orders.id))
-        .where(and(eq(orders.status, "sold"), isNull(payments.id))),
+        .where(
+          and(eq(orders.fulfillmentMethod, "pickup"), eq(orders.status, "sold"), isNull(payments.id)),
+        ),
     );
-    const submittedCod = numberFrom(
+    const actionableCodRemittances = numberFrom(
       await db
         .select({ total: count() })
         .from(codRemittances)
-        .where(eq(codRemittances.status, "submitted")),
+        .innerJoin(orders, eq(codRemittances.orderId, orders.id))
+        .innerJoin(users, eq(orders.buyerId, users.id))
+        .where(
+          or(
+            eq(codRemittances.status, "submitted"),
+            and(eq(codRemittances.status, "verified"), eq(orders.status, "sold")),
+          ),
+        ),
     );
-    badges["/accounting/payments"] = unpaidOrders + submittedCod;
+    badges["/accounting/payments"] = unpaidPickupOrders + actionableCodRemittances;
     badges["/accounting/farmer-payouts"] = numberFrom(
       await db
         .select({ total: countDistinct(farmerEarnings.receivingId) })
