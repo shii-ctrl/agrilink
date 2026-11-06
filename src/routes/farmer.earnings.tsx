@@ -56,11 +56,9 @@ function FarmerEarnings() {
             </section>
 
             <section className="mt-6 rounded-3xl border border-primary/20 bg-accent p-5 text-sm text-accent-foreground">
-              <p className="font-semibold">How your earnings are calculated</p>
-              <p className="mt-1 opacity-85">
+              <p className="opacity-85">
                 Every sold kilogram has a fixed ₱1.75 deduction: ₱1.25 PROCY service fee and ₱0.50
-                saved to IPON. Tray, piece, pack, bundle, and sack products have no deduction for
-                now. Your available earnings stay here until Accounting gives you the cash.
+                saved to IPON.
               </p>
             </section>
 
