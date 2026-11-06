@@ -11,7 +11,6 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/lib/ui/toast";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
-import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
@@ -153,17 +152,6 @@ function MarketerDashboard() {
                   No published listings are at or below 5 selling units right now.
                 </p>
               )}
-            </section>
-            <section className="flex flex-wrap gap-3 rounded-3xl border border-border bg-card p-6 shadow-card">
-              <Button asChild className="rounded-full">
-                <Link to="/marketer/receiving">Receive delivery</Link>
-              </Button>
-              <Button asChild variant="outline" className="rounded-full">
-                <Link to="/marketer/products">Create listing</Link>
-              </Button>
-              <Button asChild variant="outline" className="rounded-full">
-                <Link to="/marketer/orders">Review orders</Link>
-              </Button>
             </section>
           </>
         ) : null}
