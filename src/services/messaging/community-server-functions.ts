@@ -2,6 +2,11 @@ import { and, asc, desc, eq, gte, inArray, like, ne, or, sql } from "drizzle-orm
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
+  canPinCommunityPost,
+  communityCommentsClosed,
+  assertQuestionStatusChange,
+} from "@/features/messaging/community-permissions";
+import {
   communityCategoriesForRoles,
   communityPostCategories,
   communityPostCategoryLabels,
@@ -419,7 +424,9 @@ async function communityMessagesForViewer(
       moderationReason: message.moderationReason,
       isOwner: message.authorId === viewer.id,
       canDelete: message.authorId === viewer.id || viewer.roles.includes("Management"),
-      canPin: viewer.roles.includes("Management") || viewer.roles.includes("Marketer"),
+      canPin: canPinCommunityPost(viewer.roles, message.category),
+      canManageQuestion: viewer.roles.includes("Management") && message.category === "question",
+      commentsClosed: communityCommentsClosed(message),
       canModerate: viewer.roles.includes("Management"),
       isSaved: savedMessageIds.has(message.id),
       reports: reportsByMessageId.get(message.id) ?? {
@@ -630,8 +637,8 @@ export const setCommunityPostPinned = createServerFn({ method: "POST" })
       .from(communityMessages)
       .where(eq(communityMessages.id, data.messageId));
     if (!postDetails) throw new Error("This community post is no longer available.");
-    if (data.pinned && postDetails.category !== "announcement") {
-      throw new Error("Only Announcement posts can be pinned as official updates.");
+    if (!canPinCommunityPost(moderator.roles, postDetails.category)) {
+      throw new Error("Only Management can pin or unpin posts outside Announcements.");
     }
 
     await db
@@ -648,10 +655,10 @@ export const setCommunityPostPinned = createServerFn({ method: "POST" })
       const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");
       await notifyCommunityUsers(
         {
-          title: data.pinned ? "Community announcement pinned" : "Community announcement unpinned",
+          title: data.pinned ? "Community post pinned" : "Community post unpinned",
           message: data.pinned
-            ? `${moderator.displayName} pinned your announcement as an official Community update.`
-            : `${moderator.displayName} unpinned your Community announcement.`,
+            ? `${moderator.displayName} pinned your Community post.`
+            : `${moderator.displayName} unpinned your Community post.`,
         },
         { userIds: [post.authorId] },
       );
@@ -736,45 +743,52 @@ export const setCommunityQuestionStatus = createServerFn({ method: "POST" })
     const author = await requireAnyRole(communityRoles);
     const { db } = await import("@/db/client.server");
     const { communityComments, communityMessages } = await import("@/db/schema");
-    const [post] = await db
-      .select({ authorId: communityMessages.authorId, category: communityMessages.category })
-      .from(communityMessages)
-      .where(eq(communityMessages.id, data.messageId));
-    if (!post || post.category !== "question") throw new Error("This is not a Question post.");
-    if (post.authorId !== author.id)
-      throw new Error("Only the question author can update its status.");
-    if (data.helpfulCommentId) {
-      const [comment] = await db
-        .select({ id: communityComments.id })
-        .from(communityComments)
-        .where(
-          and(
-            eq(communityComments.id, data.helpfulCommentId),
-            eq(communityComments.messageId, data.messageId),
-          ),
-        );
-      if (!comment)
-        throw new Error("The selected helpful answer does not belong to this question.");
-    }
-    await db
-      .update(communityMessages)
-      .set({
-        questionStatus: data.status,
-        helpfulCommentId: data.helpfulCommentId ?? null,
-        updatedAt: new Date(),
-      })
-      .where(eq(communityMessages.id, data.messageId));
-    await writeAuditLog(
-      author.id,
-      "community.question.status",
-      "community_message",
-      data.messageId,
-      {
-        status: data.status,
-        helpfulCommentId: data.helpfulCommentId ?? null,
-      },
-    );
-    return { status: data.status, helpfulCommentId: data.helpfulCommentId ?? null };
+    return db.transaction(async (tx) => {
+      // Comments and resolution take the same post lock so a closed question cannot accept a late reply.
+      const [post] = await tx
+        .select({
+          authorId: communityMessages.authorId,
+          category: communityMessages.category,
+          questionStatus: communityMessages.questionStatus,
+          helpfulCommentId: communityMessages.helpfulCommentId,
+        })
+        .from(communityMessages)
+        .where(eq(communityMessages.id, data.messageId))
+        .for("update");
+      if (!post) throw new Error("This community post is no longer available.");
+      assertQuestionStatusChange(author, post, data.status);
+      const helpfulCommentId =
+        data.helpfulCommentId === undefined ? post.helpfulCommentId : data.helpfulCommentId;
+      if (helpfulCommentId) {
+        const [comment] = await tx
+          .select({ id: communityComments.id })
+          .from(communityComments)
+          .where(
+            and(
+              eq(communityComments.id, helpfulCommentId),
+              eq(communityComments.messageId, data.messageId),
+            ),
+          );
+        if (!comment)
+          throw new Error("The selected helpful answer does not belong to this question.");
+      }
+      await tx
+        .update(communityMessages)
+        .set({ questionStatus: data.status, helpfulCommentId, updatedAt: new Date() })
+        .where(eq(communityMessages.id, data.messageId));
+      await writeAuditLog(
+        author.id,
+        "community.question.status",
+        "community_message",
+        data.messageId,
+        {
+          status: data.status,
+          helpfulCommentId,
+        },
+        tx,
+      );
+      return { status: data.status, helpfulCommentId };
+    });
   });
 
 export const moderateCommunityPost = createServerFn({ method: "POST" })
@@ -977,6 +991,11 @@ export const deleteCommunityComment = createServerFn({ method: "POST" })
       await import("@/db/schema");
     await db.transaction(async (tx) => {
       await tx
+        .select({ id: communityMessages.id })
+        .from(communityMessages)
+        .where(eq(communityMessages.id, comment.messageId))
+        .for("update");
+      await tx
         .delete(communityCommentReactions)
         .where(eq(communityCommentReactions.commentId, data.commentId));
       await tx
@@ -986,7 +1005,11 @@ export const deleteCommunityComment = createServerFn({ method: "POST" })
         );
       await tx
         .update(communityMessages)
-        .set({ helpfulCommentId: null, questionStatus: "open", updatedAt: new Date() })
+        .set({
+          helpfulCommentId: null,
+          questionStatus: sql`CASE WHEN ${communityMessages.questionStatus} = 'resolved' THEN 'resolved' ELSE 'open' END`,
+          updatedAt: new Date(),
+        })
         .where(eq(communityMessages.helpfulCommentId, data.commentId));
     });
     await writeAuditLog(author.id, "community.comment.delete", "community_comment", data.commentId);
@@ -1006,7 +1029,7 @@ export const postCommunityComment = createServerFn({ method: "POST" })
       throw new Error("Replies must belong to a top-level comment on this Community post.");
     }
     const { db } = await import("@/db/client.server");
-    const { communityComments } = await import("@/db/schema");
+    const { communityComments, communityMessages } = await import("@/db/schema");
     const recentComments = await db
       .select({ message: communityComments.message, createdAt: communityComments.createdAt })
       .from(communityComments)
@@ -1029,12 +1052,26 @@ export const postCommunityComment = createServerFn({ method: "POST" })
       throw new Error("You recently posted the same comment.");
     }
     const id = crypto.randomUUID();
-    await db.insert(communityComments).values({
-      id,
-      messageId: data.messageId,
-      parentCommentId: parent?.id ?? null,
-      authorId: author.id,
-      message: data.message,
+    await db.transaction(async (tx) => {
+      const [currentPost] = await tx
+        .select({
+          category: communityMessages.category,
+          questionStatus: communityMessages.questionStatus,
+        })
+        .from(communityMessages)
+        .where(eq(communityMessages.id, data.messageId))
+        .for("update");
+      if (!currentPost) throw new Error("This community post is no longer available.");
+      if (communityCommentsClosed(currentPost)) {
+        throw new Error("This question is resolved. Comments and replies are closed.");
+      }
+      await tx.insert(communityComments).values({
+        id,
+        messageId: data.messageId,
+        parentCommentId: parent?.id ?? null,
+        authorId: author.id,
+        message: data.message,
+      });
     });
     if (parent && parent.authorId !== author.id) {
       const { notifyCommunityUsers } = await import("@/services/messaging/notification-server");

@@ -813,7 +813,10 @@ export function CommunityFeed({
                 )}
                 {message.isPinned && (
                   <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
-                    <Pin className="size-4 fill-current" /> Pinned official announcement
+                    <Pin className="size-4 fill-current" />{" "}
+                    {message.category === "announcement"
+                      ? "Pinned official announcement"
+                      : "Pinned post"}
                   </div>
                 )}
                 <div className="flex items-start justify-between gap-3">
@@ -1042,41 +1045,48 @@ export function CommunityFeed({
                     ))}
                   </div>
                 )}
-                {message.category === "question" && message.isOwner && !editing && (
-                  <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-violet-500/5 p-3">
-                    <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
-                      Question status
-                    </span>
-                    {(["open", "answered", "resolved"] as const).map((status) => (
-                      <Button
-                        key={status}
-                        type="button"
-                        size="sm"
-                        variant={message.questionStatus === status ? "secondary" : "ghost"}
-                        className="h-8 rounded-full capitalize"
-                        disabled={busyMenuId === message.id}
-                        onClick={async () => {
-                          setBusyMenuId(message.id);
-                          try {
-                            await setCommunityQuestionStatus({
-                              data: { messageId: message.id, status },
-                            });
-                            await load();
-                            toast.success(`Question marked ${status}.`);
-                          } catch (error) {
-                            toast.error(
-                              error instanceof Error ? error.message : "Could not update question.",
-                            );
-                          } finally {
-                            setBusyMenuId(null);
-                          }
-                        }}
-                      >
-                        {status}
-                      </Button>
-                    ))}
-                  </div>
-                )}
+                {message.category === "question" &&
+                  (message.canManageQuestion || (message.isOwner && !message.commentsClosed)) &&
+                  !editing && (
+                    <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-violet-500/5 p-3">
+                      <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
+                        Question status
+                      </span>
+                      {(message.canManageQuestion
+                        ? (["open", "answered", "resolved"] as const)
+                        : (["open", "answered"] as const)
+                      ).map((status) => (
+                        <Button
+                          key={status}
+                          type="button"
+                          size="sm"
+                          variant={message.questionStatus === status ? "secondary" : "ghost"}
+                          className="h-8 rounded-full capitalize"
+                          disabled={busyMenuId === message.id || message.questionStatus === status}
+                          onClick={async () => {
+                            setBusyMenuId(message.id);
+                            try {
+                              await setCommunityQuestionStatus({
+                                data: { messageId: message.id, status },
+                              });
+                              await load();
+                              toast.success(`Question marked ${status}.`);
+                            } catch (error) {
+                              toast.error(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Could not update question.",
+                              );
+                            } finally {
+                              setBusyMenuId(null);
+                            }
+                          }}
+                        >
+                          {status}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 {message.canModerate &&
                   (message.reports.count > 0 || message.moderationStatus === "hidden") && (
                     <div className="mt-4 flex flex-wrap gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3">
@@ -1168,48 +1178,55 @@ export function CommunityFeed({
                   )}
                 {message.canPin && !editing && (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {message.canPin &&
-                      (message.category === "announcement" || message.isPinned) && (
-                        <Button
-                          type="button"
-                          variant={message.isPinned ? "secondary" : "ghost"}
-                          size="sm"
-                          className="rounded-full"
-                          disabled={pinning || deleting}
-                          onClick={async () => {
-                            setBusyPinId(message.id);
-                            try {
-                              await setCommunityPostPinned({
-                                data: { messageId: message.id, pinned: !message.isPinned },
-                              });
-                              await load();
-                              toast.success(
-                                message.isPinned
-                                  ? "Official announcement unpinned."
-                                  : "Announcement pinned to the top of Community.",
-                              );
-                            } catch (error) {
-                              toast.error(
-                                error instanceof Error
-                                  ? error.message
-                                  : "Could not update this pinned announcement.",
-                              );
-                            } finally {
-                              setBusyPinId(null);
-                            }
-                          }}
-                        >
-                          {pinning ? (
-                            <LoaderCircle className="size-4 animate-spin" />
-                          ) : message.isPinned ? (
-                            <PinOff className="size-4" />
-                          ) : (
-                            <Pin className="size-4" />
-                          )}
-                          {message.isPinned ? "Unpin announcement" : "Pin announcement"}
-                        </Button>
-                      )}
+                    {message.canPin && (
+                      <Button
+                        type="button"
+                        variant={message.isPinned ? "secondary" : "ghost"}
+                        size="sm"
+                        className="rounded-full"
+                        disabled={pinning || deleting}
+                        onClick={async () => {
+                          setBusyPinId(message.id);
+                          try {
+                            await setCommunityPostPinned({
+                              data: { messageId: message.id, pinned: !message.isPinned },
+                            });
+                            await load();
+                            toast.success(
+                              message.isPinned
+                                ? "Post unpinned."
+                                : "Post pinned to the top of Community.",
+                            );
+                          } catch (error) {
+                            toast.error(
+                              error instanceof Error
+                                ? error.message
+                                : "Could not update this pinned post.",
+                            );
+                          } finally {
+                            setBusyPinId(null);
+                          }
+                        }}
+                      >
+                        {pinning ? (
+                          <LoaderCircle className="size-4 animate-spin" />
+                        ) : message.isPinned ? (
+                          <PinOff className="size-4" />
+                        ) : (
+                          <Pin className="size-4" />
+                        )}
+                        {message.isPinned ? "Unpin post" : "Pin post"}
+                      </Button>
+                    )}
                   </div>
+                )}
+                {message.commentsClosed && (
+                  <p
+                    role="status"
+                    className="mt-4 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-muted-foreground"
+                  >
+                    Question resolved. Comments and replies are closed.
+                  </p>
                 )}
                 <div className="mt-5 flex flex-wrap items-center gap-2 border-y border-border/70 py-2">
                   <Button
@@ -1332,19 +1349,23 @@ export function CommunityFeed({
                               onDelete={
                                 comment.isOwner ? () => void deleteComment(comment) : undefined
                               }
-                              onReply={() => {
-                                setReplyTargets((current) => ({
-                                  ...current,
-                                  [message.id]: comment.id,
-                                }));
-                                setExpandedReplies((current) => ({
-                                  ...current,
-                                  [comment.id]: true,
-                                }));
-                                window.setTimeout(() =>
-                                  commentInputRefs.current[message.id]?.focus(),
-                                );
-                              }}
+                              onReply={
+                                message.commentsClosed
+                                  ? undefined
+                                  : () => {
+                                      setReplyTargets((current) => ({
+                                        ...current,
+                                        [message.id]: comment.id,
+                                      }));
+                                      setExpandedReplies((current) => ({
+                                        ...current,
+                                        [comment.id]: true,
+                                      }));
+                                      window.setTimeout(() =>
+                                        commentInputRefs.current[message.id]?.focus(),
+                                      );
+                                    }
+                              }
                               onToggleReplies={
                                 replies.length > 0
                                   ? () =>
@@ -1356,7 +1377,9 @@ export function CommunityFeed({
                               }
                               isHelpful={message.helpfulCommentId === comment.id}
                               onHelpful={
-                                message.category === "question" && message.isOwner
+                                message.category === "question" &&
+                                !message.commentsClosed &&
+                                (message.isOwner || message.canManageQuestion)
                                   ? async () => {
                                       setBusyMenuId(message.id);
                                       try {
@@ -1403,7 +1426,9 @@ export function CommunityFeed({
                                       }
                                       isHelpful={message.helpfulCommentId === reply.id}
                                       onHelpful={
-                                        message.category === "question" && message.isOwner
+                                        message.category === "question" &&
+                                        !message.commentsClosed &&
+                                        (message.isOwner || message.canManageQuestion)
                                           ? async () => {
                                               setBusyMenuId(message.id);
                                               try {
@@ -1437,7 +1462,7 @@ export function CommunityFeed({
                         })}
                       </div>
                     )}
-                    {replyTarget && (
+                    {!message.commentsClosed && replyTarget && (
                       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-primary/10 px-3 py-2 text-sm">
                         <p>
                           Replying to <span className="font-semibold">{replyTarget.author}</span>
@@ -1455,71 +1480,75 @@ export function CommunityFeed({
                         </Button>
                       </div>
                     )}
-                    <form
-                      className="flex flex-col gap-2 sm:flex-row"
-                      onSubmit={async (event) => {
-                        event.preventDefault();
-                        const comment = commentDraft.trim();
-                        if (!comment) return;
-                        setBusyCommentId(message.id);
-                        try {
-                          await postCommunityComment({
-                            data: {
-                              messageId: message.id,
-                              parentCommentId: replyTarget?.id,
-                              message: comment,
-                            },
-                          });
-                          setCommentDrafts((current) => ({ ...current, [message.id]: "" }));
-                          setReplyTargets((current) => ({ ...current, [message.id]: null }));
-                          if (replyTarget) {
-                            setExpandedReplies((current) => ({
-                              ...current,
-                              [replyTarget.id]: true,
-                            }));
+                    {!message.commentsClosed && (
+                      <form
+                        className="flex flex-col gap-2 sm:flex-row"
+                        onSubmit={async (event) => {
+                          event.preventDefault();
+                          const comment = commentDraft.trim();
+                          if (!comment) return;
+                          setBusyCommentId(message.id);
+                          try {
+                            await postCommunityComment({
+                              data: {
+                                messageId: message.id,
+                                parentCommentId: replyTarget?.id,
+                                message: comment,
+                              },
+                            });
+                            setCommentDrafts((current) => ({ ...current, [message.id]: "" }));
+                            setReplyTargets((current) => ({ ...current, [message.id]: null }));
+                            if (replyTarget) {
+                              setExpandedReplies((current) => ({
+                                ...current,
+                                [replyTarget.id]: true,
+                              }));
+                            }
+                            await load();
+                            toast.success(replyTarget ? "Reply added." : "Comment added.");
+                          } catch (error) {
+                            toast.error(
+                              error instanceof Error
+                                ? error.message
+                                : "Could not add your comment.",
+                            );
+                          } finally {
+                            setBusyCommentId(null);
                           }
-                          await load();
-                          toast.success(replyTarget ? "Reply added." : "Comment added.");
-                        } catch (error) {
-                          toast.error(
-                            error instanceof Error ? error.message : "Could not add your comment.",
-                          );
-                        } finally {
-                          setBusyCommentId(null);
-                        }
-                      }}
-                    >
-                      <Textarea
-                        ref={(element) => {
-                          commentInputRefs.current[message.id] = element;
                         }}
-                        value={commentDraft}
-                        onChange={(event) =>
-                          setCommentDrafts((current) => ({
-                            ...current,
-                            [message.id]: event.target.value,
-                          }))
-                        }
-                        placeholder={
-                          replyTarget ? `Reply to ${replyTarget.author}...` : "Write a comment..."
-                        }
-                        maxLength={2_000}
-                        rows={2}
-                        required
-                      />
-                      <Button
-                        type="submit"
-                        className="rounded-full sm:self-end"
-                        disabled={commentBusy}
                       >
-                        {commentBusy ? (
-                          <LoaderCircle className="size-4 animate-spin" />
-                        ) : (
-                          <Send className="size-4" />
-                        )}
-                        {replyTarget ? "Reply" : "Comment"}
-                      </Button>
-                    </form>
+                        <Textarea
+                          ref={(element) => {
+                            commentInputRefs.current[message.id] = element;
+                          }}
+                          value={commentDraft}
+                          onChange={(event) =>
+                            setCommentDrafts((current) => ({
+                              ...current,
+                              [message.id]: event.target.value,
+                            }))
+                          }
+                          placeholder={
+                            replyTarget ? `Reply to ${replyTarget.author}...` : "Write a comment..."
+                          }
+                          maxLength={2_000}
+                          rows={2}
+                          required
+                        />
+                        <Button
+                          type="submit"
+                          className="rounded-full sm:self-end"
+                          disabled={commentBusy}
+                        >
+                          {commentBusy ? (
+                            <LoaderCircle className="size-4 animate-spin" />
+                          ) : (
+                            <Send className="size-4" />
+                          )}
+                          {replyTarget ? "Reply" : "Comment"}
+                        </Button>
+                      </form>
+                    )}
                   </div>
                 )}
               </article>

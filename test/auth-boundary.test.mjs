@@ -1005,7 +1005,7 @@ test("community reactions and comments are saved with role checks", async () => 
   assert.match(community, /Community post removed/);
   assert.match(community, /export const setCommunityPostPinned/);
   assert.match(community, /requireAnyRole\(\["Management", "Marketer"\]\)/);
-  assert.match(community, /Only Announcement posts can be pinned as official updates/);
+  assert.match(community, /canPinCommunityPost\(moderator.roles, postDetails.category\)/);
   assert.match(community, /community\.pin/);
   assert.match(community, /community\.unpin/);
   assert.match(community, /tx\.delete\(communityComments\)/);
@@ -1068,7 +1068,7 @@ test("Community search, owner controls, and Management moderation are available 
   assert.match(feed, /message\.canDelete/);
   assert.match(feed, /Management moderation/);
   assert.match(feed, /Pinned official announcement/);
-  assert.match(feed, /Pin announcement/);
+  assert.match(feed, /Pin post/);
   assert.match(feed, /setCommunityPostPinned/);
   assert.match(feed, /Post options/);
   assert.match(feed, /<MoreHorizontal/);
