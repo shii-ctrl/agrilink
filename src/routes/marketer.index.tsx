@@ -95,10 +95,6 @@ function MarketerDashboard() {
         />
         {!loading && !loadError ? (
           <>
-            <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-              <span className="font-semibold text-primary">Live Layerbase totals:</span> these
-              figures are calculated from saved deliveries, inventory, listings, and buyer orders.
-            </div>
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {cards.map((item) => (
                 <Card key={item.label} className="border-border/70 shadow-sm">
