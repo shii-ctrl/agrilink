@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ClipboardCheck, PackageCheck, RefreshCw, Search, ShoppingCart } from "lucide-react";
+import { PackageCheck, RefreshCw, Search, ShoppingCart } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/lib/ui/toast";
 
@@ -203,14 +203,6 @@ function MarketerOrdersPage() {
         />
         {!loading && !loadError ? (
           <>
-            <div className="mb-6 flex gap-3 rounded-2xl border border-primary/20 bg-accent px-4 py-3 text-sm text-accent-foreground">
-              <ClipboardCheck className="mt-0.5 size-5 shrink-0" />
-              <p>
-                <span className="font-semibold">Order workflow:</span> buyer order starts Pending;
-                Marketer confirms it; it becomes Sold after fulfillment; Accounting records payment
-                as Paid.
-              </p>
-            </div>
             <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
               <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5">
                 <div>
