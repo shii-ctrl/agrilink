@@ -31,14 +31,52 @@ const usernameHelp =
   "Do not use spaces. Use letters, numbers, periods, underscores, or hyphens only.";
 
 function registrationErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
-  if (
+  const message = registrationErrorText(error);
+  const invalidUsername =
     message.includes('"username"') ||
-    message.includes("Use letters, numbers, periods, underscores, or hyphens only")
-  ) {
+    message.includes("Use letters, numbers, periods, underscores, or hyphens only");
+  const invalidPassword =
+    message.includes('"password"') ||
+    message.includes("Choose a password that is not commonly guessed") ||
+    message.includes("Use at least 8 characters") ||
+    message.includes("Password cannot start or end with a space");
+
+  if (invalidUsername && invalidPassword) {
+    return "Remove spaces or invalid characters from the username, and choose a stronger password that is not commonly guessed.";
+  }
+  if (invalidUsername) {
     return usernameHelp;
   }
-  return userFacingErrorMessage(error, "Please check your details and try again.");
+  if (message.includes("Choose a password that is not commonly guessed")) {
+    return "Choose a stronger password that is not commonly guessed.";
+  }
+  if (message.includes("Password cannot start or end with a space")) {
+    return "The password cannot start or end with a space.";
+  }
+  if (invalidPassword) {
+    return passwordHelpText;
+  }
+  if (/^\s*[\[{]/.test(message) && message.includes('"path"')) {
+    return "Please check your username and password, then try again.";
+  }
+  return userFacingErrorMessage(message, "Please check your details and try again.");
+}
+
+function registrationErrorText(value: unknown, depth = 0): string {
+  if (typeof value === "string") return value;
+  if (value instanceof Error) return value.message;
+  if (!value || typeof value !== "object" || depth >= 4) return "";
+
+  if (Array.isArray(value)) {
+    return value.map((item) => registrationErrorText(item, depth + 1)).join(" ");
+  }
+
+  const details = value as Record<string, unknown>;
+  const directMessage = registrationErrorText(details["message"], depth + 1);
+  const nestedMessages = ["data", "cause", "error", "issues"]
+    .map((key) => registrationErrorText(details[key], depth + 1))
+    .filter(Boolean);
+  return [directMessage, ...nestedMessages].filter(Boolean).join(" ");
 }
 
 export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogProps) {
