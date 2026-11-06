@@ -60,10 +60,6 @@ function FarmerDashboard() {
                 to="/farmer/earnings"
               />
             </section>
-            <section className="mt-6 rounded-3xl border border-primary/20 bg-accent p-6 text-sm text-accent-foreground">
-              <span className="font-semibold">Your role:</span> farmers supply products to PROCY.
-              PROCY handles classification, marketplace listings, buyer orders, and sales.
-            </section>
             <section className="mt-6 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
               <div className="border-b border-border px-6 py-5">
                 <h2 className="text-lg font-semibold">Sales and payment status</h2>

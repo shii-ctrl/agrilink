@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bot, Leaf, LoaderCircle, Plus, Send, ShieldAlert, Sprout, Trash2 } from "lucide-react";
+import { Bot, Leaf, LoaderCircle, Plus, Send, Sprout, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/lib/ui/toast";
 import { userFacingErrorMessage } from "@/lib/ui/user-facing-error";
@@ -7,7 +7,6 @@ import { userFacingErrorMessage } from "@/lib/ui/user-facing-error";
 import { FarmerLayout, FarmerPageHeader } from "@/components/workspaces/farmer-layout";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   askFarmerCropAi,
@@ -184,22 +183,6 @@ function FarmerCropAiPage() {
         description="Get practical Quezon Province guidance for seasonal planting, crop care, harvest timing, and farm planning."
       />
       <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm">
-          <div className="flex max-w-3xl gap-2 text-muted-foreground">
-            <ShieldAlert className="mt-0.5 size-4 shrink-0 text-primary" />
-            <p>
-              Crop AI uses Quezon Province as its default farming context. It may ask about your
-              municipality, elevation or coastal/inland setting, water source, soil, or field
-              conditions only when that will improve its advice. For severe crop problems, pesticide
-              decisions, or an on-site check, contact PROCY or a local agricultural technician.
-            </p>
-          </div>
-          {workspace && (
-            <span className="rounded-full bg-background px-3 py-1 text-xs font-semibold text-primary">
-              {workspace.remainingQuestions} of {workspace.questionLimit} questions left
-            </span>
-          )}
-        </div>
         {loading ? (
           <div className="flex min-h-80 items-center justify-center gap-2 text-sm text-muted-foreground">
             <LoaderCircle className="size-4 animate-spin" /> Loading Crop AI…
@@ -273,42 +256,28 @@ function FarmerCropAiPage() {
             </aside>
             <div className="min-w-0">
               <div className="border-b border-border px-5 py-5">
-                <div className="flex items-center gap-3">
-                  <span className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <Bot className="size-5" />
-                  </span>
-                  <div>
-                    <h2 className="font-semibold">
-                      {activeConversation ? activeConversation.cropName : "Start a farm question"}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                      Ask about planting choices, crop care, harvesting, or farm planning in Quezon
-                      Province.
-                    </p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                      <Bot className="size-5" />
+                    </span>
+                    <div>
+                      <h2 className="font-semibold">
+                        {activeConversation
+                          ? activeConversation.cropName
+                          : "Start a farm question"}
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        Ask about planting choices, crop care, harvesting, or farm planning in Quezon
+                        Province.
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Crop name <span className="font-normal text-muted-foreground">(optional)</span>
-                    <Input
-                      value={cropName}
-                      onChange={(event) => {
-                        setCropName(event.target.value);
-                        if (error) setError(null);
-                      }}
-                      placeholder="Example: Ampalaya (optional)"
-                      maxLength={160}
-                    />
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-medium">
-                    Planting date{" "}
-                    <span className="font-normal text-muted-foreground">(optional)</span>
-                    <Input
-                      type="date"
-                      value={plantingDate}
-                      onChange={(event) => setPlantingDate(event.target.value)}
-                    />
-                  </label>
+                  {workspace && (
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                      {workspace.remainingQuestions} of {workspace.questionLimit} questions left
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="min-h-[22rem] space-y-4 bg-muted/10 p-5">
