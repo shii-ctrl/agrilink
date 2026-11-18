@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 
 test("migration verification refuses to run without explicit disposable test settings", () => {
   const result = spawnSync(process.execPath, ["scripts/verify-fresh-migrations.mjs"], {
@@ -100,6 +101,33 @@ test("daily cash closing migration safely resumes after verified tables already 
 test("Vercel applies checked migrations before building production code", async () => {
   const config = JSON.parse(await readFile("vercel.json", "utf8"));
   assert.equal(config.buildCommand, "npm run db:migrate && npm run build");
+});
+
+test("fresh cash-closing migrations omit Drizzle separators before SQL execution", async () => {
+  const [runner, migration] = await Promise.all([
+    readFile("scripts/migrate.mjs", "utf8"),
+    readFile("drizzle/0041_daily_cash_closing.sql", "utf8"),
+  ]);
+  const start = runner.indexOf("async function prepareDailyCashClosingMigration(");
+  const end = runner.indexOf("\ntry {\n  await connection.execute", start);
+  const executed = [];
+  const apply = runInNewContext(
+    runner.slice(start, end) + "\napplyMigration",
+    {
+      connection: {
+        execute: async () => [[]],
+        query: async (sql) => {
+          assert.doesNotMatch(sql, /^--> statement-breakpoint/m);
+          executed.push(sql);
+        },
+      },
+    },
+  );
+  await apply("0041_daily_cash_closing.sql", migration);
+  assert.equal(executed.length, 1);
+  assert.match(executed[0], /CREATE TABLE `daily_cash_closings`/);
+  assert.match(executed[0], /CREATE TABLE `daily_cash_adjustments`/);
+  assert.match(migration, /--> statement-breakpoint/);
 });
 
 test("delivery receipt repair restores required fields without deleting history", async () => {

@@ -224,6 +224,8 @@ async function applyMigration(file, sql) {
   if (file === "0041_daily_cash_closing.sql") {
     executableSql = await prepareDailyCashClosingMigration(executableSql);
   }
+  // Drizzle separators are metadata, not valid MySQL/MariaDB SQL comments.
+  executableSql = executableSql.replace(/^[\t ]*--> statement-breakpoint[\t ]*\r?$/gm, "");
   while (true) {
     try {
       if (executableSql.trim()) await connection.query(executableSql);
