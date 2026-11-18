@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PackageCheck, RefreshCw, Search, ShoppingCart } from "lucide-react";
+import { Archive, ArrowLeft, PackageCheck, RefreshCw, Search, ShoppingCart } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/lib/ui/toast";
 
@@ -36,12 +36,11 @@ export const Route = createFileRoute("/marketer/orders")({
   component: MarketerOrdersPage,
 });
 
-const orderStatusFilters = ["Pending", "Confirmed", "Sold", "Cancelled", "Rejected"] as const;
-
 function MarketerOrdersPage() {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Pending");
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const confirmationPending = useRef(false);
   const [orderDate, setOrderDate] = useState("");
@@ -197,7 +196,12 @@ function MarketerOrdersPage() {
   const oldestPendingId = [...orders]
     .filter((order) => order.status === "Pending")
     .sort(compareOrderAge)[0]?.id;
-  const visibleOrders = orders.filter(
+  const archivedCount = orders.filter(isArchivedOrder).length;
+  const scopedOrders = orders.filter((order) => isArchivedOrder(order) === archiveOpen);
+  const orderStatusFilters = archiveOpen
+    ? (["Sold", "Cancelled", "Rejected"] as const)
+    : (["Pending", "Confirmed", "Sold"] as const);
+  const visibleOrders = scopedOrders.filter(
     (order) =>
       `${order.id} ${order.buyer} ${order.product} ${order.status} ${order.items?.map((item) => `${item.name} ${item.classification}`).join(" ") ?? ""}`
         .toLowerCase()
@@ -207,6 +211,16 @@ function MarketerOrdersPage() {
   );
   visibleOrders.sort(compareOrderAge);
   const ordersPage = usePagination(visibleOrders);
+  const { setPage } = ordersPage;
+  useEffect(() => setPage(1), [archiveOpen, query, statusFilter, orderDate, setPage]);
+
+  function showArchive(nextArchiveOpen: boolean) {
+    setArchiveOpen(nextArchiveOpen);
+    setStatusFilter(nextArchiveOpen ? "" : "Pending");
+    setQuery("");
+    setOrderDate("");
+    setSelectedId(null);
+  }
 
   return (
     <MarketerLayout>
@@ -227,15 +241,40 @@ function MarketerOrdersPage() {
             <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
               <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5">
                 <div>
-                  <h2 className="text-lg font-semibold">Buyer order queue</h2>
+                  <h2 className="text-lg font-semibold">
+                    {archiveOpen ? "Archived orders" : "Buyer order queue"}
+                  </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Oldest orders first. Confirm each order after reviewing its available stock.
+                    {archiveOpen
+                      ? "Completed and paid orders, plus cancelled and rejected orders."
+                      : "Oldest orders first. Confirm each order after reviewing its available stock."}
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
-                  <ShoppingCart className="size-3.5" />{" "}
-                  {orders.filter((order) => order.status === "Pending").length} pending
+                  {archiveOpen ? (
+                    <Archive className="size-3.5" />
+                  ) : (
+                    <ShoppingCart className="size-3.5" />
+                  )}
+                  {archiveOpen
+                    ? `${archivedCount} archived`
+                    : `${orders.filter((order) => order.status === "Pending").length} pending`}
                 </span>
+                <Button
+                  type="button"
+                  variant={archiveOpen ? "default" : "outline"}
+                  size="sm"
+                  className="rounded-full"
+                  aria-pressed={archiveOpen}
+                  onClick={() => showArchive(!archiveOpen)}
+                >
+                  {archiveOpen ? (
+                    <ArrowLeft className="size-3.5" />
+                  ) : (
+                    <Archive className="size-3.5" />
+                  )}
+                  {archiveOpen ? "Back to orders" : `Archive (${archivedCount})`}
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -280,7 +319,7 @@ function MarketerOrdersPage() {
                       className="rounded-full"
                       onClick={() => setStatusFilter("")}
                     >
-                      All <span className="ml-1 opacity-75">{orders.length}</span>
+                      All <span className="ml-1 opacity-75">{scopedOrders.length}</span>
                     </Button>
                     {orderStatusFilters.map((status) => (
                       <Button
@@ -293,7 +332,7 @@ function MarketerOrdersPage() {
                       >
                         {status}{" "}
                         <span className="ml-1 opacity-75">
-                          {orders.filter((order) => order.status === status).length}
+                          {scopedOrders.filter((order) => order.status === status).length}
                         </span>
                       </Button>
                     ))}
@@ -329,6 +368,11 @@ function MarketerOrdersPage() {
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
                         <StatusBadge status={order.status} />
+                        {order.status === "Sold" && (
+                          <span className="text-xs text-muted-foreground">
+                            {order.paymentStatus === "Paid" ? "Paid" : "Awaiting payment"}
+                          </span>
+                        )}
                         {order.id === oldestPendingId && (
                           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                             Oldest pending
@@ -466,16 +510,18 @@ function MarketerOrdersPage() {
               </div>
               {!visibleOrders.length && (
                 <p className="px-6 py-10 text-center text-muted-foreground">
-                  {orders.length
+                  {scopedOrders.length
                     ? "No buyer orders match these filters."
-                    : "No buyer orders have been saved yet."}
+                    : archiveOpen
+                      ? "No archived orders yet."
+                      : "No active buyer orders. Completed orders are available in Archive."}
                 </p>
               )}
               <PaginationControls {...ordersPage} itemLabel="orders" />
             </section>
             {selectedId &&
               (() => {
-                const order = orders.find((item) => item.id === selectedId);
+                const order = scopedOrders.find((item) => item.id === selectedId);
                 return order ? (
                   <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card">
                     <OrderDetails order={order} />
@@ -522,6 +568,14 @@ function StatusBadge({ status }: { status: string }) {
 function hasEnoughStock(order: OrderRecord) {
   const items = order.items ?? [];
   return items.length > 0 && items.every((item) => (item.availableKg ?? 0) >= item.quantityKg);
+}
+
+function isArchivedOrder(order: OrderRecord) {
+  return (
+    order.status === "Cancelled" ||
+    order.status === "Rejected" ||
+    (order.status === "Sold" && order.paymentStatus === "Paid")
+  );
 }
 
 function compareOrderAge(first: OrderRecord, second: OrderRecord) {
