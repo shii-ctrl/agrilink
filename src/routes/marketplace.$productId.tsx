@@ -146,8 +146,8 @@ function ProductDetail() {
   }, [router, selectedOffer.id]);
   const availableQuantity = selectedOffer.quantityKg;
   const isAvailable = availableQuantity > 0;
-  const remainingCartableQuantity = Math.max(0, availableQuantity);
-  const maximumSelectableQuantity = Math.max(1, availableQuantity);
+  const remainingCartableQuantity = Math.max(0, availableQuantity - cartQuantityKg);
+  const maximumSelectableQuantity = Math.max(1, remainingCartableQuantity);
   const quantityStep = sellingUnitStep(product.sellingUnit);
   const requestedQuantity = Number(quantityInput);
   const qty = Number.isFinite(requestedQuantity) ? requestedQuantity : 0;
@@ -384,7 +384,7 @@ function ProductDetail() {
                       className={`text-xs font-medium ${offer.quantityKg > 0 ? "text-primary" : "text-muted-foreground"}`}
                     >
                       {offer.id === selectedOffer.id && hasCartReservation && offer.quantityKg <= 0
-                        ? "Reserved"
+                        ? "In cart — no stock"
                         : offer.quantityKg > 0
                           ? formatSellingQuantity(offer.quantityKg, product.sellingUnit)
                           : "No stock"}
@@ -448,7 +448,7 @@ function ProductDetail() {
             <div className="min-w-0">
               <p className="font-semibold">
                 {hasCartReservation && !isAvailable
-                  ? "Reserved in your cart"
+                  ? "Already in your cart"
                   : canPurchase
                     ? `${formatSellingQuantity(availableQuantity, product.sellingUnit)} available`
                     : selectedOfferHasPrice
@@ -457,7 +457,7 @@ function ProductDetail() {
               </p>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 {hasCartReservation && !isAvailable
-                  ? `${formatSellingQuantity(cartQuantityKg, product.sellingUnit)} is reserved for you. Continue to your cart before the reservation expires.`
+                  ? "This item is in your cart but is currently out of stock. Review your cart before checkout."
                   : canPurchase
                     ? "Available now from PROCY farmer-member supply."
                     : "This quality is currently unavailable."}
@@ -557,7 +557,7 @@ function ProductDetail() {
                 Subtotal for {formatSellingQuantity(qty, product.sellingUnit)}:{" "}
                 {peso(qty * currentPricePerKg)}
                 {hasCartReservation
-                  ? ` · ${formatSellingQuantity(cartQuantityKg, product.sellingUnit)} already reserved in your cart.`
+                  ? ` · ${formatSellingQuantity(cartQuantityKg, product.sellingUnit)} already in your cart.`
                   : ""}
               </p>
               <p className="mt-1">Sold by PROCY and supplied by AgriLink farmer members.</p>
@@ -672,7 +672,7 @@ function ProductDetail() {
                 to="/buyer/cart"
                 className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 font-semibold text-primary-foreground"
               >
-                <ShoppingCart className="size-4" /> View reserved item in cart
+                <ShoppingCart className="size-4" /> View item in cart
               </Link>
             )}
           </div>

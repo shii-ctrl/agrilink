@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PackageCheck, RefreshCw, Search, ShoppingCart } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/lib/ui/toast";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
@@ -13,6 +13,7 @@ import { PaginationControls, usePagination } from "@/components/data/pagination-
 import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
 import { WorkspaceLoadState } from "@/components/data/workspace-load-state";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
+import { formatSellingQuantity } from "@/features/marketplace/selling-units";
 import type { OrderRecord } from "@/features/marketplace/order-records";
 import {
   confirmDatabaseOrder,
@@ -40,7 +41,9 @@ const orderStatusFilters = ["Pending", "Confirmed", "Sold", "Cancelled", "Reject
 function MarketerOrdersPage() {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Pending");
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const confirmationPending = useRef(false);
   const [orderDate, setOrderDate] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,27 +67,41 @@ function MarketerOrdersPage() {
   useAutoRefresh(() => load().catch(() => undefined));
 
   async function confirmOrder(id: string) {
-    if (
-      !(await requestConfirmation({
-        title: "Confirm buyer order?",
-        description:
-          "Make sure the classified listing has enough stock before confirming this order.",
-        confirmLabel: "Confirm order",
-      }))
-    )
-      return;
+    if (confirmationPending.current) return;
     const order = orders.find((item) => item.id === id);
-    if (!order) return;
+    if (!order || !hasEnoughStock(order)) return;
+    confirmationPending.current = true;
     try {
+      const accepted = await requestConfirmation({
+        title: "Confirm buyer order?",
+        description: `Confirm ${order.id} for ${order.buyer}. These quantities will be deducted from marketplace availability.`,
+        confirmLabel: "Confirm order",
+        details: (
+          <ul className="space-y-2 text-sm">
+            {order.items?.map((item) => (
+              <li key={item.listingId}>
+                {item.name} · {item.classification} ·{" "}
+                {formatSellingQuantity(item.quantityKg, item.sellingUnit ?? "kg")}
+              </li>
+            ))}
+          </ul>
+        ),
+      });
+      if (!accepted) return;
+      setConfirmingId(id);
       await confirmDatabaseOrder({ data: { orderNumber: id } });
       await load();
       toast.success("Order confirmed", {
-        description: "AgriLink recorded the confirmation and order timeline.",
+        description: "Stock has been allocated and marketplace availability updated.",
       });
     } catch (error) {
+      await load().catch(() => undefined);
       toast.error("Order could not be confirmed", {
         description: error instanceof Error ? error.message : "Please try again.",
       });
+    } finally {
+      confirmationPending.current = false;
+      setConfirmingId(null);
     }
   }
 
@@ -133,7 +150,7 @@ function MarketerOrdersPage() {
     if (
       !(await requestConfirmation({
         title: "Reject this order?",
-        description: "Its reserved stock will return to the marketplace.",
+        description: "The Buyer will be notified that this Pending order was rejected.",
         confirmLabel: "Reject order",
         destructive: true,
       }))
@@ -145,7 +162,7 @@ function MarketerOrdersPage() {
         data: { orderNumber: id, outcome: "rejected", reason: "Rejected by Marketer." },
       });
       await load();
-      toast.success("Order rejected", { description: "Reserved stock was released." });
+      toast.success("Order rejected");
     } catch (error) {
       toast.error("Order could not be rejected", {
         description: error instanceof Error ? error.message : "Please try again.",
@@ -177,14 +194,18 @@ function MarketerOrdersPage() {
     }
   }
 
+  const oldestPendingId = [...orders]
+    .filter((order) => order.status === "Pending")
+    .sort(compareOrderAge)[0]?.id;
   const visibleOrders = orders.filter(
     (order) =>
-      `${order.id} ${order.buyer} ${order.product} ${order.status}`
+      `${order.id} ${order.buyer} ${order.product} ${order.status} ${order.items?.map((item) => `${item.name} ${item.classification}`).join(" ") ?? ""}`
         .toLowerCase()
         .includes(query.toLowerCase()) &&
       (!statusFilter || order.status === statusFilter) &&
       (!orderDate || order.createdAt?.slice(0, 10) === orderDate),
   );
+  visibleOrders.sort(compareOrderAge);
   const ordersPage = usePagination(visibleOrders);
 
   return (
@@ -208,7 +229,7 @@ function MarketerOrdersPage() {
                 <div>
                   <h2 className="text-lg font-semibold">Buyer order queue</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Live saved orders from AgriLink.
+                    Oldest orders first. Confirm each order after reviewing its available stock.
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
@@ -293,7 +314,7 @@ function MarketerOrdersPage() {
                   </Button>
                 )}
               </ResponsiveFilterPanel>
-              <div className="grid gap-3 p-4 lg:hidden">
+              <div className="grid gap-4 p-4 xl:grid-cols-2">
                 {ordersPage.pageItems.map((order) => (
                   <article key={order.id} className="rounded-2xl border border-border p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -306,8 +327,63 @@ function MarketerOrdersPage() {
                           {order.product} · {order.quantity}
                         </p>
                       </div>
-                      <StatusBadge status={order.status} />
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <StatusBadge status={order.status} />
+                        {order.id === oldestPendingId && (
+                          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                            Oldest pending
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Ordered{" "}
+                      {order.createdAt
+                        ? new Date(order.createdAt).toLocaleString("en-PH", {
+                            timeZone: "Asia/Manila",
+                          })
+                        : order.date}
+                    </p>
+                    {order.status === "Pending" && (
+                      <div className="mt-3 space-y-2 rounded-xl bg-muted/40 p-3 text-sm">
+                        {order.items?.map((item) => (
+                          <div
+                            key={item.listingId}
+                            className="flex flex-wrap justify-between gap-2"
+                          >
+                            <span>
+                              {item.name} · {item.classification}
+                            </span>
+                            <span
+                              className={
+                                (item.availableKg ?? 0) < item.quantityKg
+                                  ? "font-medium text-destructive"
+                                  : ""
+                              }
+                            >
+                              Requested{" "}
+                              {formatSellingQuantity(item.quantityKg, item.sellingUnit ?? "kg")} ·
+                              Available{" "}
+                              {formatSellingQuantity(
+                                item.availableKg ?? 0,
+                                item.sellingUnit ?? "kg",
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                        <p
+                          className={
+                            hasEnoughStock(order)
+                              ? "font-medium text-primary"
+                              : "font-medium text-destructive"
+                          }
+                        >
+                          {hasEnoughStock(order)
+                            ? "Enough stock"
+                            : "Insufficient stock — review the available quantities above."}
+                        </p>
+                      </div>
+                    )}
                     <div className="mt-4 flex items-center justify-between gap-3 text-sm">
                       <span className="capitalize text-muted-foreground">
                         {(order.fulfillmentStatus ?? "pending").replaceAll("_", " ")}
@@ -316,20 +392,43 @@ function MarketerOrdersPage() {
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Button size="sm" variant="outline" onClick={() => setSelectedId(order.id)}>
-                        Details
+                        View details
                       </Button>
                       {order.status === "Pending" ? (
-                        <Button size="sm" onClick={() => void confirmOrder(order.id)}>
-                          Confirm
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            disabled={confirmingId !== null || !hasEnoughStock(order)}
+                            onClick={() => void confirmOrder(order.id)}
+                          >
+                            {confirmingId === order.id ? "Confirming…" : "Confirm order"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={confirmingId !== null}
+                            onClick={() => void rejectOrder(order.id)}
+                          >
+                            Reject
+                          </Button>
+                        </>
                       ) : order.status === "Confirmed" &&
                         order.fulfillmentStatus === "confirmed" ? (
-                        <Button
-                          size="sm"
-                          onClick={() => void advanceFulfillment(order.id, "preparing")}
-                        >
-                          Start preparing
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => void advanceFulfillment(order.id, "preparing")}
+                          >
+                            Start preparing
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => void cancelConfirmedOrder(order.id)}
+                          >
+                            Cancel order
+                          </Button>
+                        </>
                       ) : order.status === "Confirmed" &&
                         order.fulfillmentStatus === "preparing" ? (
                         <Button
@@ -365,141 +464,13 @@ function MarketerOrdersPage() {
                   </article>
                 ))}
               </div>
-              <div className="hidden overflow-x-auto lg:block">
-                <table className="w-full min-w-[980px] text-left text-sm">
-                  <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-6 py-4 font-medium">Order ID</th>
-                      <th className="px-6 py-4 font-medium">Buyer</th>
-                      <th className="px-6 py-4 font-medium">Product</th>
-                      <th className="px-6 py-4 font-medium">Quantity</th>
-                      <th className="px-6 py-4 font-medium">Total</th>
-                      <th className="px-6 py-4 font-medium">Order Status</th>
-                      <th className="px-6 py-4 font-medium">Date</th>
-                      <th className="px-6 py-4 font-medium">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ordersPage.pageItems.map((order) => (
-                      <tr key={order.id} className="border-b border-border last:border-0">
-                        <td className="px-6 py-4 font-medium">{order.id}</td>
-                        <td className="px-6 py-4">{order.buyer}</td>
-                        <td className="px-6 py-4">
-                          {order.product}{" "}
-                          <span className="text-muted-foreground">({order.classification})</span>
-                        </td>
-                        <td className="px-6 py-4">{order.quantity}</td>
-                        <td className="px-6 py-4">{order.total}</td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={order.status} />
-                        </td>
-                        <td className="px-6 py-4 text-muted-foreground">{order.date}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-full"
-                              onClick={() => setSelectedId(order.id)}
-                            >
-                              Details
-                            </Button>
-                            {order.status === "Pending" ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  className="rounded-full"
-                                  onClick={() => confirmOrder(order.id)}
-                                >
-                                  Confirm order
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="rounded-full"
-                                  onClick={() => rejectOrder(order.id)}
-                                >
-                                  Reject
-                                </Button>
-                              </>
-                            ) : order.status === "Confirmed" &&
-                              order.fulfillmentStatus === "confirmed" ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  className="rounded-full"
-                                  onClick={() => void advanceFulfillment(order.id, "preparing")}
-                                >
-                                  Start preparing
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="rounded-full"
-                                  onClick={() => cancelConfirmedOrder(order.id)}
-                                >
-                                  Cancel order
-                                </Button>
-                              </>
-                            ) : order.status === "Confirmed" &&
-                              order.fulfillmentStatus === "preparing" ? (
-                              <Button
-                                size="sm"
-                                className="rounded-full"
-                                onClick={() =>
-                                  void advanceFulfillment(
-                                    order.id,
-                                    order.fulfillmentMethod === "delivery"
-                                      ? "ready_for_dispatch"
-                                      : "ready_for_pickup",
-                                  )
-                                }
-                              >
-                                {order.fulfillmentMethod === "delivery"
-                                  ? "Ready for dispatch"
-                                  : "Ready for pickup"}
-                              </Button>
-                            ) : order.status === "Confirmed" &&
-                              order.fulfillmentStatus === "ready_for_pickup" ? (
-                              <Button
-                                size="sm"
-                                className="rounded-full"
-                                onClick={() => void advanceFulfillment(order.id, "picked_up")}
-                              >
-                                Confirm pickup
-                              </Button>
-                            ) : order.status === "Confirmed" &&
-                              ["picked_up", "delivered"].includes(order.fulfillmentStatus ?? "") ? (
-                              <Button
-                                size="sm"
-                                className="rounded-full"
-                                onClick={() => void markSold(order.id)}
-                              >
-                                Finalize sold
-                              </Button>
-                            ) : order.status === "Confirmed" ? (
-                              <span className="capitalize text-muted-foreground">
-                                {(order.fulfillmentStatus ?? "confirmed").replaceAll("_", " ")}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">Completed</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {!visibleOrders.length && (
-                      <tr>
-                        <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
-                          {orders.length
-                            ? "No buyer orders match these filters."
-                            : "No buyer orders have been saved yet."}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              {!visibleOrders.length && (
+                <p className="px-6 py-10 text-center text-muted-foreground">
+                  {orders.length
+                    ? "No buyer orders match these filters."
+                    : "No buyer orders have been saved yet."}
+                </p>
+              )}
               <PaginationControls {...ordersPage} itemLabel="orders" />
             </section>
             {selectedId &&
@@ -545,5 +516,17 @@ function StatusBadge({ status }: { status: string }) {
         : "bg-accent text-accent-foreground";
   return (
     <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${className}`}>{status}</span>
+  );
+}
+
+function hasEnoughStock(order: OrderRecord) {
+  const items = order.items ?? [];
+  return items.length > 0 && items.every((item) => (item.availableKg ?? 0) >= item.quantityKg);
+}
+
+function compareOrderAge(first: OrderRecord, second: OrderRecord) {
+  return (
+    (first.createdAt ?? "").localeCompare(second.createdAt ?? "") ||
+    first.id.localeCompare(second.id)
   );
 }

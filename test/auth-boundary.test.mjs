@@ -365,12 +365,12 @@ test("marketplace cart controls prevent duplicate additions beyond available sto
   assert.match(source, /Buy now/);
   assert.match(source, /getBuyerCart\(\)/);
   assert.match(source, /remainingCartableQuantity/);
-  assert.match(source, /Reserved in your cart/);
-  assert.match(source, /View reserved item in cart/);
+  assert.match(source, /Already in your cart/);
+  assert.match(source, /View item in cart/);
   assert.match(source, /to="\/buyer\/cart"/);
 });
 
-test("buyer cart reservations expire after ten minutes and return stock", async () => {
+test("buyer cart sessions expire after ten minutes and explain confirmation stock allocation", async () => {
   const [marketplace, cartPage, schema, migration] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/routes/buyer.cart.tsx", "utf8"),
@@ -385,8 +385,8 @@ test("buyer cart reservations expire after ten minutes and return stock", async 
   assert.match(marketplace, /expireAllBuyerCartReservations/);
   assert.match(marketplace, /Cart reservation expired after 10 minutes/);
   assert.match(marketplace, /reservationExpiresAt: nextCartReservationExpiry\(\)/);
-  assert.match(cartPage, /Reserved for/);
-  assert.match(cartPage, /Your cart reservation expired/);
+  assert.match(cartPage, /Cart session expires in/);
+  assert.match(cartPage, /Your cart session expired/);
 });
 
 test("Accounting prints buyer payment receipts after payment is recorded", async () => {
@@ -577,7 +577,7 @@ test("marketplace publishing protects combined stock and supports every quality 
   );
   assert.match(marketplace, /Number\(stock\.quantityKg\) - Number\(stock\.reservedKg\) <= 0/);
   assert.match(marketplace, /reserveListingStock\(tx, \{/);
-  assert.match(marketplace, /controllerListing\.status !== "published"/);
+  assert.match(marketplace, /listing\.status !== "published"/);
 });
 
 test("role workspaces refresh saved operational data while users are active", async () => {
@@ -615,10 +615,10 @@ test("role workspaces refresh saved operational data while users are active", as
   }
 });
 
-test("Marketer order queue uses cards through tablet widths", async () => {
+test("Marketer order queue uses stock review cards at every screen width", async () => {
   const orders = await readFile("src/routes/marketer.orders.tsx", "utf8");
-  assert.match(orders, /grid gap-3 p-4 lg:hidden/);
-  assert.match(orders, /hidden overflow-x-auto lg:block/);
+  assert.match(orders, /grid gap-4 p-4 xl:grid-cols-2/);
+  assert.doesNotMatch(orders, /<table/);
 });
 
 test("successful system actions trigger immediate and cross-tab soft refreshes", async () => {

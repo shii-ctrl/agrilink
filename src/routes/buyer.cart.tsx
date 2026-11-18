@@ -195,8 +195,8 @@ function BuyerCartPage() {
     releasedReservationRef.current = true;
     void reload()
       .then(() => {
-        toast("Your cart reservation expired", {
-          description: "The reserved products have been returned to the marketplace.",
+        toast("Your cart session expired", {
+          description: "Refresh the marketplace to add the products again.",
         });
       })
       .catch(() => undefined);
@@ -218,7 +218,7 @@ function BuyerCartPage() {
 
   async function update(id: string, quantityKg: number) {
     const item = items.find((cartItem) => cartItem.id === id);
-    const maximumQuantity = (item?.availableKg ?? 0) + (item?.quantityKg ?? 0);
+    const maximumQuantity = item?.availableKg ?? 0;
     const nextQuantity = Math.min(quantityKg, maximumQuantity);
     if (quantityKg > maximumQuantity) {
       toast("Only the available quantity can be ordered", {
@@ -411,11 +411,11 @@ function BuyerCartPage() {
                 <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-200">
                   <Clock3 className="size-4 shrink-0" />
                   <span>
-                    Reserved for{" "}
+                    Cart session expires in{" "}
                     {earliestReservationExpiry
                       ? reservationCountdown(earliestReservationExpiry, now)
                       : "0:00"}
-                    . Checkout before time runs out or stock returns to the marketplace.
+                    . Stock is allocated only when the Marketer confirms your order.
                   </span>
                 </div>
                 {items.map((item) => (
@@ -440,7 +440,9 @@ function BuyerCartPage() {
                       ) : null}
                       <p className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300">
                         <Clock3 className="size-3" />
-                        Reserved for {reservationCountdown(item.reservationExpiresAt, now)}
+                        {item.quantityKg > item.availableKg
+                          ? "Insufficient stock. Update or remove this item."
+                          : `Available: ${formatSellingQuantity(item.availableKg, item.sellingUnit)}`}
                       </p>
                     </div>
                     <div className="flex items-center rounded-full border border-border p-1">
@@ -457,7 +459,7 @@ function BuyerCartPage() {
                       <button
                         className="flex size-8 items-center justify-center rounded-full hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                         onClick={() => void update(item.id, item.quantityKg + 1)}
-                        disabled={item.availableKg <= 0}
+                        disabled={item.quantityKg >= item.availableKg}
                         aria-label="Increase quantity"
                       >
                         <Plus className="size-4" />
@@ -890,13 +892,19 @@ function BuyerCartPage() {
                       </div>
                     </fieldset>
                   )}
-                  <Button type="submit" className="w-full rounded-full" disabled={placingOrder}>
+                  <Button
+                    type="submit"
+                    className="w-full rounded-full"
+                    disabled={
+                      placingOrder || items.some((item) => item.quantityKg > item.availableKg)
+                    }
+                  >
                     {placingOrder ? "Submitting order…" : "Review and place order"}
                   </Button>
                 </form>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Complete checkout before the reservation expires. Payment instructions will be
-                  provided after your order is confirmed.
+                  Your order stays Pending until reviewed by the Marketer. Stock is allocated on
+                  confirmation, subject to availability.
                 </p>
               </section>
             </div>

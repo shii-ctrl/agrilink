@@ -24,6 +24,7 @@ export type OrderLine = {
   classification: string;
   quantityKg: number;
   pricePerKg: number;
+  availableKg?: number;
   image?: string | null;
   sellingUnit?: SellingUnit;
 };

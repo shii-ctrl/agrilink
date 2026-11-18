@@ -533,7 +533,13 @@ async function fetchListings(productId?: string) {
     .innerJoin(classifications, eq(listings.classificationId, classifications.id))
     .where(where)
     .orderBy(desc(listings.updatedAt), desc(listings.id));
-  const visibleRows = rows.filter((row) => row.status === "published");
+  const visibleRows = rows.filter(
+    (row) =>
+      row.status === "published" &&
+      row.active &&
+      row.priceConfigured &&
+      Number(row.availableKg) > 0,
+  );
   const grouped = new Map<string, MarketplaceProduct>();
   for (const row of visibleRows) {
     const offerProduct = asProduct(row);
@@ -1622,12 +1628,12 @@ async function buyerCartRows(buyerId: string) {
       bundleMinimumKg: listings.bundleMinimumKg,
       quantityKg: cartItems.quantityKg,
       reservationExpiresAt: cartItems.reservationExpiresAt,
-      availableKg: sql<string>`(
+      availableKg: sql<string>`CASE WHEN ${listings.status} = 'published' AND ${products.active} = 1 AND ${listings.priceConfigured} = 1 THEN (
         SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
         FROM inventory AS stock
         WHERE stock.product_id = ${listings.productId}
           AND stock.classification_id = ${listings.classificationId}
-      )`,
+      ) ELSE 0 END`,
       imageUrl: sql<string | null>`COALESCE(${listings.imageUrl}, ${products.imageUrl})`,
     })
     .from(carts)
@@ -1667,12 +1673,16 @@ async function reserveListingStock(
     referenceId,
     recordedById,
     note,
+    reserve = true,
+    referenceType = "cart",
   }: {
     listingId: string;
     quantityKg: number;
     referenceId: string;
     recordedById: string;
     note: string;
+    reserve?: boolean;
+    referenceType?: "cart" | "order";
   },
 ) {
   const { classifications, inventory, inventoryMovements, listings, products } =
@@ -1685,12 +1695,13 @@ async function reserveListingStock(
       sellingUnit: products.sellingUnit,
       status: listings.status,
       priceConfigured: listings.priceConfigured,
+      active: products.active,
     })
     .from(listings)
     .innerJoin(products, eq(listings.productId, products.id))
     .innerJoin(classifications, eq(listings.classificationId, classifications.id))
     .where(eq(listings.id, listingId));
-  if (!listing || listing.status !== "published" || !listing.priceConfigured) {
+  if (!listing || !listing.active || listing.status !== "published" || !listing.priceConfigured) {
     throw new Error("This product is no longer available in the marketplace.");
   }
   if (requiresWholeSellingQuantity(listing.sellingUnit) && !Number.isInteger(quantityKg)) {
@@ -1724,6 +1735,8 @@ async function reserveListingStock(
     );
   }
 
+  if (!reserve) return;
+
   let remainingKg = quantityKg;
   for (const batch of batches) {
     if (remainingKg <= 0) break;
@@ -1749,7 +1762,7 @@ async function reserveListingStock(
       inventoryId: batch.id,
       movementType: "reservation",
       reservedChangeKg: reserveKg.toFixed(2),
-      referenceType: "cart",
+      referenceType,
       referenceId,
       recordedById,
       note,
@@ -1822,115 +1835,6 @@ async function releaseCartReservation(
   }
 }
 
-/**
- * Cart items now reserve stock immediately. The movement row also lets existing
- * carts created before this behaviour be safely reserved once, without reserving
- * them again on every cart refresh.
- */
-async function reserveExistingBuyerCartStock(buyerId: string) {
-  const { db } = await import("@/db/client.server");
-  const { cartItems, carts, classifications, inventory, listings } = await import("@/db/schema");
-
-  await db.transaction(async (tx) => {
-    // The same Buyer page can load the cart button and product details together.
-    // Locking the cart first prevents both requests from reserving a legacy item.
-    await tx.select({ id: carts.id }).from(carts).where(eq(carts.buyerId, buyerId)).for("update");
-    const unreservedItems = await tx
-      .select({
-        cartItemId: cartItems.id,
-        listingId: listings.id,
-        quantityKg: cartItems.quantityKg,
-      })
-      .from(carts)
-      .innerJoin(cartItems, eq(cartItems.cartId, carts.id))
-      .innerJoin(listings, eq(cartItems.listingId, listings.id))
-      .where(
-        and(
-          eq(carts.buyerId, buyerId),
-          sql`NOT EXISTS (
-            SELECT 1
-            FROM inventory_movements AS existing_reservation
-            WHERE existing_reservation.reference_type = 'cart'
-              AND existing_reservation.reference_id = ${cartItems.id}
-              AND existing_reservation.movement_type = 'reservation'
-          )`,
-        ),
-      )
-      .for("update");
-
-    for (const item of unreservedItems) {
-      const [listing] = await tx
-        .select({
-          productId: listings.productId,
-          classificationId: listings.classificationId,
-          classification: classifications.name,
-        })
-        .from(listings)
-        .innerJoin(classifications, eq(listings.classificationId, classifications.id))
-        .where(eq(listings.id, item.listingId));
-      if (!listing) {
-        await tx.delete(cartItems).where(eq(cartItems.id, item.cartItemId));
-        continue;
-      }
-      const [controllerListing] = await tx
-        .select({ id: listings.id, status: listings.status })
-        .from(listings)
-        .where(
-          and(
-            eq(listings.productId, listing.productId),
-            eq(listings.classificationId, listing.classificationId),
-          ),
-        )
-        .limit(1);
-      if (!controllerListing || controllerListing.status !== "published") {
-        await tx.delete(cartItems).where(eq(cartItems.id, item.cartItemId));
-        continue;
-      }
-      if (controllerListing.id !== item.listingId) {
-        await tx
-          .update(cartItems)
-          .set({ listingId: controllerListing.id })
-          .where(eq(cartItems.id, item.cartItemId));
-      }
-      const batches = await tx
-        .select({ quantityKg: inventory.quantityKg, reservedKg: inventory.reservedKg })
-        .from(inventory)
-        .where(
-          and(
-            eq(inventory.productId, listing.productId),
-            eq(inventory.classificationId, listing.classificationId),
-            sql`${inventory.quantityKg} - ${inventory.reservedKg} > 0`,
-          ),
-        )
-        .for("update");
-      const availableKg = batches.reduce(
-        (total: number, batch: { quantityKg: string; reservedKg: string }) =>
-          total + Math.max(0, Number(batch.quantityKg) - Number(batch.reservedKg)),
-        0,
-      );
-      const reservableKg = Math.min(Number(item.quantityKg), availableKg);
-      if (reservableKg <= 0) {
-        await tx.delete(cartItems).where(eq(cartItems.id, item.cartItemId));
-        continue;
-      }
-
-      if (reservableKg < Number(item.quantityKg)) {
-        await tx
-          .update(cartItems)
-          .set({ quantityKg: reservableKg.toFixed(2) })
-          .where(eq(cartItems.id, item.cartItemId));
-      }
-      await reserveListingStock(tx, {
-        listingId: controllerListing.id,
-        quantityKg: reservableKg,
-        referenceId: item.cartItemId,
-        recordedById: buyerId,
-        note: "Reserved in buyer cart from existing cart data.",
-      });
-    }
-  });
-}
-
 /** Releases cart stock that was held for more than ten minutes without checkout. */
 async function expireBuyerCartReservations(buyerId: string) {
   const { db } = await import("@/db/client.server");
@@ -1950,7 +1854,7 @@ async function expireBuyerCartReservations(buyerId: string) {
       .where(
         and(
           eq(cartItems.cartId, cart.id),
-          sql`${cartItems.reservationExpiresAt} <= CURRENT_TIMESTAMP`,
+          sql`${cartItems.reservationExpiresAt} <= UTC_TIMESTAMP()`,
         ),
       )
       .for("update");
@@ -1978,7 +1882,7 @@ async function expireAllBuyerCartReservations() {
     .select({ buyerId: carts.buyerId })
     .from(carts)
     .innerJoin(cartItems, eq(cartItems.cartId, carts.id))
-    .where(sql`${cartItems.reservationExpiresAt} <= CURRENT_TIMESTAMP`);
+    .where(sql`${cartItems.reservationExpiresAt} <= UTC_TIMESTAMP()`);
 
   for (const buyerId of new Set(expiredCarts.map((cart) => cart.buyerId))) {
     await expireBuyerCartReservations(buyerId);
@@ -1986,10 +1890,7 @@ async function expireAllBuyerCartReservations() {
 }
 
 async function prepareBuyerCart(buyerId: string) {
-  // Older carts are reserved once before expiry is evaluated. This keeps every
-  // release traceable and prevents historical cart lines from bypassing stock rules.
   await expireAllBuyerCartReservations();
-  await reserveExistingBuyerCartStock(buyerId);
   await expireBuyerCartReservations(buyerId);
 }
 
@@ -2017,7 +1918,8 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
       const [cart] = await tx
         .select({ id: carts.id })
         .from(carts)
-        .where(eq(carts.buyerId, buyer.id));
+        .where(eq(carts.buyerId, buyer.id))
+        .for("update");
       if (!cart) throw new Error("Your cart could not be prepared.");
       const [existing] = await tx
         .select({ id: cartItems.id, quantityKg: cartItems.quantityKg })
@@ -2044,10 +1946,11 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
       }
       await reserveListingStock(tx, {
         listingId: data.listingId,
-        quantityKg: data.quantityKg,
+        quantityKg: nextQuantity,
         referenceId: cartItemId,
         recordedById: buyer.id,
-        note: "Reserved in buyer cart.",
+        note: "Checked buyer cart availability.",
+        reserve: false,
       });
     });
     return buyerCartRows(buyer.id);
@@ -2065,7 +1968,8 @@ export const setBuyerCartItem = createServerFn({ method: "POST" })
       const [cart] = await tx
         .select({ id: carts.id })
         .from(carts)
-        .where(eq(carts.buyerId, buyer.id));
+        .where(eq(carts.buyerId, buyer.id))
+        .for("update");
       if (!cart) return;
       const [existing] = await tx
         .select({ id: cartItems.id, quantityKg: cartItems.quantityKg })
@@ -2099,23 +2003,14 @@ export const setBuyerCartItem = createServerFn({ method: "POST" })
           `${sellingUnitLabel(listingUnit.sellingUnit, 2)} must be ordered as whole units.`,
         );
       }
-      const differenceKg = data.quantityKg - currentQuantityKg;
-      if (differenceKg > 0) {
-        await reserveListingStock(tx, {
-          listingId: data.listingId,
-          quantityKg: differenceKg,
-          referenceId: existing.id,
-          recordedById: buyer.id,
-          note: "Increased buyer cart reservation.",
-        });
-      } else if (differenceKg < 0) {
-        await releaseCartReservation(tx, {
-          cartItemId: existing.id,
-          quantityKg: Math.abs(differenceKg),
-          recordedById: buyer.id,
-          note: "Reduced buyer cart reservation.",
-        });
-      }
+      await reserveListingStock(tx, {
+        listingId: data.listingId,
+        quantityKg: data.quantityKg,
+        referenceId: existing.id,
+        recordedById: buyer.id,
+        note: "Checked buyer cart availability.",
+        reserve: false,
+      });
       const [updated] = await tx
         .update(cartItems)
         .set({
@@ -2136,7 +2031,6 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
     await prepareBuyerCart(buyer.id);
     const { db } = await import("@/db/client.server");
     const {
-      inventory,
       listings,
       orders,
       orderItems,
@@ -2146,7 +2040,6 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
       cartItems,
       carts,
       deliverySettings,
-      inventoryMovements,
     } = await import("@/db/schema");
 
     const createdOrder = await db.transaction(async (tx) => {
@@ -2161,7 +2054,8 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
       const [cart] = await tx
         .select({ id: carts.id })
         .from(carts)
-        .where(eq(carts.buyerId, buyer.id));
+        .where(eq(carts.buyerId, buyer.id))
+        .for("update");
       if (!cart) throw new Error("Your cart is empty. Add items before placing an order.");
       const cartLines = await tx
         .select({
@@ -2174,7 +2068,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
           and(
             eq(cartItems.cartId, cart.id),
             inArray(cartItems.listingId, listingIds),
-            sql`${cartItems.reservationExpiresAt} > CURRENT_TIMESTAMP`,
+            sql`${cartItems.reservationExpiresAt} > UTC_TIMESTAMP()`,
           ),
         );
       if (
@@ -2186,38 +2080,18 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         )
       ) {
         throw new Error(
-          "Your cart reservation expired. Refresh the marketplace and add the item again.",
+          "Your cart session expired or changed. Refresh your cart before placing the order.",
         );
       }
-      const cartItemIds = cartLines.map((line) => line.id);
-      const reservationRows = cartItemIds.length
-        ? await tx
-            .select({
-              cartItemId: inventoryMovements.referenceId,
-              reservedChangeKg: inventoryMovements.reservedChangeKg,
-            })
-            .from(inventoryMovements)
-            .where(
-              and(
-                eq(inventoryMovements.referenceType, "cart"),
-                inArray(inventoryMovements.referenceId, cartItemIds),
-              ),
-            )
-        : [];
-      const reservedByCartItem = new Map<string, number>();
-      for (const reservation of reservationRows) {
-        if (!reservation.cartItemId) continue;
-        reservedByCartItem.set(
-          reservation.cartItemId,
-          (reservedByCartItem.get(reservation.cartItemId) ?? 0) +
-            Number(reservation.reservedChangeKg),
-        );
-      }
+      // Pending orders do not hold stock. Confirmation allocates it atomically.
       for (const item of requestedItems) {
-        const cartItem = cartLines.find((line) => line.listingId === item.listingId);
-        if (!cartItem || (reservedByCartItem.get(cartItem.id) ?? 0) + 0.0001 < item.quantityKg) {
-          throw new Error("Your cart reservation changed. Refresh it before placing the order.");
-        }
+        await reserveListingStock(tx, {
+          ...item,
+          referenceId: cart.id,
+          recordedById: buyer.id,
+          note: "Checked checkout availability.",
+          reserve: false,
+        });
       }
       const rows = await tx
         .select({
@@ -2316,17 +2190,6 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
             : "Buyer selected pickup at PROCY.",
         changedAt: new Date(),
       });
-
-      // Keep the batch-level reservation trail when the cart becomes an order.
-      await tx
-        .update(inventoryMovements)
-        .set({ referenceType: "order", referenceId: orderId, note: `Reserved for ${orderNumber}.` })
-        .where(
-          and(
-            eq(inventoryMovements.referenceType, "cart"),
-            inArray(inventoryMovements.referenceId, cartItemIds),
-          ),
-        );
 
       await tx
         .delete(cartItems)
@@ -3507,6 +3370,12 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
         sellingUnit: orderItems.sellingUnit,
         quantityKg: orderItems.quantityKg,
         pricePerKg: orderItems.pricePerKg,
+        availableKg: sql<string>`CASE WHEN ${listings.status} = 'published' AND ${products.active} = 1 AND ${listings.priceConfigured} = 1 THEN (
+          SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
+          FROM inventory AS stock
+          WHERE stock.product_id = ${listings.productId}
+            AND stock.classification_id = ${listings.classificationId}
+        ) ELSE 0 END`,
       })
       .from(orderItems)
       .innerJoin(listings, eq(orderItems.listingId, listings.id))
@@ -3519,7 +3388,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
         farmer: users.displayName,
         product: products.name,
         classification: classifications.name,
-        quantityKg: inventoryMovements.reservedChangeKg,
+        quantityKg: sql<string>`SUM(${inventoryMovements.reservedChangeKg} - ${inventoryMovements.availableChangeKg})`,
         receivedAt: inventory.receivedAt,
       })
       .from(inventoryMovements)
@@ -3530,9 +3399,20 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       .where(
         and(
           eq(inventoryMovements.referenceType, "order"),
-          eq(inventoryMovements.movementType, "reservation"),
+          inArray(inventoryMovements.movementType, ["reservation", "release", "sale"]),
           inArray(inventoryMovements.referenceId, orderIds),
         ),
+      )
+      .groupBy(
+        inventoryMovements.referenceId,
+        inventory.id,
+        users.displayName,
+        products.name,
+        classifications.name,
+        inventory.receivedAt,
+      )
+      .having(
+        sql`SUM(${inventoryMovements.reservedChangeKg} - ${inventoryMovements.availableChangeKg}) > 0`,
       ),
     db
       .select({
@@ -3552,6 +3432,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
         ...item,
         quantityKg: Number(item.quantityKg),
         pricePerKg: Number(item.pricePerKg),
+        availableKg: Math.max(0, Number(item.availableKg)),
       }));
     const first = lines[0];
     return {
@@ -3606,7 +3487,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
           quantityKg: Number(allocation.quantityKg),
           receivedAt: allocation.receivedAt.toISOString(),
         })),
-      stockReserved: order.status === "pending" || order.status === "confirmed",
+      stockReserved: order.status === "confirmed",
     } satisfies OrderRecord;
   });
 });
@@ -4373,12 +4254,14 @@ export const confirmDatabaseOrder = createServerFn({ method: "POST" })
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const actor = await requireRole("Marketer");
     const { db } = await import("@/db/client.server");
-    const { orderFulfillmentHistory, orderStatusHistory, orders } = await import("@/db/schema");
+    const { orderItems, orderFulfillmentHistory, orderStatusHistory, orders } =
+      await import("@/db/schema");
     const confirmedOrder = await db.transaction(async (tx) => {
       const [order] = await tx
         .select()
         .from(orders)
-        .where(eq(orders.orderNumber, data.orderNumber));
+        .where(eq(orders.orderNumber, data.orderNumber))
+        .for("update");
       if (!order) throw new Error("The requested order could not be found.");
       const now = new Date();
       const [transition] = await tx
@@ -4387,6 +4270,22 @@ export const confirmDatabaseOrder = createServerFn({ method: "POST" })
         .where(and(eq(orders.id, order.id), eq(orders.status, "pending")));
       if (transition.affectedRows !== 1) {
         throw new Error("Only an unchanged Pending order can be confirmed.");
+      }
+      const items = await tx
+        .select({ listingId: orderItems.listingId, quantityKg: orderItems.quantityKg })
+        .from(orderItems)
+        .where(eq(orderItems.orderId, order.id))
+        .orderBy(asc(orderItems.listingId));
+      if (!items.length) throw new Error("This order has no items to confirm.");
+      for (const item of items) {
+        await reserveListingStock(tx, {
+          listingId: item.listingId,
+          quantityKg: Number(item.quantityKg),
+          referenceId: order.id,
+          referenceType: "order",
+          recordedById: actor.id,
+          note: `Stock allocated on confirmation of ${order.orderNumber}.`,
+        });
       }
       await tx.insert(orderStatusHistory).values({
         id: crypto.randomUUID(),
@@ -4444,7 +4343,8 @@ export const markDatabaseOrderSold = createServerFn({ method: "POST" })
       const [order] = await tx
         .select()
         .from(orders)
-        .where(eq(orders.orderNumber, data.orderNumber));
+        .where(eq(orders.orderNumber, data.orderNumber))
+        .for("update");
       if (!order) throw new Error("The requested order could not be found.");
       if (!["picked_up", "delivered"].includes(order.fulfillmentStatus)) {
         throw new Error(
@@ -4580,7 +4480,8 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
       const [order] = await tx
         .select()
         .from(orders)
-        .where(eq(orders.orderNumber, data.orderNumber));
+        .where(eq(orders.orderNumber, data.orderNumber))
+        .for("update");
       if (!order) throw new Error("The requested order could not be found.");
 
       const isBuyer = actor.roles.includes("Buyer");
@@ -4644,7 +4545,7 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
       // Orders created before combined stock reservations existed have no
       // per-batch movement history. Keep their original listing batch as the
       // safe fallback so historic orders remain cancellable.
-      if (!lines.length) {
+      if (!lines.length && order.status === "confirmed" && !reservationMovements.length) {
         lines = await tx
           .select({ inventoryId: inventory.id, quantityKg: orderItems.quantityKg })
           .from(orderItems)

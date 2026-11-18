@@ -67,7 +67,7 @@ function BuyerOrdersPage() {
       deliveryInstructions: order.deliveryInstructions,
       ...(order.fulfilledAt ? { fulfilledAt: order.fulfilledAt.toISOString() } : {}),
       items: [],
-      stockReserved: order.status === "pending" || order.status === "confirmed",
+      stockReserved: order.status === "confirmed",
     }));
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(request);
@@ -89,7 +89,7 @@ function BuyerOrdersPage() {
     if (
       !(await requestConfirmation({
         title: "Cancel this order?",
-        description: `${order.id} will be cancelled and its reserved stock will return to the marketplace.`,
+        description: `${order.id} will be cancelled before Marketer confirmation.`,
         confirmLabel: "Cancel order",
         destructive: true,
       }))
@@ -162,7 +162,7 @@ function BuyerOrdersPage() {
           note: entry.note,
           changedAt: entry.changedAt,
         })),
-        stockReserved: detail.status === "pending" || detail.status === "confirmed",
+        stockReserved: detail.status === "confirmed",
       });
     } catch {
       if (!background) {
@@ -186,7 +186,7 @@ function BuyerOrdersPage() {
     try {
       await rebuildBuyerCartFromOrder({ data: { orderNumber: order.id } });
       toast.success("Order added to cart", {
-        description: "The available quantities are reserved for your next checkout.",
+        description: "Review your cart. Availability is checked again before Marketer confirmation.",
       });
       navigate({ to: "/buyer/cart" });
     } catch {
