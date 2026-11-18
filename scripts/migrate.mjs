@@ -215,12 +215,26 @@ async function applyConfirmationStockMigration() {
     "SELECT id, reserved_kg FROM inventory ORDER BY id FOR UPDATE",
   );
   const [movements] = await connection.query(`
-    SELECT m.inventory_id, m.reference_type, m.reference_id, m.reserved_change_kg
+    SELECT m.inventory_id, m.reference_type, m.reference_id, m.reserved_change_kg,
+           o.status AS order_status
     FROM inventory_movements m
     LEFT JOIN orders o ON m.reference_type = 'order' AND o.id = m.reference_id
-    WHERE m.reference_type = 'cart' OR (m.reference_type = 'order' AND o.status = 'pending')
     ORDER BY m.inventory_id, m.reference_type, m.reference_id
     FOR UPDATE
+  `);
+  const [legacyConfirmedLines] = await connection.query(`
+    SELECT o.id AS order_id, l.inventory_id, oi.quantity_kg
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+    JOIN marketplace_listings l ON l.id = oi.listing_id
+    WHERE o.status = 'confirmed'
+      AND NOT EXISTS (
+        SELECT 1 FROM inventory_movements m
+        WHERE m.reference_type = 'order' AND m.reference_id = o.id
+        GROUP BY m.inventory_id
+        HAVING SUM(m.reserved_change_kg) > 0
+      )
+    ORDER BY o.id, oi.id
   `);
   const [legacyLines] = await connection.query(`
     SELECT o.id AS order_id, o.buyer_id, l.inventory_id, oi.quantity_kg
@@ -252,13 +266,34 @@ async function applyConfirmationStockMigration() {
       quantity: (current?.quantity ?? 0) + cents(quantity),
     });
   }
+  const protectedReferences = new Map();
   for (const movement of movements) {
-    addRelease(
-      movement.inventory_id,
-      movement.reference_type,
-      movement.reference_id,
-      movement.reserved_change_kg,
-    );
+    if (
+      movement.reference_type === "cart" ||
+      (movement.reference_type === "order" && movement.order_status === "pending")
+    ) {
+      addRelease(
+        movement.inventory_id,
+        movement.reference_type,
+        movement.reference_id,
+        movement.reserved_change_kg,
+      );
+    } else if (
+      movement.order_status === "confirmed" ||
+      (movement.reference_type !== "cart" && movement.reference_type !== "order") ||
+      (movement.reference_type === "order" && !movement.order_status)
+    ) {
+      const key = JSON.stringify([
+        movement.inventory_id,
+        movement.reference_type,
+        movement.reference_id,
+      ]);
+      const current = protectedReferences.get(key);
+      protectedReferences.set(key, {
+        inventoryId: movement.inventory_id,
+        quantity: (current?.quantity ?? 0) + cents(movement.reserved_change_kg),
+      });
+    }
   }
   for (const line of legacyLines) {
     addRelease(line.inventory_id, "order", line.order_id, line.quantity_kg);
@@ -269,10 +304,41 @@ async function applyConfirmationStockMigration() {
     totals.set(release.inventoryId, (totals.get(release.inventoryId) ?? 0) + release.quantity);
   }
   const stockById = new Map(stock.map((row) => [row.id, cents(row.reserved_kg)]));
-  for (const [inventoryId, quantity] of totals) {
-    if (!stockById.has(inventoryId) || stockById.get(inventoryId) < quantity) {
+  const protectedByInventory = new Map();
+  for (const hold of protectedReferences.values()) {
+    if (hold.quantity > 0) {
+      protectedByInventory.set(
+        hold.inventoryId,
+        (protectedByInventory.get(hold.inventoryId) ?? 0) + hold.quantity,
+      );
+    }
+  }
+  for (const line of legacyConfirmedLines) {
+    if (!line.inventory_id) {
       throw new Error(
-        "Stock migration found a mismatch between inventory and reservation history. No stock was released.",
+        "A legacy Confirmed order has no original inventory batch. Its allocation must be reviewed before migration.",
+      );
+    }
+    protectedByInventory.set(
+      line.inventory_id,
+      (protectedByInventory.get(line.inventory_id) ?? 0) + cents(line.quantity_kg),
+    );
+  }
+  for (const [inventoryId, quantity] of totals) {
+    const stored = stockById.get(inventoryId);
+    const protectedQuantity = protectedByInventory.get(inventoryId) ?? 0;
+    if (stored === undefined || stored < protectedQuantity) {
+      throw new Error(
+        `Stock migration cannot protect existing allocations for batch ${inventoryId}: stored reserved=${stored === undefined ? "missing" : decimal(stored)}, protected=${decimal(protectedQuantity)}. Review this batch before retrying.`,
+      );
+    }
+    // Old release history can be incomplete or duplicated. The persisted balance
+    // is the ceiling for a real release, after retaining Confirmed/other holds.
+    const actualRelease = Math.min(quantity, stored - protectedQuantity);
+    totals.set(inventoryId, actualRelease);
+    if (actualRelease < quantity) {
+      console.log(
+        `Reconciled legacy reservations for batch ${inventoryId}: retired history=${decimal(quantity)}, released stock=${decimal(actualRelease)}, protected=${decimal(protectedQuantity)}.`,
       );
     }
   }
@@ -294,6 +360,7 @@ async function applyConfirmationStockMigration() {
     );
   }
   for (const [inventoryId, quantity] of totals) {
+    if (quantity === 0) continue;
     const [updated] = await connection.execute(
       `
       UPDATE inventory SET reserved_kg = reserved_kg - ?
@@ -319,7 +386,7 @@ async function applyConfirmationStockMigration() {
         decimal(-release.quantity),
         release.referenceType,
         release.referenceId,
-        "Released for confirmation-only stock allocation.",
+        "Retired cart/Pending reservation history; actual inventory release is limited to saved holds after protecting Confirmed allocations.",
       ],
     );
   }

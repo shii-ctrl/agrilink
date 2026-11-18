@@ -296,6 +296,71 @@ test(
           17,
           "upgrade must not reuse or alter retained temporary tables",
         );
+        // Historical holds may still be in the ledger after their actual stock
+        // was released. Retire that history without taking Confirmed allocations.
+        await connection.query(
+          "INSERT INTO inventory_movements (id,inventory_id,movement_type,reserved_change_kg,reference_type,reference_id) VALUES (UUID(),'stock','reservation',20,'cart','stale-cart')",
+        );
+        for (let attempt = 0; attempt < 2; attempt++) {
+          await connection.beginTransaction();
+          await apply("0045_confirmation_stock_allocation.sql", upgrade);
+          await connection.commit();
+          assert.deepEqual(await stock(), [10, 4], "stale history must not reduce Confirmed stock");
+        }
+        const [[stale]] = await connection.query(
+          "SELECT SUM(reserved_change_kg) AS remaining FROM inventory_movements WHERE reference_type='cart' AND reference_id='stale-cart'",
+        );
+        assert.equal(Number(stale.remaining), 0, "stale reservations are retired once");
+
+        await connection.query(
+          "INSERT INTO inventory_movements (id,inventory_id,movement_type,reserved_change_kg,reference_type,reference_id) VALUES ('other-hold','stock','reservation',2,'manual_hold','protected-hold'),(UUID(),'stock','reservation',1,'cart','another-stale-cart')",
+        );
+        await connection.query("UPDATE inventory SET reserved_kg=6 WHERE id='stock'");
+        await connection.beginTransaction();
+        await apply("0045_confirmation_stock_allocation.sql", upgrade);
+        await connection.commit();
+        assert.deepEqual(await stock(), [10, 6], "other saved holds must also remain protected");
+        // Remove only the additional test fixture before the existing assertions.
+        await connection.query("DELETE FROM inventory_movements WHERE id='other-hold'");
+        await connection.query("UPDATE inventory SET reserved_kg=4 WHERE id='stock'");
+        await connection.query(
+          "INSERT INTO orders (id,order_number,buyer_id,status,contact,pickup_note,total_amount) VALUES ('legacy-confirmed-no-ledger','LEGACY-CONFIRMED-NO-LEDGER','buyer','confirmed','test','Pickup',20)",
+        );
+        await connection.query(
+          "INSERT INTO order_items (id,order_id,listing_id,quantity_kg,price_per_kg) VALUES ('legacy-confirmed-line','legacy-confirmed-no-ledger','listing',2,10)",
+        );
+        await connection.query(
+          "INSERT INTO inventory_movements (id,inventory_id,movement_type,reserved_change_kg,reference_type,reference_id) VALUES (UUID(),'stock','reservation',1,'cart','stale-legacy-cart')",
+        );
+        await connection.query("UPDATE inventory SET reserved_kg=6 WHERE id='stock'");
+        await connection.beginTransaction();
+        await apply("0045_confirmation_stock_allocation.sql", upgrade);
+        await connection.commit();
+        assert.deepEqual(
+          await stock(),
+          [10, 6],
+          "legacy Confirmed orders without ledger entries keep their holds",
+        );
+        await connection.query("DELETE FROM order_items WHERE id='legacy-confirmed-line'");
+        await connection.query("DELETE FROM orders WHERE id='legacy-confirmed-no-ledger'");
+        await connection.query("UPDATE inventory SET reserved_kg=4 WHERE id='stock'");
+        await connection.query(
+          "INSERT INTO inventory_movements (id,inventory_id,movement_type,reserved_change_kg,reference_type,reference_id) VALUES ('invalid-cart','stock','reservation',1,'cart','invalid-cart')",
+        );
+        await connection.query("UPDATE inventory SET reserved_kg=3 WHERE id='stock'");
+        await connection.beginTransaction();
+        await assert.rejects(
+          apply("0045_confirmation_stock_allocation.sql", upgrade),
+          /cannot protect existing allocations/,
+        );
+        await connection.rollback();
+        assert.deepEqual(
+          await stock(),
+          [10, 3],
+          "inconsistent Confirmed stock must not be rewritten",
+        );
+        await connection.query("DELETE FROM inventory_movements WHERE id='invalid-cart'");
+        await connection.query("UPDATE inventory SET reserved_kg=4 WHERE id='stock'");
       } finally {
         connection.release();
       }
