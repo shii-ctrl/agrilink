@@ -8,6 +8,13 @@ import { OrderDetails } from "@/features/marketplace/components/order-details";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PaginationControls, usePagination } from "@/components/data/pagination-controls";
 import { ResponsiveFilterPanel } from "@/components/data/responsive-filter-panel";
@@ -198,6 +205,7 @@ function MarketerOrdersPage() {
     .sort(compareOrderAge)[0]?.id;
   const archivedCount = orders.filter(isArchivedOrder).length;
   const scopedOrders = orders.filter((order) => isArchivedOrder(order) === archiveOpen);
+  const selectedOrder = scopedOrders.find((order) => order.id === selectedId);
   const orderStatusFilters = archiveOpen
     ? (["Sold", "Cancelled", "Rejected"] as const)
     : (["Pending", "Confirmed", "Sold"] as const);
@@ -519,15 +527,20 @@ function MarketerOrdersPage() {
               )}
               <PaginationControls {...ordersPage} itemLabel="orders" />
             </section>
-            {selectedId &&
-              (() => {
-                const order = scopedOrders.find((item) => item.id === selectedId);
-                return order ? (
-                  <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card">
-                    <OrderDetails order={order} />
-                  </section>
-                ) : null;
-              })()}
+            <Dialog
+              open={Boolean(selectedOrder)}
+              onOpenChange={(open) => {
+                if (!open) setSelectedId(null);
+              }}
+            >
+              <DialogContent className="sm:max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Order details</DialogTitle>
+                  <DialogDescription>{selectedOrder?.id}</DialogDescription>
+                </DialogHeader>
+                {selectedOrder && <OrderDetails order={selectedOrder} />}
+              </DialogContent>
+            </Dialog>
             <section className="mt-8 grid gap-4 md:grid-cols-2">
               <article className="rounded-3xl border border-border bg-card p-6 shadow-card">
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
