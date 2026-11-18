@@ -111,23 +111,41 @@ test("fresh cash-closing migrations omit Drizzle separators before SQL execution
   const start = runner.indexOf("async function prepareDailyCashClosingMigration(");
   const end = runner.indexOf("\ntry {\n  await connection.execute", start);
   const executed = [];
-  const apply = runInNewContext(
-    runner.slice(start, end) + "\napplyMigration",
-    {
-      connection: {
-        execute: async () => [[]],
-        query: async (sql) => {
-          assert.doesNotMatch(sql, /^--> statement-breakpoint/m);
-          executed.push(sql);
-        },
+  const apply = runInNewContext(runner.slice(start, end) + "\napplyMigration", {
+    connection: {
+      execute: async () => [[]],
+      query: async (sql) => {
+        assert.doesNotMatch(sql, /^--> statement-breakpoint/m);
+        executed.push(sql);
       },
     },
-  );
+  });
   await apply("0041_daily_cash_closing.sql", migration);
   assert.equal(executed.length, 1);
   assert.match(executed[0], /CREATE TABLE `daily_cash_closings`/);
   assert.match(executed[0], /CREATE TABLE `daily_cash_adjustments`/);
   assert.match(migration, /--> statement-breakpoint/);
+});
+
+test("stock migration runs when scratch table names are already occupied", async () => {
+  const runner = await readFile("scripts/migrate.mjs", "utf8");
+  const migration = await readFile("drizzle/0045_confirmation_stock_allocation.sql", "utf8");
+  const start = runner.indexOf("async function applyConfirmationStockMigration(");
+  const end = runner.indexOf("\ntry {\n  await connection.execute", start);
+  const apply = runInNewContext(runner.slice(start, end) + "\napplyMigration", {
+    connection: {
+      query: async (sql) => {
+        if (/confirmation_stock_releases|confirmation_stock_check/i.test(sql)) {
+          throw Object.assign(new Error("Table already exists"), { code: "ER_TABLE_EXISTS_ERROR" });
+        }
+        return [[]];
+      },
+      execute: async () => {
+        throw new Error("Empty inventory must not be changed.");
+      },
+    },
+  });
+  await apply("0045_confirmation_stock_allocation.sql", migration);
 });
 
 test("delivery receipt repair restores required fields without deleting history", async () => {

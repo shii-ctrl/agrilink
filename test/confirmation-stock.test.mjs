@@ -267,9 +267,20 @@ test(
       const upgrade = await readFile("drizzle/0045_confirmation_stock_allocation.sql", "utf8");
       const connection = await pool.getConnection();
       try {
+        // Reproduce the hosted deployment's retained temporary-table names.
+        await connection.query("CREATE TEMPORARY TABLE confirmation_stock_releases (marker INT)");
+        await connection.query("INSERT INTO confirmation_stock_releases VALUES (17)");
+        await connection.query("CREATE TEMPORARY TABLE confirmation_stock_check (marker INT)");
+        const runner = await readFile("scripts/migrate.mjs", "utf8");
+        const start = runner.indexOf("async function applyConfirmationStockMigration(");
+        const end = runner.indexOf("\ntry {\n  await connection.execute", start);
+        const apply = runInNewContext(runner.slice(start, end) + "\napplyMigration", {
+          connection,
+          console,
+        });
         for (let attempt = 0; attempt < 2; attempt++) {
           await connection.beginTransaction();
-          await connection.query(upgrade);
+          await apply("0045_confirmation_stock_allocation.sql", upgrade);
           await connection.commit();
           assert.deepEqual(
             await stock(),
@@ -277,6 +288,14 @@ test(
             "upgrade safely releases old holds and can be retried",
           );
         }
+        const [[retained]] = await connection.query(
+          "SELECT marker FROM confirmation_stock_releases",
+        );
+        assert.equal(
+          retained.marker,
+          17,
+          "upgrade must not reuse or alter retained temporary tables",
+        );
       } finally {
         connection.release();
       }

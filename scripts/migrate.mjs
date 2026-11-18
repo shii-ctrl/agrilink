@@ -205,7 +205,131 @@ async function prepareDailyCashClosingMigration(sql) {
   return executableSql;
 }
 
+async function applyConfirmationStockMigration() {
+  // Some hosted connections retain temporary-table state. Perform this upgrade
+  // using locked rows and the ledger instead, inside the caller's transaction.
+  // Keep 0045's published SQL/checksum unchanged for databases that applied it.
+  await connection.query("SELECT id FROM orders WHERE status = 'pending' ORDER BY id FOR UPDATE");
+  await connection.query("SELECT id FROM carts ORDER BY id FOR UPDATE");
+  const [stock] = await connection.query(
+    "SELECT id, reserved_kg FROM inventory ORDER BY id FOR UPDATE",
+  );
+  const [movements] = await connection.query(`
+    SELECT m.inventory_id, m.reference_type, m.reference_id, m.reserved_change_kg
+    FROM inventory_movements m
+    LEFT JOIN orders o ON m.reference_type = 'order' AND o.id = m.reference_id
+    WHERE m.reference_type = 'cart' OR (m.reference_type = 'order' AND o.status = 'pending')
+    ORDER BY m.inventory_id, m.reference_type, m.reference_id
+    FOR UPDATE
+  `);
+  const [legacyLines] = await connection.query(`
+    SELECT o.id AS order_id, o.buyer_id, l.inventory_id, oi.quantity_kg
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+    JOIN marketplace_listings l ON l.id = oi.listing_id
+    WHERE o.status = 'pending'
+      AND NOT EXISTS (
+        SELECT 1 FROM inventory_movements m
+        WHERE m.reference_type = 'order' AND m.reference_id = o.id
+      )
+    ORDER BY o.id, oi.id
+  `);
+  const releases = new Map();
+  const cents = (quantity) => Math.round(Number(quantity) * 100);
+  const decimal = (quantity) => (quantity / 100).toFixed(2);
+  function addRelease(inventoryId, referenceType, referenceId, quantity) {
+    if (!inventoryId || !referenceId) {
+      throw new Error(
+        "Stock migration found an allocation without its original batch or reference. No stock was released.",
+      );
+    }
+    const key = JSON.stringify([inventoryId, referenceType, referenceId]);
+    const current = releases.get(key);
+    releases.set(key, {
+      inventoryId,
+      referenceType,
+      referenceId,
+      quantity: (current?.quantity ?? 0) + cents(quantity),
+    });
+  }
+  for (const movement of movements) {
+    addRelease(
+      movement.inventory_id,
+      movement.reference_type,
+      movement.reference_id,
+      movement.reserved_change_kg,
+    );
+  }
+  for (const line of legacyLines) {
+    addRelease(line.inventory_id, "order", line.order_id, line.quantity_kg);
+  }
+  const totals = new Map();
+  for (const release of releases.values()) {
+    if (release.quantity <= 0) continue;
+    totals.set(release.inventoryId, (totals.get(release.inventoryId) ?? 0) + release.quantity);
+  }
+  const stockById = new Map(stock.map((row) => [row.id, cents(row.reserved_kg)]));
+  for (const [inventoryId, quantity] of totals) {
+    if (!stockById.has(inventoryId) || stockById.get(inventoryId) < quantity) {
+      throw new Error(
+        "Stock migration found a mismatch between inventory and reservation history. No stock was released.",
+      );
+    }
+  }
+  for (const line of legacyLines) {
+    await connection.execute(
+      `
+      INSERT INTO inventory_movements
+        (id, inventory_id, movement_type, available_change_kg, reserved_change_kg,
+         reference_type, reference_id, recorded_by_id, note)
+      VALUES (UUID(), ?, 'reservation', 0, ?, 'order', ?, ?, ?)
+    `,
+      [
+        line.inventory_id,
+        line.quantity_kg,
+        line.order_id,
+        line.buyer_id,
+        "Legacy Pending allocation before confirmation-only stock.",
+      ],
+    );
+  }
+  for (const [inventoryId, quantity] of totals) {
+    const [updated] = await connection.execute(
+      `
+      UPDATE inventory SET reserved_kg = reserved_kg - ?
+      WHERE id = ? AND reserved_kg >= ?
+    `,
+      [decimal(quantity), inventoryId, decimal(quantity)],
+    );
+    if (updated.affectedRows !== 1) {
+      throw new Error("Inventory changed during the stock migration. No stock was released.");
+    }
+  }
+  for (const release of releases.values()) {
+    if (release.quantity <= 0) continue;
+    await connection.execute(
+      `
+      INSERT INTO inventory_movements
+        (id, inventory_id, movement_type, available_change_kg, reserved_change_kg,
+         reference_type, reference_id, note)
+      VALUES (UUID(), ?, 'release', 0, ?, ?, ?, ?)
+    `,
+      [
+        release.inventoryId,
+        decimal(-release.quantity),
+        release.referenceType,
+        release.referenceId,
+        "Released for confirmation-only stock allocation.",
+      ],
+    );
+  }
+}
+
 async function applyMigration(file, sql) {
+  if (file === "0045_confirmation_stock_allocation.sql") {
+    await applyConfirmationStockMigration();
+    return;
+  }
   const inventoryFarmerConstraint =
     /ALTER TABLE inventory ADD CONSTRAINT IF NOT EXISTS fk_inventory_farmer FOREIGN KEY \(farmer_id\) REFERENCES users\(id\);\s*/i;
   const needsInventoryFarmerConstraint = file === "0006_inventory_farmer_traceability.sql";
