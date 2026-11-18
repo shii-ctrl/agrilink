@@ -93,7 +93,7 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%_-_0.75rem)] max-h-[calc(100dvh_-_0.75rem)] touch-pan-y overflow-y-auto overscroll-contain rounded-[1.5rem] border-primary/25 bg-card p-0 text-card-foreground shadow-field sm:max-w-md sm:rounded-[2rem]">
+      <DialogContent className="w-[calc(100%_-_0.75rem)] max-h-[calc(100dvh_-_0.75rem)] touch-pan-y overflow-y-auto overscroll-contain rounded-[1.5rem] border-primary/25 bg-card p-0 text-card-foreground shadow-field [scrollbar-width:none] sm:max-w-md sm:rounded-[2rem] [&::-webkit-scrollbar]:hidden">
         <div className="h-2 bg-primary" />
         <div className="min-h-0 px-6 pb-7 pt-4 sm:px-9 sm:pb-9">
           <DialogHeader className="static items-center bg-card/95 pr-0 pt-2 text-center sm:pr-0 sm:text-center">
