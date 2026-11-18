@@ -45,6 +45,11 @@ function safeLoginError(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("Too many sign-in attempts")) return message;
   if (message.includes("Invalid username/email or password")) return message;
+  if (
+    message.startsWith("Farmer application pending:") ||
+    message.startsWith("Farmer application rejected:")
+  )
+    return message;
   return "Sign-in is temporarily unavailable. Please try again in a moment.";
 }
 
@@ -187,9 +192,11 @@ export function LoginDialog({
               } catch (error) {
                 const description = safeLoginError(error);
                 toast.error(
-                  description.includes("Invalid username/email or password")
-                    ? "Invalid credentials"
-                    : "Could not sign in",
+                  description.startsWith("Farmer application")
+                    ? "Farmer application status"
+                    : description.includes("Invalid username/email or password")
+                      ? "Invalid credentials"
+                      : "Could not sign in",
                   {
                     description,
                     id: "login-error",
@@ -269,7 +276,7 @@ export function LoginDialog({
           <p
             className={`${formFocused ? "hidden" : "block"} mt-6 text-center text-sm text-muted-foreground lg:block`}
           >
-            New buyer?{" "}
+            New to AgriLink?{" "}
             {onRegister ? (
               <button
                 type="button"

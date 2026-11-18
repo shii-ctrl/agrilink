@@ -55,8 +55,15 @@ export const getWorkspaceSidebarBadges = createServerFn({ method: "GET" }).handl
   const { requireUser } = await import("@/services/auth/auth-server");
   const user = await requireUser();
   const { db } = await import("@/db/client.server");
-  const { codRemittances, deliveryDisputes, farmerEarnings, notifications, orders, payments, users } =
-    await import("@/db/schema");
+  const {
+    codRemittances,
+    deliveryDisputes,
+    farmerEarnings,
+    notifications,
+    orders,
+    payments,
+    users,
+  } = await import("@/db/schema");
 
   const badges: WorkspaceSidebarBadges = {};
   const numberFrom = (rows: Array<{ total: number | string }>) => Number(rows[0]?.total ?? 0);
@@ -101,7 +108,11 @@ export const getWorkspaceSidebarBadges = createServerFn({ method: "GET" }).handl
         .innerJoin(users, eq(orders.buyerId, users.id))
         .leftJoin(payments, eq(payments.orderId, orders.id))
         .where(
-          and(eq(orders.fulfillmentMethod, "pickup"), eq(orders.status, "sold"), isNull(payments.id)),
+          and(
+            eq(orders.fulfillmentMethod, "pickup"),
+            eq(orders.status, "sold"),
+            isNull(payments.id),
+          ),
         ),
     );
     const actionableCodRemittances = numberFrom(
@@ -134,6 +145,13 @@ export const getWorkspaceSidebarBadges = createServerFn({ method: "GET" }).handl
   }
 
   if (user.roles.includes("Management")) {
+    const { farmerApplications } = await import("@/db/schema");
+    badges["/management/users"] = numberFrom(
+      await db
+        .select({ total: count() })
+        .from(farmerApplications)
+        .where(eq(farmerApplications.status, "pending")),
+    );
     badges["/management/community"] = await unreadFor("/management/community");
   }
 

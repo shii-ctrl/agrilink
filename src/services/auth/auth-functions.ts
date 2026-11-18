@@ -349,6 +349,25 @@ export const loginUser = createServerFn({ method: "POST" })
     await assertLoginAllowed(data.identifier, getRequestRateLimitKey());
     const user = await findUserByIdentifier(data.identifier);
     const passwordValid = user ? await bcrypt.compare(data.password, user.passwordHash) : false;
+    if (user && passwordValid) {
+      const { db } = await import("@/db/client.server");
+      const { farmerApplications } = await import("@/db/schema");
+      const [application] = await db
+        .select({
+          status: farmerApplications.status,
+          rejectionReason: farmerApplications.rejectionReason,
+        })
+        .from(farmerApplications)
+        .where(eq(farmerApplications.userId, user.id));
+      if (application && application.status !== "approved") {
+        await clearFailedLogins(data.identifier);
+        throw new Error(
+          application.status === "pending"
+            ? "Farmer application pending: Management is reviewing your registration. Please check again later."
+            : `Farmer application rejected: ${application.rejectionReason ?? "Please contact Management for details."}`,
+        );
+      }
+    }
     if (!user || !user.active || !passwordValid) {
       await registerFailedLogin(data.identifier, getRequestRateLimitKey());
       throw new Error("Invalid username/email or password.");

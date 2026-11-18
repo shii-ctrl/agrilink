@@ -205,6 +205,8 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
         gt(authSessions.expiresAt, new Date()),
         isNull(authSessions.revokedAt),
         eq(users.active, true),
+        sql`NOT EXISTS (SELECT 1 FROM farmer_applications AS application
+          WHERE application.user_id = ${users.id} AND application.status <> 'approved')`,
       ),
     );
   return session ? asAuthUser(session.user) : null;

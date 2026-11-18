@@ -1,6 +1,6 @@
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { Eye, EyeOff, LockKeyhole, UserRound } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "@/lib/ui/toast";
 import { userFacingErrorMessage } from "@/lib/ui/user-facing-error";
 
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
 import { registerBuyer } from "@/services/auth/auth-functions";
+import { registerFarmer } from "@/services/auth/farmer-application-server-functions";
 import { setSessionView } from "@/lib/auth/session-view";
 import { notifyAuthSessionChanged } from "@/lib/auth/session-events";
 
@@ -57,7 +58,7 @@ function registrationErrorMessage(error: unknown) {
     return passwordHelpText;
   }
   if (/^\s*[\[{]/.test(message) && message.includes('"path"')) {
-    return "Please check your username and password, then try again.";
+    return "Please check your registration details, then try again.";
   }
   return userFacingErrorMessage(message, "Please check your details and try again.");
 }
@@ -84,6 +85,11 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [accountType, setAccountType] = useState<"Buyer" | "Farmer">("Buyer");
+  const [submittedFarmer, setSubmittedFarmer] = useState(false);
+  useEffect(() => {
+    if (!open) setSubmittedFarmer(false);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -97,14 +103,50 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
             <p className="pt-2 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
               AgriLink
             </p>
-            <DialogTitle className="pt-1 text-2xl">Create a Buyer account</DialogTitle>
+            <DialogTitle className="pt-1 text-2xl">
+              {submittedFarmer
+                ? "Application submitted"
+                : accountType === "Farmer"
+                  ? "Register as a Farmer"
+                  : "Create a Buyer account"}
+            </DialogTitle>
             <DialogDescription className="max-w-xs pt-1 text-center">
-              Choose a username and password to start adding products to your cart.
+              {accountType === "Farmer"
+                ? "Farmer registrations are reviewed by Management before workspace access is granted."
+                : "Choose a username and password to start adding products to your cart."}
             </DialogDescription>
           </DialogHeader>
 
+          {submittedFarmer && (
+            <div
+              className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-5 text-sm"
+              role="status"
+            >
+              <p className="font-semibold">Pending Management approval</p>
+              <p className="mt-2">
+                Your Farmer application has been submitted. Sign in with your username and password
+                to check its status. After approval, you can access the Farmer workspace.
+              </p>
+            </div>
+          )}
+          {!submittedFarmer && (
+            <div className="mt-5 grid grid-cols-2 gap-2" aria-label="Account type">
+              {(["Buyer", "Farmer"] as const).map((type) => (
+                <Button
+                  key={type}
+                  type="button"
+                  variant={accountType === type ? "default" : "outline"}
+                  aria-pressed={accountType === type}
+                  disabled={isCreating}
+                  onClick={() => setAccountType(type)}
+                >
+                  {type}
+                </Button>
+              ))}
+            </div>
+          )}
           <form
-            className="mt-7 space-y-5"
+            className={submittedFarmer ? "hidden" : "mt-7 space-y-5"}
             onSubmit={async (event) => {
               event.preventDefault();
               const formData = new FormData(event.currentTarget);
@@ -122,6 +164,19 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
               }
               setIsCreating(true);
               try {
+                if (accountType === "Farmer") {
+                  await registerFarmer({
+                    data: {
+                      username,
+                      password,
+                      name: String(formData.get("name") ?? ""),
+                      contact: String(formData.get("contact") ?? ""),
+                      farmingLocation: String(formData.get("farmingLocation") ?? ""),
+                    },
+                  });
+                  setSubmittedFarmer(true);
+                  return;
+                }
                 const signedIn = await registerBuyer({
                   data: {
                     username,
@@ -149,6 +204,46 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
               }
             }}
           >
+            {accountType === "Farmer" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="farmer-register-name">Full name</Label>
+                  <Input
+                    id="farmer-register-name"
+                    name="name"
+                    autoComplete="name"
+                    minLength={2}
+                    maxLength={160}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="farmer-register-contact">Contact number</Label>
+                  <Input
+                    id="farmer-register-contact"
+                    name="contact"
+                    type="tel"
+                    autoComplete="tel"
+                    placeholder="09XXXXXXXXX"
+                    pattern="(09[0-9]{9}|\+639[0-9]{9}|639[0-9]{9})"
+                    title="Enter a Philippine mobile number, such as 09123456789."
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="farmer-register-location">Farming location</Label>
+                  <Input
+                    id="farmer-register-location"
+                    name="farmingLocation"
+                    autoComplete="street-address"
+                    placeholder="Barangay, municipality, province"
+                    minLength={5}
+                    maxLength={500}
+                    required
+                  />
+                </div>
+              </>
+            )}
             <div className="space-y-2">
               <Label htmlFor="landing-register-username">Username</Label>
               <div className="relative">
@@ -197,12 +292,16 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
               <p className="text-xs text-muted-foreground">{passwordHelpText}</p>
             </div>
             <Button type="submit" size="lg" className="w-full rounded-full" disabled={isCreating}>
-              {isCreating ? "Creating account…" : "Create account"}
+              {isCreating
+                ? "Submitting…"
+                : accountType === "Farmer"
+                  ? "Submit Farmer application"
+                  : "Create account"}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
+            {submittedFarmer ? "Check your application status. " : "Already have an account? "}
             {onLogin ? (
               <button
                 type="button"
@@ -218,7 +317,13 @@ export function RegisterDialog({ open, onOpenChange, onLogin }: RegisterDialogPr
               "Visit the login page."
             )}
           </p>
-          <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
+          <p
+            className={
+              accountType === "Farmer"
+                ? "hidden"
+                : "mt-3 text-center text-xs leading-relaxed text-muted-foreground"
+            }
+          >
             Username-only Buyer accounts do not have email password recovery. Contact Management if
             you need your password reset.
           </p>

@@ -50,6 +50,22 @@ export const users = mysqlTable(
     uniqueIndex("users_email_unique").on(table.email),
   ],
 );
+export const farmerApplications = mysqlTable(
+  "farmer_applications",
+  {
+    userId: varchar("user_id", { length: 36 })
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    farmingLocation: varchar("farming_location", { length: 500 }).notNull(),
+    status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+    rejectionReason: text("rejection_reason"),
+    reviewedById: varchar("reviewed_by_id", { length: 36 }),
+    reviewedAt: datetime("reviewed_at"),
+    createdAt,
+  },
+  (table) => [index("farmer_applications_status_idx").on(table.status, table.createdAt)],
+);
+
 export const userRoles = mysqlTable(
   "user_roles",
   {

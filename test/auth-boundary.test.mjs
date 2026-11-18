@@ -31,7 +31,7 @@ test("Buyer self-registration is username-only and keeps email optional", async 
   assert.match(migration, /ALTER TABLE users MODIFY email VARCHAR\(255\) NULL/);
   assert.match(registerPage, /redirect\(\{ to: "\/", search: \{ auth: "register" \} \}\)/);
   assert.match(registerDialog, /name="username"/);
-  assert.doesNotMatch(registerDialog, /name="contact"/);
+  assert.match(registerDialog, /accountType === "Farmer" &&/);
   assert.doesNotMatch(registerDialog, /name="email"/);
   assert.match(registerDialog, /Create a Buyer account/);
   assert.match(registerDialog, /const usernamePattern =/);

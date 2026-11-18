@@ -23,6 +23,8 @@ import {
   setManagedUserActive,
 } from "@/services/auth/admin-server-functions";
 import { minimumPasswordLength, passwordHelpText } from "@/features/auth/password-requirements";
+import { FarmerApplications } from "@/features/auth/components/farmer-applications";
+import { getFarmerApplications } from "@/services/auth/farmer-application-server-functions";
 
 export const Route = createFileRoute("/management/users")({
   head: () => ({
@@ -37,7 +39,7 @@ export const Route = createFileRoute("/management/users")({
   component: ManagementUsersPage,
 });
 
-const roles = ["Management", "Marketer", "Accounting", "Farmer", "Rider"] as const;
+const roles = ["Management", "Marketer", "Accounting", "Rider"] as const;
 const userRoleFilters = [
   "All",
   "Buyer",
@@ -86,8 +88,11 @@ function ManagementUsersPage() {
   const [userSearch, setUserSearch] = useState("");
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
   const loadManagementData = useCallback(async () => {
-    const users = await getManagementUsers();
-    return { users };
+    const [users, applications] = await Promise.all([
+      getManagementUsers(),
+      getFarmerApplications(),
+    ]);
+    return { users, applications };
   }, []);
   const { data, loading, error, reload } = useWorkspaceData(loadManagementData);
   const users = data?.users ?? EMPTY_USERS;
@@ -110,7 +115,7 @@ function ManagementUsersPage() {
       {confirmationDialog}
       <ManagementPageHeader
         title="User Accounts"
-        description="Management creates internal accounts and can view buyer accounts. Users cannot change their own role."
+        description="Review Farmer applications and manage AgriLink user accounts."
       />
 
       <main className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
@@ -123,8 +128,14 @@ function ManagementUsersPage() {
         {!loading && !error && (
           <>
             <Tabs defaultValue="all-users">
-              <TabsList aria-label="User account sections">
+              <TabsList aria-label="User account sections" className="h-auto flex-wrap gap-1">
                 <TabsTrigger value="all-users">All Users</TabsTrigger>
+                <TabsTrigger value="farmer-applications">
+                  Farmer Applications (
+                  {data?.applications.filter((application) => application.status === "pending")
+                    .length ?? 0}
+                  )
+                </TabsTrigger>
                 <TabsTrigger value="add-user">Add User</TabsTrigger>
                 <TabsTrigger value="reset-password">Reset Password</TabsTrigger>
               </TabsList>
@@ -379,6 +390,12 @@ function ManagementUsersPage() {
                 </section>
               </TabsContent>
 
+              <TabsContent value="farmer-applications" className="mt-6">
+                <FarmerApplications
+                  applications={data?.applications ?? []}
+                  onReviewed={() => reload({ background: true })}
+                />
+              </TabsContent>
               <TabsContent value="add-user" className="mt-6">
                 <section className="max-w-3xl rounded-3xl border border-border bg-card p-6 shadow-card md:p-8">
                   <div className="flex items-start gap-3">
@@ -388,7 +405,7 @@ function ManagementUsersPage() {
                     <div>
                       <h2 className="text-lg font-semibold">Create account</h2>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Create an internal AgriLink account. Buyer accounts register through the
+                        Create an internal AgriLink account. Buyers and Farmers register through the
                         public website.
                       </p>
                     </div>
@@ -588,8 +605,9 @@ function ManagementUsersPage() {
             <aside className="mt-8 flex gap-3 rounded-3xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-card">
               <UsersRound className="mt-0.5 size-5 shrink-0 text-primary" />
               <p>
-                Buyer accounts can self-register in the public website. Management creates
-                Management, Marketer, Accounting Personnel, Farmer Member, and Rider accounts.
+                Buyers and Farmers self-register through the public website. Management reviews
+                Farmer applications and creates Management, Marketer, Accounting Personnel, and
+                Rider accounts.
               </p>
             </aside>
           </>
