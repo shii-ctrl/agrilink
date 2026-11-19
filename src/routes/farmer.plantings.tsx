@@ -649,7 +649,6 @@ function PlantingForm({
   const [notes, setNotes] = useState(planting?.notes ?? "");
   const blankExpense = () => ({
     id: crypto.randomUUID(),
-    occurredOn: todayInManila(),
     category: "seeds",
     description: "",
     amount: "",
@@ -664,11 +663,7 @@ function PlantingForm({
           : 0),
       0,
     ) / 100;
-  function changeExpense(
-    id: string,
-    field: "occurredOn" | "category" | "description" | "amount",
-    value: string,
-  ) {
+  function changeExpense(id: string, field: "category" | "description" | "amount", value: string) {
     setDraftExpenses((rows) =>
       rows.map((row) => (row.id === id ? { ...row, [field]: value } : row)),
     );
@@ -709,7 +704,7 @@ function PlantingForm({
                   ...input,
                   expenses: draftExpenses
                     .filter((row) => row.amount.trim() || row.description.trim())
-                    .map((row) => ({ ...row, amount: Number(row.amount) })),
+                    .map((row) => ({ ...row, occurredOn: plantedOn, amount: Number(row.amount) })),
                 });
                 if (!validated.success)
                   throw new Error(
@@ -730,58 +725,58 @@ function PlantingForm({
           }}
         >
           <fieldset disabled={saving} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="planting-name">Pangalan ng taniman</Label>
-              <Input
-                id="planting-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Sitaw — October 2026 / Plot 1"
-                required
-                minLength={2}
-                maxLength={160}
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="planting-name">Pangalan ng taniman</Label>
+                <Input
+                  id="planting-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Sitaw — October 2026 / Plot 1"
+                  required
+                  minLength={2}
+                  maxLength={160}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="planting-crop">Pananim</Label>
+                <Input
+                  id="planting-crop"
+                  value={cropName}
+                  onChange={(event) => setCropName(event.target.value)}
+                  placeholder="Halimbawa: Sitaw"
+                  required
+                  minLength={2}
+                  maxLength={160}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="planting-date">
+                  {planting ? "Petsa ng pagtatanim" : "Petsa ng pagtatanim at unang gastos"}
+                </Label>
+                <Input
+                  id="planting-date"
+                  type="date"
+                  value={plantedOn}
+                  onChange={(event) => setPlantedOn(event.target.value)}
+                  required
+                  max={todayInManila()}
+                  min="1900-01-01"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="planting-crop">Pananim</Label>
-              <Input
-                id="planting-crop"
-                value={cropName}
-                onChange={(event) => setCropName(event.target.value)}
-                placeholder="Halimbawa: Sitaw"
-                required
-                minLength={2}
-                maxLength={160}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="planting-date">Petsa ng pagtatanim</Label>
-              <Input
-                id="planting-date"
-                type="date"
-                value={plantedOn}
-                onChange={(event) => setPlantedOn(event.target.value)}
-                required
-                max={todayInManila()}
-                min="1900-01-01"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="planting-notes">Notes (optional)</Label>
-              <Textarea
-                id="planting-notes"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                maxLength={2000}
-              />
-            </div>
+            {!planting && (
+              <p className="text-xs text-muted-foreground">
+                Ang mga unang gastos sa form na ito ay gagamit ng petsang pinili sa itaas. Maaaring
+                magdagdag ng susunod na gastos na may sariling petsa pagkatapos ma-save.
+              </p>
+            )}
             {!planting && (
               <section className="space-y-4 rounded-2xl border border-border p-4">
                 <div>
                   <h3 className="font-semibold">Mga nagastos sa tanimang ito</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Ilista ang buto, pataba, labor, at iba pa. Nadadagdagan ang total kada entry.
-                    Puwede ring magdagdag pagkatapos ma-save.
                   </p>
                 </div>
                 {draftExpenses.map((row, index) => (
@@ -802,20 +797,6 @@ function PlantingForm({
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor={`initial-date-${row.id}`}>Petsa ng gastos</Label>
-                        <Input
-                          id={`initial-date-${row.id}`}
-                          type="date"
-                          min="1900-01-01"
-                          max={todayInManila()}
-                          value={row.occurredOn}
-                          onChange={(event) =>
-                            changeExpense(row.id, "occurredOn", event.target.value)
-                          }
-                          required={Boolean(row.amount.trim() || row.description.trim())}
-                        />
-                      </div>
-                      <div className="space-y-2">
                         <Label htmlFor={`initial-amount-${row.id}`}>Halaga (₱)</Label>
                         <Input
                           id={`initial-amount-${row.id}`}
@@ -830,19 +811,19 @@ function PlantingForm({
                           required={Boolean(row.description.trim())}
                         />
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`initial-category-${row.id}`}>Uri ng gastos</Label>
-                      <AppSelect
-                        id={`initial-category-${row.id}`}
-                        value={row.category}
-                        disabled={saving}
-                        onValueChange={(value) => changeExpense(row.id, "category", value)}
-                        options={expenseCategories.map((value) => ({
-                          value,
-                          label: expenseCategoryLabels[value],
-                        }))}
-                      />
+                      <div className="space-y-2">
+                        <Label htmlFor={`initial-category-${row.id}`}>Uri ng gastos</Label>
+                        <AppSelect
+                          id={`initial-category-${row.id}`}
+                          value={row.category}
+                          disabled={saving}
+                          onValueChange={(value) => changeExpense(row.id, "category", value)}
+                          options={expenseCategories.map((value) => ({
+                            value,
+                            label: expenseCategoryLabels[value],
+                          }))}
+                        />
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor={`initial-description-${row.id}`}>Detalye ng gastos</Label>
@@ -871,7 +852,17 @@ function PlantingForm({
                 </Button>
               </section>
             )}
-            <div className="sticky bottom-0 space-y-3 border-t border-border bg-card/95 pt-4 backdrop-blur">
+            <div className="space-y-2">
+              <Label htmlFor="planting-notes">Notes (optional)</Label>
+              <Textarea
+                id="planting-notes"
+                rows={2}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                maxLength={2000}
+              />
+            </div>
+            <div className="space-y-3 border-t border-border pt-4">
               {!planting && (
                 <div
                   className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-primary/10 p-3"
