@@ -383,8 +383,8 @@ const stockAdjustmentInput = z.object({
     .finite()
     .min(-1_000_000)
     .max(1_000_000)
-    .refine((value) => value !== 0, "Enter a non-zero adjustment.")
-    .refine((value) => Number.isInteger(value * 100), "Use at most two decimal places."),
+    .multipleOf(0.01, "Use at most two decimal places.")
+    .refine((value) => value !== 0, "Enter a non-zero adjustment."),
   reason: z.string().trim().min(3).max(500),
 });
 

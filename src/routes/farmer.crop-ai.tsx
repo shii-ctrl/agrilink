@@ -263,13 +263,11 @@ function FarmerCropAiPage() {
                     </span>
                     <div>
                       <h2 className="font-semibold">
-                        {activeConversation
-                          ? activeConversation.cropName
-                          : "Start a farm question"}
+                        {activeConversation ? activeConversation.cropName : "Start a farm question"}
                       </h2>
                       <p className="text-xs text-muted-foreground">
-                        Ask about planting choices, crop care, harvesting, or farm planning in Quezon
-                        Province.
+                        Ask about planting choices, crop care, harvesting, or farm planning in
+                        Quezon Province.
                       </p>
                     </div>
                   </div>

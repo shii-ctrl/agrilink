@@ -9,7 +9,8 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 // Render needs the standard long-running Node server output. Vercel sets the
 // VERCEL environment variable during its build, where Nitro must instead emit
 // Vercel Functions. NITRO_PRESET remains an explicit escape hatch for CI.
-const nitroPreset = process.env["NITRO_PRESET"] ?? (process.env["VERCEL"] ? "vercel" : "node-server");
+const nitroPreset =
+  process.env["NITRO_PRESET"] ?? (process.env["VERCEL"] ? "vercel" : "node-server");
 
 export default defineConfig({
   // This application uses mysql2 over a normal TCP connection. Deploy it to a

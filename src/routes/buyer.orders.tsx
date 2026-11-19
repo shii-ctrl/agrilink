@@ -186,7 +186,8 @@ function BuyerOrdersPage() {
     try {
       await rebuildBuyerCartFromOrder({ data: { orderNumber: order.id } });
       toast.success("Order added to cart", {
-        description: "Review your cart. Availability is checked again before Marketer confirmation.",
+        description:
+          "Review your cart. Availability is checked again before Marketer confirmation.",
       });
       navigate({ to: "/buyer/cart" });
     } catch {

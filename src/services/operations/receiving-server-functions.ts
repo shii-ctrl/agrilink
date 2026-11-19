@@ -12,7 +12,7 @@ const quantity = z
   .finite()
   .min(0)
   .max(1_000_000)
-  .refine((value) => Number.isInteger(value * 100), "Use at most two decimal places.");
+  .multipleOf(0.01, "Use at most two decimal places.");
 const receivingInput = z.object({
   id: z.string().uuid(),
   farmerId: z.string().uuid(),
