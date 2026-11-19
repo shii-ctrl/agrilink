@@ -41,6 +41,7 @@ export type OrderAllocation = {
 export type OrderRecord = {
   id: string;
   buyer: string;
+  source?: "online" | "walk_in";
   buyerUsername?: string;
   farmer: string;
   product: string;

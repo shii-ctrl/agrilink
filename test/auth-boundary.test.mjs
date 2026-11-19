@@ -703,7 +703,7 @@ test("public authentication uses the floating dialog system", async () => {
   assert.match(loginDialog, /auth-login-field/);
   assert.match(
     registerDialogSource,
-    /overflow-hidden overscroll-contain[\s\S]*overflow-y-auto[\s\S]*\[scrollbar-width:none\][\s\S]*\[&::-webkit-scrollbar\]:hidden/,
+    /<DialogContent className="[^"]*overflow-y-auto overscroll-contain[^"]*\[scrollbar-width:none\][^"]*\[&::-webkit-scrollbar\]:hidden/,
   );
   assert.match(registerDialogSource, /bg-card\/95 pr-0 pt-2 text-center sm:pr-0/);
   assert.match(registerDialogSource, /auth-login-field/);

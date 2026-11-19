@@ -34,6 +34,7 @@ async function settlementRows() {
       receivingId: farmerEarnings.receivingId,
       receivedAt: receivingRecords.receivedAt,
       orderNumber: orders.orderNumber,
+      source: orders.source,
       product: products.name,
       classification: classifications.name,
       sellingUnit: farmerEarnings.sellingUnit,

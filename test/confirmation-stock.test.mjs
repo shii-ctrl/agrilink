@@ -31,9 +31,9 @@ test(
       created = true;
       target.pathname = "/" + database;
       await mkdir(join(scratch, "drizzle"));
-      // Only the stock prerequisites. Later cash-closing migrations are unrelated.
+      // Include the latest order schema, including account-free walk-in orders.
       for (const file of await readdir("drizzle")) {
-        if (/^\d+_.+\.sql$/.test(file) && Number(file.slice(0, 4)) <= 40) {
+        if (/^\d+_.+\.sql$/.test(file)) {
           await copyFile(join("drizzle", file), join(scratch, "drizzle", file));
         }
       }
@@ -80,12 +80,18 @@ test(
         "function nextCartReservationExpiry() { return new Date(Date.now() + 600000); }",
         "const marketplaceQualityOrder = ['Good','Semi','Reject'];",
         "function marketplaceQualityRank(value) { return marketplaceQualityOrder.indexOf(value); }",
+        "const moneyValue = (value) => Number(value.toFixed(2));",
+        "const FARMER_SERVICE_FEE_PER_KILOGRAM = 1.25; const FARMER_IPON_PER_KILOGRAM = 0.5;",
+        slice("async function createFarmerEarningsForSale(", "function marketplaceQualityRank("),
         slice("function asProduct(", "function listingUnitPrice("),
         slice("function listingUnitPrice(", "async function fetchMarketerListings"),
         slice("async function buyerCartRows(", "export const placeBuyerOrder"),
         slice("export const placeBuyerOrder", "export const getBuyerDeliveryFee"),
         slice("export const getDatabaseOrders", "export const getManagementProductWorkspace"),
+        slice("export const getOrderDetails", "export const getDatabaseOrders"),
         slice("export const confirmDatabaseOrder", "export const recordDatabasePayment"),
+        source.slice(source.indexOf("export const recordDatabasePayment")),
+        slice("export const updateOrderFulfillment", "export const submitDeliveryProof"),
       ].join("\n");
       const validator = {
         validator() {
@@ -103,9 +109,12 @@ test(
         checkoutInput: {},
         workflowActionInput: {},
         releaseOrderInput: {},
+        walkInOrderInput: {},
+        paymentInput: {},
+        fulfillmentStatusInput: {},
+        orderNumberInput: {},
         requiresWholeSellingQuantity: (unit) => unit !== "kg",
         sellingUnitLabel: (unit) => unit,
-        createFarmerEarningsForSale: async () => {},
       };
       const compiled = ts.transpileModule(code + "\nexport { fetchListings };", {
         compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -399,6 +408,234 @@ test(
         [10, 2],
         "legacy Pending rejection does not release a different order",
       );
+
+      // Account-free walk-ins use the same protected allocation and settlement pipeline.
+      const inputSchema = evaluate(
+        await readFile("src/features/marketplace/walk-in-order.ts", "utf8"),
+      ).walkInOrderInput;
+      const productId = randomUUID();
+      const listingId = randomUUID();
+      const farmers = [randomUUID(), randomUUID()];
+      const receiving = [randomUUID(), randomUUID()];
+      const batches = [randomUUID(), randomUUID()];
+      for (let i = 0; i < 2; i++) {
+        await pool.query(
+          "INSERT INTO users (id,username,password_hash,display_name) VALUES (?,?,'test',?)",
+          [farmers[i], `farmer-${i}`, `Farmer ${i + 1}`],
+        );
+      }
+      await pool.query(
+        "INSERT INTO users (id,username,password_hash,display_name) VALUES ('accounting','accounting','test','Accounting')",
+      );
+      await pool.query(
+        "INSERT INTO products (id,name,crop_type) VALUES (?,'Walk-in produce','Vegetable')",
+        [productId],
+      );
+      for (let i = 0; i < 2; i++) {
+        await pool.query(
+          "INSERT INTO receiving_records (id,farmer_id,recorded_by_id,product_id,total_kg,received_at) VALUES (?,?,'marketer',?,?,?)",
+          [receiving[i], farmers[i], productId, i === 0 ? 3 : 7, `2026-01-0${i + 1} 10:00:00`],
+        );
+        await pool.query(
+          "INSERT INTO inventory (id,product_id,classification_id,farmer_id,receiving_id,quantity_kg,reserved_kg,received_at) VALUES (?,?,?,?,?,?,0,?)",
+          [
+            batches[i],
+            productId,
+            quality.id,
+            farmers[i],
+            receiving[i],
+            i === 0 ? 3 : 7,
+            `2026-01-0${i + 1} 10:00:00`,
+          ],
+        );
+      }
+      await pool.query(
+        "INSERT INTO marketplace_listings (id,inventory_id,product_id,classification_id,price_per_kg,retail_price_per_kg,price_configured,status) VALUES (?,?,?,?,10,10,1,'published')",
+        [listingId, batches[0], productId, quality.id],
+      );
+      const walkData = (quantity = 5) => ({
+        requestId: randomUUID(),
+        buyerName: "Walk-in customer",
+        contact: "",
+        items: [{ listingId, quantityKg: quantity, expectedUnitPrice: 10 }],
+      });
+      for (const bad of [
+        { ...walkData(), buyerName: " " },
+        { ...walkData(), items: [] },
+        { ...walkData(), items: [{ listingId, quantityKg: -1, expectedUnitPrice: 10 }] },
+        { ...walkData(), items: [{ listingId, quantityKg: 0.001, expectedUnitPrice: 10 }] },
+        { ...walkData(), items: [...walkData().items, ...walkData().items] },
+      ])
+        assert.equal(inputSchema.safeParse(bad).success, false);
+      const balances = async () => {
+        const [rows] = await pool.query(
+          "SELECT quantity_kg,reserved_kg FROM inventory WHERE product_id=? ORDER BY received_at",
+          [productId],
+        );
+        return rows.map((row) => [Number(row.quantity_kg), Number(row.reserved_kg)]);
+      };
+      actor = { id: "buyer", roles: ["Buyer"] };
+      await assert.rejects(handlers.createWalkInOrder({ data: walkData() }));
+      actor = { id: "accounting", roles: ["Accounting"] };
+      await assert.rejects(handlers.createWalkInOrder({ data: walkData() }));
+      actor = { id: "marketer", roles: ["Marketer"] };
+      const invalidPrice = walkData();
+      invalidPrice.items[0].expectedUnitPrice = 1;
+      await assert.rejects(handlers.createWalkInOrder({ data: invalidPrice }), /price changed/);
+      const tooMuch = walkData(11);
+      await assert.rejects(handlers.createWalkInOrder({ data: tooMuch }), /currently available/);
+      const partial = walkData();
+      partial.items.push({ listingId: "short-listing", quantityKg: 2, expectedUnitPrice: 10 });
+      await assert.rejects(handlers.createWalkInOrder({ data: partial }), /currently available/);
+      const [[noPartial]] = await pool.query(
+        "SELECT COUNT(*) AS total FROM orders WHERE source='walk_in'",
+      );
+      assert.equal(noPartial.total, 0, "failed confirmations create no partial order");
+      assert.deepEqual(await balances(), [
+        [3, 0],
+        [7, 0],
+      ]);
+      const cancelData = walkData();
+      const cancelledWalk = await handlers.createWalkInOrder({ data: cancelData });
+      assert.deepEqual(
+        await balances(),
+        [
+          [3, 3],
+          [7, 2],
+        ],
+        "oldest farmer batches allocated first",
+      );
+      await handlers.createWalkInOrder({ data: cancelData });
+      assert.deepEqual(
+        await balances(),
+        [
+          [3, 3],
+          [7, 2],
+        ],
+        "retry cannot allocate again",
+      );
+      await handlers.releaseDatabaseOrder({
+        data: { orderNumber: cancelledWalk.orderNumber, outcome: "cancelled" },
+      });
+      assert.deepEqual(
+        await balances(),
+        [
+          [3, 0],
+          [7, 0],
+        ],
+        "cancellation restores both farmers' stock",
+      );
+
+      // An online confirmation and walk-in confirmation cannot oversell shared inventory.
+      const competitor = randomUUID();
+      await pool.query(
+        "INSERT INTO orders (id,order_number,buyer_id,status,contact,pickup_note,total_amount) VALUES (?,'WALK-COMPETITOR','buyer','pending','','Pickup',60)",
+        [competitor],
+      );
+      await pool.query(
+        "INSERT INTO order_items (id,order_id,listing_id,quantity_kg,price_per_kg) VALUES (?,?,?,6,10)",
+        [randomUUID(), competitor, listingId],
+      );
+      const competingWalkData = walkData(6);
+      const competing = await Promise.allSettled([
+        handlers.createWalkInOrder({ data: competingWalkData }),
+        handlers.confirmDatabaseOrder({ data: { orderNumber: "WALK-COMPETITOR" } }),
+      ]);
+      assert.equal(competing.filter((result) => result.status === "fulfilled").length, 1);
+      const [winners] = await pool.query(
+        "SELECT order_number FROM orders WHERE status='confirmed' AND (id=? OR id=?)",
+        [competitor, competingWalkData.requestId],
+      );
+      for (const winner of winners)
+        await handlers.releaseDatabaseOrder({
+          data: { orderNumber: winner.order_number, outcome: "cancelled" },
+        });
+      assert.deepEqual(await balances(), [
+        [3, 0],
+        [7, 0],
+      ]);
+
+      const saleData = walkData();
+      const sale = await handlers.createWalkInOrder({ data: saleData });
+      const record = (await handlers.getDatabaseOrders()).find(
+        (order) => order.id === sale.orderNumber,
+      );
+      assert.equal(record.buyer, "Walk-in customer");
+      assert.equal(record.source, "walk_in");
+      assert.equal(record.paymentStatus, "Unpaid");
+      assert.equal(record.amount, 50);
+      assert.equal(record.allocations.length, 2);
+      const [[noAccount]] = await pool.query(
+        "SELECT buyer_id,created_by_id FROM orders WHERE id=?",
+        [saleData.requestId],
+      );
+      assert.equal(noAccount.buyer_id, null);
+      assert.equal(noAccount.created_by_id, "marketer");
+      const details = await handlers.getOrderDetails({ data: { orderNumber: sale.orderNumber } });
+      assert.equal(details.source, "walk_in");
+      assert.equal(details.buyer, "Walk-in customer");
+      actor = { id: "buyer", roles: ["Buyer"] };
+      await assert.rejects(
+        handlers.getOrderDetails({ data: { orderNumber: sale.orderNumber } }),
+        /permission/,
+      );
+      actor = { id: "marketer", roles: ["Marketer"] };
+      await assert.rejects(
+        handlers.markDatabaseOrderSold({ data: { orderNumber: sale.orderNumber } }),
+        /Picked up/,
+      );
+      for (const status of ["preparing", "ready_for_pickup", "picked_up"]) {
+        await handlers.updateOrderFulfillment({ data: { orderNumber: sale.orderNumber, status } });
+      }
+      await handlers.markDatabaseOrderSold({ data: { orderNumber: sale.orderNumber } });
+      await assert.rejects(
+        handlers.markDatabaseOrderSold({ data: { orderNumber: sale.orderNumber } }),
+      );
+      assert.deepEqual(
+        await balances(),
+        [
+          [0, 0],
+          [5, 0],
+        ],
+        "Sold consumes stock only once",
+      );
+      const [earnings] = await pool.query(
+        "SELECT farmer_id,receiving_id,quantity,gross_amount,net_amount,status FROM farmer_earnings WHERE order_id=? ORDER BY quantity DESC",
+        [saleData.requestId],
+      );
+      assert.equal(earnings.length, 2, "each original farmer receives an earnings record");
+      assert.equal(earnings[0].farmer_id, farmers[0]);
+      assert.equal(earnings[0].receiving_id, receiving[0]);
+      assert.equal(Number(earnings[0].quantity), 3);
+      assert.equal(Number(earnings[0].gross_amount), 30);
+      assert.equal(Number(earnings[0].net_amount), 24.75);
+      assert.equal(earnings[1].farmer_id, farmers[1]);
+      assert.equal(Number(earnings[1].net_amount), 16.5);
+      assert.ok(earnings.every((row) => row.status === "pending_payment"));
+      await assert.rejects(
+        handlers.recordDatabasePayment({ data: { orderNumber: sale.orderNumber, method: "cash" } }),
+      );
+      actor = { id: "accounting", roles: ["Accounting"] };
+      await handlers.recordDatabasePayment({
+        data: { orderNumber: sale.orderNumber, method: "cash" },
+      });
+      await assert.rejects(
+        handlers.recordDatabasePayment({ data: { orderNumber: sale.orderNumber, method: "cash" } }),
+      );
+      const [available] = await pool.query("SELECT status FROM farmer_earnings WHERE order_id=?", [
+        saleData.requestId,
+      ]);
+      assert.ok(
+        available.every((row) => row.status === "available"),
+        "payment makes both farmers eligible for payout",
+      );
+      const paid = (await handlers.getDatabaseOrders()).find(
+        (order) => order.id === sale.orderNumber,
+      );
+      assert.equal(paid.status, "Sold");
+      assert.equal(paid.paymentStatus, "Paid");
+      assert.ok(paid.paymentId);
+      assert.equal(paid.source, "walk_in");
     } finally {
       await pool?.end();
       if (created) await admin.query("DROP DATABASE `" + database + "`");

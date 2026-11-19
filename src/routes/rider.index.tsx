@@ -202,7 +202,10 @@ function RiderDashboard() {
                         </div>
                         <div className="mt-auto grid gap-2">
                           <Button asChild variant="outline" className="w-full">
-                            <Link to="/rider/community" search={{ contact: order.buyerId }}>
+                            <Link
+                              to="/rider/community"
+                              search={{ contact: order.buyerId ?? undefined }}
+                            >
                               <MessageCircle className="size-4" />
                               Message
                             </Link>

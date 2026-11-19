@@ -11,7 +11,9 @@ const communityTargetByRole: Record<(typeof communityRoles)[number], string> = {
   Farmer: "/farmer/community",
 };
 
-export async function notifyUser(userId: string, details: NotificationDetails) {
+export async function notifyUser(userId: string | null, details: NotificationDetails) {
+  // Walk-in orders have no buyer account to receive an in-app notification.
+  if (userId === null) return;
   const { db } = await import("@/db/client.server");
   const { notifications } = await import("@/db/schema");
   await db.insert(notifications).values({ id: crypto.randomUUID(), userId, ...details });

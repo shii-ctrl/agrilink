@@ -89,8 +89,9 @@ function FarmerEarnings() {
                               </span>
                             </div>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              {line.orderNumber} · {settlementMoney(Number(line.pricePerUnit))} per{" "}
-                              {line.sellingUnit}
+                              {line.orderNumber}
+                              {line.source === "walk_in" ? " · Walk-in" : ""} ·{" "}
+                              {settlementMoney(Number(line.pricePerUnit))} per {line.sellingUnit}
                             </p>
                           </div>
                         ))}

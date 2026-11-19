@@ -5,6 +5,7 @@ import { toast } from "@/lib/ui/toast";
 
 import { MarketerLayout, MarketerPageHeader } from "@/components/workspaces/marketer-layout";
 import { OrderDetails } from "@/features/marketplace/components/order-details";
+import { WalkInOrderDialog } from "@/features/marketplace/components/walk-in-order-dialog";
 import { Button } from "@/components/ui/button";
 import { useConfirmAction } from "@/components/ui/confirm-action-dialog";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -48,6 +49,7 @@ function MarketerOrdersPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Pending");
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [walkInOpen, setWalkInOpen] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const confirmationPending = useRef(false);
   const [orderDate, setOrderDate] = useState("");
@@ -211,7 +213,7 @@ function MarketerOrdersPage() {
     : (["Pending", "Confirmed", "Sold"] as const);
   const visibleOrders = scopedOrders.filter(
     (order) =>
-      `${order.id} ${order.buyer} ${order.product} ${order.status} ${order.items?.map((item) => `${item.name} ${item.classification}`).join(" ") ?? ""}`
+      `${order.id} ${order.buyer} ${order.product} ${order.status} ${order.source === "walk_in" ? "walk-in" : "online"} ${order.items?.map((item) => `${item.name} ${item.classification}`).join(" ") ?? ""}`
         .toLowerCase()
         .includes(query.toLowerCase()) &&
       (!statusFilter || order.status === statusFilter) &&
@@ -233,6 +235,17 @@ function MarketerOrdersPage() {
   return (
     <MarketerLayout>
       {confirmationDialog}
+      {walkInOpen && (
+        <WalkInOrderDialog
+          onClose={() => setWalkInOpen(false)}
+          onCreated={() => {
+            setWalkInOpen(false);
+            showArchive(false);
+            setStatusFilter("Confirmed");
+            void load().catch(() => void loadWorkspace());
+          }}
+        />
+      )}
       <MarketerPageHeader
         title="Buyer Orders"
         description="Review buyer requests for PROCY marketplace listings and confirm availability before the order moves forward."
@@ -268,6 +281,9 @@ function MarketerOrdersPage() {
                     ? `${archivedCount} archived`
                     : `${orders.filter((order) => order.status === "Pending").length} pending`}
                 </span>
+                <Button type="button" size="sm" onClick={() => setWalkInOpen(true)}>
+                  New walk-in order
+                </Button>
                 <Button
                   type="button"
                   variant={archiveOpen ? "default" : "outline"}
@@ -376,6 +392,11 @@ function MarketerOrdersPage() {
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
                         <StatusBadge status={order.status} />
+                        {order.source === "walk_in" && (
+                          <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+                            Walk-in
+                          </span>
+                        )}
                         {order.status === "Sold" && (
                           <span className="text-xs text-muted-foreground">
                             {order.paymentStatus === "Paid" ? "Paid" : "Awaiting payment"}

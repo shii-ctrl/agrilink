@@ -70,7 +70,10 @@ function AccountingPaymentReceipt({ order }: { order: OrderRecord }) {
         <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
           <div>
             <dt className="font-medium text-slate-500">Buyer</dt>
-            <dd className="mt-1 font-semibold">{order.buyer}</dd>
+            <dd className="mt-1 font-semibold">
+              {order.buyer}
+              {order.source === "walk_in" ? " · Walk-in" : ""}
+            </dd>
             <dd className="text-slate-700">{order.contact}</dd>
           </div>
           <div>
@@ -334,7 +337,7 @@ function AccountingPaymentsPage() {
                       placeholder="Select a Sold order"
                       options={awaitingPayment.map((order) => ({
                         value: order.id,
-                        label: `${order.id} — ${order.buyer}`,
+                        label: `${order.id} — ${order.buyer}${order.source === "walk_in" ? " · Walk-in" : ""}`,
                         description: order.total,
                       }))}
                     />
@@ -389,7 +392,9 @@ function AccountingPaymentsPage() {
                         {order.paymentId ?? "Payment recorded"}
                       </p>
                       <p className="truncate text-sm text-muted-foreground">
-                        {order.id} · {order.buyer} · {paymentMethodLabel(order.paymentMethod)}
+                        {order.id} · {order.buyer}
+                        {order.source === "walk_in" ? " · Walk-in" : ""} ·{" "}
+                        {paymentMethodLabel(order.paymentMethod)}
                       </p>
                     </div>
                     <div className="text-left sm:text-right">

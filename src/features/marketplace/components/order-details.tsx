@@ -267,6 +267,9 @@ export function OrderDetails({
             Order details
           </p>
           <h2 className="mt-1 text-xl font-semibold">{order.id}</h2>
+          {order.source === "walk_in" && (
+            <p className="mt-1 text-sm font-semibold text-primary">Walk-in order</p>
+          )}
           <p className="mt-1 text-sm text-muted-foreground">
             Submitted {formatOrderDate(order.createdAt ?? order.date, true)} to PROCY.
           </p>

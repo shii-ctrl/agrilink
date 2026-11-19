@@ -105,7 +105,7 @@ export const getWorkspaceSidebarBadges = createServerFn({ method: "GET" }).handl
       await db
         .select({ total: count() })
         .from(orders)
-        .innerJoin(users, eq(orders.buyerId, users.id))
+        .leftJoin(users, eq(orders.buyerId, users.id))
         .leftJoin(payments, eq(payments.orderId, orders.id))
         .where(
           and(
@@ -120,7 +120,7 @@ export const getWorkspaceSidebarBadges = createServerFn({ method: "GET" }).handl
         .select({ total: count() })
         .from(codRemittances)
         .innerJoin(orders, eq(codRemittances.orderId, orders.id))
-        .innerJoin(users, eq(orders.buyerId, users.id))
+        .leftJoin(users, eq(orders.buyerId, users.id))
         .where(
           or(
             eq(codRemittances.status, "submitted"),

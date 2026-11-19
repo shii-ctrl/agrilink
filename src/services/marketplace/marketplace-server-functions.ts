@@ -12,6 +12,7 @@ import {
   type SellingUnit,
 } from "@/features/marketplace/selling-units";
 import type { OrderRecord } from "@/features/marketplace/order-records";
+import { walkInOrderInput } from "@/features/marketplace/walk-in-order";
 import {
   FARMER_IPON_PER_KILOGRAM,
   FARMER_SERVICE_FEE_PER_KILOGRAM,
@@ -2023,6 +2024,131 @@ export const setBuyerCartItem = createServerFn({ method: "POST" })
     return buyerCartRows(buyer.id);
   });
 
+export const createWalkInOrder = createServerFn({ method: "POST" })
+  .validator(walkInOrderInput)
+  .handler(async ({ data }) => {
+    const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
+    const actor = await requireRole("Marketer");
+    const { db } = await import("@/db/client.server");
+    const {
+      orders,
+      orderItems,
+      orderStatusHistory,
+      orderFulfillmentHistory,
+      listings,
+      products,
+      classifications,
+    } = await import("@/db/schema");
+
+    return db.transaction(async (tx) => {
+      // A retry after a lost response returns the same order without reserving twice.
+      const [existing] = await tx.select().from(orders).where(eq(orders.id, data.requestId));
+      if (existing) {
+        if (existing.source !== "walk_in" || existing.createdById !== actor.id) {
+          throw new Error("This request has already been used. Reopen the walk-in form.");
+        }
+        return { orderNumber: existing.orderNumber };
+      }
+      const requested = [...data.items].sort((a, b) => a.listingId.localeCompare(b.listingId));
+      const rows = await tx
+        .select({
+          id: listings.id,
+          name: products.name,
+          sellingUnit: products.sellingUnit,
+          classification: classifications.name,
+          imageUrl: sql<string | null>`COALESCE(${listings.imageUrl}, ${products.imageUrl})`,
+          pricePerKg: listings.pricePerKg,
+          retailPricePerKg: listings.retailPricePerKg,
+          bundlePricePerKg: listings.bundlePricePerKg,
+          bundleMinimumKg: listings.bundleMinimumKg,
+        })
+        .from(listings)
+        .innerJoin(products, eq(listings.productId, products.id))
+        .innerJoin(classifications, eq(listings.classificationId, classifications.id))
+        .where(
+          inArray(
+            listings.id,
+            requested.map((item) => item.listingId),
+          ),
+        )
+        .orderBy(asc(listings.id))
+        .for("update");
+      if (rows.length !== requested.length) throw new Error("A selected product is unavailable.");
+      let total = 0;
+      const lines = requested.map((item) => {
+        const row = rows.find((entry) => entry.id === item.listingId)!;
+        const price = listingUnitPrice(row, item.quantityKg);
+        if (moneyValue(price) !== item.expectedUnitPrice) {
+          throw new Error(
+            "A product price changed. Refresh products and review the total before confirming.",
+          );
+        }
+        const lineTotal = moneyValue(item.quantityKg * price);
+        total = moneyValue(total + lineTotal);
+        return { ...item, row, price };
+      });
+      const now = new Date();
+      const orderNumber = `ORD-${now.getFullYear()}-${data.requestId.slice(0, 8).toUpperCase()}`;
+      await tx.insert(orders).values({
+        id: data.requestId,
+        orderNumber,
+        buyerId: null,
+        source: "walk_in",
+        walkInBuyerName: data.buyerName,
+        createdById: actor.id,
+        status: "confirmed",
+        fulfillmentMethod: "pickup",
+        fulfillmentStatus: "confirmed",
+        contact: data.contact,
+        pickupNote: "Walk-in pickup at PROCY.",
+        deliveryFee: "0.00",
+        totalAmount: total.toFixed(2),
+        confirmedAt: now,
+        farmerSettlementEligible: true,
+      });
+      for (const item of lines) {
+        await reserveListingStock(tx, {
+          listingId: item.listingId,
+          quantityKg: item.quantityKg,
+          referenceId: data.requestId,
+          referenceType: "order",
+          recordedById: actor.id,
+          note: `Stock allocated on confirmation of walk-in ${orderNumber}.`,
+        });
+        await tx.insert(orderItems).values({
+          id: crypto.randomUUID(),
+          orderId: data.requestId,
+          listingId: item.listingId,
+          quantityKg: item.quantityKg.toFixed(2),
+          pricePerKg: item.price.toFixed(2),
+          productName: item.row.name,
+          classificationName: item.row.classification,
+          sellingUnit: item.row.sellingUnit,
+          imageUrl: item.row.imageUrl,
+        });
+      }
+      const history = {
+        id: crypto.randomUUID(),
+        orderId: data.requestId,
+        status: "confirmed" as const,
+        changedById: actor.id,
+        note: "Marketer created and confirmed a walk-in pickup order.",
+        changedAt: now,
+      };
+      await tx.insert(orderStatusHistory).values(history);
+      await tx.insert(orderFulfillmentHistory).values({ ...history, id: crypto.randomUUID() });
+      await writeAuditLog(
+        actor.id,
+        "order.walk_in.create",
+        "order",
+        data.requestId,
+        { orderNumber, source: "walk_in", totalAmount: total },
+        tx,
+      );
+      return { orderNumber };
+    });
+  });
+
 export const placeBuyerOrder = createServerFn({ method: "POST" })
   .validator(checkoutInput)
   .handler(async ({ data }) => {
@@ -2248,7 +2374,7 @@ export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(
         orderId: orders.id,
         orderNumber: orders.orderNumber,
         buyerId: orders.buyerId,
-        buyer: users.displayName,
+        buyer: sql<string>`COALESCE(${orders.walkInBuyerName}, ${users.displayName}, 'Buyer')`,
         contact: orders.contact,
         recipientName: orders.recipientName,
         deliveryAddress: orders.deliveryAddress,
@@ -2259,7 +2385,7 @@ export const getRiderDeliveryStatus = createServerFn({ method: "GET" }).handler(
         paymentId: payments.id,
       })
       .from(orders)
-      .innerJoin(users, eq(orders.buyerId, users.id))
+      .leftJoin(users, eq(orders.buyerId, users.id))
       .leftJoin(payments, eq(payments.orderId, orders.id))
       .where(
         and(
@@ -2307,7 +2433,7 @@ export const getRiderCompletedDeliveries = createServerFn({ method: "GET" }).han
       .select({
         orderId: orders.id,
         orderNumber: orders.orderNumber,
-        buyer: users.displayName,
+        buyer: sql<string>`COALESCE(${orders.walkInBuyerName}, ${users.displayName}, 'Buyer')`,
         contact: orders.contact,
         recipientName: orders.recipientName,
         deliveryAddress: orders.deliveryAddress,
@@ -2318,7 +2444,7 @@ export const getRiderCompletedDeliveries = createServerFn({ method: "GET" }).han
         createdAt: orders.createdAt,
       })
       .from(orders)
-      .innerJoin(users, eq(orders.buyerId, users.id))
+      .leftJoin(users, eq(orders.buyerId, users.id))
       .where(
         and(
           eq(orders.assignedRiderId, rider.id),
@@ -2358,7 +2484,7 @@ export const getMarketerDeliveryOperations = createServerFn({ method: "GET" }).h
       .select({
         orderId: orders.id,
         orderNumber: orders.orderNumber,
-        buyer: users.displayName,
+        buyer: sql<string>`COALESCE(${orders.walkInBuyerName}, ${users.displayName}, 'Buyer')`,
         contact: orders.contact,
         recipientName: orders.recipientName,
         deliveryAddress: orders.deliveryAddress,
@@ -2369,7 +2495,7 @@ export const getMarketerDeliveryOperations = createServerFn({ method: "GET" }).h
         createdAt: orders.createdAt,
       })
       .from(orders)
-      .innerJoin(users, eq(orders.buyerId, users.id))
+      .leftJoin(users, eq(orders.buyerId, users.id))
       .where(
         and(
           eq(orders.fulfillmentMethod, "delivery"),
@@ -2610,11 +2736,12 @@ export const updateOrderFulfillment = createServerFn({ method: "POST" })
       return { buyerId: order.buyerId, orderNumber: order.orderNumber, status: data.status };
     });
     const { notifyUser } = await import("@/services/messaging/notification-server");
-    await notifyUser(result.buyerId, {
-      title: result.status.replaceAll("_", " ").replace(/^./, (value) => value.toUpperCase()),
-      message: `${result.orderNumber} fulfillment was updated.`,
-      target: "/buyer/orders",
-    });
+    if (result.buyerId)
+      await notifyUser(result.buyerId, {
+        title: result.status.replaceAll("_", " ").replace(/^./, (value) => value.toUpperCase()),
+        message: `${result.orderNumber} fulfillment was updated.`,
+        target: "/buyer/orders",
+      });
     return result;
   });
 
@@ -2934,7 +3061,7 @@ export const getAccountingCodRemittances = createServerFn({ method: "GET" }).han
     .select({
       id: codRemittances.id,
       orderNumber: orders.orderNumber,
-      buyer: users.displayName,
+      buyer: sql<string>`COALESCE(${orders.walkInBuyerName}, ${users.displayName}, 'Buyer')`,
       riderId: codRemittances.riderId,
       amount: codRemittances.amount,
       status: codRemittances.status,
@@ -2947,7 +3074,7 @@ export const getAccountingCodRemittances = createServerFn({ method: "GET" }).han
     })
     .from(codRemittances)
     .innerJoin(orders, eq(codRemittances.orderId, orders.id))
-    .innerJoin(users, eq(orders.buyerId, users.id))
+    .leftJoin(users, eq(orders.buyerId, users.id))
     .orderBy(desc(codRemittances.createdAt));
   const riderIds = [...new Set(rows.map((row) => row.riderId))];
   const riders = riderIds.length
@@ -3186,7 +3313,8 @@ export const getOrderDetails = createServerFn({ method: "GET" })
         id: orders.id,
         orderNumber: orders.orderNumber,
         buyerId: orders.buyerId,
-        buyerName: users.displayName,
+        buyerName: sql<string>`COALESCE(${orders.walkInBuyerName}, ${users.displayName}, 'Buyer')`,
+        source: orders.source,
         status: orders.status,
         fulfillmentMethod: orders.fulfillmentMethod,
         fulfillmentStatus: orders.fulfillmentStatus,
@@ -3209,7 +3337,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
         paidAt: payments.paidAt,
       })
       .from(orders)
-      .innerJoin(users, eq(orders.buyerId, users.id))
+      .leftJoin(users, eq(orders.buyerId, users.id))
       .leftJoin(payments, eq(payments.orderId, orders.id))
       .where(eq(orders.orderNumber, data.orderNumber));
     if (!order) throw new Error("The requested order could not be found.");
@@ -3268,6 +3396,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
     return {
       orderNumber: order.orderNumber,
       buyer: order.buyerId === viewer.id ? "You" : order.buyerName,
+      source: order.source,
       status: order.status,
       fulfillmentMethod: order.fulfillmentMethod,
       fulfillmentStatus: order.fulfillmentStatus,
@@ -3348,13 +3477,14 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
       createdAt: orders.createdAt,
       confirmedAt: orders.confirmedAt,
       soldAt: orders.soldAt,
-      buyer: users.displayName,
+      buyer: sql<string>`COALESCE(${orders.walkInBuyerName}, ${users.displayName}, 'Buyer')`,
       paymentId: payments.paymentNumber,
+      source: orders.source,
       paymentMethod: payments.method,
       paidAt: payments.paidAt,
     })
     .from(orders)
-    .innerJoin(users, eq(orders.buyerId, users.id))
+    .leftJoin(users, eq(orders.buyerId, users.id))
     .leftJoin(payments, eq(payments.orderId, orders.id))
     .orderBy(desc(orders.createdAt), desc(orders.id));
   if (!orderRows.length) return [] as OrderRecord[];
@@ -3438,6 +3568,7 @@ export const getDatabaseOrders = createServerFn({ method: "GET" }).handler(async
     return {
       id: order.orderNumber,
       buyer: order.buyer,
+      source: order.source,
       farmer: "PROCY farmer members",
       product: first?.name ?? "Product",
       classification: first?.classification ?? "Good",
@@ -4316,11 +4447,12 @@ export const confirmDatabaseOrder = createServerFn({ method: "POST" })
       return { orderId: order.id, buyerId: order.buyerId, orderNumber: order.orderNumber };
     });
     const { notifyUser } = await import("@/services/messaging/notification-server");
-    await notifyUser(confirmedOrder.buyerId, {
-      title: "Order confirmed",
-      message: `${confirmedOrder.orderNumber} has been confirmed by PROCY.`,
-      target: "/buyer/orders",
-    });
+    if (confirmedOrder.buyerId)
+      await notifyUser(confirmedOrder.buyerId, {
+        title: "Order confirmed",
+        message: `${confirmedOrder.orderNumber} has been confirmed by PROCY.`,
+        target: "/buyer/orders",
+      });
     return confirmedOrder;
   });
 
@@ -4447,11 +4579,12 @@ export const markDatabaseOrderSold = createServerFn({ method: "POST" })
       return { orderId: order.id, buyerId: order.buyerId, orderNumber: order.orderNumber };
     });
     const { notifyUser, notifyRole } = await import("@/services/messaging/notification-server");
-    await notifyUser(soldOrder.buyerId, {
-      title: "Order fulfilled",
-      message: `${soldOrder.orderNumber} is ready for payment recording.`,
-      target: "/buyer/orders",
-    });
+    if (soldOrder.buyerId)
+      await notifyUser(soldOrder.buyerId, {
+        title: "Order fulfilled",
+        message: `${soldOrder.orderNumber} is ready for payment recording.`,
+        target: "/buyer/orders",
+      });
     await notifyRole("Accounting", {
       title: "Payment ready to record",
       message: `${soldOrder.orderNumber} was marked Sold and is ready for payment recording.`,
@@ -4612,11 +4745,12 @@ export const releaseDatabaseOrder = createServerFn({ method: "POST" })
     });
     if (releasedOrder.buyerId !== actor.id) {
       const { notifyUser } = await import("@/services/messaging/notification-server");
-      await notifyUser(releasedOrder.buyerId, {
-        title: releasedOrder.status === "rejected" ? "Order rejected" : "Order cancelled",
-        message: `${releasedOrder.orderNumber} was ${releasedOrder.status}; reserved stock was released.`,
-        target: "/buyer/orders",
-      });
+      if (releasedOrder.buyerId)
+        await notifyUser(releasedOrder.buyerId, {
+          title: releasedOrder.status === "rejected" ? "Order rejected" : "Order cancelled",
+          message: `${releasedOrder.orderNumber} was ${releasedOrder.status}; reserved stock was released.`,
+          target: "/buyer/orders",
+        });
     } else {
       const { notifyRole } = await import("@/services/messaging/notification-server");
       await notifyRole("Marketer", {
@@ -4683,10 +4817,11 @@ export const recordDatabasePayment = createServerFn({ method: "POST" })
       return { paymentNumber, buyerId: order.buyerId, orderNumber: order.orderNumber };
     });
     const { notifyUser } = await import("@/services/messaging/notification-server");
-    await notifyUser(payment.buyerId, {
-      title: "Payment recorded",
-      message: `Payment ${payment.paymentNumber} was recorded for ${payment.orderNumber}.`,
-      target: "/buyer/orders",
-    });
+    if (payment.buyerId)
+      await notifyUser(payment.buyerId, {
+        title: "Payment recorded",
+        message: `Payment ${payment.paymentNumber} was recorded for ${payment.orderNumber}.`,
+        target: "/buyer/orders",
+      });
     return payment;
   });

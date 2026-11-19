@@ -211,7 +211,10 @@ export const orders = mysqlTable(
   {
     id: varchar("id", { length: 36 }).primaryKey(),
     orderNumber: varchar("order_number", { length: 40 }).notNull(),
-    buyerId: varchar("buyer_id", { length: 36 }).notNull(),
+    buyerId: varchar("buyer_id", { length: 36 }),
+    source: mysqlEnum("source", ["online", "walk_in"]).default("online").notNull(),
+    walkInBuyerName: varchar("walk_in_buyer_name", { length: 160 }),
+    createdById: varchar("created_by_id", { length: 36 }),
     status: mysqlEnum("status", ["pending", "confirmed", "sold", "cancelled", "rejected"])
       .default("pending")
       .notNull(),

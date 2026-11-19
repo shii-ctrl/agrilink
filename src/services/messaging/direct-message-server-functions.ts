@@ -108,7 +108,9 @@ async function directRecipientIds(viewer: MessagingUser) {
           inArray(orders.fulfillmentStatus, [...activeDeliveryStatuses]),
         ),
       );
-    assignedBuyers.forEach((row) => ids.add(row.id));
+    assignedBuyers.forEach((row) => {
+      if (row.id) ids.add(row.id);
+    });
   }
   ids.delete(viewer.id);
   return ids;

@@ -1,0 +1,5 @@
+ALTER TABLE orders
+  MODIFY COLUMN buyer_id VARCHAR(36) NULL,
+  ADD COLUMN IF NOT EXISTS source ENUM('online', 'walk_in') NOT NULL DEFAULT 'online',
+  ADD COLUMN IF NOT EXISTS walk_in_buyer_name VARCHAR(160) NULL,
+  ADD COLUMN IF NOT EXISTS created_by_id VARCHAR(36) NULL;
