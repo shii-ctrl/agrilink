@@ -65,12 +65,12 @@ function dateLabel(value: string) {
 function resultLabel(planting: Planting) {
   const value = planting.summary.profit;
   return value === null
-    ? "Wala pang benta"
+    ? "No sales yet"
     : value === 0
       ? "Break even"
       : value > 0
-        ? "Tubo sa naitalang benta"
-        : "Lugi sa naitalang benta";
+        ? "Profit on recorded sales"
+        : "Loss on recorded sales";
 }
 function FarmerPlantingsPage() {
   const request = useCallback(() => getFarmerPlantingWorkspace(), []);
@@ -98,8 +98,8 @@ function FarmerPlantingsPage() {
 
   function refresh() {
     void reload({ background: true }).catch(() =>
-      toast.error("Hindi ma-refresh ang talaan", {
-        description: "I-refresh ang page para makita ang pinakabagong records.",
+      toast.error("Unable to refresh records", {
+        description: "Refresh the page to view the latest records.",
       }),
     );
   }
@@ -112,7 +112,7 @@ function FarmerPlantingsPage() {
       toast.success(message);
       refresh();
     } catch (caught) {
-      toast.error("Hindi na-save ang pagbabago", { description: userFacingErrorMessage(caught) });
+      toast.error("Unable to save changes", { description: userFacingErrorMessage(caught) });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -122,8 +122,8 @@ function FarmerPlantingsPage() {
     <FarmerLayout>
       {confirmationDialog}
       <FarmerPageHeader
-        title="Gastos at Tubo"
-        description="Itala ang aktuwal na gastos sa bawat taniman at ihambing sa sariling benta sa PROCY."
+        title="Costs & Profit"
+        description="Record actual expenses for each planting and compare them with your PROCY sales."
       />
       <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 md:px-8">
         <WorkspaceLoadState
@@ -138,10 +138,10 @@ function FarmerPlantingsPage() {
               {selected ? (
                 <Button variant="outline" onClick={() => setSelectedId(null)}>
                   <ArrowLeft className="size-4" />
-                  Mga taniman
+                  Back to plantings
                 </Button>
               ) : (
-                <h2 className="text-xl font-semibold">Mga taniman ko</h2>
+                <h2 className="text-xl font-semibold">My plantings</h2>
               )}
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={refresh}>
@@ -151,7 +151,7 @@ function FarmerPlantingsPage() {
                 {!selected && (
                   <Button onClick={() => setPlantingForm("new")}>
                     <Plus className="size-4" />
-                    Bagong taniman
+                    New planting
                   </Button>
                 )}
               </div>
@@ -161,7 +161,7 @@ function FarmerPlantingsPage() {
                 <section className="flex flex-wrap gap-3 rounded-3xl border border-border bg-card p-4">
                   <Input
                     aria-label="Search plantings"
-                    placeholder="Hanapin ang taniman o pananim"
+                    placeholder="Search planting or crop"
                     value={query}
                     onChange={(event) => {
                       setQuery(event.target.value);
@@ -177,7 +177,7 @@ function FarmerPlantingsPage() {
                       page.setPage(1);
                     }}
                   >
-                    Kasalukuyan
+                    Active
                   </Button>
                   <Button
                     variant={finished ? "default" : "outline"}
@@ -187,7 +187,7 @@ function FarmerPlantingsPage() {
                       page.setPage(1);
                     }}
                   >
-                    Tapos na
+                    Finished
                   </Button>
                 </section>
                 {!visible.length && (
@@ -195,14 +195,14 @@ function FarmerPlantingsPage() {
                     <Sprout className="mx-auto mb-3 size-9 text-primary" />
                     <h3 className="font-semibold">
                       {query
-                        ? "Walang tugmang taniman"
+                        ? "No matching plantings"
                         : finished
-                          ? "Wala pang natapos na taniman"
-                          : "Simulan ang talaan ng iyong taniman"}
+                          ? "No finished plantings yet"
+                          : "Start tracking your planting"}
                     </h3>
                     <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                      Halimbawa: Sitaw — October. Idagdag ang petsa at halaga ng bawat gastos mula
-                      paghahanda hanggang harvest.
+                      For example: String beans — October. Record the date and amount of each
+                      expense from preparation to harvest.
                     </p>
                   </section>
                 )}
@@ -217,17 +217,17 @@ function FarmerPlantingsPage() {
                       </p>
                       <h3 className="mt-1 text-lg font-semibold">{planting.name}</h3>
                       <p className="mt-2 text-sm text-muted-foreground">
-                        Tinanim: {dateLabel(planting.plantedOn)}
+                        Planted: {dateLabel(planting.plantedOn)}
                       </p>
                       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                         <div>
-                          <dt className="text-muted-foreground">Total gastos</dt>
+                          <dt className="text-muted-foreground">Total expenses</dt>
                           <dd className="mt-1 font-semibold">
                             {peso(planting.summary.totalExpenses)}
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-muted-foreground">Naitalang benta</dt>
+                          <dt className="text-muted-foreground">Recorded sales</dt>
                           <dd className="mt-1 font-semibold">
                             {peso(planting.summary.grossSales)}
                           </dd>
@@ -250,7 +250,7 @@ function FarmerPlantingsPage() {
                           salesPage.setPage(1);
                         }}
                       >
-                        Tingnan ang talaan
+                        View records
                       </Button>
                     </article>
                   ))}
@@ -263,12 +263,11 @@ function FarmerPlantingsPage() {
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                        {selected.cropName} ·{" "}
-                        {selected.status === "active" ? "Kasalukuyan" : "Tapos na"}
+                        {selected.cropName} · {selected.status === "active" ? "Active" : "Finished"}
                       </p>
                       <h2 className="mt-1 text-2xl font-semibold">{selected.name}</h2>
                       <p className="mt-2 text-sm text-muted-foreground">
-                        Tinanim: {dateLabel(selected.plantedOn)}
+                        Planted: {dateLabel(selected.plantedOn)}
                       </p>
                       {selected.notes && (
                         <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground">
@@ -290,11 +289,11 @@ function FarmerPlantingsPage() {
                             await requestConfirmation({
                               title:
                                 selected.status === "active"
-                                  ? "Tapos na ang taniman?"
-                                  : "Ibalik sa kasalukuyang taniman?",
+                                  ? "Mark this planting as finished?"
+                                  : "Reopen this planting?",
                               description:
-                                "Mananatili ang gastos, deliveries, at sales history sa talaan.",
-                              confirmLabel: selected.status === "active" ? "Tapos na" : "Ibalik",
+                                "Expenses, deliveries, and sales history will remain in your records.",
+                              confirmLabel: selected.status === "active" ? "Finished" : "Reopen",
                             })
                           )
                             void act(
@@ -305,7 +304,7 @@ function FarmerPlantingsPage() {
                                     status: selected.status === "active" ? "finished" : "active",
                                   },
                                 }),
-                              "Na-update ang taniman",
+                              "Planting updated",
                             );
                         }}
                       >
@@ -316,11 +315,8 @@ function FarmerPlantingsPage() {
                   </div>
                 </section>
                 <section className="grid gap-4 sm:grid-cols-3">
-                  <Metric label="Total gastos" value={peso(selected.summary.totalExpenses)} />
-                  <Metric
-                    label="Naitalang benta sa PROCY"
-                    value={peso(selected.summary.grossSales)}
-                  />
+                  <Metric label="Total expenses" value={peso(selected.summary.totalExpenses)} />
+                  <Metric label="Recorded PROCY sales" value={peso(selected.summary.grossSales)} />
                   <Metric
                     label={resultLabel(selected)}
                     value={selected.summary.profit === null ? "—" : peso(selected.summary.profit)}
@@ -329,27 +325,27 @@ function FarmerPlantingsPage() {
                 </section>
                 <p className="text-sm text-muted-foreground">
                   {selected.summary.profit === null
-                    ? "Total gastos muna ang ipinapakita habang wala pang naitalang benta. I-link ang delivery mula sa tanimang ito para maisama ang sales."
-                    : "Resulta = naitalang benta − PROCY service fee − gastos. Maaaring magbago habang may dagdag na gastos o benta."}{" "}
-                  Ang IPON ay sariling savings at hiwalay sa gastos.
+                    ? "Only expenses are shown until sales are recorded. Link a delivery from this planting to include its sales."
+                    : "Result = recorded sales − PROCY service fee − expenses. This may change as more expenses or sales are recorded."}{" "}
+                  IPON is your savings and is separate from expenses.
                 </p>
                 <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
                     <div>
-                      <h3 className="font-semibold">Talaan ng gastos</h3>
+                      <h3 className="font-semibold">Expense records</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Aktuwal na nagastos, kasama ang petsa at halaga.
+                        Actual expenses with their dates and amounts.
                       </p>
                     </div>
                     <Button onClick={() => setExpenseForm({ plantingId: selected.id })}>
                       <Plus className="size-4" />
-                      Magdagdag ng gastos
+                      Add expense
                     </Button>
                   </div>
                   {!selected.expenses.length && (
                     <p className="p-6 text-sm text-muted-foreground">
-                      Wala pang gastos. Idagdag ang buto, pataba, labor, o iba pang nagastos sa
-                      tanimang ito.
+                      No expenses yet. Add seeds, fertilizer, labor, or other costs for this
+                      planting.
                     </p>
                   )}
                   <div className="divide-y divide-border">
@@ -392,9 +388,9 @@ function FarmerPlantingsPage() {
                             onClick={async () => {
                               if (
                                 await requestConfirmation({
-                                  title: "Alisin ang gastos?",
-                                  description: `${expense.description} · ${peso(Number(expense.amount))} ay aalisin sa total ng tanimang ito.`,
-                                  confirmLabel: "Alisin",
+                                  title: "Remove this expense?",
+                                  description: `${expense.description} · ${peso(Number(expense.amount))} will be removed from this planting's total.`,
+                                  confirmLabel: "Remove",
                                   destructive: true,
                                 })
                               )
@@ -403,7 +399,7 @@ function FarmerPlantingsPage() {
                                     removeFarmerPlantingExpense({
                                       data: { plantingId: selected.id, id: expense.id },
                                     }),
-                                  "Naalis ang gastos sa total",
+                                  "Expense removed from total",
                                 );
                             }}
                           >
@@ -418,19 +414,19 @@ function FarmerPlantingsPage() {
                 <div className="grid items-start gap-5 lg:grid-cols-2">
                   <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h3 className="font-semibold">Deliveries mula sa tanimang ito</h3>
+                      <h3 className="font-semibold">Deliveries from this planting</h3>
                       <Button size="sm" variant="outline" onClick={() => setLinkOpen(true)}>
                         <Plus className="size-4" />
-                        I-link ang delivery
+                        Link delivery
                       </Button>
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      Piliin ang sariling PROCY delivery na galing sa tanimang ito. Isang taniman
-                      lang bawat delivery.
+                      Choose your own PROCY delivery from this planting. Each delivery can belong to
+                      only one planting.
                     </p>
                     {!selected.deliveries.length && (
                       <p className="mt-4 text-sm text-muted-foreground">
-                        Wala pang naka-link na delivery.
+                        No linked deliveries yet.
                       </p>
                     )}
                     <div className="mt-3 max-h-80 divide-y divide-border overflow-y-auto">
@@ -457,9 +453,9 @@ function FarmerPlantingsPage() {
                             onClick={async () => {
                               if (
                                 await requestConfirmation({
-                                  title: "Alisin ang delivery link?",
+                                  title: "Unlink this delivery?",
                                   description:
-                                    "Mawawala sa resulta ng tanimang ito ang benta mula sa delivery. Mananatili ang original delivery at sales records.",
+                                    "Sales from this delivery will be removed from this planting's results. The original delivery and sales records will remain.",
                                   confirmLabel: "Unlink",
                                 })
                               )
@@ -472,7 +468,7 @@ function FarmerPlantingsPage() {
                                         linked: false,
                                       },
                                     }),
-                                  "Naalis ang delivery link",
+                                  "Delivery unlinked",
                                 );
                             }}
                           >
@@ -483,19 +479,16 @@ function FarmerPlantingsPage() {
                     </div>
                   </section>
                   <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
-                    <h3 className="font-semibold">Benta, deductions, at cash</h3>
+                    <h3 className="font-semibold">Sales, deductions, and cash</h3>
                     <dl className="mt-4 space-y-3 text-sm">
                       {[
-                        ["Kabuuang benta", selected.summary.grossSales],
+                        ["Gross sales", selected.summary.grossSales],
                         ["PROCY service fee", selected.summary.serviceFee],
-                        ["IPON mula sa benta", selected.summary.ipon],
-                        [
-                          "Net cash earnings pagkatapos ng deductions",
-                          selected.summary.netCashEarnings,
-                        ],
-                        ["Hinihintay pang bayad ng buyer", selected.summary.awaitingBuyerPayment],
-                        ["Available para sa payout", selected.summary.availableForPayout],
-                        ["Cash na na-release", selected.summary.cashReleased],
+                        ["IPON savings from sales", selected.summary.ipon],
+                        ["Net cash earnings after deductions", selected.summary.netCashEarnings],
+                        ["Awaiting buyer payment", selected.summary.awaitingBuyerPayment],
+                        ["Available for payout", selected.summary.availableForPayout],
+                        ["Cash released", selected.summary.cashReleased],
                       ].map(([label, value]) => (
                         <div key={label} className="flex justify-between gap-4">
                           <dt className="text-muted-foreground">{label}</dt>
@@ -504,7 +497,7 @@ function FarmerPlantingsPage() {
                       ))}
                       {selected.summary.cashAfterExpenses !== null && (
                         <div className="flex justify-between gap-4 border-t border-border pt-3">
-                          <dt>Net cash earnings minus gastos</dt>
+                          <dt>Net cash earnings minus expenses</dt>
                           <dd className="shrink-0 font-semibold">
                             {peso(selected.summary.cashAfterExpenses)}
                           </dd>
@@ -512,8 +505,8 @@ function FarmerPlantingsPage() {
                       )}
                     </dl>
                     <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                      Ang gastos ay personal na talaan; walang awtomatikong bawas sa payout. Ang
-                      benta at deductions ay mula sa Earnings & IPON records mo sa PROCY.
+                      Expenses are personal records and do not automatically reduce your payout.
+                      Sales and deductions come from your PROCY Earnings & IPON records.
                     </p>
                     <Button asChild size="sm" variant="outline" className="mt-4">
                       <Link to="/farmer/earnings">Earnings & IPON</Link>
@@ -522,15 +515,15 @@ function FarmerPlantingsPage() {
                 </div>
                 <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
                   <div className="border-b border-border p-5">
-                    <h3 className="font-semibold">Naitalang sales mula sa linked deliveries</h3>
+                    <h3 className="font-semibold">Recorded sales from linked deliveries</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Kasama ang online at walk-in sales. Automatic ang pag-update kapag na-finalize
-                      ang benta.
+                      Includes online and walk-in sales. Updates automatically when a sale is
+                      finalized.
                     </p>
                   </div>
                   {!selected.sales.length && (
                     <p className="p-6 text-sm text-muted-foreground">
-                      Wala pang naitalang benta sa Earnings & IPON mula sa linked deliveries.
+                      No sales have been recorded in Earnings & IPON for the linked deliveries yet.
                     </p>
                   )}
                   <div className="divide-y divide-border">
@@ -679,10 +672,8 @@ function PlantingForm({
     >
       <DialogContent className={planting ? "sm:max-w-lg" : "sm:max-w-2xl"}>
         <DialogHeader>
-          <DialogTitle>{planting ? "Edit taniman" : "Bagong taniman"}</DialogTitle>
-          <DialogDescription>
-            Magkahiwalay na talaan para sa bawat planting cycle.
-          </DialogDescription>
+          <DialogTitle>{planting ? "Edit planting" : "New planting"}</DialogTitle>
+          <DialogDescription>Keep a separate record for each planting cycle.</DialogDescription>
         </DialogHeader>
         <form
           onSubmit={async (event) => {
@@ -696,7 +687,7 @@ function PlantingForm({
                 const validated = plantingInput.safeParse(input);
                 if (!validated.success)
                   throw new Error(
-                    validated.error.issues[0]?.message ?? "Suriin ang detalye ng taniman.",
+                    validated.error.issues[0]?.message ?? "Check the planting details.",
                   );
                 await updateFarmerPlanting({ data: validated.data });
               } else {
@@ -708,14 +699,14 @@ function PlantingForm({
                 });
                 if (!validated.success)
                   throw new Error(
-                    validated.error.issues[0]?.message ?? "Suriin ang detalye ng gastos.",
+                    validated.error.issues[0]?.message ?? "Check the expense details.",
                   );
                 await createFarmerPlanting({ data: validated.data });
               }
-              toast.success("Na-save ang taniman");
+              toast.success("Planting saved");
               onSaved(id);
             } catch (error) {
-              toast.error("Hindi na-save ang taniman", {
+              toast.error("Unable to save planting", {
                 description: userFacingErrorMessage(error),
               });
             } finally {
@@ -727,24 +718,24 @@ function PlantingForm({
           <fieldset disabled={saving} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="planting-name">Pangalan ng taniman</Label>
+                <Label htmlFor="planting-name">Planting name</Label>
                 <Input
                   id="planting-name"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder="Sitaw — October 2026 / Plot 1"
+                  placeholder="String beans — October 2026 / Plot 1"
                   required
                   minLength={2}
                   maxLength={160}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="planting-crop">Pananim</Label>
+                <Label htmlFor="planting-crop">Crop</Label>
                 <Input
                   id="planting-crop"
                   value={cropName}
                   onChange={(event) => setCropName(event.target.value)}
-                  placeholder="Halimbawa: Sitaw"
+                  placeholder="For example: String beans"
                   required
                   minLength={2}
                   maxLength={160}
@@ -752,7 +743,7 @@ function PlantingForm({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="planting-date">
-                  {planting ? "Petsa ng pagtatanim" : "Petsa ng pagtatanim at unang gastos"}
+                  {planting ? "Planting date" : "Planting and initial expense date"}
                 </Label>
                 <Input
                   id="planting-date"
@@ -767,27 +758,28 @@ function PlantingForm({
             </div>
             {!planting && (
               <p className="text-xs text-muted-foreground">
-                Ang mga unang gastos sa form na ito ay gagamit ng petsang pinili sa itaas. Maaaring
-                magdagdag ng susunod na gastos na may sariling petsa pagkatapos ma-save.
+                Initial expenses in this form use the date selected above. After saving, you can add
+                later expenses with their own dates.
               </p>
             )}
             {!planting && (
               <section className="space-y-4 rounded-2xl border border-border p-4">
                 <div>
-                  <h3 className="font-semibold">Mga nagastos sa tanimang ito</h3>
+                  <h3 className="font-semibold">Expenses for this planting</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Ilista ang buto, pataba, labor, at iba pa. Nadadagdagan ang total kada entry.
+                    List seeds, fertilizer, labor, and other costs. The total updates with each
+                    entry.
                   </p>
                 </div>
                 {draftExpenses.map((row, index) => (
                   <div key={row.id} className="space-y-3 rounded-xl bg-muted/40 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium">Gastos {index + 1}</p>
+                      <p className="text-sm font-medium">Expense {index + 1}</p>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        aria-label={`Alisin ang gastos ${index + 1}`}
+                        aria-label={`Remove expense ${index + 1}`}
                         onClick={() =>
                           setDraftExpenses((rows) => rows.filter((entry) => entry.id !== row.id))
                         }
@@ -797,7 +789,7 @@ function PlantingForm({
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor={`initial-amount-${row.id}`}>Halaga (₱)</Label>
+                        <Label htmlFor={`initial-amount-${row.id}`}>Amount (₱)</Label>
                         <Input
                           id={`initial-amount-${row.id}`}
                           type="number"
@@ -812,7 +804,7 @@ function PlantingForm({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`initial-category-${row.id}`}>Uri ng gastos</Label>
+                        <Label htmlFor={`initial-category-${row.id}`}>Expense category</Label>
                         <AppSelect
                           id={`initial-category-${row.id}`}
                           value={row.category}
@@ -826,10 +818,10 @@ function PlantingForm({
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor={`initial-description-${row.id}`}>Detalye ng gastos</Label>
+                      <Label htmlFor={`initial-description-${row.id}`}>Expense description</Label>
                       <Input
                         id={`initial-description-${row.id}`}
-                        placeholder="Halimbawa: Buto ng sitaw"
+                        placeholder="For example: String bean seeds"
                         value={row.description}
                         maxLength={255}
                         minLength={2}
@@ -848,7 +840,7 @@ function PlantingForm({
                   onClick={() => setDraftExpenses((rows) => [...rows, blankExpense()])}
                 >
                   <Plus className="size-4" />
-                  Magdagdag pa ng gastos
+                  Add another expense
                 </Button>
               </section>
             )}
@@ -870,9 +862,9 @@ function PlantingForm({
                   aria-live="polite"
                 >
                   <div>
-                    <span className="font-medium">Kabuuang nagastos</span>
+                    <span className="font-medium">Total expenses</span>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Mase-save kasama ng taniman.
+                      Saved together with the planting.
                     </p>
                   </div>
                   <strong className="text-xl text-primary">{peso(draftTotal)}</strong>
@@ -882,7 +874,7 @@ function PlantingForm({
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancel
                 </Button>
-                <Button type="submit">{saving ? "Saving…" : "I-save ang taniman"}</Button>
+                <Button type="submit">{saving ? "Saving…" : "Save planting"}</Button>
               </div>
             </div>
           </fieldset>
@@ -929,8 +921,8 @@ function ExpenseForm({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{expense ? "Edit gastos" : "Magdagdag ng gastos"}</DialogTitle>
-          <DialogDescription>Ilagay ang aktuwal na petsa at halagang nagastos.</DialogDescription>
+          <DialogTitle>{expense ? "Edit expense" : "Add expense"}</DialogTitle>
+          <DialogDescription>Enter the actual date and amount spent.</DialogDescription>
         </DialogHeader>
         <form
           onSubmit={async (event) => {
@@ -949,19 +941,17 @@ function ExpenseForm({
                 notes,
               });
               if (!validated.success)
-                throw new Error(
-                  validated.error.issues[0]?.message ?? "Suriin ang detalye ng gastos.",
-                );
+                throw new Error(validated.error.issues[0]?.message ?? "Check the expense details.");
               await saveFarmerPlantingExpense({
                 data: {
                   ...validated.data,
                   editing: Boolean(expense),
                 },
               });
-              toast.success("Na-save ang gastos");
+              toast.success("Expense saved");
               onSaved();
             } catch (error) {
-              toast.error("Hindi na-save ang gastos", {
+              toast.error("Unable to save expense", {
                 description: userFacingErrorMessage(error),
               });
             } finally {
@@ -973,7 +963,7 @@ function ExpenseForm({
           <fieldset disabled={saving} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="expense-date">Petsa</Label>
+                <Label htmlFor="expense-date">Date</Label>
                 <Input
                   id="expense-date"
                   type="date"
@@ -985,7 +975,7 @@ function ExpenseForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="expense-amount">Halaga (₱)</Label>
+                <Label htmlFor="expense-amount">Amount (₱)</Label>
                 <Input
                   id="expense-amount"
                   type="number"
@@ -1001,7 +991,7 @@ function ExpenseForm({
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="expense-category">Uri ng gastos</Label>
+              <Label htmlFor="expense-category">Expense category</Label>
               <AppSelect
                 id="expense-category"
                 disabled={saving}
@@ -1014,7 +1004,7 @@ function ExpenseForm({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="expense-description">Detalye</Label>
+              <Label htmlFor="expense-description">Description</Label>
               <Input
                 id="expense-description"
                 value={description}
@@ -1022,7 +1012,7 @@ function ExpenseForm({
                 required
                 minLength={2}
                 maxLength={255}
-                placeholder="Halimbawa: Buto ng sitaw / Pataba"
+                placeholder="For example: String bean seeds / Fertilizer"
               />
             </div>
             <div className="space-y-2">
@@ -1035,17 +1025,19 @@ function ExpenseForm({
               />
             </div>
             <div className="rounded-xl bg-primary/10 p-3" role="status" aria-live="polite">
-              <p className="text-sm text-muted-foreground">Total gastos kapag na-save ang entry</p>
+              <p className="text-sm text-muted-foreground">
+                Total expenses after saving this entry
+              </p>
               <p className="mt-1 text-xl font-semibold text-primary">{peso(previewTotal)}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Kasalukuyang naka-save: {peso(currentTotal)}
+                Currently saved: {peso(currentTotal)}
               </p>
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit">{saving ? "Saving…" : "I-save ang gastos"}</Button>
+              <Button type="submit">{saving ? "Saving…" : "Save expense"}</Button>
             </div>
           </fieldset>
         </form>
@@ -1087,20 +1079,20 @@ function DeliveryForm({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>I-link ang sariling delivery</DialogTitle>
+          <DialogTitle>Link your delivery</DialogTitle>
           <DialogDescription>
-            Piliin lamang ang harvest mula sa {planting.name}. Dito ibabase ang sales ng tanimang
-            ito.
+            Choose only a harvest delivery from {planting.name}. Its sales will be included in this
+            planting's results.
           </DialogDescription>
         </DialogHeader>
         {!eligible.length ? (
           <p className="text-sm text-muted-foreground">
-            Walang available na delivery para sa tanimang ito. Dapat recorded na sa PROCY, hindi
-            naka-link sa ibang taniman, at kaparehong product ng naunang linked delivery.
+            No eligible deliveries are available. A delivery must be recorded at PROCY, unlinked
+            from other plantings, and for the same product as any existing linked deliveries.
           </p>
         ) : (
           <div className="space-y-4">
-            <Label htmlFor="planting-delivery">Delivery sa PROCY</Label>
+            <Label htmlFor="planting-delivery">PROCY delivery</Label>
             <AppSelect
               id="planting-delivery"
               value={receivingId}
@@ -1112,11 +1104,11 @@ function DeliveryForm({
                 label: `${receipt.product} · ${formatSellingQuantity(Number(receipt.quantity), receipt.sellingUnit)}`,
                 description: `${dateLabel(receipt.receivedAt)} · Ref ${receipt.id.slice(-8).toUpperCase()}`,
               }))}
-              placeholder="Piliin ang delivery"
+              placeholder="Choose a delivery"
             />
             <p className="text-sm text-muted-foreground">
-              Automatic na maisasama ang finalized online at walk-in sales mula sa delivery na ito.
-              Hindi mababago ang stock o payout.
+              Finalized online and walk-in sales from this delivery will be included automatically.
+              Stock and payouts will remain unchanged.
             </p>
           </div>
         )}
@@ -1134,10 +1126,10 @@ function DeliveryForm({
                 await linkFarmerPlantingDelivery({
                   data: { plantingId: planting.id, receivingId, linked: true },
                 });
-                toast.success("Na-link ang delivery");
+                toast.success("Delivery linked");
                 onSaved();
               } catch (error) {
-                toast.error("Hindi na-link ang delivery", {
+                toast.error("Unable to link delivery", {
                   description: userFacingErrorMessage(error),
                 });
               } finally {
@@ -1146,7 +1138,7 @@ function DeliveryForm({
               }
             }}
           >
-            {saving ? "Saving…" : "I-link ang delivery"}
+            {saving ? "Saving…" : "Link delivery"}
           </Button>
         </div>
       </DialogContent>

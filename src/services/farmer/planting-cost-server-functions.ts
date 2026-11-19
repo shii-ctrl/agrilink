@@ -161,7 +161,9 @@ export const createFarmerPlanting = createServerFn({ method: "POST" })
               ),
           )
         ) {
-          throw new Error("Na-save na ang taniman. I-refresh ang talaan bago magdagdag ng gastos.");
+          throw new Error(
+            "This planting has already been saved. Refresh the records before adding expenses.",
+          );
         }
         return { id: existing.id };
       }

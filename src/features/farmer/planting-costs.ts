@@ -11,14 +11,14 @@ export const expenseCategories = [
   "other",
 ] as const;
 export const expenseCategoryLabels: Record<(typeof expenseCategories)[number], string> = {
-  seeds: "Buto / planting materials",
-  fertilizer: "Pataba",
+  seeds: "Seeds / planting materials",
+  fertilizer: "Fertilizer",
   pest_control: "Pest control",
   labor: "Labor",
-  water: "Tubig / irrigation",
+  water: "Water / irrigation",
   equipment: "Equipment / supplies",
   transport: "Transport",
-  other: "Iba pa",
+  other: "Other",
 };
 export function todayInManila() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -30,7 +30,7 @@ export function todayInManila() {
 }
 const recordedDate = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Pumili ng wastong petsa.")
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date.")
   .refine((value) => {
     const date = new Date(`${value}T00:00:00Z`);
     return (
@@ -42,8 +42,8 @@ const recordedDate = z
   .refine((value) => value <= todayInManila(), "Actual records cannot use a future date.");
 export const plantingInput = z.object({
   id: z.string().uuid(),
-  name: z.string().trim().min(2, "Ilagay ang pangalan ng taniman.").max(160),
-  cropName: z.string().trim().min(2, "Ilagay ang pangalan ng pananim.").max(160),
+  name: z.string().trim().min(2, "Enter a planting name.").max(160),
+  cropName: z.string().trim().min(2, "Enter a crop name.").max(160),
   plantedOn: recordedDate,
   notes: z.string().trim().max(2000).default(""),
 });
@@ -52,13 +52,13 @@ export const plantingExpenseInput = plantingIdInput.extend({
   id: z.string().uuid(),
   occurredOn: recordedDate,
   category: z.enum(expenseCategories),
-  description: z.string().trim().min(2, "Ilagay kung ano ang pinagkagastusan.").max(255),
+  description: z.string().trim().min(2, "Describe the expense.").max(255),
   amount: z
     .number()
     .finite()
-    .positive("Ilagay ang halagang mas mataas sa zero.")
+    .positive("Enter an amount greater than zero.")
     .max(999999999)
-    .multipleOf(0.01, "Hanggang dalawang decimal places lamang ang halaga."),
+    .multipleOf(0.01, "Use at most two decimal places for the amount."),
   notes: z.string().trim().max(2000).default(""),
 });
 export const createPlantingInput = plantingInput.extend({
@@ -68,7 +68,7 @@ export const createPlantingInput = plantingInput.extend({
     .default([])
     .refine(
       (rows) => new Set(rows.map((row) => row.id)).size === rows.length,
-      "May dobleng expense entry. Suriin ang talaan.",
+      "Duplicate expense entries. Check the records.",
     ),
 });
 
