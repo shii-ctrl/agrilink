@@ -31,6 +31,7 @@ import {
   expenseCategories,
   expenseCategoryLabels,
   plantingInput,
+  createPlantingInput,
   plantingExpenseInput,
   todayInManila,
 } from "@/features/farmer/planting-costs";
@@ -583,6 +584,10 @@ function FarmerPlantingsPage() {
         <ExpenseForm
           key={expenseForm.expense?.id ?? "new"}
           {...expenseForm}
+          currentTotal={
+            data?.plantings.find((row) => row.id === expenseForm.plantingId)?.summary
+              .totalExpenses ?? 0
+          }
           onClose={() => setExpenseForm(null)}
           onSaved={() => {
             if (!expenseForm.expense) expensePage.setPage(1);
@@ -642,6 +647,32 @@ function PlantingForm({
   const [cropName, setCropName] = useState(planting?.cropName ?? "");
   const [plantedOn, setPlantedOn] = useState(planting?.plantedOn ?? todayInManila());
   const [notes, setNotes] = useState(planting?.notes ?? "");
+  const blankExpense = () => ({
+    id: crypto.randomUUID(),
+    occurredOn: todayInManila(),
+    category: "seeds",
+    description: "",
+    amount: "",
+  });
+  const [draftExpenses, setDraftExpenses] = useState(() => [blankExpense()]);
+  const draftTotal =
+    draftExpenses.reduce(
+      (sum, row) =>
+        sum +
+        (Number.isFinite(Number(row.amount)) && Number(row.amount) > 0
+          ? Math.round(Number(row.amount) * 100)
+          : 0),
+      0,
+    ) / 100;
+  function changeExpense(
+    id: string,
+    field: "occurredOn" | "category" | "description" | "amount",
+    value: string,
+  ) {
+    setDraftExpenses((rows) =>
+      rows.map((row) => (row.id === id ? { ...row, [field]: value } : row)),
+    );
+  }
   const [saving, setSaving] = useState(false);
   const pending = useRef(false);
   return (
@@ -651,7 +682,7 @@ function PlantingForm({
         if (!open && !pending.current) onClose();
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className={planting ? "sm:max-w-lg" : "sm:max-w-2xl"}>
         <DialogHeader>
           <DialogTitle>{planting ? "Edit taniman" : "Bagong taniman"}</DialogTitle>
           <DialogDescription>
@@ -665,13 +696,27 @@ function PlantingForm({
             pending.current = true;
             setSaving(true);
             try {
-              const save = planting ? updateFarmerPlanting : createFarmerPlanting;
-              const validated = plantingInput.safeParse({ id, name, cropName, plantedOn, notes });
-              if (!validated.success)
-                throw new Error(
-                  validated.error.issues[0]?.message ?? "Suriin ang detalye ng taniman.",
-                );
-              await save({ data: validated.data });
+              const input = { id, name, cropName, plantedOn, notes };
+              if (planting) {
+                const validated = plantingInput.safeParse(input);
+                if (!validated.success)
+                  throw new Error(
+                    validated.error.issues[0]?.message ?? "Suriin ang detalye ng taniman.",
+                  );
+                await updateFarmerPlanting({ data: validated.data });
+              } else {
+                const validated = createPlantingInput.safeParse({
+                  ...input,
+                  expenses: draftExpenses
+                    .filter((row) => row.amount.trim() || row.description.trim())
+                    .map((row) => ({ ...row, amount: Number(row.amount) })),
+                });
+                if (!validated.success)
+                  throw new Error(
+                    validated.error.issues[0]?.message ?? "Suriin ang detalye ng gastos.",
+                  );
+                await createFarmerPlanting({ data: validated.data });
+              }
               toast.success("Na-save ang taniman");
               onSaved(id);
             } catch (error) {
@@ -730,11 +775,124 @@ function PlantingForm({
                 maxLength={2000}
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit">{saving ? "Saving…" : "I-save ang taniman"}</Button>
+            {!planting && (
+              <section className="space-y-4 rounded-2xl border border-border p-4">
+                <div>
+                  <h3 className="font-semibold">Mga nagastos sa tanimang ito</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Ilista ang buto, pataba, labor, at iba pa. Nadadagdagan ang total kada entry.
+                    Puwede ring magdagdag pagkatapos ma-save.
+                  </p>
+                </div>
+                {draftExpenses.map((row, index) => (
+                  <div key={row.id} className="space-y-3 rounded-xl bg-muted/40 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">Gastos {index + 1}</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Alisin ang gastos ${index + 1}`}
+                        onClick={() =>
+                          setDraftExpenses((rows) => rows.filter((entry) => entry.id !== row.id))
+                        }
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={`initial-date-${row.id}`}>Petsa ng gastos</Label>
+                        <Input
+                          id={`initial-date-${row.id}`}
+                          type="date"
+                          min="1900-01-01"
+                          max={todayInManila()}
+                          value={row.occurredOn}
+                          onChange={(event) =>
+                            changeExpense(row.id, "occurredOn", event.target.value)
+                          }
+                          required={Boolean(row.amount.trim() || row.description.trim())}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`initial-amount-${row.id}`}>Halaga (₱)</Label>
+                        <Input
+                          id={`initial-amount-${row.id}`}
+                          type="number"
+                          inputMode="decimal"
+                          min="0.01"
+                          max="999999999"
+                          step="0.01"
+                          placeholder="300.00"
+                          value={row.amount}
+                          onChange={(event) => changeExpense(row.id, "amount", event.target.value)}
+                          required={Boolean(row.description.trim())}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`initial-category-${row.id}`}>Uri ng gastos</Label>
+                      <AppSelect
+                        id={`initial-category-${row.id}`}
+                        value={row.category}
+                        disabled={saving}
+                        onValueChange={(value) => changeExpense(row.id, "category", value)}
+                        options={expenseCategories.map((value) => ({
+                          value,
+                          label: expenseCategoryLabels[value],
+                        }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`initial-description-${row.id}`}>Detalye ng gastos</Label>
+                      <Input
+                        id={`initial-description-${row.id}`}
+                        placeholder="Halimbawa: Buto ng sitaw"
+                        value={row.description}
+                        maxLength={255}
+                        minLength={2}
+                        onChange={(event) =>
+                          changeExpense(row.id, "description", event.target.value)
+                        }
+                        required={Boolean(row.amount.trim())}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={draftExpenses.length >= 50}
+                  onClick={() => setDraftExpenses((rows) => [...rows, blankExpense()])}
+                >
+                  <Plus className="size-4" />
+                  Magdagdag pa ng gastos
+                </Button>
+              </section>
+            )}
+            <div className="sticky bottom-0 space-y-3 border-t border-border bg-card/95 pt-4 backdrop-blur">
+              {!planting && (
+                <div
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-primary/10 p-3"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div>
+                    <span className="font-medium">Kabuuang nagastos</span>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Mase-save kasama ng taniman.
+                    </p>
+                  </div>
+                  <strong className="text-xl text-primary">{peso(draftTotal)}</strong>
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit">{saving ? "Saving…" : "I-save ang taniman"}</Button>
+              </div>
             </div>
           </fieldset>
         </form>
@@ -746,11 +904,13 @@ function PlantingForm({
 function ExpenseForm({
   plantingId,
   expense,
+  currentTotal,
   onClose,
   onSaved,
 }: {
   plantingId: string;
   expense?: Expense;
+  currentTotal: number;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -762,6 +922,13 @@ function ExpenseForm({
   const [notes, setNotes] = useState(expense?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const pending = useRef(false);
+  const previewTotal =
+    (Math.round(currentTotal * 100) -
+      Math.round(Number(expense?.amount ?? 0) * 100) +
+      (Number.isFinite(Number(amount)) && Number(amount) > 0
+        ? Math.round(Number(amount) * 100)
+        : 0)) /
+    100;
   return (
     <Dialog
       open
@@ -875,6 +1042,13 @@ function ExpenseForm({
                 onChange={(event) => setNotes(event.target.value)}
                 maxLength={2000}
               />
+            </div>
+            <div className="rounded-xl bg-primary/10 p-3" role="status" aria-live="polite">
+              <p className="text-sm text-muted-foreground">Total gastos kapag na-save ang entry</p>
+              <p className="mt-1 text-xl font-semibold text-primary">{peso(previewTotal)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Kasalukuyang naka-save: {peso(currentTotal)}
+              </p>
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>

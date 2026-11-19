@@ -12,7 +12,7 @@ runInNewContext(
   }).outputText,
   { exports, require: createRequire(import.meta.url), Date, Intl },
 );
-const { summarizePlanting, plantingInput, plantingExpenseInput } = exports;
+const { summarizePlanting, plantingInput, plantingExpenseInput, createPlantingInput } = exports;
 const sale = (values = {}) => ({
   grossAmount: "10000.00",
   serviceFee: "500.00",
@@ -83,5 +83,40 @@ test("actual expense validation accepts dated costs before planting but rejects 
       plantedOn: "2020-10-10",
     }).success,
     true,
+  );
+});
+test("new plantings accept initial dated expense entries and reject duplicate expense IDs", () => {
+  const id = "c7eb0635-a089-478f-8b27-22035bc08a72";
+  const planting = { id, name: "Sitaw October", cropName: "Sitaw", plantedOn: "2020-10-01" };
+  const first = {
+    id,
+    occurredOn: "2020-10-01",
+    category: "seeds",
+    description: "Sitaw seeds",
+    amount: 300,
+  };
+  const second = {
+    ...first,
+    id: "a0ba298c-fd32-46ee-a3fa-97c8811ac91c",
+    occurredOn: "2020-10-10",
+    category: "fertilizer",
+    amount: 500,
+  };
+  assert.equal(createPlantingInput.parse(planting).expenses.length, 0);
+  const parsed = createPlantingInput.parse({ ...planting, expenses: [first, second] });
+  assert.equal(
+    summarizePlanting(
+      parsed.expenses.map((row) => ({ amount: row.amount.toFixed(2) })),
+      [],
+    ).totalExpenses,
+    800,
+  );
+  assert.equal(
+    createPlantingInput.safeParse({ ...planting, expenses: [first, first] }).success,
+    false,
+  );
+  assert.equal(
+    createPlantingInput.safeParse({ ...planting, expenses: [{ ...first, amount: 0.001 }] }).success,
+    false,
   );
 });

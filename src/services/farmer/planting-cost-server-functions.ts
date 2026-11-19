@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
   plantingInput,
+  createPlantingInput,
   plantingExpenseInput,
   plantingIdInput,
   summarizePlanting,
@@ -119,12 +120,12 @@ export const getFarmerPlantingWorkspace = createServerFn({ method: "GET" }).hand
 });
 
 export const createFarmerPlanting = createServerFn({ method: "POST" })
-  .validator(plantingInput)
+  .validator(createPlantingInput)
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const farmer = await requireRole("Farmer");
     const { db } = await import("@/db/client.server");
-    const { farmerPlantings } = await import("@/db/schema");
+    const { farmerPlantings, farmerPlantingExpenses } = await import("@/db/schema");
     return db.transaction(async (tx) => {
       const [existing] = await tx
         .select()
@@ -141,9 +142,40 @@ export const createFarmerPlanting = createServerFn({ method: "POST" })
           throw new Error(
             "This planting reference has already been used. Refresh your planting list.",
           );
+        const costs = await tx
+          .select()
+          .from(farmerPlantingExpenses)
+          .where(eq(farmerPlantingExpenses.plantingId, existing.id));
+        if (
+          data.expenses.some(
+            (expense) =>
+              !costs.some(
+                (cost) =>
+                  cost.id === expense.id &&
+                  !cost.deletedAt &&
+                  cost.occurredOn === expense.occurredOn &&
+                  cost.category === expense.category &&
+                  cost.description === expense.description &&
+                  cost.amount === expense.amount.toFixed(2) &&
+                  cost.notes === expense.notes,
+              ),
+          )
+        ) {
+          throw new Error("Na-save na ang taniman. I-refresh ang talaan bago magdagdag ng gastos.");
+        }
         return { id: existing.id };
       }
-      await tx.insert(farmerPlantings).values({ ...data, farmerId: farmer.id });
+      const { expenses, ...planting } = data;
+      await tx.insert(farmerPlantings).values({ ...planting, farmerId: farmer.id });
+      if (expenses.length) {
+        await tx.insert(farmerPlantingExpenses).values(
+          expenses.map((expense) => ({
+            ...expense,
+            plantingId: planting.id,
+            amount: expense.amount.toFixed(2),
+          })),
+        );
+      }
       await writeAuditLog(farmer.id, "planting.create", "farmer_planting", data.id, undefined, tx);
       return { id: data.id };
     });

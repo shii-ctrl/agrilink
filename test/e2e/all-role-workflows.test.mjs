@@ -438,6 +438,49 @@ test(
           ];
           for (const cost of costs) await rpc(farmer, "saveFarmerPlantingExpense", cost);
           await rpc(farmer, "saveFarmerPlantingExpense", costs[0]);
+          const initial = {
+            ...planting,
+            id: randomUUID(),
+            name: "Planting with initial costs",
+            expenses: costs.map(({ plantingId: ignored, ...row }) => ({
+              ...row,
+              id: randomUUID(),
+            })),
+          };
+          await rpc(farmer, "createFarmerPlanting", initial);
+          await rpc(farmer, "createFarmerPlanting", initial);
+          const savedInitial = (await rpc(farmer, "getFarmerPlantingWorkspace")).plantings.find(
+            (row) => row.id === initial.id,
+          );
+          assert.equal(savedInitial.summary.totalExpenses, 800);
+          assert.equal(savedInitial.expenses.length, 2);
+          const invalidInitial = {
+            ...initial,
+            id: randomUUID(),
+            expenses: [{ ...initial.expenses[0], id: randomUUID(), amount: -1 }],
+          };
+          await assert.rejects(rpc(farmer, "createFarmerPlanting", invalidInitial));
+          const conflictInitial = {
+            ...initial,
+            id: randomUUID(),
+            expenses: [
+              { ...initial.expenses[0], id: randomUUID() },
+              { ...initial.expenses[1], id: costs[0].id },
+            ],
+          };
+          await assert.rejects(rpc(farmer, "createFarmerPlanting", conflictInitial));
+          assert.ok(
+            !(await rpc(farmer, "getFarmerPlantingWorkspace")).plantings.some((row) =>
+              [invalidInitial.id, conflictInitial.id].includes(row.id),
+            ),
+            "failed initial expense batches leave no partial planting",
+          );
+          await assert.rejects(
+            rpc(farmer, "createFarmerPlanting", {
+              ...initial,
+              expenses: [{ ...initial.expenses[0], id: randomUUID() }],
+            }),
+          );
           const find = async () =>
             (await rpc(farmer, "getFarmerPlantingWorkspace")).plantings.find(
               (row) => row.id === plantingId,

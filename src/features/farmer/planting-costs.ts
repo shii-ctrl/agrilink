@@ -61,6 +61,16 @@ export const plantingExpenseInput = plantingIdInput.extend({
     .multipleOf(0.01, "Hanggang dalawang decimal places lamang ang halaga."),
   notes: z.string().trim().max(2000).default(""),
 });
+export const createPlantingInput = plantingInput.extend({
+  expenses: z
+    .array(plantingExpenseInput.omit({ plantingId: true }))
+    .max(50)
+    .default([])
+    .refine(
+      (rows) => new Set(rows.map((row) => row.id)).size === rows.length,
+      "May dobleng expense entry. Suriin ang talaan.",
+    ),
+});
 
 type Sale = {
   grossAmount: string;
