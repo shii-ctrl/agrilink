@@ -26,6 +26,9 @@ Coverage includes:
   verification/closing, refunds, Farmer payouts, and locked daily cash closing.
 - Walk-ins: no buyer account, confirmation-only stock allocation, retries,
   cancellation, zero-stock visibility, original Farmer attribution, and earnings.
+- Farmer planting costs: dated expenses and corrections, account isolation, unique
+  delivery links, online/walk-in sales attribution, IPON separation, and preserved
+  payouts when costs or delivery links change.
 - Community: questions, replies, reactions, Management resolution, closed comments,
   allowed private conversations, and notification ownership.
 - Dashboards and reports reload both before and after saved transactions.

@@ -223,6 +223,7 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
       communityReactions,
       dailyPrices,
       directMessages,
+      farmerPlantings,
       inventory,
       inventoryMovements,
       notifications,
@@ -261,6 +262,11 @@ export const deleteManagedUser = createServerFn({ method: "POST" })
       }
 
       const businessRecords = await Promise.all([
+        tx
+          .select({ id: farmerPlantings.id })
+          .from(farmerPlantings)
+          .where(eq(farmerPlantings.farmerId, user.id))
+          .limit(1),
         tx.select({ id: orders.id }).from(orders).where(eq(orders.buyerId, user.id)).limit(1),
         tx
           .select({ id: payments.id })

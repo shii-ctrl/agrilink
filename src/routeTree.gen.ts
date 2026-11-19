@@ -38,6 +38,7 @@ import { Route as FarmerIndexRouteImport } from './routes/farmer.index'
 import { Route as FarmerCommunityRouteImport } from './routes/farmer.community'
 import { Route as FarmerCropAiRouteImport } from './routes/farmer.crop-ai'
 import { Route as FarmerEarningsRouteImport } from './routes/farmer.earnings'
+import { Route as FarmerPlantingsRouteImport } from './routes/farmer.plantings'
 import { Route as FarmerProfileRouteImport } from './routes/farmer.profile'
 import { Route as FarmerReceivingRouteImport } from './routes/farmer.receiving'
 import { Route as ManagementIndexRouteImport } from './routes/management.index'
@@ -217,6 +218,11 @@ const FarmerCropAiRoute = FarmerCropAiRouteImport.update({
 const FarmerEarningsRoute = FarmerEarningsRouteImport.update({
   id: '/farmer/earnings',
   path: '/farmer/earnings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FarmerPlantingsRoute = FarmerPlantingsRouteImport.update({
+  id: '/farmer/plantings',
+  path: '/farmer/plantings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerProfileRoute = FarmerProfileRouteImport.update({
@@ -424,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/farmer/community': typeof FarmerCommunityRoute
   '/farmer/crop-ai': typeof FarmerCropAiRoute
   '/farmer/earnings': typeof FarmerEarningsRoute
+  '/farmer/plantings': typeof FarmerPlantingsRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
@@ -490,6 +497,7 @@ export interface FileRoutesByTo {
   '/farmer/community': typeof FarmerCommunityRoute
   '/farmer/crop-ai': typeof FarmerCropAiRoute
   '/farmer/earnings': typeof FarmerEarningsRoute
+  '/farmer/plantings': typeof FarmerPlantingsRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
@@ -557,6 +565,7 @@ export interface FileRoutesById {
   '/farmer/community': typeof FarmerCommunityRoute
   '/farmer/crop-ai': typeof FarmerCropAiRoute
   '/farmer/earnings': typeof FarmerEarningsRoute
+  '/farmer/plantings': typeof FarmerPlantingsRoute
   '/farmer/profile': typeof FarmerProfileRoute
   '/farmer/receiving': typeof FarmerReceivingRoute
   '/management/community': typeof ManagementCommunityRoute
@@ -625,6 +634,7 @@ export interface FileRouteTypes {
     | '/farmer/community'
     | '/farmer/crop-ai'
     | '/farmer/earnings'
+    | '/farmer/plantings'
     | '/farmer/profile'
     | '/farmer/receiving'
     | '/management/community'
@@ -691,6 +701,7 @@ export interface FileRouteTypes {
     | '/farmer/community'
     | '/farmer/crop-ai'
     | '/farmer/earnings'
+    | '/farmer/plantings'
     | '/farmer/profile'
     | '/farmer/receiving'
     | '/management/community'
@@ -757,6 +768,7 @@ export interface FileRouteTypes {
     | '/farmer/community'
     | '/farmer/crop-ai'
     | '/farmer/earnings'
+    | '/farmer/plantings'
     | '/farmer/profile'
     | '/farmer/receiving'
     | '/management/community'
@@ -824,6 +836,7 @@ export interface RootRouteChildren {
   FarmerCommunityRoute: typeof FarmerCommunityRoute
   FarmerCropAiRoute: typeof FarmerCropAiRoute
   FarmerEarningsRoute: typeof FarmerEarningsRoute
+  FarmerPlantingsRoute: typeof FarmerPlantingsRoute
   FarmerProfileRoute: typeof FarmerProfileRoute
   FarmerReceivingRoute: typeof FarmerReceivingRoute
   ManagementCommunityRoute: typeof ManagementCommunityRoute
@@ -1067,6 +1080,13 @@ declare module '@tanstack/react-router' {
       path: '/farmer/earnings'
       fullPath: '/farmer/earnings'
       preLoaderRoute: typeof FarmerEarningsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/farmer/plantings': {
+      id: '/farmer/plantings'
+      path: '/farmer/plantings'
+      fullPath: '/farmer/plantings'
+      preLoaderRoute: typeof FarmerPlantingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/farmer/profile': {
@@ -1344,6 +1364,7 @@ const rootRouteChildren: RootRouteChildren = {
   FarmerCommunityRoute: FarmerCommunityRoute,
   FarmerCropAiRoute: FarmerCropAiRoute,
   FarmerEarningsRoute: FarmerEarningsRoute,
+  FarmerPlantingsRoute: FarmerPlantingsRoute,
   FarmerProfileRoute: FarmerProfileRoute,
   FarmerReceivingRoute: FarmerReceivingRoute,
   ManagementCommunityRoute: ManagementCommunityRoute,

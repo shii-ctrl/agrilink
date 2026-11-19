@@ -570,6 +570,51 @@ export const farmerEarnings = mysqlTable(
     index("farmer_earnings_ipon_idx").on(table.farmerId, table.iponReleaseId, table.status),
   ],
 );
+export const farmerPlantings = mysqlTable(
+  "farmer_plantings",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    farmerId: varchar("farmer_id", { length: 36 }).notNull(),
+    name: varchar("name", { length: 160 }).notNull(),
+    cropName: varchar("crop_name", { length: 160 }).notNull(),
+    plantedOn: varchar("planted_on", { length: 10 }).notNull(),
+    notes: text("notes").notNull(),
+    productId: varchar("product_id", { length: 36 }),
+    status: mysqlEnum("status", ["active", "finished"]).default("active").notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [index("farmer_plantings_owner_idx").on(table.farmerId, table.status)],
+);
+
+export const farmerPlantingExpenses = mysqlTable(
+  "farmer_planting_expenses",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    plantingId: varchar("planting_id", { length: 36 }).notNull(),
+    occurredOn: varchar("occurred_on", { length: 10 }).notNull(),
+    category: varchar("category", { length: 40 }).notNull(),
+    description: varchar("description", { length: 255 }).notNull(),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    notes: text("notes").notNull(),
+    deletedAt: datetime("deleted_at"),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [index("farmer_planting_expenses_date_idx").on(table.plantingId, table.occurredOn)],
+);
+
+export const farmerPlantingDeliveries = mysqlTable(
+  "farmer_planting_deliveries",
+  {
+    // One delivery can belong to only one planting, avoiding duplicated sales.
+    receivingId: varchar("receiving_id", { length: 36 }).primaryKey(),
+    plantingId: varchar("planting_id", { length: 36 }).notNull(),
+    createdAt,
+  },
+  (table) => [index("farmer_planting_deliveries_planting_idx").on(table.plantingId)],
+);
+
 export const farmerPayouts = mysqlTable(
   "farmer_payouts",
   {

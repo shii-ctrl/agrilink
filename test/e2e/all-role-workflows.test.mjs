@@ -225,6 +225,7 @@ test(
             ["getFarmerReceivingRecords", ["Farmer"]],
             ["getFarmerProductStatuses", ["Farmer"]],
             ["getFarmerSettlementWorkspace", ["Farmer"]],
+            ["getFarmerPlantingWorkspace", ["Farmer"]],
             ["getFarmerCropAiWorkspace", ["Farmer"]],
             ["getBuyerCart", ["Buyer"]],
             ["getBuyerOrders", ["Buyer"]],
@@ -270,6 +271,9 @@ test(
         accountant = actors.Accounting;
       let productId, listingId, pickupOrder, deliveryOrder, walkInOrder;
       const receivingIds = [];
+      const plantingId = randomUUID(),
+        secondPlantingId = randomUUID(),
+        emptyPlantingId = randomUUID();
       await step(
         "Management staff creation and password reset revoke the old session",
         async () => {
@@ -391,6 +395,122 @@ test(
         },
       );
       await step(
+        "Farmer planting costs are dated, editable, private, and do not create premature losses",
+        async () => {
+          const planting = {
+            id: plantingId,
+            name: "Sitaw — October cycle",
+            cropName: "Sitaw",
+            plantedOn: "2020-10-01",
+            notes: "Actual costs",
+          };
+          for (const role of ["Management", "Marketer", "Accounting", "Buyer", "Rider"])
+            await assert.rejects(rpc(actors[role], "createFarmerPlanting", planting));
+          await rpc(farmer, "createFarmerPlanting", planting);
+          await rpc(farmer, "createFarmerPlanting", planting);
+          await rpc(farmer, "createFarmerPlanting", {
+            ...planting,
+            id: emptyPlantingId,
+            name: "Second planting",
+          });
+          await rpc(actors.RegisteredFarmer, "createFarmerPlanting", {
+            ...planting,
+            id: secondPlantingId,
+            name: "Other Farmer's planting",
+          });
+          const costs = [
+            {
+              id: randomUUID(),
+              plantingId,
+              occurredOn: "2020-10-01",
+              category: "seeds",
+              description: "Sitaw seeds",
+              amount: 300,
+            },
+            {
+              id: randomUUID(),
+              plantingId,
+              occurredOn: "2020-10-10",
+              category: "fertilizer",
+              description: "Pataba",
+              amount: 500,
+            },
+          ];
+          for (const cost of costs) await rpc(farmer, "saveFarmerPlantingExpense", cost);
+          await rpc(farmer, "saveFarmerPlantingExpense", costs[0]);
+          const find = async () =>
+            (await rpc(farmer, "getFarmerPlantingWorkspace")).plantings.find(
+              (row) => row.id === plantingId,
+            );
+          assert.equal((await find()).summary.totalExpenses, 800);
+          assert.equal((await find()).summary.profit, null);
+          assert.equal((await find()).expenses.length, 2);
+          await assert.rejects(
+            rpc(actors.RegisteredFarmer, "saveFarmerPlantingExpense", {
+              ...costs[0],
+              editing: true,
+              amount: 1,
+            }),
+          );
+          await assert.rejects(
+            rpc(actors.RegisteredFarmer, "saveFarmerPlantingExpense", {
+              ...costs[0],
+              plantingId: secondPlantingId,
+              editing: true,
+              amount: 1,
+            }),
+          );
+          await rpc(farmer, "saveFarmerPlantingExpense", {
+            ...costs[1],
+            editing: true,
+            amount: 450,
+          });
+          assert.equal((await find()).summary.totalExpenses, 750);
+          await rpc(farmer, "saveFarmerPlantingExpense", { ...costs[1], editing: true });
+          const correction = {
+            ...costs[0],
+            id: randomUUID(),
+            amount: 0.29,
+            description: "Small transport cost",
+          };
+          await rpc(farmer, "saveFarmerPlantingExpense", correction);
+          assert.equal((await find()).summary.totalExpenses, 800.29);
+          await rpc(farmer, "removeFarmerPlantingExpense", { plantingId, id: correction.id });
+          assert.equal((await find()).summary.totalExpenses, 800);
+          for (const invalid of [
+            { amount: -1 },
+            { amount: 0.001 },
+            { occurredOn: "2999-01-01" },
+            { occurredOn: "2026-02-30" },
+          ])
+            await assert.rejects(
+              rpc(farmer, "saveFarmerPlantingExpense", {
+                ...costs[0],
+                id: randomUUID(),
+                ...invalid,
+              }),
+            );
+          await assert.rejects(rpc(actors.RegisteredFarmer, "updateFarmerPlanting", planting));
+          await assert.rejects(
+            rpc(actors.RegisteredFarmer, "setFarmerPlantingStatus", {
+              plantingId,
+              status: "finished",
+            }),
+          );
+          await rpc(farmer, "setFarmerPlantingStatus", { plantingId, status: "finished" });
+          await rpc(farmer, "setFarmerPlantingStatus", { plantingId, status: "active" });
+          assert.ok(
+            !(await rpc(actors.RegisteredFarmer, "getFarmerPlantingWorkspace")).plantings.some(
+              (row) => row.id === plantingId,
+            ),
+          );
+          await assert.rejects(
+            rpc(manager, "deleteManagedUser", { userId: farmer.id }),
+            /record|deactivat/i,
+          );
+        },
+      );
+      await step(
         "Marketer catalog → Farmer receiving → classification → marketplace and daily prices",
         async () => {
           const product = {
@@ -427,11 +547,36 @@ test(
             assert.ok(
               (await rpc(owner, "getFarmerReceivingRecords")).some((row) => row.id === data.id),
             );
+            const ownerPlantingId = owner.id === farmer.id ? plantingId : secondPlantingId;
+            await rpc(owner, "linkFarmerPlantingDelivery", {
+              plantingId: ownerPlantingId,
+              receivingId: data.id,
+              linked: true,
+            });
+            await rpc(owner, "linkFarmerPlantingDelivery", {
+              plantingId: ownerPlantingId,
+              receivingId: data.id,
+              linked: true,
+            });
           }
           assert.deepEqual(
             await stock(),
             { physical: 23, reserved: 0, available: 23 },
             "receiving retry does not duplicate stock",
+          );
+          await assert.rejects(
+            rpc(farmer, "linkFarmerPlantingDelivery", {
+              plantingId,
+              receivingId: receivingIds[1],
+              linked: true,
+            }),
+          );
+          await assert.rejects(
+            rpc(farmer, "linkFarmerPlantingDelivery", {
+              plantingId: emptyPlantingId,
+              receivingId: receivingIds[0],
+              linked: true,
+            }),
           );
           assert.ok(
             !(await rpc(farmer, "getFarmerReceivingRecords")).some(
@@ -602,6 +747,15 @@ test(
             0,
           );
           assert.equal((await rpc(farmer, "getFarmerSettlementWorkspace")).availableTotal, 24.75);
+          const planting = (await rpc(farmer, "getFarmerPlantingWorkspace")).plantings.find(
+            (row) => row.id === plantingId,
+          );
+          assert.equal(planting.summary.grossSales, 30);
+          assert.equal(planting.summary.serviceFee, 3.75);
+          assert.equal(planting.summary.ipon, 1.5);
+          assert.equal(planting.summary.profit, -773.75);
+          assert.equal(planting.summary.availableForPayout, 24.75);
+          assert.equal(planting.summary.cashReleased, 0);
           assert.equal(
             (await rpc(actors.RegisteredFarmer, "getFarmerSettlementWorkspace")).availableTotal,
             8.25,
@@ -785,6 +939,14 @@ test(
               ),
             ),
           );
+          const ownPlanting = (
+            await rpc(actors.RegisteredFarmer, "getFarmerPlantingWorkspace")
+          ).plantings.find((row) => row.id === secondPlantingId);
+          assert.ok(
+            ownPlanting.sales.some(
+              (row) => row.orderNumber === walkInOrder.orderNumber && row.source === "walk_in",
+            ),
+          );
           const remaining = (await stock()).available;
           const drain = await rpc(marketer, "createWalkInOrder", {
             ...data,
@@ -914,6 +1076,63 @@ test(
         },
       );
       await step(
+        "Planting links can be corrected without duplicating sales or changing cash payouts",
+        async () => {
+          const [before] = await pool.query(
+            "SELECT id,status,net_amount,payout_id FROM farmer_earnings ORDER BY id",
+          );
+          const original = (await rpc(farmer, "getFarmerPlantingWorkspace")).plantings.find(
+            (row) => row.id === plantingId,
+          );
+          assert.equal(original.summary.cashReleased, 24.75);
+          await rpc(farmer, "linkFarmerPlantingDelivery", {
+            plantingId,
+            receivingId: receivingIds[0],
+            linked: false,
+          });
+          assert.equal(
+            (await rpc(farmer, "getFarmerPlantingWorkspace")).plantings.find(
+              (row) => row.id === plantingId,
+            ).summary.profit,
+            null,
+          );
+          await rpc(farmer, "linkFarmerPlantingDelivery", {
+            plantingId: emptyPlantingId,
+            receivingId: receivingIds[0],
+            linked: true,
+          });
+          const moved = await rpc(farmer, "getFarmerPlantingWorkspace");
+          assert.equal(
+            moved.plantings.reduce((sum, row) => sum + row.summary.grossSales, 0),
+            30,
+          );
+          await rpc(farmer, "linkFarmerPlantingDelivery", {
+            plantingId: emptyPlantingId,
+            receivingId: receivingIds[0],
+            linked: false,
+          });
+          await rpc(farmer, "linkFarmerPlantingDelivery", {
+            plantingId,
+            receivingId: receivingIds[0],
+            linked: true,
+          });
+          const [after] = await pool.query(
+            "SELECT id,status,net_amount,payout_id FROM farmer_earnings ORDER BY id",
+          );
+          assert.deepEqual(after, before);
+          const final = await rpc(farmer, "getFarmerPlantingWorkspace");
+          const otherProduct = final.unlinkedDeliveries.find((row) => row.productId !== productId);
+          assert.ok(otherProduct);
+          await assert.rejects(
+            rpc(farmer, "linkFarmerPlantingDelivery", {
+              plantingId,
+              receivingId: otherProduct.id,
+              linked: true,
+            }),
+          );
+        },
+      );
+      await step(
         "Community, question resolution, direct messages and notification ownership",
         async () => {
           const question = await rpc(farmer, "postCommunityMessage", {
@@ -985,6 +1204,7 @@ test(
             ["Marketer", "/marketer/orders"],
             ["Accounting", "/accounting/payments"],
             ["Farmer", "/farmer/earnings"],
+            ["Farmer", "/farmer/plantings"],
             ["Buyer", "/buyer/orders"],
             ["Rider", "/rider"],
           ]) {
