@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Clock3, MapPin, Minus, PackageCheck, Plus, ShoppingCart, Truck } from "lucide-react";
+import { Package, MapPin, Minus, PackageCheck, Plus, ShoppingCart, Truck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "@/lib/ui/toast";
@@ -101,13 +101,6 @@ function preferredDeliverySchedule(details: DeliveryDetails, dateOptions: Delive
   return [dateLabel, details.deliveryTime].filter(Boolean).join(", ");
 }
 
-function reservationCountdown(expiresAt: string, now: number) {
-  const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - now) / 1000));
-  const minutes = Math.floor(remainingSeconds / 60);
-  const seconds = remainingSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
 function deliveryAddress(details: DeliveryDetails) {
   return [details.address, details.apartment, details.barangay, details.city, details.postalCode]
     .map((part) => part.trim())
@@ -151,8 +144,8 @@ function BuyerCartPage() {
   const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails>(emptyDeliveryDetails);
   const [deliveryDateOptions] = useState<DeliveryDateOption[]>(createDeliveryDateOptions);
   const [placingOrder, setPlacingOrder] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
-  const releasedReservationRef = useRef(false);
+  const previousItems = useRef<CartItem[]>([]);
+  const [priceNotice, setPriceNotice] = useState<string | null>(null);
   const { requestConfirmation, confirmationDialog } = useConfirmAction();
 
   useEffect(() => {
@@ -169,38 +162,22 @@ function BuyerCartPage() {
   const bundleSavings = Math.max(0, retailSubtotal - total);
   const appliedDeliveryFee = fulfillment === "delivery" ? deliveryFee : 0;
   const finalTotal = total + appliedDeliveryFee;
-  const earliestReservationExpiry = useMemo(
-    () =>
-      items.reduce<string | null>(
-        (earliest, item) =>
-          !earliest || new Date(item.reservationExpiresAt).getTime() < new Date(earliest).getTime()
-            ? item.reservationExpiresAt
-            : earliest,
-        null,
+  useEffect(() => {
+    const changed = items.filter((item) =>
+      previousItems.current.some(
+        (previous) =>
+          previous.id === item.id &&
+          previous.quantityKg === item.quantityKg &&
+          previous.pricePerKg !== item.pricePerKg,
       ),
-    [items],
-  );
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!earliestReservationExpiry || new Date(earliestReservationExpiry).getTime() > now) {
-      releasedReservationRef.current = false;
-      return;
+    );
+    if (changed.length) {
+      setPriceNotice(
+        `${changed.map((item) => item.name).join(", ")} has an updated price. Review the current prices and total before confirming your order.`,
+      );
     }
-    if (releasedReservationRef.current) return;
-    releasedReservationRef.current = true;
-    void reload()
-      .then(() => {
-        toast("Your cart session expired", {
-          description: "Refresh the marketplace to add the products again.",
-        });
-      })
-      .catch(() => undefined);
-  }, [earliestReservationExpiry, now, reload]);
+    previousItems.current = items;
+  }, [items]);
 
   useEffect(() => {
     void getCurrentSessionUser()
@@ -357,6 +334,7 @@ function BuyerCartPage() {
           items: items.map((item) => ({
             listingId: item.id,
             quantityKg: item.quantityKg,
+            expectedUnitPrice: item.pricePerKg,
           })),
         },
       });
@@ -366,6 +344,7 @@ function BuyerCartPage() {
       });
       window.location.assign("/buyer/orders");
     } catch (error) {
+      await reload().catch(() => undefined);
       toast.error("Order could not be submitted", {
         description:
           error instanceof Error ? error.message : "Please refresh the marketplace and try again.",
@@ -409,15 +388,20 @@ function BuyerCartPage() {
             <div className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr]">
               <section className="space-y-4">
                 <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-200">
-                  <Clock3 className="size-4 shrink-0" />
+                  <ShoppingCart className="size-4 shrink-0" />
                   <span>
-                    Cart session expires in{" "}
-                    {earliestReservationExpiry
-                      ? reservationCountdown(earliestReservationExpiry, now)
-                      : "0:00"}
-                    . Stock is allocated only when the Marketer confirms your order.
+                    Items in your cart are not reserved. Availability is confirmed by PROCY. Items
+                    stay here until you remove them or place an order.
                   </span>
                 </div>
+                {priceNotice ? (
+                  <p
+                    role="status"
+                    className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm"
+                  >
+                    {priceNotice}
+                  </p>
+                ) : null}
                 {items.map((item) => (
                   <article
                     key={item.id}
@@ -439,10 +423,12 @@ function BuyerCartPage() {
                         </p>
                       ) : null}
                       <p className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300">
-                        <Clock3 className="size-3" />
-                        {item.quantityKg > item.availableKg
-                          ? "Insufficient stock. Update or remove this item."
-                          : `Available: ${formatSellingQuantity(item.availableKg, item.sellingUnit)}`}
+                        <Package className="size-3" />
+                        {item.availableKg <= 0
+                          ? "Out of stock. Remove this item to continue, or keep it for later."
+                          : item.quantityKg > item.availableKg
+                            ? `Only ${formatSellingQuantity(item.availableKg, item.sellingUnit)} available. Reduce the quantity or remove this item.`
+                            : `Available: ${formatSellingQuantity(item.availableKg, item.sellingUnit)}`}
                       </p>
                     </div>
                     <div className="flex items-center rounded-full border border-border p-1">
@@ -465,6 +451,9 @@ function BuyerCartPage() {
                         <Plus className="size-4" />
                       </button>
                     </div>
+                    <Button variant="ghost" size="sm" onClick={() => void update(item.id, 0)}>
+                      Remove
+                    </Button>
                     <p className="w-24 text-right font-semibold">
                       {peso(item.quantityKg * item.pricePerKg)}
                     </p>

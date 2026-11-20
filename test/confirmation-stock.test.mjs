@@ -76,8 +76,6 @@ test(
         source.slice(source.indexOf(first), source.indexOf(last, source.indexOf(first)));
       let actor = { id: "buyer", roles: ["Buyer"], displayName: "Buyer" };
       const code = [
-        "const CART_RESERVATION_MINUTES = 10;",
-        "function nextCartReservationExpiry() { return new Date(Date.now() + 600000); }",
         "const marketplaceQualityOrder = ['Good','Semi','Reject'];",
         "function marketplaceQualityRank(value) { return marketplaceQualityOrder.indexOf(value); }",
         "const moneyValue = (value) => Number(value.toFixed(2));",
@@ -176,7 +174,7 @@ test(
         assert.deepEqual(await stock(), [10, 0], "cart must not hold stock");
         return handlers.placeBuyerOrder({
           data: {
-            items: [{ listingId: "listing", quantityKg: quantity }],
+            items: [{ listingId: "listing", quantityKg: quantity, expectedUnitPrice: 10 }],
             fulfillment: "pickup",
             contact: "09123456789",
             pickupNote: "Pickup",

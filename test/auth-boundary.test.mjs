@@ -370,23 +370,27 @@ test("marketplace cart controls prevent duplicate additions beyond available sto
   assert.match(source, /to="\/buyer\/cart"/);
 });
 
-test("buyer cart sessions expire after ten minutes and explain confirmation stock allocation", async () => {
+test("buyer carts persist without reserving stock and require reviewed prices", async () => {
   const [marketplace, cartPage, schema, migration] = await Promise.all([
     readFile("src/services/marketplace/marketplace-server-functions.ts", "utf8"),
     readFile("src/routes/buyer.cart.tsx", "utf8"),
     readFile("src/db/schema.ts", "utf8"),
-    readFile("drizzle/0018_cart_reservation_expiry.sql", "utf8"),
+    readFile("drizzle/0049_persistent_buyer_cart.sql", "utf8"),
   ]);
-
-  assert.match(schema, /reservationExpiresAt: datetime\("reservation_expires_at"\)\.notNull\(\)/);
-  assert.match(migration, /reservation_expires_at/);
-  assert.match(marketplace, /CART_RESERVATION_MINUTES = 10/);
-  assert.match(marketplace, /expireBuyerCartReservations/);
-  assert.match(marketplace, /expireAllBuyerCartReservations/);
-  assert.match(marketplace, /Cart reservation expired after 10 minutes/);
-  assert.match(marketplace, /reservationExpiresAt: nextCartReservationExpiry\(\)/);
-  assert.match(cartPage, /Cart session expires in/);
-  assert.match(cartPage, /Your cart session expired/);
+  assert.doesNotMatch(schema, /reservationExpiresAt:.*notNull/);
+  assert.match(migration, /reservation_expires_at DATETIME NULL DEFAULT NULL/);
+  assert.doesNotMatch(
+    marketplace,
+    /expireBuyerCartReservations|expireAllBuyerCartReservations|nextCartReservationExpiry/,
+  );
+  assert.doesNotMatch(
+    cartPage,
+    /Cart session expires|Your cart session expired|reservationCountdown/,
+  );
+  assert.match(cartPage, /Items in your cart are not reserved/);
+  assert.match(cartPage, /Out of stock/);
+  assert.match(cartPage, /expectedUnitPrice: item.pricePerKg/);
+  assert.match(marketplace, /requested.expectedUnitPrice/);
 });
 
 test("Accounting prints buyer payment receipts after payment is recorded", async () => {

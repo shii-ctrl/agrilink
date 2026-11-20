@@ -18,7 +18,7 @@ Coverage includes:
   account activation, reports, and audit history.
 - Marketer: catalog, classification, fractional kilogram receiving and corrections,
   whole-unit tray restrictions, daily prices, confirmation, fulfillment, and cancellation.
-- Buyer: registration, cart expiry, account isolation, pending orders without stock
+- Buyer: registration, persistent carts, price/availability review, account isolation, pending orders without stock
   holds, pickup, delivery, feedback, and delivery disputes.
 - Rider: assignment isolation, Buyer/Rider messaging during delivery, OTP checks,
   delivery proof, COD submission, and post-delivery messaging restrictions.

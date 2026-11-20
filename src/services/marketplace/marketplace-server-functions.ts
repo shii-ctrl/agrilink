@@ -157,7 +157,13 @@ const checkoutInput = z.object({
   preferredSchedule: z.string().trim().max(255).optional(),
   deliveryInstructions: z.string().trim().max(2000).optional(),
   items: z
-    .array(z.object({ listingId: z.string().uuid(), quantityKg: z.number().positive().max(10000) }))
+    .array(
+      z.object({
+        listingId: z.string().uuid(),
+        quantityKg: z.number().positive().max(10000),
+        expectedUnitPrice: z.number().finite().nonnegative(),
+      }),
+    )
     .min(1)
     .max(20),
 });
@@ -175,12 +181,6 @@ const setCartItemInput = z.object({
   listingId: z.string().uuid(),
   quantityKg: z.number().min(0).max(10_000),
 });
-const CART_RESERVATION_MINUTES = 10;
-const CART_RESERVATION_MS = CART_RESERVATION_MINUTES * 60 * 1000;
-
-function nextCartReservationExpiry(now = new Date()) {
-  return new Date(now.getTime() + CART_RESERVATION_MS);
-}
 const workflowActionInput = z.object({
   orderNumber: z.string().trim().min(3).max(40),
 });
@@ -601,7 +601,6 @@ async function fetchMarketerListings(): Promise<MarketerMarketplaceProduct[]> {
 }
 
 export const getMarketplaceListings = createServerFn({ method: "GET" }).handler(async () => {
-  await expireAllBuyerCartReservations();
   return fetchListings();
 });
 
@@ -1445,7 +1444,6 @@ export const setMarketplaceListingStatus = createServerFn({ method: "POST" })
 export const getMarketplaceListing = createServerFn({ method: "GET" })
   .validator(listingInput)
   .handler(async ({ data }) => {
-    await expireAllBuyerCartReservations();
     const [listing] = await fetchListings(data.listingId);
     return listing ?? null;
   });
@@ -1628,7 +1626,6 @@ async function buyerCartRows(buyerId: string) {
       bundlePricePerKg: listings.bundlePricePerKg,
       bundleMinimumKg: listings.bundleMinimumKg,
       quantityKg: cartItems.quantityKg,
-      reservationExpiresAt: cartItems.reservationExpiresAt,
       availableKg: sql<string>`CASE WHEN ${listings.status} = 'published' AND ${products.active} = 1 AND ${listings.priceConfigured} = 1 THEN (
         SELECT COALESCE(SUM(stock.quantity_kg - stock.reserved_kg), 0)
         FROM inventory AS stock
@@ -1660,7 +1657,6 @@ async function buyerCartRows(buyerId: string) {
       bundleMinimumKg,
       quantityKg,
       availableKg: Math.max(0, Number(row.availableKg)),
-      reservationExpiresAt: row.reservationExpiresAt.toISOString(),
     };
   });
 }
@@ -1804,7 +1800,7 @@ async function releaseCartReservation(
     );
   }
   // Legacy carts may predate stock reservations. They have nothing to release,
-  // so their expired cart row can be safely removed by the caller.
+  // so explicit removal does not need to adjust inventory.
   if (reservedByInventory.size === 0) return;
 
   let remainingKg = quantityKg;
@@ -1836,69 +1832,9 @@ async function releaseCartReservation(
   }
 }
 
-/** Releases cart stock that was held for more than ten minutes without checkout. */
-async function expireBuyerCartReservations(buyerId: string) {
-  const { db } = await import("@/db/client.server");
-  const { cartItems, carts } = await import("@/db/schema");
-
-  await db.transaction(async (tx) => {
-    const [cart] = await tx
-      .select({ id: carts.id })
-      .from(carts)
-      .where(eq(carts.buyerId, buyerId))
-      .for("update");
-    if (!cart) return;
-
-    const expiredItems = await tx
-      .select({ id: cartItems.id, quantityKg: cartItems.quantityKg })
-      .from(cartItems)
-      .where(
-        and(
-          eq(cartItems.cartId, cart.id),
-          sql`${cartItems.reservationExpiresAt} <= UTC_TIMESTAMP()`,
-        ),
-      )
-      .for("update");
-
-    for (const item of expiredItems) {
-      await releaseCartReservation(tx, {
-        cartItemId: item.id,
-        quantityKg: Number(item.quantityKg),
-        recordedById: buyerId,
-        note: "Cart reservation expired after 10 minutes.",
-      });
-      await tx.delete(cartItems).where(eq(cartItems.id, item.id));
-    }
-  });
-}
-
-/**
- * Marketplace reads also clear expired holds, so stock returns even when the
- * original buyer closes their browser and never visits their cart again.
- */
-async function expireAllBuyerCartReservations() {
-  const { db } = await import("@/db/client.server");
-  const { cartItems, carts } = await import("@/db/schema");
-  const expiredCarts = await db
-    .select({ buyerId: carts.buyerId })
-    .from(carts)
-    .innerJoin(cartItems, eq(cartItems.cartId, carts.id))
-    .where(sql`${cartItems.reservationExpiresAt} <= UTC_TIMESTAMP()`);
-
-  for (const buyerId of new Set(expiredCarts.map((cart) => cart.buyerId))) {
-    await expireBuyerCartReservations(buyerId);
-  }
-}
-
-async function prepareBuyerCart(buyerId: string) {
-  await expireAllBuyerCartReservations();
-  await expireBuyerCartReservations(buyerId);
-}
-
 export const getBuyerCart = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
   const buyer = await requireRole("Buyer");
-  await prepareBuyerCart(buyer.id);
   return buyerCartRows(buyer.id);
 });
 
@@ -1907,7 +1843,6 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole } = await import("@/services/auth/auth-server");
     const buyer = await requireRole("Buyer");
-    await prepareBuyerCart(buyer.id);
     const { db } = await import("@/db/client.server");
     const { cartItems, carts } = await import("@/db/schema");
     await db.transaction(async (tx) => {
@@ -1933,7 +1868,6 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
           .update(cartItems)
           .set({
             quantityKg: nextQuantity.toFixed(2),
-            reservationExpiresAt: nextCartReservationExpiry(),
           })
           .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
       } else {
@@ -1942,7 +1876,6 @@ export const addBuyerCartItem = createServerFn({ method: "POST" })
           cartId: cart.id,
           listingId: data.listingId,
           quantityKg: data.quantityKg.toFixed(2),
-          reservationExpiresAt: nextCartReservationExpiry(),
         });
       }
       await reserveListingStock(tx, {
@@ -1962,7 +1895,6 @@ export const setBuyerCartItem = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole } = await import("@/services/auth/auth-server");
     const buyer = await requireRole("Buyer");
-    await prepareBuyerCart(buyer.id);
     const { db } = await import("@/db/client.server");
     const { cartItems, carts, listings, products } = await import("@/db/schema");
     await db.transaction(async (tx) => {
@@ -2016,7 +1948,6 @@ export const setBuyerCartItem = createServerFn({ method: "POST" })
         .update(cartItems)
         .set({
           quantityKg: data.quantityKg.toFixed(2),
-          reservationExpiresAt: nextCartReservationExpiry(),
         })
         .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, data.listingId)));
       if (updated.affectedRows !== 1) throw new Error("That item is no longer in your cart.");
@@ -2154,7 +2085,6 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const buyer = await requireRole("Buyer");
-    await prepareBuyerCart(buyer.id);
     const { db } = await import("@/db/client.server");
     const {
       listings,
@@ -2190,13 +2120,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
           quantityKg: cartItems.quantityKg,
         })
         .from(cartItems)
-        .where(
-          and(
-            eq(cartItems.cartId, cart.id),
-            inArray(cartItems.listingId, listingIds),
-            sql`${cartItems.reservationExpiresAt} > UTC_TIMESTAMP()`,
-          ),
-        );
+        .where(and(eq(cartItems.cartId, cart.id), inArray(cartItems.listingId, listingIds)));
       if (
         cartLines.length !== requestedItems.length ||
         requestedItems.some(
@@ -2206,7 +2130,7 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         )
       ) {
         throw new Error(
-          "Your cart session expired or changed. Refresh your cart before placing the order.",
+          "Your cart changed. Refresh your cart and review the items before placing the order.",
         );
       }
       // Pending orders do not hold stock. Confirmation allocates it atomically.
@@ -2234,7 +2158,8 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
         .from(listings)
         .innerJoin(products, eq(listings.productId, products.id))
         .innerJoin(classifications, eq(listings.classificationId, classifications.id))
-        .where(and(eq(listings.status, "published"), inArray(listings.id, listingIds)));
+        .where(and(eq(listings.status, "published"), inArray(listings.id, listingIds)))
+        .for("update");
 
       if (rows.length !== requestedItems.length) {
         throw new Error("One or more selected listings are no longer available.");
@@ -2246,7 +2171,17 @@ export const placeBuyerOrder = createServerFn({ method: "POST" })
       for (const item of requestedItems) {
         const row = rows.find((candidate) => candidate.listingId === item.listingId);
         if (!row) throw new Error("A selected listing could not be found.");
-        productsTotal += item.quantityKg * listingUnitPrice(row, item.quantityKg);
+        const unitPrice = listingUnitPrice(row, item.quantityKg);
+        if (
+          data.items.some(
+            (requested) =>
+              requested.listingId === item.listingId &&
+              Math.round(requested.expectedUnitPrice * 100) !== Math.round(unitPrice * 100),
+          )
+        ) {
+          throw new Error(`${row.name} has a new price. Review the updated cart before ordering.`);
+        }
+        productsTotal += item.quantityKg * unitPrice;
       }
       const [settings] = await tx
         .select({
@@ -3199,7 +3134,6 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { requireRole, writeAuditLog } = await import("@/services/auth/auth-server");
     const buyer = await requireRole("Buyer");
-    await prepareBuyerCart(buyer.id);
     const { db } = await import("@/db/client.server");
     const { cartItems, carts, listings, orderItems, orders } = await import("@/db/schema");
     const [order] = await db
@@ -3261,14 +3195,12 @@ export const rebuildBuyerCartFromOrder = createServerFn({ method: "POST" })
             cartId: cart.id,
             listingId,
             quantityKg: requestedKg.toFixed(2),
-            reservationExpiresAt: nextCartReservationExpiry(),
           });
         } else {
           await tx
             .update(cartItems)
             .set({
               quantityKg: (existingKg + requestedKg).toFixed(2),
-              reservationExpiresAt: nextCartReservationExpiry(),
             })
             .where(and(eq(cartItems.cartId, cart.id), eq(cartItems.listingId, listingId)));
         }

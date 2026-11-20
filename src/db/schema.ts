@@ -196,7 +196,7 @@ export const cartItems = mysqlTable(
     cartId: varchar("cart_id", { length: 36 }).notNull(),
     listingId: varchar("listing_id", { length: 36 }).notNull(),
     quantityKg: decimal("quantity_kg", { precision: 12, scale: 2 }).notNull(),
-    reservationExpiresAt: datetime("reservation_expires_at").notNull(),
+    reservationExpiresAt: datetime("reservation_expires_at"),
     createdAt,
     updatedAt,
   },

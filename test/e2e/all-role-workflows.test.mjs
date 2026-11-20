@@ -321,7 +321,7 @@ test(
               deliveryInstructions: "Isolated test only",
             }
           : {}),
-        items: [{ listingId, quantityKg: quantity }],
+        items: [{ listingId, quantityKg: quantity, expectedUnitPrice: quantity >= 10 ? 8 : 10 }],
       });
       async function place(quantity, fulfillment = "pickup") {
         await rpc(buyer, "addBuyerCartItem", { listingId, quantityKg: quantity });
@@ -806,7 +806,7 @@ test(
         },
       );
       await step(
-        "Buyer cancellations, Marketer rejections and expired carts keep stock unchanged",
+        "Buyer cancellations, Marketer rejections and persistent carts keep stock unchanged",
         async () => {
           const before = await stock();
           const cancelled = await place(1);
@@ -831,7 +831,84 @@ test(
             "UPDATE cart_items ci JOIN carts c ON c.id=ci.cart_id SET ci.reservation_expires_at=DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 MINUTE) WHERE c.buyer_id=?",
             [buyer.id],
           );
+          assert.equal((await rpc(buyer, "getBuyerCart"))[0].quantityKg, 1);
+          await rpc(null, "getMarketplaceListings");
+          assert.equal((await rpc(buyer, "getBuyerCart"))[0].quantityKg, 1);
+          const persistent = await rpc(buyer, "placeBuyerOrder", orderData(1));
+          await rpc(buyer, "releaseDatabaseOrder", {
+            orderNumber: persistent.orderNumber,
+            outcome: "cancelled",
+          });
+          assert.deepEqual(await stock(), before);
+        },
+      );
+      await step(
+        "Cart retains unavailable items and requires the current price at checkout",
+        async () => {
+          const before = await stock();
+          await rpc(buyer, "addBuyerCartItem", { listingId, quantityKg: 1 });
+          await pool.query(
+            "UPDATE marketplace_listings SET retail_price_per_kg=12,price_per_kg=12 WHERE id=?",
+            [listingId],
+          );
+          await assert.rejects(rpc(buyer, "placeBuyerOrder", orderData(1)), /new price/);
+          const cart = await rpc(buyer, "getBuyerCart");
+          assert.equal(cart[0].pricePerKg, 12);
+          assert.equal(cart[0].quantityKg, 1);
+          assert.deepEqual(await stock(), before);
+          const unreviewed = orderData(1);
+          delete unreviewed.items[0].expectedUnitPrice;
+          await assert.rejects(rpc(buyer, "placeBuyerOrder", unreviewed));
+          const reviewed = orderData(1);
+          reviewed.items[0].expectedUnitPrice = 12;
+          const placed = await rpc(buyer, "placeBuyerOrder", reviewed);
+          const [[saved]] = await pool.query(
+            "SELECT total_amount FROM orders WHERE order_number=?",
+            [placed.orderNumber],
+          );
+          assert.equal(Number(saved.total_amount), 12);
+          await rpc(buyer, "releaseDatabaseOrder", {
+            orderNumber: placed.orderNumber,
+            outcome: "cancelled",
+          });
+          await pool.query(
+            "UPDATE marketplace_listings SET retail_price_per_kg=10,price_per_kg=10 WHERE id=?",
+            [listingId],
+          );
+          await rpc(buyer, "addBuyerCartItem", { listingId, quantityKg: 1 });
+          await rpc(buyer, "setBuyerCartItem", { listingId, quantityKg: 2 });
+          await rpc(actors.RegisteredBuyer, "addBuyerCartItem", {
+            listingId,
+            quantityKg: before.available - 1,
+          });
+          const competing = await rpc(
+            actors.RegisteredBuyer,
+            "placeBuyerOrder",
+            orderData(before.available - 1),
+          );
+          await rpc(marketer, "confirmDatabaseOrder", { orderNumber: competing.orderNumber });
+          const short = (await rpc(buyer, "getBuyerCart"))[0];
+          assert.equal(short.quantityKg, 2);
+          assert.equal(short.availableKg, 1);
+          await assert.rejects(rpc(buyer, "placeBuyerOrder", orderData(2)));
+          await rpc(buyer, "setBuyerCartItem", { listingId, quantityKg: 1 });
+          await rpc(marketer, "releaseDatabaseOrder", {
+            orderNumber: competing.orderNumber,
+            outcome: "cancelled",
+          });
+          await pool.query("UPDATE marketplace_listings SET status='draft' WHERE id=?", [
+            listingId,
+          ]);
+          const unavailable = await rpc(buyer, "getBuyerCart");
+          assert.equal(unavailable[0].quantityKg, 1);
+          assert.equal(unavailable[0].availableKg, 0);
           await assert.rejects(rpc(buyer, "placeBuyerOrder", orderData(1)));
+          assert.equal((await rpc(buyer, "getBuyerCart")).length, 1);
+          await rpc(buyer, "setBuyerCartItem", { listingId, quantityKg: 0 });
+          assert.equal((await rpc(buyer, "getBuyerCart")).length, 0);
+          await pool.query("UPDATE marketplace_listings SET status='published' WHERE id=?", [
+            listingId,
+          ]);
           assert.deepEqual(await stock(), before);
         },
       );
