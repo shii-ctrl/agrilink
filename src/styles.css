@@ -561,3 +561,46 @@ input[type="number"] {
     background: white;
   }
 }
+
+/* The printable copy is a direct body child, outside the scrolling preview. */
+@media print {
+  body:has(> [data-delivery-receipt-print]) {
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body:has(> [data-delivery-receipt-print]) > :not([data-delivery-receipt-print]) {
+    display: none !important;
+  }
+
+  [data-delivery-receipt-print] {
+    display: block !important;
+    width: 100%;
+    color: black;
+    background: white;
+  }
+
+  [data-delivery-receipt-print] .delivery-receipt-paper {
+    padding: 0;
+  }
+
+  [data-delivery-receipt-print] .overflow-x-auto {
+    overflow: visible;
+  }
+
+  [data-delivery-receipt-print] table {
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
+    overflow-wrap: anywhere;
+  }
+
+  [data-delivery-receipt-print] thead {
+    display: table-header-group;
+  }
+
+  [data-delivery-receipt-print] tr {
+    break-inside: avoid;
+  }
+}

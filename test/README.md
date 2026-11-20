@@ -22,6 +22,9 @@ Coverage includes:
   holds, pickup, delivery, feedback, and delivery disputes.
 - Rider: assignment isolation, Buyer/Rider messaging during delivery, OTP checks,
   delivery proof, COD submission, and post-delivery messaging restrictions.
+- Delivery receipts: Marketer-only access after dispatch preparation, saved order
+  prices and delivery fees, COD due/collected/paid states, and no exposed delivery
+  OTP or internal Farmer allocations. Previewing does not change stock or payment.
 - Accounting: payment badges, cash payment, duplicate payment rejection, COD
   verification/closing, refunds, Farmer payouts, and locked daily cash closing.
 - Walk-ins: no buyer account, confirmation-only stock allocation, retries,

@@ -960,7 +960,56 @@ test(
           deliveryOrder = await rpc(buyer, "placeBuyerOrder", orderData(3, "delivery"));
           assert.equal(deliveryOrder.totalAmount, 55, "server controls delivery fee");
           await rpc(marketer, "confirmDatabaseOrder", { orderNumber: deliveryOrder.orderNumber });
+          await assert.rejects(
+            rpc(marketer, "getMarketerDeliveryReceipt", { orderNumber: deliveryOrder.orderNumber }),
+          );
           await prepare(deliveryOrder, "delivery");
+          const receiptStock = await stock();
+          const dispatchReceipt = await rpc(marketer, "getMarketerDeliveryReceipt", {
+            orderNumber: deliveryOrder.orderNumber,
+          });
+          assert.equal(dispatchReceipt.orderNumber, deliveryOrder.orderNumber);
+          assert.equal(dispatchReceipt.subtotal, 30);
+          assert.equal(dispatchReceipt.deliveryFee, 25);
+          assert.equal(dispatchReceipt.total, 55);
+          assert.equal(dispatchReceipt.amountDue, 55);
+          assert.equal(dispatchReceipt.paymentStatus, "cod");
+          assert.equal(dispatchReceipt.items[0].unitPrice, 10);
+          assert.equal(dispatchReceipt.items[0].quantity, 3);
+          assert.equal(dispatchReceipt.recipientName, "Buyer E2E");
+          assert.equal(dispatchReceipt.deliveryAddress, "Test address Quezon");
+          assert.ok(!("deliveryOtpCode" in dispatchReceipt));
+          assert.ok(!("allocations" in dispatchReceipt));
+          assert.deepEqual(await stock(), receiptStock);
+          const stillReady = await rpc(marketer, "getOrderDetails", {
+            orderNumber: deliveryOrder.orderNumber,
+          });
+          assert.equal(stillReady.fulfillmentStatus, "ready_for_dispatch");
+          assert.equal(stillReady.payment, null);
+          for (const actor of [null, buyer, farmer, rider, accountant, manager]) {
+            await assert.rejects(
+              rpc(actor, "getMarketerDeliveryReceipt", { orderNumber: deliveryOrder.orderNumber }),
+            );
+          }
+          await assert.rejects(
+            rpc(marketer, "getMarketerDeliveryReceipt", { orderNumber: pickupOrder.orderNumber }),
+          );
+          await pool.query(
+            "UPDATE marketplace_listings SET retail_price_per_kg=99,price_per_kg=99 WHERE id=?",
+            [listingId],
+          );
+          assert.equal(
+            (
+              await rpc(marketer, "getMarketerDeliveryReceipt", {
+                orderNumber: deliveryOrder.orderNumber,
+              })
+            ).items[0].unitPrice,
+            10,
+          );
+          await pool.query(
+            "UPDATE marketplace_listings SET retail_price_per_kg=10,price_per_kg=10 WHERE id=?",
+            [listingId],
+          );
           await assert.rejects(
             rpc(buyer, "assignDeliveryRider", {
               orderNumber: deliveryOrder.orderNumber,
@@ -1014,6 +1063,13 @@ test(
             }),
           );
           await rpc(rider, "submitDeliveryProof", proof);
+          const collectedReceipt = await rpc(marketer, "getMarketerDeliveryReceipt", {
+            orderNumber: deliveryOrder.orderNumber,
+          });
+          assert.equal(collectedReceipt.paymentStatus, "collected");
+          assert.equal(collectedReceipt.amountDue, 0);
+          assert.equal(collectedReceipt.collectedAmount, 55);
+          assert.equal(collectedReceipt.paymentReference, null);
           await assert.rejects(
             rpc(rider, "sendDirectMessage", {
               participantId: buyer.id,
@@ -1049,6 +1105,12 @@ test(
             ).paymentStatus,
             "Paid",
           );
+          const paidDeliveryReceipt = await rpc(marketer, "getMarketerDeliveryReceipt", {
+            orderNumber: deliveryOrder.orderNumber,
+          });
+          assert.equal(paidDeliveryReceipt.paymentStatus, "paid");
+          assert.equal(paidDeliveryReceipt.amountDue, 0);
+          assert.ok(paidDeliveryReceipt.paymentReference);
           assert.equal(
             (await rpc(accountant, "getWorkspaceSidebarBadges"))["/accounting/payments"],
             0,

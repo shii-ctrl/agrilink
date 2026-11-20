@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bike, MapPin, Phone, RefreshCw, Truck } from "lucide-react";
+import { Bike, MapPin, Phone, Printer, RefreshCw, Truck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@/lib/ui/toast";
 
@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { DeliveryReceiptDialog } from "@/features/marketplace/components/delivery-receipt-dialog";
+import type { DeliveryReceipt } from "@/features/marketplace/delivery-receipt";
+import { getMarketerDeliveryReceipt } from "@/services/marketplace/delivery-receipt-server-functions";
 import {
   assignDeliveryRider,
   getMarketerDeliveryOperations,
@@ -48,6 +51,21 @@ function MarketerDeliveriesPage() {
   const [assigningOrder, setAssigningOrder] = useState<string | null>(null);
   const [assignmentReasons, setAssignmentReasons] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<"active" | "completed">("active");
+  const [receipt, setReceipt] = useState<DeliveryReceipt | null>(null);
+  const [loadingReceipt, setLoadingReceipt] = useState<string | null>(null);
+
+  async function previewReceipt(orderNumber: string) {
+    setLoadingReceipt(orderNumber);
+    try {
+      setReceipt(await getMarketerDeliveryReceipt({ data: { orderNumber } }));
+    } catch (cause) {
+      toast.error("Could not load delivery receipt", {
+        description: cause instanceof Error ? cause.message : "Please try again.",
+      });
+    } finally {
+      setLoadingReceipt(null);
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -288,6 +306,18 @@ function MarketerDeliveriesPage() {
                       ) : null}
                     </div>
                     <div className="mt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mb-3 w-full rounded-full"
+                        disabled={loadingReceipt !== null}
+                        onClick={() => void previewReceipt(delivery.orderNumber)}
+                      >
+                        <Printer className="size-4" />
+                        {loadingReceipt === delivery.orderNumber
+                          ? "Loading receipt…"
+                          : "Print delivery receipt"}
+                      </Button>
                       <AppSelect
                         value={delivery.assignedRiderId ?? ""}
                         onValueChange={(riderId) => void assignRider(delivery.orderNumber, riderId)}
@@ -378,6 +408,7 @@ function MarketerDeliveriesPage() {
           </div>
         ) : null}
       </main>
+      <DeliveryReceiptDialog receipt={receipt} onOpenChange={(open) => !open && setReceipt(null)} />
     </MarketerLayout>
   );
 }
