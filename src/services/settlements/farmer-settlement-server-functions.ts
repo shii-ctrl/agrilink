@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { deliveryEarnings, earningsSummary } from "@/features/settlements/earnings-overview";
 
 import {
   FARMER_IPON_PER_KILOGRAM,
@@ -22,7 +23,7 @@ const totals = (rows: Array<Record<string, unknown>>) => ({
   netAmount: rows.reduce((sum, row) => sum + amount(row["netAmount"] as string), 0),
 });
 
-async function settlementRows() {
+async function settlementRows(farmerId?: string) {
   const { db } = await import("@/db/client.server");
   const { classifications, farmerEarnings, orders, products, receivingRecords, users } =
     await import("@/db/schema");
@@ -34,6 +35,7 @@ async function settlementRows() {
       receivingId: farmerEarnings.receivingId,
       receivedAt: receivingRecords.receivedAt,
       orderNumber: orders.orderNumber,
+      soldAt: orders.soldAt,
       source: orders.source,
       product: products.name,
       classification: classifications.name,
@@ -56,6 +58,7 @@ async function settlementRows() {
     .innerJoin(orders, eq(farmerEarnings.orderId, orders.id))
     .innerJoin(products, eq(farmerEarnings.productId, products.id))
     .innerJoin(classifications, eq(farmerEarnings.classificationId, classifications.id))
+    .where(farmerId ? eq(farmerEarnings.farmerId, farmerId) : undefined)
     .orderBy(desc(farmerEarnings.createdAt));
 }
 
@@ -108,7 +111,7 @@ async function payoutHistory(farmerId?: string) {
     .innerJoin(receivingRecords, eq(farmerPayouts.receivingId, receivingRecords.id))
     .where(farmerId ? eq(farmerPayouts.farmerId, farmerId) : undefined)
     .orderBy(desc(farmerPayouts.releasedAt));
-  const lines = await settlementRows();
+  const lines = await settlementRows(farmerId);
   return rows.map((row) => ({
     ...row,
     grossAmount: amount(row.grossAmount),
@@ -142,10 +145,57 @@ async function iponHistory(farmerId?: string) {
 export const getFarmerSettlementWorkspace = createServerFn({ method: "GET" }).handler(async () => {
   const { requireRole } = await import("@/services/auth/auth-server");
   const farmer = await requireRole("Farmer");
-  const rows = (await settlementRows()).filter((row) => row.farmerId === farmer.id);
+  const rows = await settlementRows(farmer.id);
+  const summary = earningsSummary(rows);
   const eligibleIpon = rows.filter((row) => row.status !== "pending_payment" && !row.iponReleaseId);
   const { db } = await import("@/db/client.server");
-  const { farmerEarnings } = await import("@/db/schema");
+  const {
+    farmerEarnings,
+    receivingRecords,
+    receivingClassifications,
+    products,
+    classifications,
+    inventory,
+  } = await import("@/db/schema");
+  const [deliveries, receivedClasses, stock, payouts, iponReleases] = await Promise.all([
+    db
+      .select({
+        id: receivingRecords.id,
+        product: products.name,
+        sellingUnit: products.sellingUnit,
+        receivedQuantity: receivingRecords.totalKg,
+        receivedAt: receivingRecords.receivedAt,
+      })
+      .from(receivingRecords)
+      .innerJoin(products, eq(receivingRecords.productId, products.id))
+      .where(eq(receivingRecords.farmerId, farmer.id))
+      .orderBy(desc(receivingRecords.receivedAt)),
+    db
+      .select({
+        receivingId: receivingRecords.id,
+        classification: classifications.name,
+        quantity: receivingClassifications.quantityKg,
+      })
+      .from(receivingRecords)
+      .innerJoin(
+        receivingClassifications,
+        eq(receivingClassifications.receivingId, receivingRecords.id),
+      )
+      .innerJoin(classifications, eq(receivingClassifications.classificationId, classifications.id))
+      .where(eq(receivingRecords.farmerId, farmer.id)),
+    db
+      .select({
+        receivingId: inventory.receivingId,
+        classification: classifications.name,
+        quantity: inventory.quantityKg,
+        reserved: inventory.reservedKg,
+      })
+      .from(inventory)
+      .innerJoin(classifications, eq(inventory.classificationId, classifications.id))
+      .where(eq(inventory.farmerId, farmer.id)),
+    payoutHistory(farmer.id),
+    iponHistory(farmer.id),
+  ]);
   const [iponRow] = await db
     .select({ total: sql<string>`COALESCE(SUM(${farmerEarnings.iponContribution}), 0)` })
     .from(farmerEarnings)
@@ -157,11 +207,13 @@ export const getFarmerSettlementWorkspace = createServerFn({ method: "GET" }).ha
       ),
     );
   return {
+    summary,
+    deliveries: deliveryEarnings(deliveries, receivedClasses, stock, rows),
     available: groupAvailable(rows),
-    availableTotal: totals(rows.filter((row) => row.status === "available")).netAmount,
+    availableTotal: summary.availableCash,
     iponBalance: amount(iponRow?.total),
-    payouts: await payoutHistory(farmer.id),
-    iponReleases: await iponHistory(farmer.id),
+    payouts,
+    iponReleases,
     policy: {
       serviceFeePerKilogram: FARMER_SERVICE_FEE_PER_KILOGRAM,
       iponPerKilogram: FARMER_IPON_PER_KILOGRAM,

@@ -480,6 +480,16 @@ function FarmerPlantingsPage() {
                   </section>
                   <section className="rounded-3xl border border-border bg-card p-5 shadow-card">
                     <h3 className="font-semibold">Sales, deductions, and cash</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Profit includes your IPON savings. Cash released shows only earnings already
+                      paid to you.
+                    </p>
+                    <Link
+                      to="/farmer/earnings"
+                      className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-4"
+                    >
+                      View delivery breakdowns and payout receipts
+                    </Link>
                     <dl className="mt-4 space-y-3 text-sm">
                       {[
                         ["Gross sales", selected.summary.grossSales],

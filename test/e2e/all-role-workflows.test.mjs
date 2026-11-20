@@ -607,6 +607,13 @@ test(
             { physical: 23, reserved: 0, available: 23 },
             "receiving retry does not duplicate stock",
           );
+          const ownEarnings = await rpc(farmer, "getFarmerSettlementWorkspace");
+          const unsold = ownEarnings.deliveries.find((row) => row.id === receivingIds[0]);
+          assert.equal(unsold.receivedQuantity, "3.00");
+          assert.equal(unsold.remainingQuantity, 3);
+          assert.equal(unsold.soldQuantity, 0);
+          assert.equal(unsold.summary.grossSales, 0);
+          assert.ok(!ownEarnings.deliveries.some((row) => row.id === receivingIds[1]));
           await assert.rejects(
             rpc(farmer, "linkFarmerPlantingDelivery", {
               plantingId,
@@ -747,6 +754,12 @@ test(
           );
           await rpc(marketer, "confirmDatabaseOrder", { orderNumber: pickupOrder.orderNumber });
           assert.equal((await stock()).reserved, 4);
+          const confirmedDelivery = (
+            await rpc(farmer, "getFarmerSettlementWorkspace")
+          ).deliveries.find((row) => row.id === receivingIds[0]);
+          assert.equal(confirmedDelivery.reservedQuantity, 3);
+          assert.equal(confirmedDelivery.soldQuantity, 0);
+          assert.equal(confirmedDelivery.summary.grossSales, 0);
           await assert.rejects(
             rpc(marketer, "confirmDatabaseOrder", { orderNumber: pickupOrder.orderNumber }),
           );
@@ -760,6 +773,21 @@ test(
           });
           await rpc(marketer, "markDatabaseOrderSold", { orderNumber: pickupOrder.orderNumber });
           assert.deepEqual(await stock(), { physical: 19, reserved: 0, available: 19 });
+          const pendingEarnings = await rpc(farmer, "getFarmerSettlementWorkspace");
+          const soldDelivery = pendingEarnings.deliveries.find((row) => row.id === receivingIds[0]);
+          assert.equal(soldDelivery.soldQuantity, 3);
+          assert.equal(soldDelivery.remainingQuantity, 0);
+          assert.equal(
+            soldDelivery.classifications.find((row) => row.classification === "Good").soldQuantity,
+            3,
+          );
+          assert.equal(soldDelivery.summary.grossSales, 30);
+          assert.equal(soldDelivery.summary.serviceFee, 3.75);
+          assert.equal(soldDelivery.summary.iponSavings, 1.5);
+          assert.equal(soldDelivery.summary.awaitingPayment, 24.75);
+          assert.equal(soldDelivery.summary.availableCash, 0);
+          assert.equal(pendingEarnings.iponBalance, 0);
+          assert.equal(soldDelivery.lines[0].orderNumber, pickupOrder.orderNumber);
           await assert.rejects(
             rpc(marketer, "recordDatabasePayment", {
               orderNumber: pickupOrder.orderNumber,
@@ -790,6 +818,15 @@ test(
             0,
           );
           assert.equal((await rpc(farmer, "getFarmerSettlementWorkspace")).availableTotal, 24.75);
+          const readyEarnings = await rpc(farmer, "getFarmerSettlementWorkspace");
+          assert.equal(readyEarnings.summary.awaitingPayment, 0);
+          assert.equal(readyEarnings.summary.availableCash, 24.75);
+          assert.equal(readyEarnings.summary.paidCash, 0);
+          assert.equal(readyEarnings.iponBalance, 1.5);
+          assert.equal(
+            readyEarnings.deliveries.find((row) => row.id === receivingIds[0]).lines[0].status,
+            "available",
+          );
           const planting = (await rpc(farmer, "getFarmerPlantingWorkspace")).plantings.find(
             (row) => row.id === plantingId,
           );
@@ -1172,6 +1209,25 @@ test(
             assert.equal(after.availableTotal, 0);
             assert.ok(after.payouts.length);
             assert.ok(after.iponBalance > 0);
+            assert.equal(after.summary.availableCash, 0);
+            assert.equal(
+              after.summary.paidCash,
+              Number(after.payouts.reduce((sum, payout) => sum + payout.netAmount, 0).toFixed(2)),
+            );
+            const paidLines = after.deliveries
+              .flatMap((delivery) => delivery.lines)
+              .filter((line) => line.status === "paid");
+            assert.ok(paidLines.length);
+            assert.ok(
+              paidLines.every((line) =>
+                after.payouts.some((payout) => payout.id === line.payoutId),
+              ),
+            );
+            assert.ok(
+              after.deliveries.every((delivery) =>
+                delivery.lines.every((line) => line.farmerId === owner.id),
+              ),
+            );
           }
           const preview = await rpc(accountant, "getDailyCashClosingPreview", { date: today });
           assert.ok(preview.preview);

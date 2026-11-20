@@ -83,7 +83,7 @@ export function SettlementReceiptDialog({
             <DialogFooter className="mt-6 print:hidden">
               <Button className="rounded-full" onClick={() => window.print()}>
                 <Printer className="size-4" />
-                Print receipt
+                Print / Save PDF
               </Button>
             </DialogFooter>
           </div>

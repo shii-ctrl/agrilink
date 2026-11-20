@@ -29,6 +29,9 @@ Coverage includes:
 - Farmer planting costs: dated expenses and corrections, account isolation, unique
   delivery links, online/walk-in sales attribution, IPON separation, and preserved
   payouts when costs or delivery links change.
+- Farmer earnings: unsold deliveries, reserved versus sold products, per-delivery
+  sales and deductions, pending/available/paid cash, payout receipt references,
+  and isolation from other Farmers' deliveries and earnings.
 - Community: questions, replies, reactions, Management resolution, closed comments,
   allowed private conversations, and notification ownership.
 - Dashboards and reports reload both before and after saved transactions.

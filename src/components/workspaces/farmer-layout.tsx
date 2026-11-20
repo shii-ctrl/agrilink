@@ -34,7 +34,7 @@ import {
 const nav = [
   { label: "Dashboard", to: "/farmer", icon: Sprout },
   { label: "Receiving History", to: "/farmer/receiving", icon: PackageCheck },
-  { label: "Earnings & IPON", to: "/farmer/earnings", icon: PiggyBank },
+  { label: "My Earnings", to: "/farmer/earnings", icon: PiggyBank },
   { label: "Costs & Profit", to: "/farmer/plantings", icon: Calculator },
   { label: "Ask Crop AI", to: "/farmer/crop-ai", icon: Bot },
   { label: "Community", to: "/farmer/community", icon: MessageCircle },

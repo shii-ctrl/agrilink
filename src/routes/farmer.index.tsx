@@ -29,7 +29,7 @@ function FarmerDashboard() {
     <FarmerLayout>
       <FarmerPageHeader
         title="Farmer Dashboard"
-        description="View receiving information and current product availability as a PROCY farmer member."
+        description="Check your deliveries, money ready to collect, and farming costs in one place."
       />
       <main className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
         <WorkspaceLoadState
@@ -49,23 +49,24 @@ function FarmerDashboard() {
               />
               <Tile
                 icon={WalletCards}
-                title="Available earnings"
-                text={`${settlementMoney(data?.settlement.availableTotal ?? 0)} remains available until Accounting gives you the cash.`}
+                title="Money ready to collect"
+                text={`${settlementMoney(data?.settlement.availableTotal ?? 0)} ready from Accounting. ${settlementMoney(data?.settlement.summary.awaitingPayment ?? 0)} still awaits buyer payment.`}
                 to="/farmer/earnings"
               />
               <Tile
                 icon={PiggyBank}
-                title="IPON"
+                title="My IPON savings"
                 text={`${settlementMoney(data?.settlement.iponBalance ?? 0)} is currently saved for your December release.`}
                 to="/farmer/earnings"
               />
             </section>
             <section className="mt-6 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
               <div className="border-b border-border px-6 py-5">
-                <h2 className="text-lg font-semibold">Sales and payment status</h2>
+                <h2 className="text-lg font-semibold">Understand your earnings</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Your receiving page shows the marketplace status of each product you supplied.
-                  Buyer contact details are intentionally never shared in this view.
+                  My Earnings shows each delivery, what sold, service fees, IPON savings, and
+                  payment receipts. Costs &amp; Profit compares your recorded expenses with sales
+                  from each planting.
                 </p>
               </div>
               <p className="px-6 py-8 text-sm text-muted-foreground">
@@ -73,6 +74,14 @@ function FarmerDashboard() {
                   ? `${listedCount} of your classified product record${listedCount === 1 ? " is" : "s are"} listed for buyers. Open Receiving History for the full status table.`
                   : "No classified product record has been saved for your account yet."}
               </p>
+              <div className="flex flex-wrap gap-3 px-6 pb-6">
+                <Button asChild className="rounded-full">
+                  <Link to="/farmer/earnings">View My Earnings</Link>
+                </Button>
+                <Button asChild variant="outline" className="rounded-full">
+                  <Link to="/farmer/plantings">View Costs &amp; Profit</Link>
+                </Button>
+              </div>
             </section>
           </>
         )}
